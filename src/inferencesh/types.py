@@ -117,7 +117,6 @@ class ClientToolConfigDTO(TypedDict, total=False):
 class CoreAppConfig(TypedDict, total=False):
     id: str
     version_id: str
-    app: App
 
 class Agent(TypedDict, total=False):
     # Basic info
@@ -310,6 +309,8 @@ class PartialFile(TypedDict, total=False):
     filename: str
 
 class FileCreateRequest(TypedDict, total=False):
+    # Category determines the storage path prefix: "uploads" (default), "inputs", "outputs", "repos"
+    category: str
     files: List[PartialFile]
 
 class CreateFlowRequest(TypedDict, total=False):
