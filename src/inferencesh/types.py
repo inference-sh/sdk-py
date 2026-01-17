@@ -145,6 +145,10 @@ class AgentVersion(TypedDict, total=False):
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
+    # Display images
+    card_image: str
+    banner_image: str
+    thumbnail_image: str
 
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
@@ -163,6 +167,10 @@ class AgentVersionDTO(TypedDict, total=False):
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
+    # Display images
+    card_image: str
+    banner_image: str
+    thumbnail_image: str
 
 # AgentRuntimeConfig is a self-contained, flattened config for chat execution.
 # This is either snapshotted from an Agent template or provided ad-hoc.
@@ -515,8 +523,8 @@ class AppVersion(TypedDict, total=False):
     app_id: str
     metadata: Dict[str, Any]
     repository: str
-    flow_id: str
-    flow: Flow
+    flow_version_id: str
+    flow_version: FlowVersion
     setup_schema: Any
     input_schema: Any
     output_schema: Any
@@ -547,7 +555,8 @@ class AppVersionDTO(TypedDict, total=False):
     short_id: str
     metadata: Dict[str, Any]
     repository: str
-    flow: FlowDTO
+    flow_version_id: str
+    flow_version: FlowVersionDTO
     setup_schema: Any
     input_schema: Any
     output_schema: Any
@@ -822,12 +831,11 @@ class FileDTO(TypedDict, total=False):
 ##########
 # source: flow.go
 
-class Flow(TypedDict, total=False):
-    name: str
-    description: str
-    card_image: str
-    thumbnail: str
-    banner_image: str
+class FlowVersion(TypedDict, total=False):
+    flow_id: str
+    # Short ID for human-readable version references (e.g., "abc123")
+    short_id: str
+    # Flow graph configuration
     input_schema: Any
     input: FlowRunInputs
     output_schema: Any
@@ -884,12 +892,8 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping.
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
-class FlowDTO(TypedDict, total=False):
-    name: str
-    description: str
-    card_image: str
-    thumbnail: str
-    banner_image: str
+class FlowVersionDTO(TypedDict, total=False):
+    short_id: str
     input_schema: Any
     input: FlowRunInputs
     output_schema: Any
@@ -1230,10 +1234,9 @@ class TaskDTO(TypedDict, total=False):
     function: str
     infra: Infra
     workers: List[str]
-    flow_id: str
     flow_run_id: str
-    sub_flow_run_id: str
     chat_id: str
+    sub_flow_run_id: str
     agent_id: str
     agent_version_id: str
     agent: AgentDTO
