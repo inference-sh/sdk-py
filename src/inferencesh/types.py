@@ -1473,6 +1473,7 @@ class UsageEvent(TypedDict, total=False):
 class UsageBillingRecord(TypedDict, total=False):
     # Fee breakdown (all in microcents)
     total: int
+    discount: int
     # User debit (total charged)
     user_debit_transaction_id: str
     user_debit_transaction: Transaction
@@ -1580,7 +1581,24 @@ class WidgetNodeType(str, Enum):
     CHECKBOX = "checkbox"
     ROW = "row"
     COL = "col"
-    # Data-bound node types (read from ToolInvocation.Data via DataKey)
+    # Layout node types
+    BOX = "box"
+    SPACER = "spacer"
+    DIVIDER = "divider"
+    FORM = "form"
+    # Typography node types
+    TITLE = "title"
+    CAPTION = "caption"
+    LABEL = "label"
+    # Control node types
+    TEXTAREA = "textarea"
+    RADIO_GROUP = "radio-group"
+    DATE_PICKER = "date-picker"
+    # Content node types
+    ICON = "icon"
+    CHART = "chart"
+    TRANSITION = "transition"
+    # Data-bound node types (deprecated - use templates instead)
     PLAN_LIST = "plan-list"
     KEY_VALUE = "key-value"
     STATUS_BADGE = "status-badge"
@@ -1601,8 +1619,48 @@ class WidgetNode(TypedDict, total=False):
     defaultChecked: bool
     children: List[WidgetNode]
     gap: int
-    # Data binding - for data-bound node types, specifies which key in ToolInvocation.Data to read
-    # Empty string means read entire Data object (useful for key-value display)
+    # Layout props (Box, Row, Col, Form)
+    align: str
+    justify: str
+    padding: Any
+    background: Any
+    radius: str
+    direction: str
+    wrap: str
+    flex: Any
+    # Typography props (Text, Title, Caption, Label)
+    size: str
+    weight: str
+    color: Any
+    textAlign: str
+    truncate: bool
+    maxLines: int
+    # Control props (Input, Textarea, Select, Checkbox, RadioGroup, DatePicker, Button)
+    disabled: bool
+    required: bool
+    rows: int
+    fieldName: str
+    submit: bool
+    pattern: str
+    min: str
+    max: str
+    clearable: bool
+    # Content props (Icon, Spacer, Divider, Chart)
+    iconName: str
+    spacing: Any
+    minSize: Any
+    height: Any
+    width: Any
+    # Chart specific props
+    chartData: Any
+    chartSeries: Any
+    xAxis: Any
+    showYAxis: bool
+    showLegend: bool
+    showTooltip: bool
+    # Form-specific props
+    onSubmitAction: WidgetAction
+    # Data binding (deprecated - use templates instead)
     dataKey: str
 
 # WidgetSelectOption represents an option in a select widget
