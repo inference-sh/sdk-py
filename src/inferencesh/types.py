@@ -811,6 +811,12 @@ class FileDTO(TypedDict, total=False):
 # source: flow.go
 
 class FlowVersion(TypedDict, total=False):
+    # Permission fields - nullable for migration from existing data
+    # After migration these will be populated from parent Flow
+    user_id: str
+    user: User
+    team_id: str
+    team: Team
     flow_id: str
     # Short ID for human-readable version references (e.g., "abc123")
     short_id: str
