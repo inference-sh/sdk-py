@@ -36,7 +36,7 @@ from .types import TaskStatus, ChatMessageStatus
 from .models.errors import APIError, RequirementsNotMetError, RequirementError, SetupAction
 
 # Agent SDK (headless)
-from .agent import Agent, AsyncAgent, AgentConfig, ToolCallInfo
+from .agent import Agent, AsyncAgent, ToolCallInfo
 
 # Tool Builder (fluent API)
 from .tools import (
@@ -66,7 +66,7 @@ from .types import (
     # Agent types
     AgentTool,
     AgentToolDTO,
-    AgentRuntimeConfig,
+    AgentConfig,
     InternalToolsConfig,
     # Chat types
     ChatDTO,
@@ -162,7 +162,7 @@ __all__ = [
     "Agent",
     "AgentTool",
     "AgentToolDTO",
-    "AgentRuntimeConfig",
+    "AgentConfig",
     # Generated types - Chat
     "ChatDTO",
     "ChatMessageDTO",
@@ -182,7 +182,6 @@ __all__ = [
     "Agent",
     "AsyncAgent",
     "AgentConfig",
-    "AgentRuntimeConfig",
     "InternalToolsConfig",
     "ToolCallInfo",
     # Tool Builder

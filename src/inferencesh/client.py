@@ -41,7 +41,7 @@ def is_message_ready(status: str | None) -> bool:
 
 
 if TYPE_CHECKING:
-    from .types import AgentRuntimeConfig
+    from .types import AgentConfig
     from .agent import Agent, AsyncAgent
 
 
@@ -875,7 +875,7 @@ class Inference:
 
         return input_value
 
-    def agent(self, config: Union[str, "AgentRuntimeConfig"]) -> "Agent":
+    def agent(self, config: Union[str, "AgentConfig"]) -> "Agent":
         """Create an agent for chat interactions.
         
         Args:
@@ -890,7 +890,7 @@ class Inference:
             agent = client.agent('okaris/assistant@abc123')
             
             # Ad-hoc agent
-            agent = client.agent(AgentRuntimeConfig(
+            agent = client.agent(AgentConfig(
                 core_app_ref='infsh/claude-sonnet-4@xyz789',
                 system_prompt='You are a helpful assistant',
             ))
@@ -899,10 +899,9 @@ class Inference:
             response = agent.send_message('Hello!')
             ```
         """
-        from .agent import Agent, AgentConfig
+        from .agent import Agent
         
-        agent_config = AgentConfig(api_key=self._api_key, base_url=self._base_url)
-        return Agent(agent_config, config)
+        return Agent(self, config)
 
 
 class AsyncInference:
@@ -1319,7 +1318,7 @@ class AsyncInference:
                 except json.JSONDecodeError:
                     continue
 
-    def agent(self, config: Union[str, "AgentRuntimeConfig"]) -> "AsyncAgent":
+    def agent(self, config: Union[str, "AgentConfig"]) -> "AsyncAgent":
         """Create an async agent for chat interactions.
         
         Args:
@@ -1337,10 +1336,9 @@ class AsyncInference:
             response = await agent.send_message('Hello!')
             ```
         """
-        from .agent import AsyncAgent, AgentConfig
+        from .agent import AsyncAgent
         
-        agent_config = AgentConfig(api_key=self._api_key, base_url=self._base_url)
-        return AsyncAgent(agent_config, config)
+        return AsyncAgent(self, config)
 
 
 # --------------- small async utilities ---------------

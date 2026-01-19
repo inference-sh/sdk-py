@@ -118,10 +118,18 @@ class CoreAppConfig(TypedDict, total=False):
     id: str
     version_id: str
 
+# AgentImages contains display images for an agent (like AppImages)
+class AgentImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+
 class Agent(TypedDict, total=False):
     # Basic info
     namespace: str
     name: str
+    # Display images (like App)
+    images: AgentImages
     version_id: str
     version: AgentVersion
 
@@ -129,26 +137,36 @@ class Agent(TypedDict, total=False):
 class AgentDTO(TypedDict, total=False):
     namespace: str
     name: str
+    # Display images (like AppDTO)
+    images: AgentImages
     version_id: str
     version: AgentVersionDTO
 
-class AgentVersion(TypedDict, total=False):
-    agent_id: str
+# AgentConfig contains the shared configuration fields for agent execution.
+# This is embedded by both AgentVersion (DB model) and API request structs.
+# Using Go embedding flattens these fields in JSON serialization.
+class AgentConfig(TypedDict, total=False):
     description: str
     system_prompt: str
     example_prompts: List[str]
+    # Core LLM configuration
+    # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
+    core_app_ref: str
     core_app: CoreAppConfig
     core_app_input: Any
-    # Unified tools array (apps, agents, hooks)
+    # Tools (apps, agents, hooks, client tools)
     tools: List[Optional[AgentTool]]
     # Internal tools configuration (plan, memory, widget, finish)
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
-    # Display images
-    card_image: str
-    banner_image: str
-    thumbnail_image: str
+
+class AgentVersion(TypedDict, total=False):
+    agent_id: str
+    # Short ID for human-readable version references (e.g., "abc123")
+    short_id: str
+    # ConfigHash for deduplication - SHA256 of config content
+    config_hash: str
 
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
@@ -166,53 +184,6 @@ class AgentVersionDTO(TypedDict, total=False):
     # Internal tools configuration (plan, memory, widget, finish)
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
-    output_schema: Any
-    # Display images
-    card_image: str
-    banner_image: str
-    thumbnail_image: str
-
-# AgentRuntimeConfig is a self-contained, flattened config for chat execution.
-# This is either snapshotted from an Agent template or provided ad-hoc.
-# It's portable and can be serialized to JSON or YAML.
-class AgentRuntimeConfig(TypedDict, total=False):
-    # Origin tracking (optional, for lineage when snapshotted from template)
-    agent_id: str
-    agent_version_id: str
-    # Identity
-    name: str
-    namespace: str
-    description: str
-    # Prompts
-    system_prompt: str
-    example_prompts: List[str]
-    # Core LLM
-    # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs
-    # CoreApp is the resolved config - populated by backend after resolving CoreAppRef
-    core_app_ref: str
-    core_app: CoreAppConfig
-    core_app_input: Any
-    # Tools (apps, agents, hooks, client tools)
-    tools: List[Optional[AgentTool]]
-    # Internal tools configuration (plan, memory, widget, finish)
-    internal_tools: InternalToolsConfig
-    # Output schema for custom finish tool (sub-agents only)
-    output_schema: Any
-
-# AgentRuntimeConfigDTO for API responses
-class AgentRuntimeConfigDTO(TypedDict, total=False):
-    agent_id: str
-    agent_version_id: str
-    name: str
-    namespace: str
-    description: str
-    system_prompt: str
-    example_prompts: List[str]
-    core_app_ref: str
-    core_app: CoreAppConfigDTO
-    core_app_input: Any
-    tools: List[Optional[AgentToolDTO]]
-    internal_tools: InternalToolsConfig
     output_schema: Any
 
 
@@ -262,7 +233,9 @@ class ApiAgentRunRequest(TypedDict, total=False):
     # Ad-hoc agent configuration
     # For ad-hoc agents, set core_app_ref to the LLM app reference
     # Example: { "core_app_ref": "infsh/claude-sonnet-4@abc123", "system_prompt": "..." }
-    agent_config: AgentRuntimeConfig
+    agent_config: AgentConfig
+    # Optional name for the adhoc agent (used for deduplication and display)
+    agent_name: str
     # The message to send
     input: ChatTaskInput
     # If true, returns SSE stream instead of JSON response
@@ -278,7 +251,9 @@ class CreateAgentMessageRequest(TypedDict, total=False):
     integration_context: IntegrationContext
     # Ad-hoc agent config - use this instead of Agent for embedded configs
     # If provided, creates a chat with this config directly (no agent reference)
-    agent_config: AgentRuntimeConfig
+    agent_config: AgentConfig
+    # Optional name for the adhoc agent (used for deduplication and display)
+    agent_name: str
 
 class CreateAgentMessageResponse(TypedDict, total=False):
     user_message: ChatMessageDTO
@@ -713,7 +688,11 @@ class ChatDTO(TypedDict, total=False):
     parent: ChatDTO
     children: List[Optional[ChatDTO]]
     status: ChatStatus
-    agent_config: AgentRuntimeConfigDTO
+    # Agent version reference
+    agent_id: str
+    agent: AgentDTO
+    agent_version_id: str
+    agent_version: AgentVersionDTO
     name: str
     description: str
     chat_messages: List[ChatMessageDTO]
@@ -835,6 +814,8 @@ class FlowVersion(TypedDict, total=False):
     flow_id: str
     # Short ID for human-readable version references (e.g., "abc123")
     short_id: str
+    # ConfigHash for deduplication - SHA256 of config content
+    config_hash: str
     # Flow graph configuration
     input_schema: Any
     input: FlowRunInputs

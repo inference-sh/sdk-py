@@ -7,28 +7,24 @@ Chat with AI agents without UI dependencies.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Callable, Iterator, AsyncIterator
+from typing import Any, Dict, Optional, Callable, Iterator, AsyncIterator, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .types import (
     ChatDTO,
     ChatMessageDTO,
-    AgentRuntimeConfig,
+    AgentConfig,
     ToolType,
     ToolInvocationStatus,
 )
 from .client import StreamManager
 
-
-@dataclass
-class AgentConfig:
-    """Configuration for the Agent client."""
-    api_key: str
-    base_url: str = "https://api.inference.sh"
+if TYPE_CHECKING:
+    from .client import Inference, AsyncInference
 
 
 # Agent options: either a template ref string or an ad-hoc config dict
-AgentOptions = str | AgentRuntimeConfig
+AgentOptions = str | AgentConfig
 
 
 @dataclass
@@ -43,12 +39,12 @@ class Agent:
     """
     Headless agent client for chat interactions.
     
+    Created via `client.agent()` - do not instantiate directly.
+    
     Example:
         ```python
-        config = AgentConfig(api_key="your-key")
-        options = AgentRuntimeConfig(core_app_ref="infsh/claude-sonnet-4@abc123")
-        
-        agent = Agent(config, options)
+        client = Inference(api_key="your-key")
+        agent = client.agent(AgentConfig(core_app_ref="infsh/claude-sonnet-4@abc123"))
         
         # Send a message
         response = agent.send_message("Hello!")
@@ -59,12 +55,22 @@ class Agent:
         ```
     """
     
-    def __init__(self, config: AgentConfig, options: AgentOptions):
-        self._api_key = config.api_key
-        self._base_url = config.base_url
+    def __init__(self, client: "Inference", options: AgentOptions):
+        """Internal constructor - use client.agent() instead."""
+        self._client = client
         self._options = options
         self._chat_id: Optional[str] = None
         self._dispatched_tools: set[str] = set()  # tool invocation ids we've already processed
+    
+    @property
+    def _api_key(self) -> str:
+        """Delegate to client's API key."""
+        return self._client._api_key
+    
+    @property
+    def _base_url(self) -> str:
+        """Delegate to client's base URL."""
+        return self._client._base_url
     
     @property
     def chat_id(self) -> Optional[str]:
@@ -112,7 +118,9 @@ class Agent:
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "input": input_data}
+            # For ad-hoc agents, extract agent_name from config if present
+            agent_name = self._options.get("agent_name") if hasattr(self._options, "get") else None
+            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
         
         response = self._request("post", "/agents/run", data=body)
         if not response:
@@ -531,13 +539,26 @@ class Agent:
 # =============================================================================
 
 class AsyncAgent:
-    """Async version of the Agent client."""
+    """Async version of the Agent client.
     
-    def __init__(self, config: AgentConfig, options: AgentOptions):
-        self._api_key = config.api_key
-        self._base_url = config.base_url
+    Created via `client.agent()` - do not instantiate directly.
+    """
+    
+    def __init__(self, client: "AsyncInference", options: AgentOptions):
+        """Internal constructor - use client.agent() instead."""
+        self._client = client
         self._options = options
         self._chat_id: Optional[str] = None
+    
+    @property
+    def _api_key(self) -> str:
+        """Delegate to client's API key."""
+        return self._client._api_key
+    
+    @property
+    def _base_url(self) -> str:
+        """Delegate to client's base URL."""
+        return self._client._base_url
     
     @property
     def chat_id(self) -> Optional[str]:
@@ -550,7 +571,9 @@ class AsyncAgent:
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "input": input_data}
+            # For ad-hoc agents, extract agent_name from config if present
+            agent_name = self._options.get("agent_name") if hasattr(self._options, "get") else None
+            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
         
         response = await self._request("post", "/agents/run", data=body)
         
