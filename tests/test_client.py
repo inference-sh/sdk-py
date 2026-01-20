@@ -77,7 +77,7 @@ def patch_requests(monkeypatch):
             # Minimal SSE: send a completed event
             event_payload = json.dumps({
                 "id": "task_123",
-                "status": 9,  # COMPLETED
+                "status": 10,  # COMPLETED (after CANCELLING=8 was added)
                 "output": {"ok": True},
                 "logs": ["done"],
             })
@@ -274,10 +274,11 @@ def test_task_status_enum():
     assert TaskStatus.SERVING == 5
     assert TaskStatus.SETTING_UP == 6
     assert TaskStatus.RUNNING == 7
-    assert TaskStatus.UPLOADING == 8
-    assert TaskStatus.COMPLETED == 9
-    assert TaskStatus.FAILED == 10
-    assert TaskStatus.CANCELLED == 11
+    assert TaskStatus.CANCELLING == 8
+    assert TaskStatus.UPLOADING == 9
+    assert TaskStatus.COMPLETED == 10
+    assert TaskStatus.FAILED == 11
+    assert TaskStatus.CANCELLED == 12
 
 
 # ==================== Async Tests ====================
@@ -378,7 +379,7 @@ class MockClientSession:
         if url.endswith("/tasks/task_async_123/stream") and method.upper() == "GET":
             event_payload = json.dumps({
                 "id": "task_async_123",
-                "status": 9,  # COMPLETED
+                "status": 10,  # COMPLETED (after CANCELLING=8 was added)
                 "output": {"async_ok": True},
                 "logs": ["async_done"],
             })
