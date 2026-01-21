@@ -360,7 +360,8 @@ def build_messages(
     if hasattr(input_data, "reasoning"):
         user_input_reasoning = input_data.reasoning
         
-    multipart = any(m.images or m.files or m.reasoning for m in input_data.context)
+    # Check if ANY message (including current user input) has images/files/reasoning
+    multipart = any(m.images or m.files or m.reasoning for m in input_data.context) or user_input_images or user_input_files or user_input_reasoning
 
     input_role = input_data.role if hasattr(input_data, "role") else ContextMessageRole.USER
     input_tool_call_id = input_data.tool_call_id if hasattr(input_data, "tool_call_id") else None
