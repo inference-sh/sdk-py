@@ -333,8 +333,8 @@ def build_messages(
             if msg.files:
                 files.extend(msg.files)
 
-        images_list = images if len(images) > 1 else None
-        files_list = files if len(files) > 1 else None
+        images_list = images if len(images) >= 1 else None
+        files_list = files if len(files) >= 1 else None
         return ContextMessage(role=messages[0].role, text=text, images=images_list, files=files_list)
     
     def merge_tool_calls(messages: List[ContextMessage]) -> List[Dict[str, Any]]:
