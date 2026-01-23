@@ -123,6 +123,11 @@ class _ToolBuilder:
         return self
     
     def display(self, name: str) -> "_ToolBuilder":
+        """Set display name (deprecated, use display_name instead)."""
+        self._display_name = name
+        return self
+
+    def display_name(self, name: str) -> "_ToolBuilder":
         """Set display name."""
         self._display_name = name
         return self
