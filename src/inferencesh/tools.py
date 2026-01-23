@@ -140,11 +140,23 @@ class ClientToolBuilder(_ToolBuilder):
 
 class AppToolBuilder(_ToolBuilder):
     """Builder for app tools."""
-    
+
     def __init__(self, name: str, app_ref: str):
         super().__init__(name)
         self._app_ref = app_ref
-    
+        self._setup_values: Optional[Dict[str, Any]] = None
+        self._input_values: Optional[Dict[str, Any]] = None
+
+    def setup(self, values: Dict[str, Any]) -> "AppToolBuilder":
+        """Set one-time setup values (hidden from agent, passed on every call)."""
+        self._setup_values = values
+        return self
+
+    def input(self, values: Dict[str, Any]) -> "AppToolBuilder":
+        """Set default input values (agent can override these)."""
+        self._input_values = values
+        return self
+
     def build(self) -> AgentTool:
         return {
             "name": self._name,
@@ -152,7 +164,11 @@ class AppToolBuilder(_ToolBuilder):
             "description": self._description,
             "type": ToolType.APP,
             "require_approval": self._require_approval or None,
-            "app": {"ref": self._app_ref},
+            "app": {
+                "ref": self._app_ref,
+                "setup": self._setup_values,
+                "input": self._input_values,
+            },
         }
 
 

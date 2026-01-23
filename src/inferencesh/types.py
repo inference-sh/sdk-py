@@ -34,6 +34,9 @@ class AppToolConfig(TypedDict, total=False):
     version_id: str
     # Resolved app object (populated at runtime)
     app: App
+    # Pre-configured values
+    setup: Any
+    input: Any
 
 # AgentToolConfig contains configuration for a sub-agent tool
 class AgentToolConfig(TypedDict, total=False):
@@ -96,6 +99,9 @@ class AppToolConfigDTO(TypedDict, total=False):
     id: str
     version_id: str
     app: AppDTO
+    # Pre-configured values
+    setup: Any
+    input: Any
 
 class AgentToolConfigDTO(TypedDict, total=False):
     ref: str
@@ -117,6 +123,10 @@ class ClientToolConfigDTO(TypedDict, total=False):
 class CoreAppConfig(TypedDict, total=False):
     id: str
     version_id: str
+    # Setup values for the core app (one-time configuration)
+    setup: Any
+    # Input default values for the core app
+    input: Any
 
 # AgentImages contains display images for an agent (like AppImages)
 class AgentImages(TypedDict, total=False):
@@ -153,7 +163,6 @@ class AgentConfig(TypedDict, total=False):
     # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
     core_app_ref: str
     core_app: CoreAppConfig
-    core_app_input: Any
     # Tools (apps, agents, hooks, client tools)
     tools: List[Optional[AgentTool]]
     # Internal tools configuration (plan, memory, widget, finish)
@@ -172,13 +181,16 @@ class CoreAppConfigDTO(TypedDict, total=False):
     id: str
     version_id: str
     app: AppDTO
+    # Setup values for the core app (one-time configuration)
+    setup: Any
+    # Input default values for the core app
+    input: Any
 
 class AgentVersionDTO(TypedDict, total=False):
     description: str
     system_prompt: str
     example_prompts: List[str]
     core_app: CoreAppConfigDTO
-    core_app_input: Any
     # Unified tools array (apps, agents, hooks, client)
     tools: List[Optional[AgentToolDTO]]
     # Internal tools configuration (plan, memory, widget, finish)
@@ -665,7 +677,6 @@ class ChatTaskInput(TypedDict, total=False):
     role: ChatMessageRole
     text: str
     reasoning: str
-    image: str
     images: List[str]
     files: List[str]
     tools: List[Tool]
@@ -675,9 +686,7 @@ class ChatTaskContextMessage(TypedDict, total=False):
     role: ChatMessageRole
     text: str
     reasoning: str
-    image: str
     images: List[str]
-    file: str
     files: List[str]
     tools: List[Tool]
     tool_calls: List[ToolCall]

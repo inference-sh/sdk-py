@@ -184,12 +184,12 @@ class TestAppToolBuilder:
         )
 
         assert t["type"] == "app"
-        assert t["app"] == {"ref": "infsh/flux@v1.0"}
+        assert t["app"] == {"ref": "infsh/flux@v1.0", "setup": None, "input": None}
         assert t["description"] == "Generate image"
 
     def test_app_tool_with_latest_version(self):
         t = app_tool("browse", "my-org/browser@latest").build()
-        assert t["app"] == {"ref": "my-org/browser@latest"}
+        assert t["app"] == {"ref": "my-org/browser@latest", "setup": None, "input": None}
 
     def test_app_tool_with_parameters(self):
         t = (
@@ -199,6 +199,42 @@ class TestAppToolBuilder:
         )
 
         assert t["name"] == "fetch"
+
+    def test_app_tool_with_setup(self):
+        t = (
+            app_tool("transcribe", "infsh/whisper@latest")
+            .describe("Transcribe audio")
+            .setup({"model": "large-v3", "language": "auto"})
+            .build()
+        )
+
+        assert t["app"]["ref"] == "infsh/whisper@latest"
+        assert t["app"]["setup"] == {"model": "large-v3", "language": "auto"}
+        assert t["app"]["input"] is None
+
+    def test_app_tool_with_input(self):
+        t = (
+            app_tool("transcribe", "infsh/whisper@latest")
+            .input({"timestamps": True, "format": "srt"})
+            .build()
+        )
+
+        assert t["app"]["ref"] == "infsh/whisper@latest"
+        assert t["app"]["setup"] is None
+        assert t["app"]["input"] == {"timestamps": True, "format": "srt"}
+
+    def test_app_tool_with_setup_and_input(self):
+        t = (
+            app_tool("transcribe", "infsh/whisper@latest")
+            .describe("Transcribe audio to text")
+            .setup({"model": "large-v3"})
+            .input({"timestamps": True})
+            .build()
+        )
+
+        assert t["app"]["ref"] == "infsh/whisper@latest"
+        assert t["app"]["setup"] == {"model": "large-v3"}
+        assert t["app"]["input"] == {"timestamps": True}
 
 
 class TestAgentToolBuilder:
