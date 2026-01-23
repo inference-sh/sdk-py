@@ -137,19 +137,19 @@ def main():
     
     # Create client and agent with ad-hoc config
     client = inference(api_key=api_key, base_url="https://api-dev.inference.sh")
-    agent = client.agent(AgentRuntimeConfig(
-        core_app_ref="infsh/claude-haiku-45@375bg07t",  # Replace with actual app reference
-        name="Tool Assistant",
-        system_prompt="""You are a helpful assistant with access to tools.
+    agent = client.agent({
+        "core_app": {"ref": "infsh/claude-haiku-45@375bg07t"},  # Replace with actual app reference
+        "name": "Tool Assistant",
+        "system_prompt": """You are a helpful assistant with access to tools.
 Available tools:
 - calculator: Performs math operations
-- get_weather: Gets weather for a location  
+- get_weather: Gets weather for a location
 - search_files: Searches files (requires approval)
 
 Use tools when appropriate to help the user.""",
-        tools=[calculator_tool, weather_tool, search_tool],
-        internal_tools=internal_tools().memory().build(),
-    ))
+        "tools": [calculator_tool, weather_tool, search_tool],
+        "internal_tools": internal_tools().memory().build(),
+    })
     
     print("Agent ready. Sending message...\n")
     
@@ -208,11 +208,11 @@ def main_streaming():
     
     # Create client and agent
     client = inference(api_key=api_key, base_url="https://api-dev.inference.sh")
-    agent = client.agent(AgentRuntimeConfig(
-        core_app_ref="infsh/claude-haiku-45@375bg07t",
-        name="Simple Assistant",
-        system_prompt="You are a helpful assistant.",
-    ))
+    agent = client.agent({
+        "core_app": {"ref": "infsh/claude-haiku-45@375bg07t"},
+        "name": "Simple Assistant",
+        "system_prompt": "You are a helpful assistant.",
+    })
     
     # Send message (no callbacks - we'll stream manually)
     agent.send_message("Tell me a short joke")

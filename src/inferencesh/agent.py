@@ -44,11 +44,11 @@ class Agent:
     Example:
         ```python
         client = Inference(api_key="your-key")
-        agent = client.agent(AgentConfig(core_app_ref="infsh/claude-sonnet-4@abc123"))
-        
+        agent = client.agent({ 'core_app': { 'ref': 'infsh/claude-sonnet-4@abc123' } })
+
         # Send a message
         response = agent.send_message("Hello!")
-        
+
         # Stream messages
         for message in agent.stream_messages():
             print(message)

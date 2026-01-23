@@ -888,13 +888,13 @@ class Inference:
             ```python
             # Template agent
             agent = client.agent('okaris/assistant@abc123')
-            
+
             # Ad-hoc agent
-            agent = client.agent(AgentConfig(
-                core_app_ref='infsh/claude-sonnet-4@xyz789',
-                system_prompt='You are a helpful assistant',
-            ))
-            
+            agent = client.agent({
+                'core_app': { 'ref': 'infsh/claude-sonnet-4@xyz789' },
+                'system_prompt': 'You are a helpful assistant',
+            })
+
             # Send messages
             response = agent.send_message('Hello!')
             ```

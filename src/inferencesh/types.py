@@ -122,7 +122,9 @@ class ClientToolConfigDTO(TypedDict, total=False):
 # CoreAppConfig references an app used as the agent's core
 class CoreAppConfig(TypedDict, total=False):
     id: str
-    version_id: str
+    version: str
+    # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
+    ref: str
     # Setup values for the core app (one-time configuration)
     setup: Any
     # Input default values for the core app
@@ -160,8 +162,6 @@ class AgentConfig(TypedDict, total=False):
     system_prompt: str
     example_prompts: List[str]
     # Core LLM configuration
-    # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
-    core_app_ref: str
     core_app: CoreAppConfig
     # Tools (apps, agents, hooks, client tools)
     tools: List[Optional[AgentTool]]
@@ -179,7 +179,8 @@ class AgentVersion(TypedDict, total=False):
 
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
-    version_id: str
+    version: str
+    ref: str
     app: AppDTO
     # Setup values for the core app (one-time configuration)
     setup: Any
@@ -243,8 +244,8 @@ class ApiAgentRunRequest(TypedDict, total=False):
     # Use this OR AgentConfig, not both
     agent: str
     # Ad-hoc agent configuration
-    # For ad-hoc agents, set core_app_ref to the LLM app reference
-    # Example: { "core_app_ref": "infsh/claude-sonnet-4@abc123", "system_prompt": "..." }
+    # For ad-hoc agents, set core_app.ref to the LLM app reference
+    # Example: { "core_app": { "ref": "infsh/claude-sonnet-4@abc123" }, "system_prompt": "..." }
     agent_config: AgentConfig
     # Optional name for the adhoc agent (used for deduplication and display)
     agent_name: str
