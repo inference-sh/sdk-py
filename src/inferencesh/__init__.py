@@ -53,6 +53,8 @@ from .tools import (
     array,
     obj,
     optional,
+    ClientTool,
+    ClientToolHandler,
 )
 
 # Generated types for Agent/Chat functionality
@@ -198,4 +200,6 @@ __all__ = [
     "array",
     "obj",
     "optional",
+    "ClientTool",
+    "ClientToolHandler",
 ]

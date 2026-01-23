@@ -2,8 +2,22 @@
 Tool Builder - Fluent API for defining agent tools
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union
 from .types import AgentTool, InternalToolsConfig, ToolType
+
+
+# =============================================================================
+# Client Tool Types
+# =============================================================================
+
+# Handler function for client tools (sync or async)
+ClientToolHandler = Callable[[Dict[str, Any]], Union[str, Awaitable[str]]]
+
+
+class ClientTool(TypedDict):
+    """Client tool with schema and handler bundled together."""
+    schema: AgentTool
+    handler: ClientToolHandler
 
 
 # =============================================================================
@@ -126,8 +140,9 @@ class _ToolBuilder:
 
 class ClientToolBuilder(_ToolBuilder):
     """Builder for client tools."""
-    
+
     def build(self) -> AgentTool:
+        """Build schema only (use .handler() to include handler)."""
         return {
             "name": self._name,
             "display_name": self._display_name or self._name,
@@ -135,6 +150,13 @@ class ClientToolBuilder(_ToolBuilder):
             "type": ToolType.CLIENT,
             "require_approval": self._require_approval or None,
             "client": {"input_schema": _to_json_schema(self._params)},
+        }
+
+    def handler(self, fn: ClientToolHandler) -> ClientTool:
+        """Define handler and return ClientTool (schema + handler)."""
+        return {
+            "schema": self.build(),
+            "handler": fn,
         }
 
 
