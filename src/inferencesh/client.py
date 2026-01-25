@@ -367,6 +367,21 @@ class Inference:
        - 'iter_lines': Uses requests' built-in line iteration (default)
        - 'raw': Uses lower-level socket reading
        - Can also be set via INFERENCE_SSE_MODE environment variable
+
+    Example:
+        ```python
+        from inferencesh import inference
+
+        client = inference(api_key="...")
+
+        # Namespaced API (recommended)
+        result = client.tasks.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
+        file = client.files.upload("/path/to/image.png")
+        agent = client.agents.create("okaris/assistant@abc123")
+
+        # Legacy API (still supported)
+        result = client.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
+        ```
     """
 
     def __init__(
@@ -395,6 +410,30 @@ class Inference:
                 self._sse_read_bytes = 8192  # 8KB default
         except Exception:
             self._sse_read_bytes = 8192  # Default to 8KB chunks on error
+
+        # Initialize namespaced APIs
+        from .api import TasksAPI, FilesAPI, AgentsAPI
+        self._tasks = TasksAPI(self)
+        self._files = FilesAPI(self)
+        self._agents = AgentsAPI(self)
+
+    @property
+    def tasks(self) -> "TasksAPI":
+        """Tasks API namespace."""
+        from .api import TasksAPI
+        return self._tasks
+
+    @property
+    def files(self) -> "FilesAPI":
+        """Files API namespace."""
+        from .api import FilesAPI
+        return self._files
+
+    @property
+    def agents(self) -> "AgentsAPI":
+        """Agents API namespace."""
+        from .api import AgentsAPI
+        return self._agents
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
@@ -905,11 +944,51 @@ class Inference:
 
 
 class AsyncInference:
-    """Async client for inference.sh API, mirroring the JS SDK behavior."""
+    """Async client for inference.sh API, mirroring the JS SDK behavior.
+
+    Example:
+        ```python
+        from inferencesh import async_inference
+
+        client = async_inference(api_key="...")
+
+        # Namespaced API (recommended)
+        result = await client.tasks.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
+        file = await client.files.upload("/path/to/image.png")
+        agent = client.agents.create("okaris/assistant@abc123")
+
+        # Legacy API (still supported)
+        result = await client.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
+        ```
+    """
 
     def __init__(self, *, api_key: str, base_url: Optional[str] = None) -> None:
         self._api_key = api_key
         self._base_url = base_url or "https://api.inference.sh"
+
+        # Initialize namespaced APIs
+        from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI
+        self._tasks = AsyncTasksAPI(self)
+        self._files = AsyncFilesAPI(self)
+        self._agents = AsyncAgentsAPI(self)
+
+    @property
+    def tasks(self) -> "AsyncTasksAPI":
+        """Tasks API namespace."""
+        from .api import AsyncTasksAPI
+        return self._tasks
+
+    @property
+    def files(self) -> "AsyncFilesAPI":
+        """Files API namespace."""
+        from .api import AsyncFilesAPI
+        return self._files
+
+    @property
+    def agents(self) -> "AsyncAgentsAPI":
+        """Agents API namespace."""
+        from .api import AsyncAgentsAPI
+        return self._agents
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:

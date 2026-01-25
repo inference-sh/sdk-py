@@ -32,6 +32,7 @@ from .models import (
 
 from .utils import StorageDir, download
 from .client import Inference, AsyncInference, UploadFileOptions, is_terminal_status, is_message_ready
+from .api import TasksAPI, AsyncTasksAPI, FilesAPI, AsyncFilesAPI, AgentsAPI, AsyncAgentsAPI
 from .types import TaskStatus, ChatMessageStatus
 from .models.errors import APIError, RequirementsNotMetError, RequirementError, SetupAction
 
@@ -202,4 +203,11 @@ __all__ = [
     "optional",
     "ClientTool",
     "ClientToolHandler",
+    # Namespaced APIs
+    "TasksAPI",
+    "AsyncTasksAPI",
+    "FilesAPI",
+    "AsyncFilesAPI",
+    "AgentsAPI",
+    "AsyncAgentsAPI",
 ]
