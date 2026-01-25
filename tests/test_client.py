@@ -502,14 +502,149 @@ async def test_async_cancel(patch_aiohttp):
 async def test_async_stream_task(patch_aiohttp):
     """Test async stream_task() returns AsyncTaskStream."""
     client = AsyncInference(api_key="test")
-    
+
     async with client.stream_task("task_async_123") as stream:
         updates = []
         async for update in stream:
             updates.append(update)
             if update.get("status") == TaskStatus.COMPLETED:
                 break
-    
+
     assert len(updates) >= 1
     assert stream.result is not None
     assert stream.result["output"] == {"async_ok": True}
+
+
+# ==================== Namespaced API Tests ====================
+
+def test_tasks_namespace():
+    """Test that client.tasks namespace exists with expected methods."""
+    client = Inference(api_key="test")
+
+    assert hasattr(client, 'tasks')
+    assert hasattr(client.tasks, 'run')
+    assert hasattr(client.tasks, 'get')
+    assert hasattr(client.tasks, 'cancel')
+    assert hasattr(client.tasks, 'stream')
+    assert hasattr(client.tasks, 'wait_for_completion')
+
+
+def test_files_namespace():
+    """Test that client.files namespace exists with expected methods."""
+    client = Inference(api_key="test")
+
+    assert hasattr(client, 'files')
+    assert hasattr(client.files, 'upload')
+
+
+def test_agents_namespace():
+    """Test that client.agents namespace exists with expected methods."""
+    client = Inference(api_key="test")
+
+    assert hasattr(client, 'agents')
+    assert hasattr(client.agents, 'create')
+
+
+def test_tasks_run_via_namespace(tmp_path):
+    """Test client.tasks.run() works like client.run()."""
+    client = Inference(api_key="test")
+
+    # Both should work the same way
+    task = client.tasks.run({
+        "app": "some/app",
+        "input": {"text": "hello"},
+    }, wait=False)
+
+    assert task["id"] == "task_123"
+    assert task["status"] == 1
+
+
+def test_tasks_get_via_namespace(tmp_path):
+    """Test client.tasks.get() works like client.get_task()."""
+    client = Inference(api_key="test")
+
+    task = client.tasks.get("task_123")
+
+    assert task["id"] == "task_123"
+    assert task["status"] == 7
+
+
+def test_tasks_cancel_via_namespace(tmp_path):
+    """Test client.tasks.cancel() works like client.cancel()."""
+    client = Inference(api_key="test")
+
+    # Should not raise
+    client.tasks.cancel("task_123")
+
+
+def test_files_upload_via_namespace(tmp_path, patch_requests):
+    """Test client.files.upload() works like client.upload_file()."""
+    client = Inference(api_key="test")
+
+    file_obj = client.files.upload(b"PNGDATA")
+
+    assert file_obj["id"] == "file_1"
+    assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_1.png"
+
+
+# ==================== Async Namespaced API Tests ====================
+
+def test_async_tasks_namespace():
+    """Test that async client.tasks namespace exists with expected methods."""
+    client = AsyncInference(api_key="test")
+
+    assert hasattr(client, 'tasks')
+    assert hasattr(client.tasks, 'run')
+    assert hasattr(client.tasks, 'get')
+    assert hasattr(client.tasks, 'cancel')
+    assert hasattr(client.tasks, 'stream')
+
+
+def test_async_files_namespace():
+    """Test that async client.files namespace exists with expected methods."""
+    client = AsyncInference(api_key="test")
+
+    assert hasattr(client, 'files')
+    assert hasattr(client.files, 'upload')
+
+
+def test_async_agents_namespace():
+    """Test that async client.agents namespace exists with expected methods."""
+    client = AsyncInference(api_key="test")
+
+    assert hasattr(client, 'agents')
+    assert hasattr(client.agents, 'create')
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_run_via_namespace(patch_aiohttp):
+    """Test async client.tasks.run() works like client.run()."""
+    client = AsyncInference(api_key="test")
+
+    task = await client.tasks.run({
+        "app": "some/app",
+        "input": {"text": "hello"},
+    }, wait=False)
+
+    assert task["id"] == "task_async_123"
+    assert task["status"] == 1
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_get_via_namespace(patch_aiohttp):
+    """Test async client.tasks.get() works like client.get_task()."""
+    client = AsyncInference(api_key="test")
+
+    task = await client.tasks.get("task_async_123")
+
+    assert task["id"] == "task_async_123"
+    assert task["status"] == 7
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_cancel_via_namespace(patch_aiohttp):
+    """Test async client.tasks.cancel() works like client.cancel()."""
+    client = AsyncInference(api_key="test")
+
+    # Should not raise
+    await client.tasks.cancel("task_async_123")
