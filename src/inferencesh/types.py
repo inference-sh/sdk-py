@@ -1872,6 +1872,10 @@ class WidgetNode(TypedDict, total=False):
     min: str
     max: str
     clearable: bool
+    # Action handlers for interactive elements
+    onClickAction: WidgetAction
+    onChangeAction: WidgetAction
+    onCheckedChangeAction: WidgetAction
     # Content props (Icon, Spacer, Divider, Chart)
     iconName: str
     spacing: Any
