@@ -5,7 +5,7 @@ helper package for inference.sh python applications.
 ## installation
 
 ```bash
-pip install infsh
+pip install inferencesh
 ```
 
 ## client usage
@@ -17,7 +17,7 @@ from inferencesh import inference, TaskStatus
 client = inference(api_key="your-api-key")
 
 # Simple synchronous usage - waits for completion by default
-result = client.run({
+result = client.tasks.run({
     "app": "your-app",
     "input": {"key": "value"},
     "infra": "cloud",
@@ -33,7 +33,7 @@ print(f"Output: {result.get('output')}")
 Setup parameters configure the app instance (e.g., model selection). Workers with matching setup are "warm" and skip the setup phase:
 
 ```python
-result = client.run({
+result = client.tasks.run({
     "app": "your-app",
     "setup": {"model": "schnell"},  # Setup parameters
     "input": {"prompt": "hello"}
@@ -44,14 +44,14 @@ result = client.run({
 
 ```python
 # Wait for completion (default behavior)
-result = client.run(params)  # wait=True is default
+result = client.tasks.run(params)  # wait=True is default
 
 # Return immediately without waiting
-task = client.run(params, wait=False)
+task = client.tasks.run(params, wait=False)
 task_id = task["id"]  # Use this to check status later
 
 # Stream updates as they happen
-for update in client.run(params, stream=True):
+for update in client.tasks.run(params, stream=True):
     print(f"Status: {TaskStatus(update['status']).name}")
     if update.get("status") == TaskStatus.COMPLETED:
         print(f"Output: {update.get('output')}")
@@ -61,17 +61,17 @@ for update in client.run(params, stream=True):
 
 ```python
 # Get current task state
-task = client.get_task(task_id)
+task = client.tasks.get(task_id)
 print(f"Status: {TaskStatus(task['status']).name}")
 
 # Cancel a running task
-client.cancel(task_id)
+client.tasks.cancel(task_id)
 
 # Wait for a task to complete
-result = client.wait_for_completion(task_id)
+result = client.tasks.wait_for_completion(task_id)
 
 # Stream updates for an existing task
-with client.stream_task(task_id) as stream:
+with client.tasks.stream(task_id) as stream:
     for update in stream:
         print(f"Status: {TaskStatus(update['status']).name}")
         if update.get("status") == TaskStatus.COMPLETED:
@@ -106,11 +106,11 @@ TaskStatus.CANCELLED   # 11 - Task was cancelled
 from inferencesh import UploadFileOptions
 
 # Upload from file path
-file_obj = client.upload_file("/path/to/image.png")
+file_obj = client.files.upload("/path/to/image.png")
 print(f"URI: {file_obj['uri']}")
 
 # Upload from bytes
-file_obj = client.upload_file(
+file_obj = client.files.upload(
     b"raw bytes data",
     UploadFileOptions(
         filename="data.bin",
@@ -119,7 +119,7 @@ file_obj = client.upload_file(
 )
 
 # Upload with options
-file_obj = client.upload_file(
+file_obj = client.files.upload(
     "/path/to/image.png",
     UploadFileOptions(
         filename="custom_name.png",
@@ -129,11 +129,11 @@ file_obj = client.upload_file(
 )
 ```
 
-Note: Files in task input are automatically uploaded. You only need `upload_file()` for manual uploads.
+Note: Files in task input are automatically uploaded. You only need `files.upload()` for manual uploads.
 
 ## agent chat
 
-Chat with AI agents using `client.agent()`.
+Chat with AI agents using `client.agents.create()`.
 
 ### using a template agent
 
@@ -145,7 +145,7 @@ from inferencesh import inference
 client = inference(api_key="your-api-key")
 
 # Create agent from template
-agent = client.agent("my-org/assistant@abc123")
+agent = client.agents.create("my-org/assistant@abc123")
 
 # Send a message with streaming
 def on_message(msg):
@@ -178,7 +178,7 @@ weather_tool = (
 )
 
 # Create ad-hoc agent
-agent = client.agent(AdHocAgentOptions(
+agent = client.agents.create(AdHocAgentOptions(
     core_app="infsh/claude-sonnet-4@abc123",  # LLM to use
     system_prompt="You are a helpful assistant.",
     tools=[weather_tool]
@@ -213,7 +213,7 @@ response = agent.send_message(
 from inferencesh import async_inference
 
 client = async_inference(api_key="your-api-key")
-agent = client.agent("my-org/assistant@abc123")
+agent = client.agents.create("my-org/assistant@abc123")
 
 response = await agent.send_message("Hello!")
 ```
@@ -225,32 +225,32 @@ from inferencesh import async_inference, TaskStatus
 
 async def main():
     client = async_inference(api_key="your-api-key")
-    
+
     # Simple usage - wait for completion
-    result = await client.run({
+    result = await client.tasks.run({
         "app": "your-app",
         "input": {"key": "value"},
         "infra": "cloud",
         "variant": "default"
     })
     print(f"Output: {result.get('output')}")
-    
+
     # Return immediately without waiting
-    task = await client.run(params, wait=False)
-    
+    task = await client.tasks.run(params, wait=False)
+
     # Stream updates
-    async for update in await client.run(params, stream=True):
+    async for update in await client.tasks.run(params, stream=True):
         print(f"Status: {TaskStatus(update['status']).name}")
         if update.get("status") == TaskStatus.COMPLETED:
             print(f"Output: {update.get('output')}")
-    
+
     # Task management
-    task = await client.get_task(task_id)
-    await client.cancel(task_id)
-    result = await client.wait_for_completion(task_id)
-    
+    task = await client.tasks.get(task_id)
+    await client.tasks.cancel(task_id)
+    result = await client.tasks.wait_for_completion(task_id)
+
     # Stream existing task
-    async with client.stream_task(task_id) as stream:
+    async with client.tasks.stream(task_id) as stream:
         async for update in stream:
             print(f"Update: {update}")
 ```
