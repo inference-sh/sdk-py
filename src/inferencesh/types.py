@@ -316,6 +316,12 @@ class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
 
+# SDKTypes is a phantom struct that references types needed by the SDK.
+# This ensures the typegen traces these types without creating aliases.
+# Frontend uses generics like CursorListResponse<FlowDTO> directly.
+class SDKTypes(TypedDict, total=False):
+    pass
+
 class CheckoutCreateRequest(TypedDict, total=False):
     amount: int
     success_url: str
@@ -435,6 +441,32 @@ class ProjectUpdateRequest(TypedDict, total=False):
 class MoveAgentToProjectRequest(TypedDict, total=False):
     agent_id: str
     project_id: str
+
+
+##########
+# source: api_internal.go
+
+class WorkerGPUConfig(TypedDict, total=False):
+    gpus: List[int]
+
+class WorkerCPUConfig(TypedDict, total=False):
+    count: int
+
+class WorkerConfig(TypedDict, total=False):
+    gpu: List[WorkerGPUConfig]
+    cpu: WorkerCPUConfig
+
+class EngineConfig(TypedDict, total=False):
+    id: str
+    name: str
+    api_url: str
+    engine_port: str
+    workers: WorkerConfig
+    api_key: str
+    container_mode: bool
+    network_name: str
+    cache_path: str
+    gpus: List[str]
 
 
 ##########
@@ -728,6 +760,70 @@ StringEncodedMap = Dict[str, Any]
 
 
 ##########
+# source: cursor.go
+
+# SearchRequest represents a search request
+class SearchRequest(TypedDict, total=False):
+    fields: List[str]
+    term: str
+    exact: bool
+
+# Filter represents a single filter condition
+class Filter(TypedDict, total=False):
+    field: str
+    operator: FilterOperator
+    value: Any
+
+class FilterOperator(str, Enum):
+    OP_EQUAL = "eq"
+    OP_NOT_EQUAL = "neq"
+    OP_IN = "in"
+    OP_NOT_IN = "not_in"
+    OP_GREATER = "gt"
+    OP_GREATER_EQUAL = "gte"
+    OP_LESS = "lt"
+    OP_LESS_EQUAL = "lte"
+    OP_LIKE = "like"
+    OP_I_LIKE = "ilike"
+    OP_CONTAINS = "contains"
+    OP_NOT_CONTAINS = "not_contains"
+    # Null checks
+    OP_IS_NULL = "is_null"
+    OP_IS_NOT_NULL = "is_not_null"
+    # Empty checks (for strings)
+    OP_IS_EMPTY = "is_empty"
+    OP_IS_NOT_EMPTY = "is_not_empty"
+
+# SortOrder represents sorting configuration
+class SortOrder(TypedDict, total=False):
+    field: str
+    dir: str
+
+# CursorListRequest represents a cursor-based list request with all options
+class CursorListRequest(TypedDict, total=False):
+    cursor: str
+    limit: int
+    direction: str
+    search: SearchRequest
+    filters: List[Filter]
+    preloads: List[str]
+    sort: List[SortOrder]
+    fields: List[str]
+    permissions: List[str]
+    include_others: bool
+
+# CursorListResponse represents a cursor-based paginated response
+class CursorListResponse(TypedDict, total=False):
+    items: List[Any]
+    next_cursor: str
+    prev_cursor: str
+    has_next: bool
+    has_previous: bool
+    items_per_page: int
+    total_items: int
+
+
+##########
 # source: deviceauth.go
 
 class DeviceAuthStatus(str, Enum):
@@ -748,6 +844,15 @@ class EngineStatus(str, Enum):
     PENDING = "pending"
     STOPPING = "stopping"
     STOPPED = "stopped"
+
+class EngineStateDTO(TypedDict, total=False):
+    instance: Instance
+    config: EngineConfig
+    name: str
+    api_url: str
+    status: str
+    system_info: SystemInfo
+    workers: List[Optional[WorkerStateDTO]]
 
 class EngineStateSummary(TypedDict, total=False):
     instance: Instance
@@ -777,6 +882,20 @@ class WorkerRAM(TypedDict, total=False):
     id: str
     worker_id: str
     total: int
+
+class WorkerStateDTO(TypedDict, total=False):
+    user_id: str
+    team_id: str
+    index: int
+    status: str
+    engine_id: str
+    task_id: str
+    app_id: str
+    app_version_id: str
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    system_info: SystemInfo
 
 class WorkerStateSummary(TypedDict, total=False):
     id: str
@@ -889,6 +1008,28 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping.
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
+class FlowDTO(TypedDict, total=False):
+    name: str
+    description: str
+    card_image: str
+    thumbnail: str
+    banner_image: str
+    # Version references
+    draft_version_id: str
+    draft_version: FlowVersionDTO
+    published_version_id: str
+    published_version: FlowVersionDTO
+    # Flattened draft version fields for backward compatibility
+    # These come from the draft version (the editable one)
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
+
 class FlowVersionDTO(TypedDict, total=False):
     short_id: str
     input_schema: Any
@@ -899,6 +1040,33 @@ class FlowVersionDTO(TypedDict, total=False):
     nodes: List[FlowNode]
     edges: List[FlowEdge]
     viewport: FlowViewport
+
+class NodeTaskDTO(TypedDict, total=False):
+    task_id: str
+    task: TaskDTO
+
+class FlowRunStatus(IntEnum):
+    UNKNOWN = 0
+    PENDING = 1
+    RUNNING = 2
+    COMPLETED = 3
+    FAILED = 4
+    CANCELLED = 5
+
+class FlowRunDTO(TypedDict, total=False):
+    flow_id: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    task_id: str
+    status: FlowRunStatus
+    error: str
+    flow_run_started: str
+    flow_run_finished: str
+    flow_run_cancelled: str
+    input: FlowRunInputs
+    fail_on_error: bool
+    output: Any
+    node_tasks: Dict[str, Optional[NodeTaskDTO]]
 
 # Connection represents a connection between nodes in a flow
 class FlowNodeConnection(TypedDict, total=False):
@@ -1124,11 +1292,40 @@ class InstanceEnvVar(TypedDict, total=False):
 ##########
 # source: system_info.go
 
+# Hardware/System related types
+class SystemInfo(TypedDict, total=False):
+    hostname: str
+    engine_version: str
+    ipv4: str
+    ipv6: str
+    mac_address: str
+    os: str
+    docker: Docker
+    wsl2: WSL2
+    cpus: List[CPU]
+    ram: RAM
+    volumes: List[Volume]
+    hf_cache: HFCacheInfo
+    gpus: List[GPU]
+
 class TelemetrySystemInfo(TypedDict, total=False):
     cpus: List[CPU]
     ram: RAM
     gpus: List[GPU]
     volumes: List[Volume]
+
+class Docker(TypedDict, total=False):
+    binary_path: str
+    installed: bool
+    socket_path: str
+    socket_available: bool
+    running: bool
+    version: str
+
+class WSL2(TypedDict, total=False):
+    installed: bool
+    enabled: bool
+    version: str
 
 class CPU(TypedDict, total=False):
     name: str
@@ -1170,6 +1367,36 @@ class GPU(TypedDict, total=False):
     memory_used: int
     memory_total: int
     temperature: int
+
+# CachedRevisionInfo represents information about a cached revision
+class CachedRevisionInfo(TypedDict, total=False):
+    commit_hash: str
+    snapshot_path: str
+    last_modified: str
+    size_on_disk: int
+    size_on_disk_str: str
+    nb_files: int
+    refs: List[str]
+
+# CachedRepoInfo represents information about a cached repository
+class CachedRepoInfo(TypedDict, total=False):
+    repo_id: str
+    repo_type: str
+    repo_path: str
+    last_accessed: str
+    last_modified: str
+    size_on_disk: int
+    size_on_disk_str: str
+    nb_files: int
+    refs: List[str]
+    Revisions: List[CachedRevisionInfo]
+
+# HFCacheInfo represents information about the Huggingface cache
+class HFCacheInfo(TypedDict, total=False):
+    cache_dir: str
+    repos: List[CachedRepoInfo]
+    size_on_disk: int
+    warnings: List[str]
 
 
 ##########
