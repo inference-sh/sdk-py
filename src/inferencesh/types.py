@@ -218,14 +218,17 @@ class APIError(TypedDict, total=False):
     message: str
 
 # ApiAppRunRequest is the request body for /apps/run endpoint.
-# Version pinning is required for stability.
+# Supports two ways to specify the app:
+# 1. App ref (recommended): "namespace/name@shortid" in the App field
+# 2. Direct IDs: app_id + version_id fields (for internal platform use)
 class ApiAppRunRequest(TypedDict, total=False):
     # App reference in format: namespace/name@shortid (version required)
     # Example: "okaris/flux@abc1"
     # The short ID ensures your code always runs the same version.
     app: str
-    # Deprecated: Use namespace/name@shortid format in App field instead.
-    version: str
+    # Alternative: specify app by ID (for internal use)
+    app_id: str
+    version_id: str
     infra: Infra
     workers: List[str]
     webhook: str
@@ -315,6 +318,19 @@ class CreateFlowRequest(TypedDict, total=False):
 class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
+
+# CreateAgentRequest is the request body for POST /agents
+# For new agents: omit ID, backend generates it
+# For new version of existing agent: include ID
+class CreateAgentRequest(TypedDict, total=False):
+    # Existing agent ID (if updating/versioning)
+    id: str
+    # Agent metadata
+    name: str
+    namespace: str
+    images: AgentImages
+    # Version config (embedded - backend generates version ID, timestamps, etc)
+    version: AgentConfig
 
 # SDKTypes is a phantom struct that references types needed by the SDK.
 # This ensures the typegen traces these types without creating aliases.
@@ -1080,6 +1096,67 @@ FlowRunInputs = Dict[str, Dict[str, "FlowRunInput"]]
 class FlowRunInput(TypedDict, total=False):
     Connection: FlowNodeConnection
     Value: Any
+
+
+##########
+# source: graph.go
+
+class GraphNodeType(str, Enum):
+    UNKNOWN = "unknown"
+    JOIN = "join"
+    SPLIT = "split"
+    EXECUTION = "execution"
+    RESOURCE = "resource"
+    APPROVAL = "approval"
+    CONDITIONAL = "conditional"
+    FLOW_NODE = "flow_node"
+
+class GraphNodeStatus(str, Enum):
+    PENDING = "pending"
+    READY = "ready"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+    BLOCKED = "blocked"
+
+class GraphEdgeType(str, Enum):
+    DEPENDENCY = "dependency"
+    FLOW = "flow"
+    CONDITIONAL = "conditional"
+    EXECUTION = "execution"
+
+# GraphNodeDTO is the API representation of a graph node
+class GraphNodeDTO(TypedDict, total=False):
+    graph_id: str
+    type: GraphNodeType
+    label: str
+    resource_id: str
+    resource_type: str
+    status: GraphNodeStatus
+    metadata: StringEncodedMap
+    ready_at: str
+    started_at: str
+    completed_at: str
+    duration_ms: int
+
+# GraphEdgeDTO is the API representation of a graph edge
+class GraphEdgeDTO(TypedDict, total=False):
+    type: GraphEdgeType
+    from_node: str
+    to_node: str
+
+# ChatTraceDTO is the trace response for chat observability
+class ChatTraceDTO(TypedDict, total=False):
+    graph_id: str
+    nodes: List[Optional[GraphNodeDTO]]
+    edges: List[Optional[GraphEdgeDTO]]
+    # Summary stats
+    total_steps: int
+    completed_steps: int
+    running_steps: int
+    failed_steps: int
 
 
 ##########
@@ -1872,10 +1949,8 @@ class WidgetNode(TypedDict, total=False):
     min: str
     max: str
     clearable: bool
-    # Action handlers for interactive elements
+    # Action handler for buttons (form data is collected locally and sent with action)
     onClickAction: WidgetAction
-    onChangeAction: WidgetAction
-    onCheckedChangeAction: WidgetAction
     # Content props (Icon, Spacer, Divider, Chart)
     iconName: str
     spacing: Any
