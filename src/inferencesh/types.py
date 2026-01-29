@@ -576,6 +576,8 @@ class AppVersion(TypedDict, total=False):
     required_secrets: List[SecretRequirement]
     required_integrations: List[IntegrationRequirement]
     resources: AppResources
+    # Checksum is the SHA256 checksum of the uploaded zip file
+    checksum: str
 
 class AppDTO(TypedDict, total=False):
     namespace: str
@@ -605,6 +607,8 @@ class AppVersionDTO(TypedDict, total=False):
     required_secrets: List[SecretRequirement]
     required_integrations: List[IntegrationRequirement]
     resources: AppResources
+    # Checksum is the SHA256 checksum of the uploaded zip file
+    checksum: str
 
 
 ##########
