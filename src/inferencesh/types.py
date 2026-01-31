@@ -822,6 +822,7 @@ class SortOrder(TypedDict, total=False):
 # CursorListRequest represents a cursor-based list request with all options
 class CursorListRequest(TypedDict, total=False):
     cursor: str
+    page: int
     limit: int
     direction: str
     search: SearchRequest
