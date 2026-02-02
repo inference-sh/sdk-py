@@ -510,6 +510,10 @@ class Inference:
             
             raise APIError(resp.status_code, error_detail or "Request failed", response_text)
         
+        # Handle 204 No Content responses (e.g., DELETE operations)
+        if resp.status_code == 204:
+            return None
+
         if not isinstance(payload, dict) or not payload.get("success", False):
             message = None
             if isinstance(payload, dict) and payload.get("error"):
@@ -1103,7 +1107,11 @@ class AsyncInference:
                         error_detail = response_text[:500]
                     
                     raise APIError(resp.status, error_detail or "Request failed", response_text)
-                
+
+                # Handle 204 No Content responses (e.g., DELETE operations)
+                if resp.status == 204:
+                    return None
+
                 if not isinstance(payload, dict) or not payload.get("success", False):
                     message = None
                     if isinstance(payload, dict) and payload.get("error"):
