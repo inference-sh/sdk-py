@@ -34,6 +34,11 @@ class AppToolConfig(TypedDict, total=False):
     version_id: str
     # Resolved app object (populated at runtime)
     app: App
+    # Function to call on multi-function apps (empty = app's default function)
+    function: str
+    # SessionEnabled allows the agent to control sessions for this tool
+    # When true, agent can pass session parameter and sees session_id in output
+    session_enabled: bool
     # Pre-configured values
     setup: Any
     input: Any
@@ -99,6 +104,10 @@ class AppToolConfigDTO(TypedDict, total=False):
     id: str
     version_id: str
     app: AppDTO
+    # Function to call on multi-function apps
+    function: str
+    # SessionEnabled allows the agent to control sessions for this tool
+    session_enabled: bool
     # Pre-configured values
     setup: Any
     input: Any
