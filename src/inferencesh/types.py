@@ -263,6 +263,8 @@ class ApiAppRunRequest(TypedDict, total=False):
     # Session control: "new" to start a new session, "sess_xxx" to continue existing session
     # When using sessions, the worker is leased and state persists across calls
     session: str
+    # Session timeout in seconds (1-3600). Only valid when session="new"
+    session_timeout: int
 
 # ApiAgentRunRequest is the request body for /agents/run endpoint.
 # Supports both template agents and ad-hoc agents.
@@ -660,6 +662,8 @@ class AppSession(TypedDict, total=False):
     # Stats
     call_count: int
     last_call_at: str
+    # Custom idle timeout in seconds (nil = use default)
+    idle_timeout: int
     # Relations
     worker: WorkerState
     task: Task
@@ -1647,6 +1651,8 @@ class Task(TypedDict, total=False):
     # Special value "new" means scheduler should create session when dispatching.
     session_id: str
     session: AppSession
+    # Session timeout in seconds (only used when session="new")
+    session_timeout: int
 
 class TaskEvent(TypedDict, total=False):
     id: str
@@ -1707,6 +1713,7 @@ class TaskDTO(TypedDict, total=False):
     transaction_id: str
     transaction: Transaction
     session_id: str
+    session_timeout: int
 
 class TimescaleTask(TypedDict, total=False):
     id: str
