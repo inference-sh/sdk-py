@@ -412,10 +412,11 @@ class Inference:
             self._sse_read_bytes = 8192  # Default to 8KB chunks on error
 
         # Initialize namespaced APIs
-        from .api import TasksAPI, FilesAPI, AgentsAPI
+        from .api import TasksAPI, FilesAPI, AgentsAPI, SessionsAPI
         self._tasks = TasksAPI(self)
         self._files = FilesAPI(self)
         self._agents = AgentsAPI(self)
+        self._sessions = SessionsAPI(self)
 
     @property
     def tasks(self) -> "TasksAPI":
@@ -434,6 +435,12 @@ class Inference:
         """Agents API namespace."""
         from .api import AgentsAPI
         return self._agents
+
+    @property
+    def sessions(self) -> "SessionsAPI":
+        """Sessions API namespace."""
+        from .api import SessionsAPI
+        return self._sessions
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
@@ -916,13 +923,13 @@ class Inference:
 
     def agent(self, config: Union[str, "AgentConfig"]) -> "Agent":
         """Create an agent for chat interactions.
-        
+
         Args:
             config: Either a template reference string (namespace/name@version) or ad-hoc config
-            
+
         Returns:
             An Agent instance for chat operations
-            
+
         Example:
             ```python
             # Template agent
@@ -939,8 +946,41 @@ class Inference:
             ```
         """
         from .agent import Agent
-        
+
         return Agent(self, config)
+
+    def session(self, app: str, **kwargs: Any) -> "SessionHandle":
+        """Create a session context manager for stateful interactions.
+
+        Args:
+            app: App reference (e.g., "namespace/name@version")
+            **kwargs: Additional parameters for the initial call
+
+        Returns:
+            A SessionHandle context manager
+
+        Example:
+            ```python
+            with client.session("browser-app@abc123") as session:
+                session.call("navigate", {"url": "https://example.com"})
+                session.call("click", {"selector": "#button"})
+                result = session.call("screenshot", {})
+            # Session automatically ended
+            ```
+        """
+        from .api import SessionHandle
+
+        # Create session with initial call
+        result = self.run({
+            "app": app,
+            "input": kwargs.get("input", {}),
+            "function": kwargs.get("function", "run"),
+            "session": "new",
+        })
+        session_id = result.get("session_id")
+        if not session_id:
+            raise RuntimeError("Failed to create session: no session_id returned")
+        return SessionHandle(self, app, session_id)
 
 
 class AsyncInference:
@@ -967,10 +1007,11 @@ class AsyncInference:
         self._base_url = base_url or "https://api.inference.sh"
 
         # Initialize namespaced APIs
-        from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI
+        from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI, AsyncSessionsAPI
         self._tasks = AsyncTasksAPI(self)
         self._files = AsyncFilesAPI(self)
         self._agents = AsyncAgentsAPI(self)
+        self._sessions = AsyncSessionsAPI(self)
 
     @property
     def tasks(self) -> "AsyncTasksAPI":
@@ -989,6 +1030,12 @@ class AsyncInference:
         """Agents API namespace."""
         from .api import AsyncAgentsAPI
         return self._agents
+
+    @property
+    def sessions(self) -> "AsyncSessionsAPI":
+        """Sessions API namespace."""
+        from .api import AsyncSessionsAPI
+        return self._sessions
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
@@ -1399,25 +1446,58 @@ class AsyncInference:
 
     def agent(self, config: Union[str, "AgentConfig"]) -> "AsyncAgent":
         """Create an async agent for chat interactions.
-        
+
         Args:
             config: Either a template reference string (namespace/name@version) or ad-hoc config
-            
+
         Returns:
             An AsyncAgent instance for chat operations
-            
+
         Example:
             ```python
             # Template agent
             agent = client.agent('okaris/assistant@abc123')
-            
+
             # Send messages
             response = await agent.send_message('Hello!')
             ```
         """
         from .agent import AsyncAgent
-        
+
         return AsyncAgent(self, config)
+
+    async def session(self, app: str, **kwargs: Any) -> "AsyncSessionHandle":
+        """Create an async session context manager for stateful interactions.
+
+        Args:
+            app: App reference (e.g., "namespace/name@version")
+            **kwargs: Additional parameters for the initial call
+
+        Returns:
+            An AsyncSessionHandle context manager
+
+        Example:
+            ```python
+            async with await client.session("browser-app@abc123") as session:
+                await session.call("navigate", {"url": "https://example.com"})
+                await session.call("click", {"selector": "#button"})
+                result = await session.call("screenshot", {})
+            # Session automatically ended
+            ```
+        """
+        from .api import AsyncSessionHandle
+
+        # Create session with initial call
+        result = await self.run({
+            "app": app,
+            "input": kwargs.get("input", {}),
+            "function": kwargs.get("function", "run"),
+            "session": "new",
+        })
+        session_id = result.get("session_id")
+        if not session_id:
+            raise RuntimeError("Failed to create session: no session_id returned")
+        return AsyncSessionHandle(self, app, session_id)
 
 
 # --------------- small async utilities ---------------
@@ -1459,7 +1539,7 @@ def _looks_like_base64(value: str) -> bool:
 
 def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     """Strip task to essential fields."""
-    return {
+    result = {
         "id": task.get("id"),
         "created_at": task.get("created_at"),
         "updated_at": task.get("updated_at"),
@@ -1468,6 +1548,10 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
         "logs": task.get("logs"),
         "status": task.get("status"),
     }
+    # Include session_id if present
+    if task.get("session_id"):
+        result["session_id"] = task["session_id"]
+    return result
 
 def _process_stream_event(
     data: Dict[str, Any], *, task: Dict[str, Any], stopper: Optional[Callable[[], None]] = None

@@ -3,6 +3,13 @@
 from .tasks import TasksAPI, AsyncTasksAPI
 from .files import FilesAPI, AsyncFilesAPI
 from .agents import AgentsAPI, AsyncAgentsAPI
+from .sessions import (
+    SessionsAPI,
+    AsyncSessionsAPI,
+    SessionInfo,
+    SessionHandle,
+    AsyncSessionHandle,
+)
 
 __all__ = [
     "TasksAPI",
@@ -11,4 +18,9 @@ __all__ = [
     "AsyncFilesAPI",
     "AgentsAPI",
     "AsyncAgentsAPI",
+    "SessionsAPI",
+    "AsyncSessionsAPI",
+    "SessionInfo",
+    "SessionHandle",
+    "AsyncSessionHandle",
 ]

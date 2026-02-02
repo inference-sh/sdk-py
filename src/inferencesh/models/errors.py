@@ -108,7 +108,7 @@ class RequirementsNotMetError(Exception):
 
 class APIError(Exception):
     """General API error with HTTP status and response details.
-    
+
     Attributes:
         status_code: HTTP status code
         message: Error message
@@ -119,7 +119,97 @@ class APIError(Exception):
         self.message = message
         self.response_body = response_body
         super().__init__(f"HTTP {status_code}: {message}")
-    
+
     def __repr__(self) -> str:
         return f"APIError(status_code={self.status_code}, message={self.message!r})"
+
+
+# Session-specific errors
+
+class SessionError(APIError):
+    """Base class for session-related errors."""
+    pass
+
+
+class SessionNotFoundError(SessionError):
+    """Raised when a session doesn't exist (404 SESSION_NOT_FOUND).
+
+    Example:
+        ```python
+        try:
+            client.sessions.get("sess_invalid")
+        except SessionNotFoundError:
+            print("Session not found")
+        ```
+    """
+    def __init__(self, session_id: str, response_body: Optional[str] = None):
+        self.session_id = session_id
+        super().__init__(404, f"Session not found: {session_id}", response_body)
+
+    def __repr__(self) -> str:
+        return f"SessionNotFoundError(session_id={self.session_id!r})"
+
+
+class SessionExpiredError(SessionError):
+    """Raised when a session has expired (410 SESSION_EXPIRED).
+
+    Sessions expire after an idle timeout (default: 5 minutes).
+
+    Example:
+        ```python
+        try:
+            result = client.run({..., "session": session_id})
+        except SessionExpiredError:
+            # Create new session
+            result = client.run({..., "session": "new"})
+        ```
+    """
+    def __init__(self, session_id: str, response_body: Optional[str] = None):
+        self.session_id = session_id
+        super().__init__(410, f"Session expired: {session_id}", response_body)
+
+    def __repr__(self) -> str:
+        return f"SessionExpiredError(session_id={self.session_id!r})"
+
+
+class SessionEndedError(SessionError):
+    """Raised when a session was explicitly ended (410 SESSION_ENDED).
+
+    Example:
+        ```python
+        try:
+            result = client.run({..., "session": session_id})
+        except SessionEndedError:
+            # Create new session
+            result = client.run({..., "session": "new"})
+        ```
+    """
+    def __init__(self, session_id: str, response_body: Optional[str] = None):
+        self.session_id = session_id
+        super().__init__(410, f"Session ended: {session_id}", response_body)
+
+    def __repr__(self) -> str:
+        return f"SessionEndedError(session_id={self.session_id!r})"
+
+
+class WorkerLostError(SessionError):
+    """Raised when the worker assigned to a session is lost.
+
+    This can happen if the worker crashes or is terminated unexpectedly.
+
+    Example:
+        ```python
+        try:
+            result = client.run({..., "session": session_id})
+        except WorkerLostError:
+            # Worker crashed, create new session
+            result = client.run({..., "session": "new"})
+        ```
+    """
+    def __init__(self, session_id: str, response_body: Optional[str] = None):
+        self.session_id = session_id
+        super().__init__(500, f"Worker lost for session: {session_id}", response_body)
+
+    def __repr__(self) -> str:
+        return f"WorkerLostError(session_id={self.session_id!r})"
 

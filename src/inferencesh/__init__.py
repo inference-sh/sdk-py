@@ -32,9 +32,31 @@ from .models import (
 
 from .utils import StorageDir, download
 from .client import Inference, AsyncInference, UploadFileOptions, is_terminal_status, is_message_ready
-from .api import TasksAPI, AsyncTasksAPI, FilesAPI, AsyncFilesAPI, AgentsAPI, AsyncAgentsAPI
+from .api import (
+    TasksAPI,
+    AsyncTasksAPI,
+    FilesAPI,
+    AsyncFilesAPI,
+    AgentsAPI,
+    AsyncAgentsAPI,
+    SessionsAPI,
+    AsyncSessionsAPI,
+    SessionInfo,
+    SessionHandle,
+    AsyncSessionHandle,
+)
 from .types import TaskStatus, ChatMessageStatus
-from .models.errors import APIError, RequirementsNotMetError, RequirementError, SetupAction
+from .models.errors import (
+    APIError,
+    RequirementsNotMetError,
+    RequirementError,
+    SetupAction,
+    SessionError,
+    SessionNotFoundError,
+    SessionExpiredError,
+    SessionEndedError,
+    WorkerLostError,
+)
 
 # Agent SDK (headless)
 from .agent import Agent, AsyncAgent, ToolCallInfo
@@ -155,6 +177,11 @@ __all__ = [
     "RequirementsNotMetError",
     "RequirementError",
     "SetupAction",
+    "SessionError",
+    "SessionNotFoundError",
+    "SessionExpiredError",
+    "SessionEndedError",
+    "WorkerLostError",
     # Generated types - Enums
     "ChatStatus",
     "ChatMessageRole",
@@ -210,4 +237,9 @@ __all__ = [
     "AsyncFilesAPI",
     "AgentsAPI",
     "AsyncAgentsAPI",
+    "SessionsAPI",
+    "AsyncSessionsAPI",
+    "SessionInfo",
+    "SessionHandle",
+    "AsyncSessionHandle",
 ]

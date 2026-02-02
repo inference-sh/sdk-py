@@ -236,6 +236,11 @@ class ApiAppRunRequest(TypedDict, total=False):
     input: Any
     # If true, returns SSE stream instead of JSON response
     stream: bool
+    # Function to call on multi-function apps (defaults to "run" or app's default_function)
+    function: str
+    # Session control: "new" to start a new session, "sess_xxx" to continue existing session
+    # When using sessions, the worker is leased and state persists across calls
+    session: str
 
 # ApiAgentRunRequest is the request body for /agents/run endpoint.
 # Supports both template agents and ad-hoc agents.
@@ -612,6 +617,33 @@ class AppVersionDTO(TypedDict, total=False):
 
 
 ##########
+# source: app_session.go
+
+class AppSessionStatus(str, Enum):
+    ACTIVE = "active"
+    ENDED = "ended"
+    EXPIRED = "expired"
+
+class AppSession(TypedDict, total=False):
+    # Affinity binding
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    # Lifecycle
+    status: AppSessionStatus
+    expires_at: str
+    ended_at: str
+    # Billing link
+    task_id: str
+    # Stats
+    call_count: int
+    last_call_at: str
+    # Relations
+    worker: WorkerState
+    task: Task
+
+
+##########
 # source: base.go
 
 class BaseModel(TypedDict, total=False):
@@ -866,6 +898,17 @@ class EngineStatus(str, Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
 
+class EngineState(TypedDict, total=False):
+    instance: Instance
+    transaction_id: str
+    config: EngineConfig
+    public_key: str
+    name: str
+    api_url: str
+    status: str
+    system_info: SystemInfo
+    workers: List[Optional[WorkerState]]
+
 class EngineStateDTO(TypedDict, total=False):
     instance: Instance
     config: EngineConfig
@@ -880,6 +923,27 @@ class EngineStateSummary(TypedDict, total=False):
     name: str
     status: str
     workers: List[Optional[WorkerStateSummary]]
+
+class WorkerState(TypedDict, total=False):
+    index: int
+    status: str
+    status_updated_at: str
+    engine_id: str
+    engine: EngineState
+    task_id: str
+    app_id: str
+    app_version_id: str
+    # App session lease
+    active_session_id: str
+    active_session: AppSession
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    SystemInfo: SystemInfo
+    # WarmApps tracks app+version combos with warm containers for scheduling optimization.
+    # Format: "appID:versionID@setupHash" - managed by Engine, synced via heartbeat.
+    # Not persisted to DB - this is ephemeral runtime state.
+    warm_apps: List[str]
 
 class WorkerGPU(TypedDict, total=False):
     id: str
@@ -913,10 +977,12 @@ class WorkerStateDTO(TypedDict, total=False):
     task_id: str
     app_id: str
     app_version_id: str
+    active_session_id: str
     gpus: List[WorkerGPU]
     cpus: List[WorkerCPU]
     rams: List[WorkerRAM]
     system_info: SystemInfo
+    warm_apps: List[str]
 
 class WorkerStateSummary(TypedDict, total=False):
     id: str
@@ -928,6 +994,7 @@ class WorkerStateSummary(TypedDict, total=False):
     task_id: str
     app_id: str
     app_version_id: str
+    active_session_id: str
     gpus: List[WorkerGPU]
     cpus: List[WorkerCPU]
     rams: List[WorkerRAM]
@@ -1277,6 +1344,16 @@ class SetupAction(TypedDict, total=False):
 
 
 ##########
+# source: secrets.go
+
+# SecretRef tracks which Secret record provided a value for a task (for billing)
+class SecretRef(TypedDict, total=False):
+    key: str
+    id: str
+    team_id: str
+
+
+##########
 # source: shadeform.go
 
 class InstanceCloudProvider(str, Enum):
@@ -1504,6 +1581,51 @@ class Infra(str, Enum):
     CLOUD = "cloud"
     PRIVATE_FIRST = "private_first"
 
+class Task(TypedDict, total=False):
+    is_featured: bool
+    status: str
+    # Foreign keys
+    app_id: str
+    app: App
+    version_id: str
+    app_version: AppVersion
+    # Deprecated: Will be removed in favor of Setup
+    variant: str
+    # Function is the specific function to call on multi-function apps.
+    # DEPRECATED: Standardizing on explicit function name.
+    # Defaults to "run" for legacy tasks (backfilled via migration).
+    function: str
+    infra: Infra
+    workers: List[str]
+    engine_id: str
+    engine: EngineState
+    worker_id: str
+    worker: WorkerState
+    # Belongs to:
+    flow_run_id: str
+    chat_id: str
+    # Owns: (Can be replaced with graph execution edge/node)
+    sub_flow_run_id: str
+    webhook: str
+    setup: Any
+    input: Any
+    output: Any
+    error: str
+    rating: ContentRating
+    # Relationships
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    telemetry: List[TimescaleTask]
+    usage_events: List[Optional[UsageEvent]]
+    transaction_id: str
+    transaction: Transaction
+    # Secret refs for billing (tracks ownership to determine partner fee)
+    secrets: List[SecretRef]
+    # App session reference (for session calls)
+    # Special value "new" means scheduler should create session when dispatching.
+    session_id: str
+    session: AppSession
+
 class TaskEvent(TypedDict, total=False):
     id: str
     created_at: str
@@ -1562,6 +1684,7 @@ class TaskDTO(TypedDict, total=False):
     usage_events: List[Optional[UsageEvent]]
     transaction_id: str
     transaction: Transaction
+    session_id: str
 
 class TimescaleTask(TypedDict, total=False):
     id: str
