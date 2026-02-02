@@ -106,6 +106,53 @@ TaskStatus.FAILED      # 10 - Task failed
 TaskStatus.CANCELLED   # 11 - Task was cancelled
 ```
 
+### sessions (stateful execution)
+
+Sessions allow you to maintain state across multiple task invocations. The worker stays warm between calls, preserving loaded models and in-memory state.
+
+```python
+# Start a new session
+result = client.tasks.run({
+    "app": "my-stateful-app",
+    "input": {"prompt": "hello"},
+    "session": "new"
+})
+
+session_id = result.get("session_id")
+print(f"Session ID: {session_id}")
+
+# Continue the session with another call
+result2 = client.tasks.run({
+    "app": "my-stateful-app",
+    "input": {"prompt": "remember what I said?"},
+    "session": session_id
+})
+```
+
+#### custom session timeout
+
+By default, sessions expire after 60 seconds of inactivity. You can customize this with `session_timeout` (1-3600 seconds):
+
+```python
+# Create a session with 5-minute idle timeout
+result = client.tasks.run({
+    "app": "my-stateful-app",
+    "input": {"prompt": "hello"},
+    "session": "new",
+    "session_timeout": 300  # 5 minutes
+})
+
+# Session stays alive for 5 minutes after each call
+```
+
+**Notes:**
+- `session_timeout` is only valid when `session: "new"`
+- Minimum timeout: 1 second
+- Maximum timeout: 3600 seconds (1 hour)
+- Each successful call resets the idle timer
+
+For complete session documentation including error handling, best practices, and advanced patterns, see the [Sessions Developer Guide](https://inference.sh/docs/extend/sessions).
+
 ### file upload
 
 ```python
