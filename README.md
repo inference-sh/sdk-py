@@ -1,6 +1,12 @@
-# inference.sh sdk
+# inferencesh — python sdk for ai inference api
 
-helper package for inference.sh python applications.
+[![PyPI version](https://badge.fury.io/py/inferencesh.svg)](https://pypi.org/project/inferencesh/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+
+official python sdk for [inference.sh](https://inference.sh) — the ai agent runtime for serverless ai inference.
+
+run ai models, build ai agents, and deploy generative ai applications. access 150+ models including flux, stable diffusion, llms (claude, gpt, gemini), video generation (veo, seedance), and more.
 
 ## installation
 
@@ -327,3 +333,15 @@ app lifecycle has three main methods:
 - `setup()`: called when the app starts, use it to initialize models
 - `run()`: called for each inference request
 - `unload()`: called when shutting down, use it to free resources
+
+## resources
+
+- [documentation](https://inference.sh/docs) — getting started guides and api reference
+- [blog](https://inference.sh/blog) — tutorials on ai agents, image generation, and more
+- [app store](https://app.inference.sh) — browse 150+ ai models
+- [discord](https://discord.gg/RM77SWSbyT) — community support
+- [github](https://github.com/inference-sh) — open source projects
+
+## license
+
+MIT © [inference.sh](https://inference.sh)
