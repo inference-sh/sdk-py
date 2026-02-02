@@ -6,7 +6,6 @@ from .agents import AgentsAPI, AsyncAgentsAPI
 from .sessions import (
     SessionsAPI,
     AsyncSessionsAPI,
-    SessionInfo,
     SessionHandle,
     AsyncSessionHandle,
 )
@@ -20,7 +19,6 @@ __all__ = [
     "AsyncAgentsAPI",
     "SessionsAPI",
     "AsyncSessionsAPI",
-    "SessionInfo",
     "SessionHandle",
     "AsyncSessionHandle",
 ]

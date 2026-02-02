@@ -184,12 +184,20 @@ class TestAppToolBuilder:
         )
 
         assert t["type"] == "app"
-        assert t["app"] == {"ref": "infsh/flux@v1.0", "setup": None, "input": None}
+        assert t["app"] == {"ref": "infsh/flux@v1.0", "function": None, "session_enabled": None, "setup": None, "input": None}
         assert t["description"] == "Generate image"
 
     def test_app_tool_with_latest_version(self):
         t = app_tool("browse", "my-org/browser@latest").build()
-        assert t["app"] == {"ref": "my-org/browser@latest", "setup": None, "input": None}
+        assert t["app"] == {"ref": "my-org/browser@latest", "function": None, "session_enabled": None, "setup": None, "input": None}
+
+    def test_app_tool_with_function(self):
+        t = app_tool("upscale", "infsh/sdxl@v1").function("upscale").build()
+        assert t["app"]["function"] == "upscale"
+
+    def test_app_tool_with_session_enabled(self):
+        t = app_tool("browser", "infsh/browser-use@v1").session_enabled().build()
+        assert t["app"]["session_enabled"] is True
 
     def test_app_tool_with_parameters(self):
         t = (
