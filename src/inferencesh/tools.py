@@ -173,6 +173,8 @@ class AppToolBuilder(_ToolBuilder):
         self._app_ref = app_ref
         self._setup_values: Optional[Dict[str, Any]] = None
         self._input_values: Optional[Dict[str, Any]] = None
+        self._function_name: Optional[str] = None
+        self._session_enabled_value = False
 
     def setup(self, values: Dict[str, Any]) -> "AppToolBuilder":
         """Set one-time setup values (hidden from agent, passed on every call)."""
@@ -184,6 +186,16 @@ class AppToolBuilder(_ToolBuilder):
         self._input_values = values
         return self
 
+    def function(self, name: str) -> "AppToolBuilder":
+        """Set which function to call on multi-function apps."""
+        self._function_name = name
+        return self
+
+    def session_enabled(self) -> "AppToolBuilder":
+        """Enable session support (agent can pass session parameter and sees session_id in output)."""
+        self._session_enabled_value = True
+        return self
+
     def build(self) -> AgentTool:
         return {
             "name": self._name,
@@ -193,6 +205,8 @@ class AppToolBuilder(_ToolBuilder):
             "require_approval": self._require_approval or None,
             "app": {
                 "ref": self._app_ref,
+                "function": self._function_name,
+                "session_enabled": self._session_enabled_value or None,
                 "setup": self._setup_values,
                 "input": self._input_values,
             },
