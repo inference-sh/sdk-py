@@ -184,20 +184,37 @@ class TestAppToolBuilder:
         )
 
         assert t["type"] == "app"
-        assert t["app"] == {"ref": "infsh/flux@v1.0", "function": None, "session_enabled": None, "setup": None, "input": None}
+        assert t["app"] == {"ref": "infsh/flux@v1.0"}
         assert t["description"] == "Generate image"
 
     def test_app_tool_with_latest_version(self):
         t = app_tool("browse", "my-org/browser@latest").build()
-        assert t["app"] == {"ref": "my-org/browser@latest", "function": None, "session_enabled": None, "setup": None, "input": None}
+        assert t["app"] == {"ref": "my-org/browser@latest"}
 
     def test_app_tool_with_function(self):
         t = app_tool("upscale", "infsh/sdxl@v1").function("upscale").build()
-        assert t["app"]["function"] == "upscale"
+        assert t["app"] == {"ref": "infsh/sdxl@v1", "function": "upscale"}
 
     def test_app_tool_with_session_enabled(self):
         t = app_tool("browser", "infsh/browser-use@v1").session_enabled().build()
-        assert t["app"]["session_enabled"] is True
+        assert t["app"] == {"ref": "infsh/browser-use@v1", "session_enabled": True}
+
+    def test_app_tool_with_all_options(self):
+        t = (
+            app_tool("chat", "infsh/chatbot@v1")
+            .function("stream")
+            .session_enabled()
+            .setup({"api_key": "secret"})
+            .input({"temperature": 0.7})
+            .build()
+        )
+        assert t["app"] == {
+            "ref": "infsh/chatbot@v1",
+            "function": "stream",
+            "session_enabled": True,
+            "setup": {"api_key": "secret"},
+            "input": {"temperature": 0.7},
+        }
 
     def test_app_tool_with_parameters(self):
         t = (
@@ -216,9 +233,7 @@ class TestAppToolBuilder:
             .build()
         )
 
-        assert t["app"]["ref"] == "infsh/whisper@latest"
-        assert t["app"]["setup"] == {"model": "large-v3", "language": "auto"}
-        assert t["app"]["input"] is None
+        assert t["app"] == {"ref": "infsh/whisper@latest", "setup": {"model": "large-v3", "language": "auto"}}
 
     def test_app_tool_with_input(self):
         t = (
@@ -227,9 +242,7 @@ class TestAppToolBuilder:
             .build()
         )
 
-        assert t["app"]["ref"] == "infsh/whisper@latest"
-        assert t["app"]["setup"] is None
-        assert t["app"]["input"] == {"timestamps": True, "format": "srt"}
+        assert t["app"] == {"ref": "infsh/whisper@latest", "input": {"timestamps": True, "format": "srt"}}
 
     def test_app_tool_with_setup_and_input(self):
         t = (

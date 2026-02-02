@@ -197,19 +197,25 @@ class AppToolBuilder(_ToolBuilder):
         return self
 
     def build(self) -> AgentTool:
+        app_config: Dict[str, Any] = {
+            "ref": self._app_ref,
+        }
+        if self._function_name:
+            app_config["function"] = self._function_name
+        if self._session_enabled_value:
+            app_config["session_enabled"] = True
+        if self._setup_values:
+            app_config["setup"] = self._setup_values
+        if self._input_values:
+            app_config["input"] = self._input_values
+
         return {
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.APP,
             "require_approval": self._require_approval or None,
-            "app": {
-                "ref": self._app_ref,
-                "function": self._function_name,
-                "session_enabled": self._session_enabled_value or None,
-                "setup": self._setup_values,
-                "input": self._input_values,
-            },
+            "app": app_config,
         }
 
 
