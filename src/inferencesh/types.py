@@ -16,6 +16,7 @@ class InternalToolsConfig(TypedDict, total=False):
     memory: bool
     widget: bool
     finish: bool
+    skills: bool
 
 class ToolType(str, Enum):
     APP = "app"
@@ -163,6 +164,14 @@ class AgentDTO(TypedDict, total=False):
     version_id: str
     version: AgentVersionDTO
 
+# SkillConfig defines a skill available to the agent.
+# Skills are loaded on-demand via the skill_get internal tool.
+class SkillConfig(TypedDict, total=False):
+    name: str
+    description: str
+    url: str
+    content: str
+
 # AgentConfig contains the shared configuration fields for agent execution.
 # This is embedded by both AgentVersion (DB model) and API request structs.
 # Using Go embedding flattens these fields in JSON serialization.
@@ -174,7 +183,9 @@ class AgentConfig(TypedDict, total=False):
     core_app: CoreAppConfig
     # Tools (apps, agents, hooks, client tools)
     tools: List[Optional[AgentTool]]
-    # Internal tools configuration (plan, memory, widget, finish)
+    # Skills available to this agent (loaded on-demand via skill_get tool)
+    skills: List[SkillConfig]
+    # Internal tools configuration (plan, memory, widget, finish, skills)
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
@@ -203,7 +214,9 @@ class AgentVersionDTO(TypedDict, total=False):
     core_app: CoreAppConfigDTO
     # Unified tools array (apps, agents, hooks, client)
     tools: List[Optional[AgentToolDTO]]
-    # Internal tools configuration (plan, memory, widget, finish)
+    # Skills available to this agent (loaded on-demand via skill_get tool)
+    skills: List[SkillConfig]
+    # Internal tools configuration (plan, memory, widget, finish, skills)
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
