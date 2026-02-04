@@ -192,8 +192,6 @@ class AgentConfig(TypedDict, total=False):
 
 class AgentVersion(TypedDict, total=False):
     agent_id: str
-    # Short ID for human-readable version references (e.g., "abc123")
-    short_id: str
     # ConfigHash for deduplication - SHA256 of config content
     config_hash: str
 
@@ -582,9 +580,6 @@ class AppFunction(TypedDict, total=False):
     output_schema: Any
 
 class AppVersion(TypedDict, total=False):
-    # ShortID is a human-friendly version identifier (e.g., "abc123")
-    # Unique within the app, used in references like "namespace/app@abc123"
-    short_id: str
     app_id: str
     metadata: Dict[str, Any]
     repository: str
@@ -619,7 +614,6 @@ class AppDTO(TypedDict, total=False):
     version: AppVersionDTO
 
 class AppVersionDTO(TypedDict, total=False):
-    short_id: str
     metadata: Dict[str, Any]
     repository: str
     flow_version_id: str
@@ -674,6 +668,7 @@ class AppSession(TypedDict, total=False):
 
 class BaseModel(TypedDict, total=False):
     id: str
+    short_id: str
     created_at: str
     updated_at: str
     deleted_at: str
@@ -1061,8 +1056,6 @@ class FlowVersion(TypedDict, total=False):
     team_id: str
     team: Team
     flow_id: str
-    # Short ID for human-readable version references (e.g., "abc123")
-    short_id: str
     # ConfigHash for deduplication - SHA256 of config content
     config_hash: str
     # Flow graph configuration
@@ -1145,7 +1138,6 @@ class FlowDTO(TypedDict, total=False):
     viewport: FlowViewport
 
 class FlowVersionDTO(TypedDict, total=False):
-    short_id: str
     input_schema: Any
     input: FlowRunInputs
     output_schema: Any
