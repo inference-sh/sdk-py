@@ -603,6 +603,11 @@ class AppVersion(TypedDict, total=False):
     # Checksum is the SHA256 checksum of the uploaded zip file
     checksum: str
 
+class LicenseRecord(TypedDict, total=False):
+    user_id: str
+    app_id: str
+    license: str
+
 class AppDTO(TypedDict, total=False):
     namespace: str
     name: str
