@@ -132,7 +132,7 @@ class ClientToolConfigDTO(TypedDict, total=False):
 # CoreAppConfig references an app used as the agent's core
 class CoreAppConfig(TypedDict, total=False):
     id: str
-    version: str
+    version_id: str
     # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
     ref: str
     # Setup values for the core app (one-time configuration)
@@ -197,7 +197,7 @@ class AgentVersion(TypedDict, total=False):
 
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
-    version: str
+    version_id: str
     ref: str
     app: AppDTO
     # Setup values for the core app (one-time configuration)
@@ -246,7 +246,7 @@ class ApiAppRunRequest(TypedDict, total=False):
     # Example: "okaris/flux@abc1"
     # The short ID ensures your code always runs the same version.
     app: str
-    # Alternative: specify app by ID (for internal use)
+    # Deprecated: use App ref instead. Direct ID bypasses ref routing.
     app_id: str
     version_id: str
     infra: Infra
@@ -1029,6 +1029,17 @@ class WorkerStateSummary(TypedDict, total=False):
 ##########
 # source: file.go
 
+# FileMetadata holds probed media metadata cached on File records.
+class FileMetadata(TypedDict, total=False):
+    type: str
+    width: int
+    height: int
+    duration: float
+    fps: float
+    sample_rate: int
+    channels: int
+    codec: str
+
 class File(TypedDict, total=False):
     path: str
     remote_path: str
@@ -1038,6 +1049,7 @@ class File(TypedDict, total=False):
     size: int
     filename: str
     rating: ContentRating
+    metadata: FileMetadata
 
 class FileDTO(TypedDict, total=False):
     path: str
@@ -1048,6 +1060,7 @@ class FileDTO(TypedDict, total=False):
     size: int
     filename: str
     rating: ContentRating
+    metadata: FileMetadata
 
 
 ##########
@@ -1846,6 +1859,10 @@ class Transaction(TypedDict, total=False):
     UsageBillingRefund: Optional[UsageBillingRefund]
     # Metadata for the transaction
     metadata: Dict[str, Any]
+    # SideEffectsProcessed tracks whether side effects (notifications, auto-recharge,
+    # billing status changes) have been processed for this transaction.
+    # Set to true via WithSkipTxSideEffects context to skip side effects (e.g. migrations).
+    side_effects_processed: bool
 
 class PaymentRecordStatus(IntEnum):
     PENDING = 0
@@ -1862,6 +1879,7 @@ class PaymentRecord(TypedDict, total=False):
     type: PaymentRecordType
     status: PaymentRecordStatus
     amount: int
+    service_fee: int
     stripe_customer_id: str
     payment_intent_id: str
     receipt_url: str
@@ -1927,6 +1945,11 @@ class UsageEvent(TypedDict, total=False):
     model: str
     quantity: int
     unit: str
+
+# DiscountItem represents a single discount applied to a billing record
+class DiscountItem(TypedDict, total=False):
+    reason: str
+    amount: int
 
 class UsageBillingRecord(TypedDict, total=False):
     # Fee breakdown (all in microcents)
