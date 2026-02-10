@@ -368,6 +368,22 @@ class CreateAgentRequest(TypedDict, total=False):
 class SDKTypes(TypedDict, total=False):
     pass
 
+class SkillPublishRequest(TypedDict, total=False):
+    name: str
+    description: str
+    category: str
+    repo_url: str
+    license: str
+    allowed_tools: str
+    compatibility: str
+    instructions: str
+    files: List[SkillFile]
+    metadata: Dict[str, str]
+    # Spec fields for roundtrip fidelity
+    disable_model_invocation: bool
+    user_invocable: bool
+    context: str
+
 class CheckoutCreateRequest(TypedDict, total=False):
     amount: int
     success_url: str
@@ -1485,6 +1501,18 @@ class InstanceVolumeMountConfig(TypedDict, total=False):
 class InstanceEnvVar(TypedDict, total=False):
     name: str
     value: str
+
+
+##########
+# source: skill.go
+
+# SkillFile represents a file in the skill directory (stored as JSONB in skill_versions)
+class SkillFile(TypedDict, total=False):
+    path: str
+    uri: str
+    size: int
+    hash: str
+    content: str
 
 
 ##########
