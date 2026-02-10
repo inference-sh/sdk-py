@@ -118,10 +118,10 @@ class Agent:
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
-            # For ad-hoc agents, extract agent_name from config if present
-            agent_name = self._options.get("agent_name") if hasattr(self._options, "get") else None
+            # For ad-hoc agents, extract name from config for agent deduplication
+            agent_name = self._options.get("name") if hasattr(self._options, "get") else None
             body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
-        
+
         response = self._request("post", "/agents/run", data=body)
         if not response:
             raise RuntimeError("Empty response from /agents/run")
@@ -571,10 +571,10 @@ class AsyncAgent:
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
-            # For ad-hoc agents, extract agent_name from config if present
-            agent_name = self._options.get("agent_name") if hasattr(self._options, "get") else None
+            # For ad-hoc agents, extract name from config for agent deduplication
+            agent_name = self._options.get("name") if hasattr(self._options, "get") else None
             body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
-        
+
         response = await self._request("post", "/agents/run", data=body)
         
         assistant_msg = response.get("assistant_message", {})

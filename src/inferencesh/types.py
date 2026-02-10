@@ -176,6 +176,9 @@ class SkillConfig(TypedDict, total=False):
 # This is embedded by both AgentVersion (DB model) and API request structs.
 # Using Go embedding flattens these fields in JSON serialization.
 class AgentConfig(TypedDict, total=False):
+    # Optional name for the agent (used for adhoc agent deduplication — reuses existing agent by name).
+    # Not persisted as a DB column; only used in API requests.
+    name: str
     description: str
     system_prompt: str
     example_prompts: List[str]
