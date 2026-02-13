@@ -17,6 +17,7 @@ class InternalToolsConfig(TypedDict, total=False):
     widget: bool
     finish: bool
     skills: bool
+    host_context: bool
 
 class ToolType(str, Enum):
     APP = "app"
@@ -1841,6 +1842,7 @@ class ToolInvocationDTO(TypedDict, total=False):
     chat_message_id: str
     tool_invocation_id: str
     type: ToolType
+    display_name: str
     execution_id: str
     function: ToolInvocationFunction
     status: ToolInvocationStatus
