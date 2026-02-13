@@ -287,6 +287,14 @@ class ApiAgentRunRequest(TypedDict, total=False):
     # If true, returns SSE stream instead of JSON response
     stream: bool
 
+# EmbedAgentRunRequest is the embed variant of ApiAgentRunRequest.
+# Only template agents are supported (no ad-hoc configs).
+class EmbedAgentRunRequest(TypedDict, total=False):
+    chat_id: str
+    agent: str
+    input: ChatTaskInput
+    stream: bool
+
 class CreateAgentMessageRequest(TypedDict, total=False):
     chat_id: str
     agent_id: str
