@@ -725,6 +725,12 @@ class PermissionModelDTO(TypedDict, total=False):
     team: TeamRelationDTO
     visibility: Visibility
 
+# ResourceStatusDTO is a lightweight status-only response for polling transports.
+class ResourceStatusDTO(TypedDict, total=False):
+    id: str
+    status: Any
+    updated_at: str
+
 
 ##########
 # source: chat.go
@@ -836,6 +842,7 @@ class ChatDTO(TypedDict, total=False):
     parent: ChatDTO
     children: List[Optional[ChatDTO]]
     status: ChatStatus
+    output: Any
     # Agent version reference
     agent_id: str
     agent: AgentDTO

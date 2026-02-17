@@ -348,6 +348,18 @@ class Agent:
                                 args=inv.get("function", {}).get("arguments", {}),
                             ))
     
+    def run(self, text: str, **kwargs: Any) -> Any:
+        """
+        Run the agent and return structured output.
+
+        Sends a message, waits for completion, then returns ``chat.output`` —
+        the parsed finish tool result. Returns ``None`` if the agent finished
+        without calling the finish tool.
+        """
+        self.send_message(text, **kwargs)
+        chat = self.get_chat()
+        return chat.get("output") if chat else None
+
     def reset(self) -> None:
         """Reset the agent (start fresh chat)."""
         self._chat_id = None
@@ -633,9 +645,21 @@ class AsyncAgent:
             if event_type == "chats":
                 yield data
     
+    async def run(self, text: str, **kwargs: Any) -> Any:
+        """
+        Run the agent and return structured output.
+
+        Sends a message, waits for completion, then returns ``chat.output`` —
+        the parsed finish tool result. Returns ``None`` if the agent finished
+        without calling the finish tool.
+        """
+        await self.send_message(text, **kwargs)
+        chat = await self.get_chat()
+        return chat.get("output") if chat else None
+
     def reset(self) -> None:
         self._chat_id = None
-    
+
     async def _request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
         aiohttp = await _require_aiohttp()
         
