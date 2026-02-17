@@ -101,24 +101,42 @@ class TaskStream(AbstractContextManager['TaskStream']):
         
     def stream(self) -> Iterator[Dict[str, Any]]:
         """Stream updates for this task.
-        
+
         Yields:
             Dict[str, Any]: Task update events
-            
+
         Raises:
             RuntimeError: If the task fails or is cancelled
         """
+        import time as _time
+        reconnects = 0
         try:
-            for update in self.client._stream_updates(
-                self.task_id,
-                self.task,
-            ):
-                if isinstance(update, Exception):
-                    self._error = update
-                    raise update
-                if update.get("status") == TaskStatus.COMPLETED:
-                    self._final_task = update
-                yield update
+            while True:
+                try:
+                    for update in self.client._stream_updates(
+                        self.task_id,
+                        self.task,
+                    ):
+                        if isinstance(update, Exception):
+                            self._error = update
+                            raise update
+                        if update.get("status") == TaskStatus.COMPLETED:
+                            self._final_task = update
+                        yield update
+                except (ConnectionError, OSError) as exc:
+                    if not self.auto_reconnect or reconnects >= self.max_reconnects:
+                        raise
+                    reconnects += 1
+                    _time.sleep(self.reconnect_delay_ms / 1000.0)
+                    continue
+                # Stream ended normally — check if we got a terminal event
+                if self._final_task is not None or self._error is not None:
+                    break
+                # Stream ended without terminal event — reconnect
+                if not self.auto_reconnect or reconnects >= self.max_reconnects:
+                    break
+                reconnects += 1
+                _time.sleep(self.reconnect_delay_ms / 1000.0)
         except Exception as exc:
             self._error = exc
             raise
@@ -180,24 +198,42 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
         
     async def stream(self) -> AsyncIterator[Dict[str, Any]]:
         """Stream updates for this task.
-        
+
         Yields:
             Dict[str, Any]: Task update events
-            
+
         Raises:
             RuntimeError: If the task fails or is cancelled
         """
+        import asyncio as _asyncio
+        reconnects = 0
         try:
-            async for update in self.client._stream_updates(
-                self.task_id,
-                self.task,
-            ):
-                if isinstance(update, Exception):
-                    self._error = update
-                    raise update
-                if update.get("status") == TaskStatus.COMPLETED:
-                    self._final_task = update
-                yield update
+            while True:
+                try:
+                    async for update in self.client._stream_updates(
+                        self.task_id,
+                        self.task,
+                    ):
+                        if isinstance(update, Exception):
+                            self._error = update
+                            raise update
+                        if update.get("status") == TaskStatus.COMPLETED:
+                            self._final_task = update
+                        yield update
+                except (ConnectionError, OSError) as exc:
+                    if not self.auto_reconnect or reconnects >= self.max_reconnects:
+                        raise
+                    reconnects += 1
+                    await _asyncio.sleep(self.reconnect_delay_ms / 1000.0)
+                    continue
+                # Stream ended normally — check if we got a terminal event
+                if self._final_task is not None or self._error is not None:
+                    break
+                # Stream ended without terminal event — reconnect
+                if not self.auto_reconnect or reconnects >= self.max_reconnects:
+                    break
+                reconnects += 1
+                await _asyncio.sleep(self.reconnect_delay_ms / 1000.0)
         except Exception as exc:
             self._error = exc
             raise

@@ -217,6 +217,85 @@ def test_stream_task(tmp_path):
     assert stream.result["output"] == {"ok": True}
 
 
+def test_stream_reconnects_on_premature_close(monkeypatch, tmp_path):
+    """Test that TaskStream reconnects when stream ends without a terminal event."""
+    client = Inference(api_key="test")
+
+    call_count = 0
+    original_stream_updates = client._stream_updates
+
+    def fake_stream_updates(task_id, task):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First call: yield a RUNNING update then end (simulating dropped connection)
+            yield {"id": task_id, "status": 7, "output": None, "created_at": "", "updated_at": "", "input": None, "logs": None}
+            return  # stream ends without terminal event
+        else:
+            # Second call: yield COMPLETED
+            yield from original_stream_updates(task_id, task)
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with client.run({"app": "some/app", "input": {"text": "hello"}}, stream=True) as stream:
+        updates = list(stream)
+
+    assert call_count == 2, f"Expected 2 stream attempts, got {call_count}"
+    assert stream.result is not None
+    assert stream.result["output"] == {"ok": True}
+    # Should have gotten the RUNNING update from attempt 1 + COMPLETED from attempt 2
+    assert len(updates) == 2
+    assert updates[0]["status"] == 7
+    assert updates[1]["status"] == TaskStatus.COMPLETED
+
+
+def test_stream_no_reconnect_when_disabled(monkeypatch, tmp_path):
+    """Test that TaskStream does NOT reconnect when auto_reconnect=False."""
+    client = Inference(api_key="test")
+
+    call_count = 0
+
+    def fake_stream_updates(task_id, task):
+        nonlocal call_count
+        call_count += 1
+        # Always yield only a RUNNING update and end
+        yield {"id": task_id, "status": 7, "output": None, "created_at": "", "updated_at": "", "input": None, "logs": None}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with client.run({"app": "some/app", "input": {"text": "hello"}}, stream=True, auto_reconnect=False) as stream:
+        updates = list(stream)
+
+    assert call_count == 1, "Should not reconnect when auto_reconnect=False"
+    assert stream.result is None
+    assert len(updates) == 1
+
+
+def test_stream_reconnects_on_connection_error(monkeypatch, tmp_path):
+    """Test that TaskStream reconnects on ConnectionError."""
+    client = Inference(api_key="test")
+
+    call_count = 0
+    original_stream_updates = client._stream_updates
+
+    def fake_stream_updates(task_id, task):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise ConnectionError("connection reset by peer")
+        else:
+            yield from original_stream_updates(task_id, task)
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with client.run({"app": "some/app", "input": {"text": "hello"}}, stream=True, reconnect_delay_ms=0) as stream:
+        updates = list(stream)
+
+    assert call_count == 2
+    assert stream.result is not None
+    assert stream.result["output"] == {"ok": True}
+
+
 def test_upload_and_recursive_input(monkeypatch, tmp_path, patch_requests):
     """Test that local file paths in input are uploaded and replaced with URIs."""
     # Create a small file
