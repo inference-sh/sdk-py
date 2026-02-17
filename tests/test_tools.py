@@ -161,6 +161,22 @@ class TestClientToolBuilder:
         assert schema["properties"]["user"]["type"] == "object"
         assert "name" in schema["properties"]["user"]["properties"]
         assert "email" in schema["properties"]["user"]["properties"]
+        assert schema["properties"]["user"]["required"] == ["name", "email"]
+
+    def test_nested_object_required_with_optional_fields(self):
+        t = (
+            tool("update_user")
+            .param("user", obj({
+                "name": string("Name"),
+                "bio": optional(string("Bio")),
+            }))
+            .build()
+        )
+
+        user_prop = t["client"]["input_schema"]["properties"]["user"]
+        assert user_prop["required"] == ["name"]
+        # optional key should be stripped from nested properties
+        assert "optional" not in user_prop["properties"]["bio"]
 
     def test_array_parameters(self):
         t = (

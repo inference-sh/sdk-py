@@ -93,13 +93,19 @@ def _to_json_schema(params: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Convert params dict to JSON Schema."""
     properties: Dict[str, Any] = {}
     required: List[str] = []
-    
+
     for key, schema in params.items():
         prop = {k: v for k, v in schema.items() if k != "optional"}
+        # Recurse into nested object properties
+        if prop.get("type") == "object" and "properties" in prop:
+            nested = _to_json_schema(prop["properties"])
+            prop["properties"] = nested["properties"]
+            if nested["required"]:
+                prop["required"] = nested["required"]
         properties[key] = prop
         if not schema.get("optional"):
             required.append(key)
-    
+
     return {"type": "object", "properties": properties, "required": required}
 
 
