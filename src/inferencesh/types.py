@@ -322,6 +322,12 @@ class CreateAgentMessageResponse(TypedDict, total=False):
 class ToolResultRequest(TypedDict, total=False):
     result: str
 
+# WebhookEvent is the envelope for task webhook deliveries.
+class WebhookEvent(TypedDict, total=False):
+    event: str
+    timestamp: str
+    data: Any
+
 # HookPayload represents the request body sent to a webhook when a hook tool is invoked
 class HookPayload(TypedDict, total=False):
     # Identification
