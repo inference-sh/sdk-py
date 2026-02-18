@@ -260,6 +260,9 @@ class ApiAppRunRequest(TypedDict, total=False):
     input: Any
     # If true, returns SSE stream instead of JSON response
     stream: bool
+    # If true, holds the connection open until the task reaches a terminal state and returns the final result.
+    # Mutually exclusive with Stream.
+    wait: bool
     # Function to call on multi-function apps (defaults to "run" or app's default_function)
     function: str
     # Session control: "new" to start a new session, "sess_xxx" to continue existing session
@@ -538,6 +541,12 @@ class EngineConfig(TypedDict, total=False):
     network_name: str
     cache_path: str
     gpus: List[str]
+    # CallbackBasePort overrides the base port for engine↔worker callback APIs.
+    # If 0, derived from EnginePort: 5000 + (enginePort - 8163) * 100.
+    callback_base_port: int
+    # EngineInternalAPIURL is the URL workers use to reach the engine's main API.
+    # If empty, derived as http://host.docker.internal:{EnginePort}.
+    engine_internal_api_url: str
 
 
 ##########
@@ -956,6 +965,7 @@ class DeviceAuthStatus(str, Enum):
 class EngineStatus(str, Enum):
     RUNNING = "running"
     PENDING = "pending"
+    DRAINING = "draining"
     STOPPING = "stopping"
     STOPPED = "stopped"
 

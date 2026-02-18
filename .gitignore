@@ -48,3 +48,4 @@ dmypy.json
 # Distribution
 dist/
 build/
+uv.lock
