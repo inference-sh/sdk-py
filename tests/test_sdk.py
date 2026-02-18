@@ -165,16 +165,79 @@ def test_file_cleanup(monkeypatch):
         assert not os.path.exists(tmp_path) 
         
 def test_file_schema():
-    file = File(uri="https://example.com/test.txt")
-    print(file.model_json_schema())
-    assert file.model_json_schema() is not None
-    assert file.model_json_schema()["$id"] == "/schemas/File"
-    assert file.model_json_schema()["oneOf"] is not None
-    assert file.model_json_schema()["oneOf"][0] is not None
-    assert file.model_json_schema()["oneOf"][0]["type"] == "object"
-    assert file.model_json_schema()["oneOf"][0]["properties"] is not None
-    assert file.model_json_schema()["oneOf"][0]["properties"]["uri"] is not None
-    assert file.model_json_schema()["oneOf"][0]["properties"]["path"] is not None
-    assert file.model_json_schema()["oneOf"][0]["properties"]["content_type"] is not None
-    assert file.model_json_schema()["oneOf"][0]["properties"]["size"] is not None
-    assert file.model_json_schema()["oneOf"][0]["properties"]["filename"] is not None
+    """File fields should appear as {"type": "string", "format": "file"} inline, no $defs."""
+    from typing import Optional, List
+
+    class TestOutput(BaseAppOutput):
+        video: Optional[File] = None
+        images: List[File] = []
+
+    schema = TestOutput.model_json_schema()
+    # File should not appear in $defs (other types like OutputMeta may)
+    defs = schema.get("$defs", {})
+    assert "File" not in defs
+
+    # Nullable file: anyOf [string+file, null]
+    video_schema = schema["properties"]["video"]
+    assert video_schema["anyOf"][0] == {"type": "string", "format": "file"}
+    assert video_schema["anyOf"][1] == {"type": "null"}
+
+    # Array of files: items is string+file
+    images_schema = schema["properties"]["images"]
+    assert images_schema["type"] == "array"
+    assert images_schema["items"] == {"type": "string", "format": "file"}
+
+
+def test_file_pydantic_validation():
+    """File fields in pydantic models should accept strings, dicts, and File instances."""
+    from typing import Optional
+
+    class TestModel(BaseAppInput):
+        video: Optional[File] = None
+
+    # String coercion
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+        f.write(b"test")
+        path = f.name
+
+    try:
+        m = TestModel(video=path)
+        assert isinstance(m.video, File)
+        assert m.video.uri == path
+        assert m.video.path == os.path.abspath(path)
+
+        # Dict coercion
+        m2 = TestModel(video={"uri": path})
+        assert isinstance(m2.video, File)
+        assert m2.video.uri == path
+
+        # File instance passthrough
+        f_inst = File(path)
+        m3 = TestModel(video=f_inst)
+        assert m3.video is f_inst
+
+        # None
+        m4 = TestModel(video=None)
+        assert m4.video is None
+    finally:
+        os.unlink(path)
+
+
+def test_file_pydantic_serialization():
+    """model_dump() should serialize File fields as dicts with uri/path keys."""
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+        f.write(b"test")
+        path = f.name
+
+    try:
+        class TestModel(BaseAppInput):
+            video: File
+
+        m = TestModel(video=path)
+        dumped = m.model_dump()
+        assert isinstance(dumped["video"], dict)
+        assert dumped["video"]["uri"] == path
+        assert dumped["video"]["path"] == os.path.abspath(path)
+        assert "content_type" in dumped["video"]
+    finally:
+        os.unlink(path)
