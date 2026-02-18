@@ -178,6 +178,7 @@ class File:
 
         print(f"Downloading URL: {original_url} to {cache_path}")
         try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
             tmp_path = str(cache_path) + ".tmp"
             self._tmp_path = tmp_path
 

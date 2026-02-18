@@ -1818,6 +1818,8 @@ class Team(TypedDict, total=False):
     # SetupCompleted indicates whether the team has completed initial setup (chosen a username)
     # Personal teams start with SetupCompleted=false and a generated temporary username
     setup_completed: bool
+    # MaxConcurrency limits total active tasks for this team (0 = use default)
+    max_concurrency: int
 
 class TeamDTO(TypedDict, total=False):
     type: TeamType
@@ -1826,6 +1828,7 @@ class TeamDTO(TypedDict, total=False):
     avatar_url: str
     email: str
     setup_completed: bool
+    max_concurrency: int
 
 class TeamRole(str, Enum):
     OWNER = "owner"
