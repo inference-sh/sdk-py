@@ -1,26 +1,19 @@
-"""Output metadata types for pricing and usage tracking."""
+"""Output metadata types for pricing and usage tracking.
 
-from typing import Any, List, Optional, Union
-from enum import Enum
+Types and field names are kept in sync with Go source of truth
+(common-go/pkg/models/usage.go) via generated output_meta_gen.py.
+"""
+
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
-# Use generated MetaItemType from types.py
-from inferencesh.types import MetaItemType
-
-
-# VideoResolution kept manual - generated names differ (VIDEO_RES480_P vs RES_480P)
-class VideoResolution(str, Enum):
-    """Standard video resolution presets."""
-    RES_480P = "480p"
-    RES_720P = "720p"
-    RES_1080P = "1080p"
-    RES_1440P = "1440p"
-    RES_4K = "4k"
+# Import generated enums from Go source of truth
+from inferencesh.output_meta_gen import MetaItemType, VideoResolution
 
 
 class MetaItem(BaseModel):
     """Base class for input/output metadata items."""
-    type: str  # "text", "image", "video", "audio"
+    type: str  # "text", "image", "video", "audio", "raw"
     extra: Optional[dict[str, Any]] = Field(
         default=None,
         description="App-specific key-value pairs for custom pricing factors"
@@ -58,7 +51,7 @@ class VideoMeta(MetaItem):
         default=0,
         description="Resolution in megapixels per frame"
     )
-    resolution: Optional[VideoResolution] = Field(
+    resolution: Optional[str] = Field(
         default=None,
         description="Standard resolution preset (480p, 720p, 1080p, 1440p, 4k)"
     )
@@ -71,7 +64,7 @@ class AudioMeta(MetaItem):
     type: str = MetaItemType.AUDIO.value
     seconds: float = Field(default=0, description="Duration in seconds")
     sample_rate: int = Field(default=0, description="Sample rate in Hz")
-    
+
 
 class RawMeta(MetaItem):
     """Metadata for raw inputs/outputs used for custom pricing."""
@@ -80,27 +73,27 @@ class RawMeta(MetaItem):
 
 
 # Union type for proper serialization of all MetaItem subclasses
-MetaItemUnion = Union[TextMeta, ImageMeta, VideoMeta, AudioMeta, RawMeta]
+MetaItemUnion = TextMeta | ImageMeta | VideoMeta | AudioMeta | RawMeta
 
 
 class OutputMeta(BaseModel):
     """
     Structured metadata about task inputs and outputs for pricing calculation.
-    
+
     Apps include this in their output to report what was consumed (inputs)
     and what was produced (outputs). The backend uses this with CEL expressions
     to calculate app-level pricing.
-    
+
     Example usage in an LLM app:
         output_meta = OutputMeta(
             inputs=[TextMeta(tokens=150)],
             outputs=[TextMeta(tokens=500)]
         )
-    
+
     Example usage in a video generation app:
         output_meta = OutputMeta(
             outputs=[VideoMeta(
-                resolution=VideoResolution.RES_1080P,
+                resolution="1080p",
                 resolution_mp=2.07,
                 seconds=10.5,
                 fps=30
@@ -115,4 +108,3 @@ class OutputMeta(BaseModel):
         default_factory=list,
         description="Metadata about produced outputs"
     )
-

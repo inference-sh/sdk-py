@@ -14,15 +14,14 @@ from .llm import (
 )
 from .output_meta import (
     MetaItem,
-    MetaItemType,
     TextMeta,
     ImageMeta,
     VideoMeta,
-    VideoResolution,
     AudioMeta,
     RawMeta,
     OutputMeta,
 )
+from inferencesh.output_meta_gen import MetaItemType, VideoResolution
 from .errors import (
     APIError,
     RequirementsNotMetError,

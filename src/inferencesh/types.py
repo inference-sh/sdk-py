@@ -1994,6 +1994,8 @@ class MetaItem(TypedDict, total=False):
     fps: int
     # Audio specific fields
     sample_rate: int
+    # Raw specific fields
+    cost: float
     # App-specific key-value pairs for custom pricing factors
     extra: Dict[str, Any]
 
