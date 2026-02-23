@@ -387,6 +387,7 @@ class SDKTypes(TypedDict, total=False):
     pass
 
 class SkillPublishRequest(TypedDict, total=False):
+    namespace: str
     name: str
     description: str
     category: str
