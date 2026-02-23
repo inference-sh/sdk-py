@@ -749,6 +749,14 @@ class ResourceStatusDTO(TypedDict, total=False):
 
 
 ##########
+# source: billing.go
+
+class PaymentProvider(str, Enum):
+    NONE = ""
+    STRIPE = "stripe"
+
+
+##########
 # source: chat.go
 
 class ChatStatus(str, Enum):
@@ -1342,6 +1350,127 @@ class IntegrationDTO(TypedDict, total=False):
 
 
 ##########
+# source: invoice.go
+
+class InvoiceType(str, Enum):
+    INVOICE = "invoice"
+    CREDIT_NOTE = "credit_note"
+
+class InvoiceStatus(str, Enum):
+    DRAFT = "draft"
+    FINALIZED = "finalized"
+    CORRECTED = "corrected"
+    VOIDED = "voided"
+
+class TaxMode(str, Enum):
+    NONE = "none"
+    V_A_T = "vat"
+    REVERSE_CHARGE = "reverse_charge"
+
+# Invoice represents a legal invoice or credit note
+class Invoice(TypedDict, total=False):
+    # Invoice Identity
+    type: InvoiceType
+    invoice_number: str
+    series: str
+    status: InvoiceStatus
+    # Dates
+    issue_date: str
+    service_period_start: str
+    service_period_end: str
+    finalized_at: str
+    # Issuer Snapshot (frozen from admin settings at creation)
+    issuer_legal_name: str
+    issuer_address: str
+    issuer_country: str
+    issuer_tax_id: str
+    issuer_email: str
+    # Customer Snapshot (frozen from BillingSettings at creation)
+    customer_legal_name: str
+    customer_address: str
+    customer_country: str
+    customer_vat_number: str
+    customer_email: str
+    is_business_customer: bool
+    customer_vat_validated: bool
+    # Financial (all amounts in cents, matches PaymentRecord)
+    # For credit notes, amounts are NEGATIVE
+    currency: str
+    subtotal_amount: int
+    service_fee: int
+    tax_rate: int
+    tax_amount: int
+    total_amount: int
+    tax_mode: TaxMode
+    # Linkage to payment
+    payment_record_id: str
+    provider_payment_id: str
+    # Corrections (for credit notes referencing original invoice)
+    original_invoice_id: str
+    correction_reason: str
+    # Storage
+    pdf_path: str
+    snapshot: str
+    # Relations
+    items: List[InvoiceItem]
+
+# InvoiceItem represents a line item on an invoice
+class InvoiceItem(TypedDict, total=False):
+    invoice_id: str
+    description: str
+    quantity: int
+    unit_price: int
+    line_total: int
+
+
+##########
+# source: payment.go
+
+class PaymentRecordStatus(IntEnum):
+    PENDING = 0
+    COMPLETE = 1
+    FAILED = 2
+    EXPIRED = 3
+
+class PaymentRecordType(str, Enum):
+    CHECKOUT = "checkout"
+    AUTO_RECHARGE = "auto_recharge"
+
+# TaxBreakdownItem represents a single tax component
+class TaxBreakdownItem(TypedDict, total=False):
+    amount: int
+    rate: int
+    jurisdiction: str
+    display_name: str
+    inclusive: bool
+
+# PaymentRecord stores payment details for checkout sessions and direct charges (provider-agnostic)
+# Field naming follows Stripe conventions for financial clarity.
+class PaymentRecord(TypedDict, total=False):
+    type: PaymentRecordType
+    status: PaymentRecordStatus
+    currency: str
+    # Financial amounts (Stripe-style naming)
+    credit_amount: int
+    service_fee: int
+    amount_subtotal: int
+    amount_tax: int
+    amount_total: int
+    # Tax breakdown by jurisdiction (for invoicing)
+    tax_breakdown: List[TaxBreakdownItem]
+    # Provider-agnostic fields
+    provider: PaymentProvider
+    provider_customer_id: str
+    provider_session_id: str
+    provider_payment_id: str
+    receipt_url: str
+    # Provider-specific details (checkout URLs, session IDs, etc.)
+    provider_metadata: Dict[str, Any]
+    # Related invoice (if one exists) - loaded via preload
+    invoice: Invoice
+
+
+##########
 # source: project.go
 
 class ProjectType(str, Enum):
@@ -1931,29 +2060,6 @@ class Transaction(TypedDict, total=False):
     # billing status changes) have been processed for this transaction.
     # Set to true via WithSkipTxSideEffects context to skip side effects (e.g. migrations).
     side_effects_processed: bool
-
-class PaymentRecordStatus(IntEnum):
-    PENDING = 0
-    COMPLETE = 1
-    FAILED = 2
-    EXPIRED = 3
-
-class PaymentRecordType(str, Enum):
-    CHECKOUT = "checkout"
-    AUTO_RECHARGE = "auto_recharge"
-
-# PaymentRecord stores Stripe payment details for both checkout sessions and direct charges
-class PaymentRecord(TypedDict, total=False):
-    type: PaymentRecordType
-    status: PaymentRecordStatus
-    amount: int
-    service_fee: int
-    stripe_customer_id: str
-    payment_intent_id: str
-    receipt_url: str
-    # Checkout-specific fields (only set for checkout type)
-    session_id: str
-    session_url: str
 
 
 ##########
