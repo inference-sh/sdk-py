@@ -270,6 +270,9 @@ class ApiAppRunRequest(TypedDict, total=False):
     session: str
     # Session timeout in seconds (1-3600). Only valid when session="new"
     session_timeout: int
+    # Schedule execution for a specific time (ISO 8601 UTC, e.g. "2026-02-24T15:30:00Z").
+    # Task stays queued until this time. Past timestamps run immediately.
+    run_at: str
 
 # ApiAgentRunRequest is the request body for /agents/run endpoint.
 # Supports both template agents and ad-hoc agents.
@@ -1856,6 +1859,8 @@ class Task(TypedDict, total=False):
     session: AppSession
     # Session timeout in seconds (only used when session="new")
     session_timeout: int
+    # Scheduled execution time (UTC). Scheduler skips task until this time.
+    run_at: str
 
 class TaskEvent(TypedDict, total=False):
     id: str
@@ -1903,6 +1908,7 @@ class TaskDTO(TypedDict, total=False):
     engine: EngineStateSummary
     worker_id: str
     worker: WorkerStateSummary
+    run_at: str
     webhook: str
     setup: Any
     input: Any
@@ -2126,6 +2132,15 @@ class UsageEvent(TypedDict, total=False):
 class DiscountItem(TypedDict, total=False):
     reason: str
     amount: int
+
+# FeeConfig controls which fees are enabled for billing.
+# Used in CEL evaluation context (as "fees") and stored for auditing.
+# true = fee is enabled/charged, false = fee is disabled/skipped.
+# nil FeeConfig defaults to all fees enabled.
+class FeeConfig(TypedDict, total=False):
+    inference: bool
+    royalty: bool
+    partner: bool
 
 class UsageBillingRecord(TypedDict, total=False):
     # Fee breakdown (all in microcents)
