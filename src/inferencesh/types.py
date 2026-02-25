@@ -1797,7 +1797,7 @@ class TaskStatus(IntEnum):
     UNKNOWN = 0
     RECEIVED = 1
     QUEUED = 2
-    SCHEDULED = 3
+    DISPATCHED = 3
     PREPARING = 4
     SERVING = 5
     SETTING_UP = 6

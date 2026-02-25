@@ -45,6 +45,7 @@ from .api import (
     AsyncSessionHandle,
 )
 from .types import TaskStatus, ChatMessageStatus
+from .client import parse_status, is_terminal_status
 from .models.errors import (
     APIError,
     RequirementsNotMetError,

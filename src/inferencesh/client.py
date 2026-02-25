@@ -16,13 +16,49 @@ from .types import TaskStatus, ChatMessageStatus
 # Terminal statuses where a task is considered "done"
 TERMINAL_STATUSES = {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}
 
+# Map string status names to TaskStatus enum (for future string-based API)
+_STATUS_STRING_MAP = {
+    "unknown": TaskStatus.UNKNOWN,
+    "received": TaskStatus.RECEIVED,
+    "queued": TaskStatus.QUEUED,
+    "dispatched": TaskStatus.DISPATCHED,
+    "preparing": TaskStatus.PREPARING,
+    "serving": TaskStatus.SERVING,
+    "setting_up": TaskStatus.SETTING_UP,
+    "running": TaskStatus.RUNNING,
+    "cancelling": TaskStatus.CANCELLING,
+    "uploading": TaskStatus.UPLOADING,
+    "completed": TaskStatus.COMPLETED,
+    "failed": TaskStatus.FAILED,
+    "cancelled": TaskStatus.CANCELLED,
+}
 
-def is_terminal_status(status: int) -> bool:
+
+def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
+    """Parse task status from int or string to TaskStatus enum.
+
+    Handles both current int-based API and future string-based API.
+    """
+    if status is None:
+        return None
+    if isinstance(status, int):
+        try:
+            return TaskStatus(status)
+        except ValueError:
+            return TaskStatus.UNKNOWN
+    if isinstance(status, str):
+        return _STATUS_STRING_MAP.get(status.lower(), TaskStatus.UNKNOWN)
+    return TaskStatus.UNKNOWN
+
+
+def is_terminal_status(status: Union[int, str, None]) -> bool:
     """Check if a task status is terminal (completed, failed, or cancelled).
-    
+
+    Handles both int and string status values.
     Deprecated: For ChatMessage status, use is_message_ready() instead.
     """
-    return status in TERMINAL_STATUSES
+    parsed = parse_status(status)
+    return parsed in TERMINAL_STATUSES if parsed else False
 
 
 def is_message_ready(status: str | None) -> bool:
@@ -120,7 +156,7 @@ class TaskStream(AbstractContextManager['TaskStream']):
                         if isinstance(update, Exception):
                             self._error = update
                             raise update
-                        if update.get("status") == TaskStatus.COMPLETED:
+                        if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                             self._final_task = update
                         yield update
                 except (ConnectionError, OSError) as exc:
@@ -217,7 +253,7 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
                         if isinstance(update, Exception):
                             self._error = update
                             raise update
-                        if update.get("status") == TaskStatus.COMPLETED:
+                        if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                             self._final_task = update
                         yield update
                 except (ConnectionError, OSError) as exc:
@@ -619,7 +655,7 @@ class Inference:
             stream = client.run(params, stream=True)
             for update in stream:
                 print(f"Status: {update.get('status')}")
-                if update.get('status') == TaskStatus.COMPLETED:
+                if parse_status(update.get('status')) == TaskStatus.COMPLETED:
                     print(f"Result: {update.get('output')}")
             ```
         """
@@ -678,11 +714,12 @@ class Inference:
         """
         with self.stream_task(task_id) as stream:
             for update in stream:
-                if update.get("status") == TaskStatus.COMPLETED:
+                status = parse_status(update.get("status"))
+                if status == TaskStatus.COMPLETED:
                     return update
-                elif update.get("status") == TaskStatus.FAILED:
+                if status == TaskStatus.FAILED:
                     raise RuntimeError(update.get("error") or "Task failed")
-                elif update.get("status") == TaskStatus.CANCELLED:
+                if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
         raise RuntimeError("Stream ended without completion")
 
@@ -776,7 +813,7 @@ class Inference:
             with client.stream_task(task["id"]) as stream:
                 for update in stream:
                     print(f"Status: {update.get('status')}")
-                    if update.get("status") == TaskStatus.COMPLETED:
+                    if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                         print(f"Result: {update.get('output')}")
                         
             # Or use as a simple iterator
@@ -1216,7 +1253,7 @@ class AsyncInference:
             # Stream updates
             async for update in await client.run(params, stream=True):
                 print(f"Status: {update.get('status')}")
-                if update.get('status') == TaskStatus.COMPLETED:
+                if parse_status(update.get('status')) == TaskStatus.COMPLETED:
                     print(f"Result: {update.get('output')}")
             ```
         """
@@ -1272,11 +1309,12 @@ class AsyncInference:
         """
         async with self.stream_task(task_id) as stream:
             async for update in stream:
-                if update.get("status") == TaskStatus.COMPLETED:
+                status = parse_status(update.get("status"))
+                if status == TaskStatus.COMPLETED:
                     return update
-                elif update.get("status") == TaskStatus.FAILED:
+                if status == TaskStatus.FAILED:
                     raise RuntimeError(update.get("error") or "Task failed")
-                elif update.get("status") == TaskStatus.CANCELLED:
+                if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
         raise RuntimeError("Stream ended without completion")
 
@@ -1312,7 +1350,7 @@ class AsyncInference:
             async with client.stream_task(task["id"]) as stream:
                 async for update in stream:
                     print(f"Status: {update.get('status')}")
-                    if update.get("status") == TaskStatus.COMPLETED:
+                    if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                         print(f"Result: {update.get('output')}")
                         
             # Or use as a simple async iterator
@@ -1603,7 +1641,7 @@ def _process_stream_event(
     """Shared handler for SSE task events. Returns final task dict when completed, else None.
     If stopper is provided, it will be called on terminal events to end streaming.
     """
-    status = data.get("status")
+    status = parse_status(data.get("status"))
 
     if status == TaskStatus.COMPLETED:
         result = _strip_task(data)
