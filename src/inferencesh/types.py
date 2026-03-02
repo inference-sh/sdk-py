@@ -325,8 +325,8 @@ class CreateAgentMessageResponse(TypedDict, total=False):
 class ToolResultRequest(TypedDict, total=False):
     result: str
 
-# WebhookEvent is the envelope for task webhook deliveries.
-class WebhookEvent(TypedDict, total=False):
+# WebhookPayload is the envelope for outbound webhook deliveries (e.g., task webhooks).
+class WebhookPayload(TypedDict, total=False):
     event: str
     timestamp: str
     data: Any
@@ -1434,6 +1434,9 @@ class PaymentRecordStatus(IntEnum):
     COMPLETE = 1
     FAILED = 2
     EXPIRED = 3
+    PROCESSING = 4
+    REFUNDED = 5
+    DISPUTED = 6
 
 class PaymentRecordType(str, Enum):
     CHECKOUT = "checkout"
