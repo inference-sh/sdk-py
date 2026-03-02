@@ -752,14 +752,6 @@ class ResourceStatusDTO(TypedDict, total=False):
 
 
 ##########
-# source: billing.go
-
-class PaymentProvider(str, Enum):
-    NONE = ""
-    STRIPE = "stripe"
-
-
-##########
 # source: chat.go
 
 class ChatStatus(str, Enum):
@@ -1353,130 +1345,6 @@ class IntegrationDTO(TypedDict, total=False):
 
 
 ##########
-# source: invoice.go
-
-class InvoiceType(str, Enum):
-    INVOICE = "invoice"
-    CREDIT_NOTE = "credit_note"
-
-class InvoiceStatus(str, Enum):
-    DRAFT = "draft"
-    FINALIZED = "finalized"
-    CORRECTED = "corrected"
-    VOIDED = "voided"
-
-class TaxMode(str, Enum):
-    NONE = "none"
-    V_A_T = "vat"
-    REVERSE_CHARGE = "reverse_charge"
-
-# Invoice represents a legal invoice or credit note
-class Invoice(TypedDict, total=False):
-    # Invoice Identity
-    type: InvoiceType
-    invoice_number: str
-    series: str
-    status: InvoiceStatus
-    # Dates
-    issue_date: str
-    service_period_start: str
-    service_period_end: str
-    finalized_at: str
-    # Issuer Snapshot (frozen from admin settings at creation)
-    issuer_legal_name: str
-    issuer_address: str
-    issuer_country: str
-    issuer_tax_id: str
-    issuer_email: str
-    # Customer Snapshot (frozen from BillingSettings at creation)
-    customer_legal_name: str
-    customer_address: str
-    customer_country: str
-    customer_vat_number: str
-    customer_email: str
-    is_business_customer: bool
-    customer_vat_validated: bool
-    # Financial (all amounts in cents, matches PaymentRecord)
-    # For credit notes, amounts are NEGATIVE
-    currency: str
-    subtotal_amount: int
-    service_fee: int
-    tax_rate: int
-    tax_amount: int
-    total_amount: int
-    tax_mode: TaxMode
-    # Linkage to payment
-    payment_record_id: str
-    provider_payment_id: str
-    # Corrections (for credit notes referencing original invoice)
-    original_invoice_id: str
-    correction_reason: str
-    # Storage
-    pdf_path: str
-    snapshot: str
-    # Relations
-    items: List[InvoiceItem]
-
-# InvoiceItem represents a line item on an invoice
-class InvoiceItem(TypedDict, total=False):
-    invoice_id: str
-    description: str
-    quantity: int
-    unit_price: int
-    line_total: int
-
-
-##########
-# source: payment.go
-
-class PaymentRecordStatus(IntEnum):
-    PENDING = 0
-    COMPLETE = 1
-    FAILED = 2
-    EXPIRED = 3
-    PROCESSING = 4
-    REFUNDED = 5
-    DISPUTED = 6
-
-class PaymentRecordType(str, Enum):
-    CHECKOUT = "checkout"
-    AUTO_RECHARGE = "auto_recharge"
-
-# TaxBreakdownItem represents a single tax component
-class TaxBreakdownItem(TypedDict, total=False):
-    amount: int
-    rate: int
-    jurisdiction: str
-    display_name: str
-    inclusive: bool
-
-# PaymentRecord stores payment details for checkout sessions and direct charges (provider-agnostic)
-# Field naming follows Stripe conventions for financial clarity.
-class PaymentRecord(TypedDict, total=False):
-    type: PaymentRecordType
-    status: PaymentRecordStatus
-    currency: str
-    # Financial amounts (Stripe-style naming)
-    credit_amount: int
-    service_fee: int
-    amount_subtotal: int
-    amount_tax: int
-    amount_total: int
-    # Tax breakdown by jurisdiction (for invoicing)
-    tax_breakdown: List[TaxBreakdownItem]
-    # Provider-agnostic fields
-    provider: PaymentProvider
-    provider_customer_id: str
-    provider_session_id: str
-    provider_payment_id: str
-    receipt_url: str
-    # Provider-specific details (checkout URLs, session IDs, etc.)
-    provider_metadata: Dict[str, Any]
-    # Related invoice (if one exists) - loaded via preload
-    invoice: Invoice
-
-
-##########
 # source: project.go
 
 class ProjectType(str, Enum):
@@ -1852,8 +1720,6 @@ class Task(TypedDict, total=False):
     logs: List[TaskLog]
     telemetry: List[TimescaleTask]
     usage_events: List[Optional[UsageEvent]]
-    transaction_id: str
-    transaction: Transaction
     # Secret refs for billing (tracks ownership to determine partner fee)
     secrets: List[SecretRef]
     # App session reference (for session calls)
@@ -1922,8 +1788,6 @@ class TaskDTO(TypedDict, total=False):
     logs: List[TaskLog]
     telemetry: List[TimescaleTask]
     usage_events: List[Optional[UsageEvent]]
-    transaction_id: str
-    transaction: Transaction
     session_id: str
     session_timeout: int
 
@@ -2044,81 +1908,11 @@ class ToolParameterProperty(TypedDict, total=False):
 
 
 ##########
-# source: tx.go
-
-class TransactionType(str, Enum):
-    CREDIT = "credit"
-    DEBIT = "debit"
-
-# Transaction represents a single credit transaction
-class Transaction(TypedDict, total=False):
-    type: TransactionType
-    amount: int
-    reference: str
-    notes: str
-    # Link to payment record for payment transactions (top-ups, auto-recharge)
-    PaymentRecordID: Optional[str]
-    PaymentRecord: Optional[PaymentRecord]
-    UsageBillingRecordID: Optional[str]
-    UsageBillingRecord: Optional[UsageBillingRecord]
-    UsageBillingRefundID: Optional[str]
-    UsageBillingRefund: Optional[UsageBillingRefund]
-    # Metadata for the transaction
-    metadata: Dict[str, Any]
-    # SideEffectsProcessed tracks whether side effects (notifications, auto-recharge,
-    # billing status changes) have been processed for this transaction.
-    # Set to true via WithSkipTxSideEffects context to skip side effects (e.g. migrations).
-    side_effects_processed: bool
-
-
-##########
 # source: usage.go
 
 class UsageEventResourceTier(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
-
-class MetaItemType(str, Enum):
-    TEXT = "text"
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
-    RAW = "raw"
-
-class VideoResolution(str, Enum):
-    VIDEO_RES480_P = "480p"
-    VIDEO_RES720_P = "720p"
-    VIDEO_RES1080_P = "1080p"
-    VIDEO_RES1440_P = "1440p"
-    VIDEO_RES4_K = "4k"
-
-# MetaItem represents metadata about an input or output item
-class MetaItem(TypedDict, total=False):
-    type: MetaItemType
-    # Text fields
-    tokens: int
-    # Image/Video shared fields
-    width: int
-    height: int
-    resolution_mp: float
-    # Image specific fields
-    steps: int
-    count: int
-    # Video specific fields
-    resolution: VideoResolution
-    seconds: float
-    fps: int
-    # Audio specific fields
-    sample_rate: int
-    # Raw specific fields
-    cost: float
-    # App-specific key-value pairs for custom pricing factors
-    extra: Dict[str, Any]
-
-# OutputMeta contains structured metadata about task inputs and outputs for pricing calculation
-class OutputMeta(TypedDict, total=False):
-    inputs: List[MetaItem]
-    outputs: List[MetaItem]
 
 class UsageEvent(TypedDict, total=False):
     usage_billing_record_id: str
@@ -2130,59 +1924,6 @@ class UsageEvent(TypedDict, total=False):
     model: str
     quantity: int
     unit: str
-
-# DiscountItem represents a single discount applied to a billing record
-class DiscountItem(TypedDict, total=False):
-    reason: str
-    amount: int
-
-# FeeConfig controls which fees are enabled for billing.
-# Used in CEL evaluation context (as "fees") and stored for auditing.
-# true = fee is enabled/charged, false = fee is disabled/skipped.
-# nil FeeConfig defaults to all fees enabled.
-class FeeConfig(TypedDict, total=False):
-    inference: bool
-    royalty: bool
-    partner: bool
-
-class UsageBillingRecord(TypedDict, total=False):
-    # Fee breakdown (all in microcents)
-    total: int
-    discount: int
-    # User debit (total charged)
-    user_debit_transaction_id: str
-    user_debit_transaction: Transaction
-    # Resource owner credit (for providing compute)
-    resource_credit_transaction_id: str
-    resource_credit_transaction: Transaction
-    # Creator royalty credit (app creator earnings)
-    royalty_credit_transaction_id: str
-    royalty_credit_transaction: Transaction
-    # Inference fee credit (platform fee)
-    inference_credit_transaction_id: str
-    inference_credit_transaction: Transaction
-    # Partner fee credit (cloud API fee)
-    partner_credit_transaction_id: str
-    partner_credit_transaction: Transaction
-
-class UsageBillingRefund(TypedDict, total=False):
-    usage_billing_record_id: str
-    usage_billing_record: UsageBillingRecord
-    # User refund (total refunded)
-    user_debit_refund_transaction_id: str
-    user_debit_refund_transaction: Transaction
-    # Resource owner reversal
-    resource_credit_refund_transaction_id: str
-    resource_credit_refund_transaction: Transaction
-    # Creator royalty reversal
-    royalty_credit_refund_transaction_id: str
-    royalty_credit_refund_transaction: Transaction
-    # Inference fee reversal
-    inference_credit_refund_transaction_id: str
-    inference_credit_refund_transaction: Transaction
-    # Partner fee reversal
-    partner_credit_refund_transaction_id: str
-    partner_credit_refund_transaction: Transaction
 
 
 ##########
