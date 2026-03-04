@@ -1,8 +1,10 @@
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Tuple
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
+import base64
 import mimetypes
 import os
+import re
 import urllib.request
 import urllib.parse
 import hashlib
@@ -64,9 +66,11 @@ class File:
         self.filename = filename
         self._tmp_path: Optional[str] = None
 
-        # Resolve: download URLs or normalize local paths
+        # Resolve: download URLs, decode data URIs, or normalize local paths
         if self.uri:
-            if self._is_url(self.uri):
+            if self._is_data_uri(self.uri):
+                self._decode_data_uri()
+            elif self._is_url(self.uri):
                 self._download_url()
             else:
                 self.path = os.path.abspath(self.uri)
@@ -166,6 +170,85 @@ class File:
     def _is_url(path: str) -> bool:
         parsed = urllib.parse.urlparse(path)
         return parsed.scheme in ("http", "https")
+
+    @staticmethod
+    def _is_data_uri(path: str) -> bool:
+        return path.startswith("data:")
+
+    @staticmethod
+    def _parse_data_uri(uri: str) -> Tuple[str, str, bytes]:
+        """Parse a data URI and return (media_type, extension, decoded_data).
+
+        Supports formats:
+        - data:image/jpeg;base64,/9j/4AAQ...
+        - data:text/plain,Hello%20World
+        - data:;base64,SGVsbG8=  (defaults to text/plain)
+        """
+        # Match: data:[<mediatype>][;base64],<data>
+        match = re.match(r"^data:([^;,]*)?(?:;(base64))?,(.*)$", uri, re.DOTALL)
+        if not match:
+            raise ValueError(f"Invalid data URI format")
+
+        media_type = match.group(1) or "text/plain"
+        is_base64 = match.group(2) == "base64"
+        data_str = match.group(3)
+
+        if is_base64:
+            # Handle URL-safe base64 and padding
+            data_str = data_str.replace("-", "+").replace("_", "/")
+            # Add padding if needed
+            padding = 4 - (len(data_str) % 4)
+            if padding != 4:
+                data_str += "=" * padding
+            try:
+                data = base64.b64decode(data_str)
+            except Exception as e:
+                raise ValueError(f"Failed to decode base64 data: {e}")
+        else:
+            # URL-encoded data
+            data = urllib.parse.unquote(data_str).encode("utf-8")
+
+        # Get file extension from media type
+        ext = mimetypes.guess_extension(media_type) or ""
+        # mimetypes returns .jpe for image/jpeg, prefer .jpg
+        if ext == ".jpe":
+            ext = ".jpg"
+
+        return media_type, ext, data
+
+    def _decode_data_uri(self) -> None:
+        """Decode a data URI and save to cache."""
+        uri = self.uri
+
+        # Create cache path based on hash of the data URI
+        uri_hash = hashlib.sha256(uri.encode()).hexdigest()[:16]
+        cache_dir = self.get_cache_dir() / "data_uri" / uri_hash
+
+        # Check for existing cached file
+        if cache_dir.exists():
+            cached_files = list(cache_dir.iterdir())
+            if cached_files:
+                self.path = str(cached_files[0])
+                return
+
+        # Parse and decode
+        media_type, ext, data = self._parse_data_uri(uri)
+
+        # Set content_type from the data URI if not already set
+        if not self.content_type:
+            self.content_type = media_type
+
+        # Create cache directory and write file
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        filename = f"file{ext}" if ext else "file"
+        cache_path = cache_dir / filename
+
+        try:
+            with open(cache_path, "wb") as f:
+                f.write(data)
+            self.path = str(cache_path)
+        except IOError as e:
+            raise RuntimeError(f"Failed to write decoded data URI to {cache_path}: {e}")
 
     def _download_url(self) -> None:
         original_url = self.uri
