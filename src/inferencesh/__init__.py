@@ -32,6 +32,7 @@ from .models import (
 
 from .utils import StorageDir, download
 from .client import Inference, AsyncInference, UploadFileOptions, is_terminal_status, is_message_ready
+from .streamable import streamable, streamable_raw, iter_ndjson, stream_post, stream_get, StreamableMessage
 from .api import (
     TasksAPI,
     AsyncTasksAPI,
@@ -241,4 +242,11 @@ __all__ = [
     "AsyncSessionsAPI",
     "SessionHandle",
     "AsyncSessionHandle",
+    # Streamable HTTP
+    "streamable",
+    "streamable_raw",
+    "iter_ndjson",
+    "stream_post",
+    "stream_get",
+    "StreamableMessage",
 ]
