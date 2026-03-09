@@ -208,7 +208,7 @@ class Agent:
         
         def create_event_source():
             # Use unified stream with TypedEvents
-            return self._create_typed_sse_generator(f"/chats/{self._chat_id}/stream")
+            return self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream")
         
         def handle_event(event_tuple):
             event_type, data = event_tuple
@@ -269,7 +269,7 @@ class Agent:
         
         def create_event_source():
             # Use unified stream with TypedEvents
-            return self._create_typed_sse_generator(f"/chats/{self._chat_id}/stream")
+            return self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream")
         
         def handle_event(event_tuple):
             event_type, data = event_tuple
@@ -321,7 +321,7 @@ class Agent:
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
         
-        for event_type, data in self._create_typed_sse_generator(f"/chats/{self._chat_id}/stream"):
+        for event_type, data in self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream"):
             if event_type == "chats":
                 if on_chat:
                     on_chat(data)
@@ -417,64 +417,74 @@ class Agent:
     # Private Methods
     # =========================================================================
     
-    def _create_sse_generator(self, endpoint: str):
-        """Create an SSE generator for StreamManager."""
+    def _create_ndjson_generator(self, endpoint: str):
+        """Create an NDJSON generator for StreamManager."""
         requests = _require_requests()
-        
+
         url = f"{self._base_url}{endpoint}"
         headers = {
             "Authorization": f"Bearer {self._api_key}",
-            "Accept": "text/event-stream",
+            "Accept": "application/x-ndjson",
         }
-        
+
         resp = requests.get(url, headers=headers, stream=True, timeout=60)
-        
+
         def generator():
-            for line in resp.iter_lines(decode_unicode=True):
-                if not line or line.startswith(":"):
-                    continue
-                if line.startswith("data:"):
-                    data_str = line[5:].strip()
-                    if data_str:
-                        try:
-                            yield json.loads(data_str)
-                        except json.JSONDecodeError:
-                            continue
-        
-        return generator()
-    
-    def _create_typed_sse_generator(self, endpoint: str):
-        """Create an SSE generator that yields (event_type, data) tuples for TypedEvents."""
-        requests = _require_requests()
-        
-        url = f"{self._base_url}{endpoint}"
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Accept": "text/event-stream",
-        }
-        
-        resp = requests.get(url, headers=headers, stream=True, timeout=60)
-        
-        def generator():
-            current_event_type: Optional[str] = None
             for line in resp.iter_lines(decode_unicode=True):
                 if not line:
-                    current_event_type = None  # Reset on empty line (event boundary)
                     continue
-                if line.startswith(":"):
+                line = line.strip()
+                if not line:
                     continue
-                if line.startswith("event:"):
-                    current_event_type = line[6:].strip()
+                try:
+                    parsed = json.loads(line)
+                except json.JSONDecodeError:
                     continue
-                if line.startswith("data:"):
-                    data_str = line[5:].strip()
-                    if data_str:
-                        try:
-                            data = json.loads(data_str)
-                            yield (current_event_type or "message", data)
-                        except json.JSONDecodeError:
-                            continue
-        
+                # Skip heartbeats
+                if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                    continue
+                # Unwrap data if present
+                if isinstance(parsed, dict) and "data" in parsed:
+                    yield parsed["data"]
+                else:
+                    yield parsed
+
+        return generator()
+    
+    def _create_typed_ndjson_generator(self, endpoint: str):
+        """Create an NDJSON generator that yields (event_type, data) tuples for TypedEvents."""
+        requests = _require_requests()
+
+        url = f"{self._base_url}{endpoint}"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/x-ndjson",
+        }
+
+        resp = requests.get(url, headers=headers, stream=True, timeout=60)
+
+        def generator():
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    parsed = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                # Skip heartbeats
+                if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                    continue
+                # Extract event type and data from NDJSON format
+                if isinstance(parsed, dict):
+                    event_type = parsed.get("event", "message")
+                    data = parsed.get("data", parsed)
+                    yield (event_type, data)
+                else:
+                    yield ("message", parsed)
+
         return generator()
     
     def _start_streaming(
@@ -632,7 +642,7 @@ class AsyncAgent:
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
         
-        async for event_type, data in self._stream_typed_sse(f"/chats/{self._chat_id}/stream"):
+        async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chat_messages":
                 yield data
     
@@ -641,7 +651,7 @@ class AsyncAgent:
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
         
-        async for event_type, data in self._stream_typed_sse(f"/chats/{self._chat_id}/stream"):
+        async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chats":
                 yield data
     
@@ -680,61 +690,65 @@ class AsyncAgent:
                 
                 return payload.get("data")
     
-    async def _stream_sse(self, endpoint: str) -> AsyncIterator[Dict[str, Any]]:
-        """Stream SSE events (yields raw data without event type)."""
+    async def _stream_ndjson(self, endpoint: str) -> AsyncIterator[Dict[str, Any]]:
+        """Stream NDJSON events (yields raw data without event type)."""
         aiohttp = await _require_aiohttp()
-        
+
         url = f"{self._base_url}{endpoint}"
         headers = {
             "Authorization": f"Bearer {self._api_key}",
-            "Accept": "text/event-stream",
+            "Accept": "application/x-ndjson",
         }
-        
+
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as resp:
-                async for line in resp.content:
-                    line_str = line.decode().strip()
-                    if not line_str or line_str.startswith(":"):
-                        continue
-                    if line_str.startswith("data:"):
-                        data_str = line_str[5:].strip()
-                        if data_str:
-                            try:
-                                yield json.loads(data_str)
-                            except json.JSONDecodeError:
-                                continue
-    
-    async def _stream_typed_sse(self, endpoint: str) -> AsyncIterator[tuple[str, Dict[str, Any]]]:
-        """Stream SSE events with TypedEvents (yields event_type, data tuples)."""
-        aiohttp = await _require_aiohttp()
-        
-        url = f"{self._base_url}{endpoint}"
-        headers = {
-            "Authorization": f"Bearer {self._api_key}",
-            "Accept": "text/event-stream",
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers) as resp:
-                current_event_type: Optional[str] = None
                 async for line in resp.content:
                     line_str = line.decode().strip()
                     if not line_str:
-                        current_event_type = None  # Reset on empty line (event boundary)
                         continue
-                    if line_str.startswith(":"):
+                    try:
+                        parsed = json.loads(line_str)
+                    except json.JSONDecodeError:
                         continue
-                    if line_str.startswith("event:"):
-                        current_event_type = line_str[6:].strip()
+                    # Skip heartbeats
+                    if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
                         continue
-                    if line_str.startswith("data:"):
-                        data_str = line_str[5:].strip()
-                        if data_str:
-                            try:
-                                data = json.loads(data_str)
-                                yield (current_event_type or "message", data)
-                            except json.JSONDecodeError:
-                                continue
+                    # Unwrap data if present
+                    if isinstance(parsed, dict) and "data" in parsed:
+                        yield parsed["data"]
+                    else:
+                        yield parsed
+    
+    async def _stream_typed_ndjson(self, endpoint: str) -> AsyncIterator[tuple[str, Dict[str, Any]]]:
+        """Stream NDJSON events with TypedEvents (yields event_type, data tuples)."""
+        aiohttp = await _require_aiohttp()
+
+        url = f"{self._base_url}{endpoint}"
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/x-ndjson",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                async for line in resp.content:
+                    line_str = line.decode().strip()
+                    if not line_str:
+                        continue
+                    try:
+                        parsed = json.loads(line_str)
+                    except json.JSONDecodeError:
+                        continue
+                    # Skip heartbeats
+                    if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                        continue
+                    # Extract event type and data from NDJSON format
+                    if isinstance(parsed, dict):
+                        event_type = parsed.get("event", "message")
+                        data = parsed.get("data", parsed)
+                        yield (event_type, data)
+                    else:
+                        yield ("message", parsed)
 
 
 # =============================================================================

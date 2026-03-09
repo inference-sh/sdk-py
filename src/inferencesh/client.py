@@ -841,7 +841,7 @@ class Inference:
             "get",
             url,
             headers={
-                "Accept": "text/event-stream",
+                "Accept": "application/x-ndjson",
                 "Cache-Control": "no-cache",
                 "Accept-Encoding": "identity",
                 "Connection": "keep-alive",
@@ -850,18 +850,8 @@ class Inference:
             timeout=60,
         )
         try:
-            for evt in self._iter_sse(resp):
+            for evt in self._iter_ndjson(resp):
                 try:
-                    # Handle generic messages - try parsing as {data: T, fields: []} structure first
-                    if (
-                        isinstance(evt, dict)
-                        and "data" in evt
-                        and "fields" in evt
-                        and isinstance(evt.get("fields"), list)
-                    ):
-                        # Partial data structure detected - extract just the data part
-                        evt = evt["data"]
-                    
                     # Process the event to check for completion/errors
                     result = _process_stream_event(
                         evt,
@@ -889,55 +879,10 @@ class Inference:
             except Exception:
                 raise
 
-    def _iter_sse(self, resp: Any, stream_manager: Optional[Any] = None) -> Generator[Dict[str, Any], None, None]:
-        """Iterate JSON events from an SSE response."""
-        # Mode 1: raw socket readline (can reduce buffering in some environments)
-        if self._sse_mode == "raw":
-            raw = getattr(resp, "raw", None)
-            if raw is not None:
-                try:
-                    # Avoid urllib3 decompression buffering
-                    raw.decode_content = False  # type: ignore[attr-defined]
-                except Exception:
-                    raise
-                buf = bytearray()
-                read_size = max(1, int(self._sse_read_bytes))
-                while True:
-                    # Check if we've been asked to stop before reading more data
-                    try:
-                        if stream_manager and stream_manager._stopped:  # type: ignore[attr-defined]
-                            break
-                    except Exception:
-                        raise
-
-                    chunk = raw.read(read_size)
-                    if not chunk:
-                        break
-                    for b in chunk:
-                        if b == 10:  # '\n'
-                            try:
-                                line = buf.decode(errors="ignore").rstrip("\r")
-                            except Exception:
-                                line = ""
-                            buf.clear()
-                            if not line:
-                                continue
-                            if line.startswith(":"):
-                                continue
-                            if line.startswith("data:"):
-                                data_str = line[5:].lstrip()
-                                if not data_str:
-                                    continue
-                                try:
-                                    yield json.loads(data_str)
-                                except json.JSONDecodeError:
-                                    continue
-                        else:
-                            buf.append(b)
-                return
-        # Mode 2: default iter_lines with reasonable chunk size (8KB)
+    def _iter_ndjson(self, resp: Any, stream_manager: Optional[Any] = None) -> Generator[Dict[str, Any], None, None]:
+        """Iterate JSON objects from an NDJSON response."""
         for line in resp.iter_lines(decode_unicode=True, chunk_size=8192):
-            # Check if we've been asked to stop before processing any more lines
+            # Check if we've been asked to stop
             try:
                 if stream_manager and stream_manager._stopped:  # type: ignore[attr-defined]
                     break
@@ -946,16 +891,25 @@ class Inference:
 
             if not line:
                 continue
-            if line.startswith(":"):
+
+            line = line.strip()
+            if not line:
                 continue
-            if line.startswith("data:"):
-                data_str = line[5:].lstrip()
-                if not data_str:
-                    continue
-                try:
-                    yield json.loads(data_str)
-                except json.JSONDecodeError:
-                    continue
+
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            # Skip heartbeats
+            if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                continue
+
+            # Unwrap data if present (partial update format)
+            if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
+                yield parsed["data"]
+            else:
+                yield parsed
 
     def _process_input_data(self, input_value: Any, path: str = "root") -> Any:
         if input_value is None:
@@ -1471,27 +1425,17 @@ class AsyncInference:
         url = f"{self._base_url}/tasks/{task_id}/stream"
         headers = {
             **self._headers(),
-            "Accept": "text/event-stream",
+            "Accept": "application/x-ndjson",
             "Cache-Control": "no-cache",
             "Accept-Encoding": "identity",
             "Connection": "keep-alive",
         }
         timeout_cfg = aiohttp.ClientTimeout(total=60)
-        
+
         async with aiohttp.ClientSession(timeout=timeout_cfg) as session:
             async with session.get(url, headers=headers) as resp:
-                async for evt in self._aiter_sse(resp):
+                async for evt in self._aiter_ndjson(resp):
                     try:
-                        # Handle generic messages - try parsing as {data: T, fields: []} structure first
-                        if (
-                            isinstance(evt, dict)
-                            and "data" in evt
-                            and "fields" in evt
-                            and isinstance(evt.get("fields"), list)
-                        ):
-                            # Partial data structure detected - extract just the data part
-                            evt = evt["data"]
-                        
                         # Process the event to check for completion/errors
                         result = _process_stream_event(
                             evt,
@@ -1506,25 +1450,30 @@ class AsyncInference:
                         yield exc
                         raise
 
-    async def _aiter_sse(self, resp: Any) -> AsyncIterator[Dict[str, Any]]:
-        """Iterate JSON events from an SSE response asynchronously."""
+    async def _aiter_ndjson(self, resp: Any) -> AsyncIterator[Dict[str, Any]]:
+        """Iterate JSON objects from an NDJSON response asynchronously."""
         async for raw_line in resp.content:  # type: ignore[attr-defined]
             try:
-                line = raw_line.decode().rstrip("\n")
+                line = raw_line.decode().strip()
             except Exception:
                 continue
             if not line:
                 continue
-            if line.startswith(":"):
+
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
                 continue
-            if line.startswith("data:"):
-                data_str = line[5:].lstrip()
-                if not data_str:
-                    continue
-                try:
-                    yield json.loads(data_str)
-                except json.JSONDecodeError:
-                    continue
+
+            # Skip heartbeats
+            if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                continue
+
+            # Unwrap data if present (partial update format)
+            if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
+                yield parsed["data"]
+            else:
+                yield parsed
 
     def agent(self, config: Union[str, "AgentConfig"]) -> "AsyncAgent":
         """Create an async agent for chat interactions.
