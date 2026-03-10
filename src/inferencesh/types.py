@@ -573,6 +573,12 @@ class ScopeGroup(str, Enum):
     PROJECTS = "projects"
     TEAMS = "teams"
     BILLING = "billing"
+    SECRETS = "secrets"
+    INTEGRATIONS = "integrations"
+    ENGINES = "engines"
+    API_KEYS = "apikeys"
+    USER = "user"
+    SETTINGS = "settings"
 
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
@@ -586,6 +592,13 @@ class ScopeGroupDefinition(TypedDict, total=False):
     id: ScopeGroup
     label: str
     description: str
+
+# ScopePreset represents a predefined bundle of scopes for common use cases
+class ScopePreset(TypedDict, total=False):
+    id: str
+    label: str
+    description: str
+    scopes: List[str]
 
 
 ##########
