@@ -643,6 +643,9 @@ class App(TypedDict, total=False):
     # Current version (developer's latest)
     version_id: str
     version: AppVersion
+    # SetAsCurrent is a transient field (not persisted) that controls whether a new version
+    # should automatically become the current version. Default false to protect production.
+    set_as_current: bool
 
 class AppGPUResource(TypedDict, total=False):
     count: int
