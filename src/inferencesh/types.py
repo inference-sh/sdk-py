@@ -438,6 +438,7 @@ class DeviceAuthPollResponse(TypedDict, total=False):
 class DeviceAuthApproveRequest(TypedDict, total=False):
     code: str
     team_id: str
+    scopes: List[str]
 
 # DeviceAuthApproveResponse is returned after approval
 class DeviceAuthApproveResponse(TypedDict, total=False):
@@ -557,6 +558,34 @@ class EngineConfig(TypedDict, total=False):
     # EngineInternalAPIURL is the URL workers use to reach the engine's main API.
     # If empty, derived as http://host.docker.internal:{EnginePort}.
     engine_internal_api_url: str
+
+
+##########
+# source: api_key_scopes.go
+
+class ScopeGroup(str, Enum):
+    AGENTS = "agents"
+    APPS = "apps"
+    CONVERSATIONS = "conversations"
+    FILES = "files"
+    DATASTORES = "datastores"
+    FLOWS = "flows"
+    PROJECTS = "projects"
+    TEAMS = "teams"
+    BILLING = "billing"
+
+# ScopeDefinition describes a single scope for UI rendering
+class ScopeDefinition(TypedDict, total=False):
+    value: str
+    label: str
+    description: str
+    group: ScopeGroup
+
+# ScopeGroupDefinition describes a group of scopes for UI rendering
+class ScopeGroupDefinition(TypedDict, total=False):
+    id: ScopeGroup
+    label: str
+    description: str
 
 
 ##########
