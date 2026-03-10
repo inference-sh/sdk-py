@@ -370,6 +370,13 @@ class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
 
+# CreateAppRequest is the request body for POST /apps
+class CreateAppRequest(TypedDict, total=False):
+    # PreserveCurrentVersion prevents auto-promoting the new version to current.
+    # Default false = new versions become current (what most users expect).
+    # Set true for admin deployments where you want to test before promoting.
+    preserve_current_version: bool
+
 # CreateAgentRequest is the request body for POST /agents
 # For new agents: omit ID, backend generates it
 # For new version of existing agent: include ID
@@ -643,9 +650,6 @@ class App(TypedDict, total=False):
     # Current version (developer's latest)
     version_id: str
     version: AppVersion
-    # SetAsCurrent is a transient field (not persisted) that controls whether a new version
-    # should automatically become the current version. Default false to protect production.
-    set_as_current: bool
 
 class AppGPUResource(TypedDict, total=False):
     count: int
