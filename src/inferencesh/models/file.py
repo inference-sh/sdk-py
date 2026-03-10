@@ -96,7 +96,10 @@ class File:
         )
 
     @classmethod
-    def _pydantic_validate(cls, v: Any) -> "File":
+    def _pydantic_validate(cls, v: Any) -> Optional["File"]:
+        # Empty values become None
+        if v is None or v == "" or v == {}:
+            return None
         if isinstance(v, cls):
             return v
         if isinstance(v, str):
