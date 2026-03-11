@@ -858,6 +858,15 @@ class IntegrationType(str, Enum):
     TEAMS = "teams"
     TELEGRAM = "telegram"
 
+# FileRef is a lightweight reference to a file with essential metadata.
+# Used in chat inputs/context instead of full File objects.
+class FileRef(TypedDict, total=False):
+    id: str
+    uri: str
+    filename: str
+    content_type: str
+    size: int
+
 class ChatMessageContent(TypedDict, total=False):
     type: ChatMessageContentType
     error: str
@@ -890,6 +899,9 @@ class ChatTaskInput(TypedDict, total=False):
     role: ChatMessageRole
     text: str
     reasoning: str
+    # Attachments is the SDK input field with full file metadata
+    attachments: List[FileRef]
+    # Images and Files are internal fields for task workers (filled from Attachments or context)
     images: List[str]
     files: List[str]
     tools: List[Tool]

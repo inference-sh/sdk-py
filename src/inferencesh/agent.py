@@ -14,6 +14,7 @@ from .types import (
     ChatDTO,
     ChatMessageDTO,
     AgentConfig,
+    FileRef,
     ToolType,
     ToolInvocationStatus,
 )
@@ -98,23 +99,15 @@ class Agent:
         """
         # Clear dispatched tools from previous message
         self._dispatched_tools.clear()
-        
-        # Upload files if provided
-        image_uri: Optional[str] = None
-        file_uris: Optional[list[str]] = None
-        
+
+        # Upload files if provided and build attachments list
+        attachments: Optional[list[FileRef]] = None
+
         if files:
-            uploaded = [self.upload_file(f) for f in files]
-            images = [f for f in uploaded if f.get("content_type", "").startswith("image/")]
-            others = [f for f in uploaded if not f.get("content_type", "").startswith("image/")]
-            
-            if images:
-                image_uri = images[0]["uri"]
-            if others:
-                file_uris = [f["uri"] for f in others]
-        
+            attachments = [self.upload_file(f) for f in files]
+
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
-        input_data = {"text": text, "image": image_uri, "files": file_uris, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
+        input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
@@ -365,24 +358,25 @@ class Agent:
         self._chat_id = None
         self._dispatched_tools.clear()
     
-    def upload_file(self, data: bytes | str) -> Dict[str, Any]:
+    def upload_file(self, data: bytes | str, filename: Optional[str] = None) -> FileRef:
         """
-        Upload a file and return the file object.
-        
+        Upload a file and return a FileRef.
+
         Args:
             data: File data (bytes, base64 string, or data URI)
-            
+            filename: Optional filename (required for @ tag expansion to work)
+
         Returns:
-            Dict with 'uri' and 'content_type'
+            FileRef with uri, filename, content_type, and size
         """
         import base64
-        
+
         requests = _require_requests()
-        
+
         # Determine content type and convert to bytes
         content_type = "application/octet-stream"
         raw_bytes: bytes
-        
+
         if isinstance(data, bytes):
             raw_bytes = data
         elif data.startswith("data:"):
@@ -396,22 +390,28 @@ class Agent:
         else:
             # Assume base64
             raw_bytes = base64.b64decode(data)
-        
+
         # Create file record
-        file_req = {"files": [{"uri": "", "content_type": content_type, "size": len(raw_bytes)}]}
+        file_req = {"files": [{"uri": "", "filename": filename, "content_type": content_type, "size": len(raw_bytes)}]}
         created = self._request("post", "/files", data=file_req)
         file_obj = created[0]
-        
+
         upload_url = file_obj.get("upload_url")
         if not upload_url:
             raise RuntimeError("No upload URL")
-        
+
         # Upload to signed URL
         resp = requests.put(upload_url, data=raw_bytes, headers={"Content-Type": content_type})
         if not resp.ok:
             raise RuntimeError("Upload failed")
-        
-        return {"uri": file_obj["uri"], "content_type": file_obj.get("content_type")}
+
+        return {
+            "id": file_obj.get("id", ""),
+            "uri": file_obj["uri"],
+            "filename": file_obj.get("filename") or "",
+            "content_type": file_obj.get("content_type", content_type),
+            "size": len(raw_bytes),
+        }
     
     # =========================================================================
     # Private Methods
@@ -586,10 +586,10 @@ class AsyncAgent:
     def chat_id(self) -> Optional[str]:
         return self._chat_id
     
-    async def send_message(self, text: str) -> ChatMessageDTO:
+    async def send_message(self, text: str, attachments: Optional[list[FileRef]] = None) -> ChatMessageDTO:
         """Send a message to the agent."""
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
-        input_data = {"text": text, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
+        input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
         else:
