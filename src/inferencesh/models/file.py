@@ -16,13 +16,15 @@ class File:
     """A file in the inference.sh ecosystem.
 
     Accepts a URL, local path, or dict with uri/path keys.
-    URLs are downloaded and cached locally on construction.
+    URLs are downloaded lazily when `path` is first accessed.
     In JSON schema, File fields appear as ``{"type": "string", "format": "file"}``
     because consumers only ever see URL strings after the engine uploads local files.
+
+    For API wrapper apps that only need to forward the URL, use `uri` directly
+    without accessing `path` to avoid unnecessary downloads.
     """
 
     uri: Optional[str]
-    path: Optional[str]
     content_type: Optional[str]
     size: Optional[int]
     filename: Optional[str]
@@ -43,7 +45,7 @@ class File:
                 uri = initializer
             elif isinstance(initializer, File):
                 uri = initializer.uri
-                path = initializer.path
+                path = initializer._path
                 content_type = content_type or initializer.content_type
                 size = size or initializer.size
                 filename = filename or initializer.filename
@@ -60,26 +62,46 @@ class File:
             raise ValueError("Either 'uri' or 'path' must be provided")
 
         self.uri = uri
-        self.path = path
+        self._path: Optional[str] = None
+        self._resolved = False
         self.content_type = content_type
         self.size = size
         self.filename = filename
         self._tmp_path: Optional[str] = None
 
-        # Resolve: download URLs, decode data URIs, or normalize local paths
+        # If a local path was provided directly, use it immediately
+        if path:
+            self._path = os.path.abspath(path)
+            self._resolved = True
+            self._populate_metadata()
+        # If URI is a local path (not URL or data URI), resolve it immediately
+        elif self.uri and not self._is_url(self.uri) and not self._is_data_uri(self.uri):
+            self._path = os.path.abspath(self.uri)
+            self._resolved = True
+            self._populate_metadata()
+        # Otherwise, defer resolution until path is accessed
+
+    @property
+    def path(self) -> Optional[str]:
+        """Local file path. Downloads the file lazily if needed."""
+        if self._resolved:
+            return self._path
+
+        # Lazy resolution for URLs and data URIs
         if self.uri:
             if self._is_data_uri(self.uri):
                 self._decode_data_uri()
             elif self._is_url(self.uri):
                 self._download_url()
-            else:
-                self.path = os.path.abspath(self.uri)
 
-        if self.path:
-            self.path = os.path.abspath(self.path)
-            self._populate_metadata()
-        else:
-            raise ValueError("Either 'uri' or 'path' must be provided and be valid")
+        self._resolved = True
+        return self._path
+
+    @path.setter
+    def path(self, value: Optional[str]) -> None:
+        """Set the local path directly."""
+        self._path = value
+        self._resolved = True
 
     # --- Pydantic integration (custom type, not a BaseModel) ---
 
@@ -113,8 +135,9 @@ class File:
         result: dict[str, Any] = {}
         if v.uri is not None:
             result["uri"] = v.uri
-        if v.path is not None:
-            result["path"] = v.path
+        # Use _path to avoid triggering download during serialization
+        if v._path is not None:
+            result["path"] = v._path
         if v.content_type is not None:
             result["content_type"] = v.content_type
         if v.size is not None:
@@ -156,10 +179,20 @@ class File:
         return cls(uri=str(path))
 
     def exists(self) -> bool:
+        """Check if the file exists locally (triggers download if needed)."""
         return self.path is not None and os.path.exists(self.path)
 
+    def is_resolved(self) -> bool:
+        """Check if the file has been downloaded/resolved without triggering download."""
+        return self._resolved
+
+    def is_local(self) -> bool:
+        """Check if we have a local path without triggering download."""
+        return self._path is not None and os.path.exists(self._path)
+
     def refresh_metadata(self) -> None:
-        if self.path and os.path.exists(self.path):
+        """Re-read metadata from disk (triggers download if needed)."""
+        if self.path and os.path.exists(self._path):
             self.content_type = self._guess_content_type()
             self.size = self._get_file_size()
             self.filename = self._get_filename()
@@ -231,7 +264,8 @@ class File:
         if cache_dir.exists():
             cached_files = list(cache_dir.iterdir())
             if cached_files:
-                self.path = str(cached_files[0])
+                self._path = str(cached_files[0])
+                self._populate_metadata()
                 return
 
         # Parse and decode
@@ -249,7 +283,8 @@ class File:
         try:
             with open(cache_path, "wb") as f:
                 f.write(data)
-            self.path = str(cache_path)
+            self._path = str(cache_path)
+            self._populate_metadata()
         except IOError as e:
             raise RuntimeError(f"Failed to write decoded data URI to {cache_path}: {e}")
 
@@ -259,7 +294,8 @@ class File:
 
         if cache_path.exists():
             print(f"Using cached file: {cache_path}")
-            self.path = str(cache_path)
+            self._path = str(cache_path)
+            self._populate_metadata()
             return
 
         print(f"Downloading URL: {original_url} to {cache_path}")
@@ -313,7 +349,8 @@ class File:
 
                 os.rename(self._tmp_path, cache_path)
                 self._tmp_path = None
-                self.path = str(cache_path)
+                self._path = str(cache_path)
+                self._populate_metadata()
             except (urllib.error.URLError, urllib.error.HTTPError) as e:
                 raise RuntimeError(f"Failed to download URL {original_url}: {str(e)}")
             except IOError as e:
@@ -334,7 +371,7 @@ class File:
                 pass
 
     def _populate_metadata(self) -> None:
-        if self.path and os.path.exists(self.path):
+        if self._path and os.path.exists(self._path):
             if not self.content_type:
                 self.content_type = self._guess_content_type()
             if not self.size:
@@ -343,10 +380,10 @@ class File:
                 self.filename = self._get_filename()
 
     def _guess_content_type(self) -> Optional[str]:
-        return mimetypes.guess_type(self.path)[0]
+        return mimetypes.guess_type(self._path)[0] if self._path else None
 
     def _get_file_size(self) -> int:
-        return os.path.getsize(self.path)
+        return os.path.getsize(self._path) if self._path else 0
 
     def _get_filename(self) -> str:
-        return os.path.basename(self.path)
+        return os.path.basename(self._path) if self._path else ""
