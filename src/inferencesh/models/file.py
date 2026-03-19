@@ -16,12 +16,16 @@ class File:
     """A file in the inference.sh ecosystem.
 
     Accepts a URL, local path, or dict with uri/path keys.
-    URLs are downloaded lazily when `path` is first accessed.
+    URLs are downloaded eagerly on construction.
     In JSON schema, File fields appear as ``{"type": "string", "format": "file"}``
     because consumers only ever see URL strings after the engine uploads local files.
 
-    For API wrapper apps that only need to forward the URL, use `uri` directly
-    without accessing `path` to avoid unnecessary downloads.
+    # TODO: Lazy download was reverted because .path is a synchronous property
+    # that blocks the event loop when called from async code (e.g. apps using
+    # Playwright + httpx). There's no way to make a sync property non-blocking
+    # without the caller explicitly awaiting. To revisit: add an
+    # `async ensure_downloaded()` method and have async callers use that,
+    # or resolve files at the kernel boundary before app execution.
     """
 
     uri: Optional[str]
@@ -79,22 +83,17 @@ class File:
             self._path = os.path.abspath(self.uri)
             self._resolved = True
             self._populate_metadata()
-        # Otherwise, defer resolution until path is accessed
-
-    @property
-    def path(self) -> Optional[str]:
-        """Local file path. Downloads the file lazily if needed."""
-        if self._resolved:
-            return self._path
-
-        # Lazy resolution for URLs and data URIs
-        if self.uri:
+        # Eagerly resolve URLs and data URIs
+        elif self.uri:
             if self._is_data_uri(self.uri):
                 self._decode_data_uri()
             elif self._is_url(self.uri):
                 self._download_url()
+            self._resolved = True
 
-        self._resolved = True
+    @property
+    def path(self) -> Optional[str]:
+        """Local file path. Files are downloaded eagerly on construction."""
         return self._path
 
     @path.setter
@@ -288,7 +287,9 @@ class File:
         except IOError as e:
             raise RuntimeError(f"Failed to write decoded data URI to {cache_path}: {e}")
 
-    def _download_url(self) -> None:
+    def _download_url(self, retries: int = 1) -> None:
+        import time
+
         original_url = self.uri
         cache_path = self._get_cache_path(original_url)
 
@@ -299,22 +300,19 @@ class File:
             return
 
         print(f"Downloading URL: {original_url} to {cache_path}")
-        try:
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp_path = str(cache_path) + ".tmp"
-            self._tmp_path = tmp_path
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = str(cache_path) + ".tmp"
+        self._tmp_path = tmp_path
 
-            headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/91.0.4472.124 Safari/537.36"
-                )
-            }
-            req = urllib.request.Request(original_url, headers=headers)
+        headers = {
+            "User-Agent": "inferencesh-sdk-py"
+        }
 
+        last_err = None
+        for attempt in range(retries + 1):
             try:
-                with urllib.request.urlopen(req) as response:
+                req = urllib.request.Request(original_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=120) as response:
                     total_size = 0
                     try:
                         if hasattr(response, "headers") and response.headers is not None:
@@ -326,7 +324,7 @@ class File:
                     except Exception:
                         total_size = 0
 
-                    block_size = 1024
+                    block_size = 65536
 
                     with tqdm(total=total_size, unit="iB", unit_scale=True) as pbar:
                         with open(self._tmp_path, "wb") as out_file:
@@ -351,17 +349,20 @@ class File:
                 self._tmp_path = None
                 self._path = str(cache_path)
                 self._populate_metadata()
-            except (urllib.error.URLError, urllib.error.HTTPError) as e:
-                raise RuntimeError(f"Failed to download URL {original_url}: {str(e)}")
-            except IOError as e:
-                raise RuntimeError(f"Failed to write downloaded file to {self._tmp_path}: {str(e)}")
-        except Exception as e:
-            if self._tmp_path:
-                try:
-                    os.unlink(self._tmp_path)
-                except (OSError, IOError):
-                    pass
-            raise RuntimeError(f"Error downloading URL {original_url}: {str(e)}")
+                return
+            except Exception as e:
+                last_err = e
+                if self._tmp_path:
+                    try:
+                        os.unlink(self._tmp_path)
+                    except (OSError, IOError):
+                        pass
+                if attempt < retries:
+                    wait = 2 ** attempt
+                    print(f"Download failed (attempt {attempt + 1}/{retries + 1}): {e}, retrying in {wait}s...")
+                    time.sleep(wait)
+
+        raise RuntimeError(f"Error downloading URL {original_url} after {retries + 1} attempts: {last_err}")
 
     def __del__(self):
         if hasattr(self, "_tmp_path") and self._tmp_path:
