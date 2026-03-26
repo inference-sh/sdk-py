@@ -408,6 +408,11 @@ class SkillPublishRequest(TypedDict, total=False):
     instructions: str
     files: List[SkillFile]
     metadata: Dict[str, str]
+    # Lineage — backend infers MutationType from context
+    parent_skill_id: str
+    parent_version_id: str
+    source_url: str
+    version_notes: str
     # Spec fields for roundtrip fidelity
     disable_model_invocation: bool
     user_invocable: bool
@@ -1350,6 +1355,8 @@ class GraphEdgeType(str, Enum):
     FLOW = "flow"
     CONDITIONAL = "conditional"
     EXECUTION = "execution"
+    PARENT = "parent"
+    ANCESTOR = "ancestor"
 
 # GraphNodeDTO is the API representation of a graph node
 class GraphNodeDTO(TypedDict, total=False):
@@ -2030,6 +2037,7 @@ class UserMetadata(TypedDict, total=False):
     use_case: str
     use_case_reason: str
     use_case_privacy: str
+    signup_source: str
 
 
 ##########
