@@ -170,6 +170,8 @@ class AgentDTO(TypedDict, total=False):
 class SkillConfig(TypedDict, total=False):
     name: str
     description: str
+    skill_id: str
+    version_id: str
     url: str
     content: str
 
@@ -1357,6 +1359,7 @@ class GraphEdgeType(str, Enum):
     EXECUTION = "execution"
     PARENT = "parent"
     ANCESTOR = "ancestor"
+    DUPLICATE = "duplicate"
 
 # GraphNodeDTO is the API representation of a graph node
 class GraphNodeDTO(TypedDict, total=False):
