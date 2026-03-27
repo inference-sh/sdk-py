@@ -72,18 +72,17 @@ def patch_requests(monkeypatch):
                 },
             })
 
-        # SSE stream
+        # NDJSON stream
         if url.endswith("/tasks/task_123/stream") and stream:
-            # Minimal SSE: send a completed event
+            # Send a completed event as NDJSON (one JSON object per line)
             event_payload = json.dumps({
                 "id": "task_123",
-                "status": 10,  # COMPLETED (after CANCELLING=8 was added)
+                "status": 10,  # COMPLETED
                 "output": {"ok": True},
                 "logs": ["done"],
             })
             lines = [
-                f"data: {event_payload}",
-                "",  # dispatch
+                event_payload,
             ]
             return DummyResponse(status_code=200, lines=lines)
 
@@ -348,7 +347,7 @@ def test_task_status_enum():
     """Test TaskStatus enum values."""
     assert TaskStatus.RECEIVED == 1
     assert TaskStatus.QUEUED == 2
-    assert TaskStatus.SCHEDULED == 3
+    assert TaskStatus.DISPATCHED == 3
     assert TaskStatus.PREPARING == 4
     assert TaskStatus.SERVING == 5
     assert TaskStatus.SETTING_UP == 6
@@ -454,16 +453,16 @@ class MockClientSession:
                 },
             })
         
-        # SSE stream
+        # NDJSON stream
         if url.endswith("/tasks/task_async_123/stream") and method.upper() == "GET":
             event_payload = json.dumps({
                 "id": "task_async_123",
-                "status": 10,  # COMPLETED (after CANCELLING=8 was added)
+                "status": 10,  # COMPLETED
                 "output": {"async_ok": True},
                 "logs": ["async_done"],
             })
             lines = [
-                f"data: {event_payload}\n".encode(),
+                f"{event_payload}\n".encode(),
             ]
             return MockAsyncResponse(status=200, lines=lines)
         

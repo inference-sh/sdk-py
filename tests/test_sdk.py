@@ -85,17 +85,17 @@ def test_file_validation():
 
 def test_file_from_url(monkeypatch):
     # Mock URL download
-    def mock_urlopen(request):
+    def mock_urlopen(request, **kwargs):
         class MockResponse:
             def __enter__(self):
                 return self
-            
+
             def __exit__(self, *args):
                 pass
-            
+
             def read(self):
                 return b"mocked content"
-        
+
         return MockResponse()
     
     monkeypatch.setattr(urllib.request, 'urlopen', mock_urlopen)
@@ -140,17 +140,17 @@ def test_file_metadata_refresh():
 
 def test_file_cleanup(monkeypatch):
     # Mock URL download - same mock as test_file_from_url
-    def mock_urlopen(request):
+    def mock_urlopen(request, **kwargs):
         class MockResponse:
             def __enter__(self):
                 return self
-            
+
             def __exit__(self, *args):
                 pass
-            
+
             def read(self):
                 return b"mocked content"
-        
+
         return MockResponse()
     
     monkeypatch.setattr(urllib.request, 'urlopen', mock_urlopen)

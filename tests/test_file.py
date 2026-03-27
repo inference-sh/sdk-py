@@ -10,148 +10,70 @@ from pydantic import BaseModel, Field
 from inferencesh import File
 
 
-class TestFileLazyLoading:
-    """Test that File downloads lazily when .path is accessed."""
+class TestFileEagerLoading:
+    """Test that File downloads eagerly on construction (not lazily)."""
 
     def test_local_path_resolves_immediately(self):
-        """Local paths should resolve immediately without lazy loading."""
+        """Local paths should resolve immediately."""
         with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
             f.write(b"test content")
             path = f.name
 
         try:
             file = File(uri=path)
-            # Should be resolved immediately for local paths
             assert file._resolved is True
             assert file._path == os.path.abspath(path)
             assert file.path == os.path.abspath(path)
         finally:
             os.unlink(path)
 
-    def test_url_does_not_download_on_construction(self):
-        """URLs should NOT download when File is constructed."""
+    def test_url_downloads_on_construction(self):
+        """URLs should download eagerly when File is constructed."""
         url = "https://example.com/image.jpg"
 
         with patch.object(File, '_download_url') as mock_download:
             file = File(uri=url)
 
-            # Should NOT have called download yet
-            mock_download.assert_not_called()
-
-            # Should have URI available
-            assert file.uri == url
-
-            # Should NOT be resolved yet
-            assert file._resolved is False
-            assert file._path is None
-
-    def test_url_downloads_on_path_access(self):
-        """URLs should download when .path is accessed."""
-        url = "https://example.com/image.jpg"
-
-        with patch.object(File, '_download_url') as mock_download:
-            # Make mock set _path like real download would
-            def fake_download():
-                file._path = "/tmp/cached/image.jpg"
-            mock_download.side_effect = fake_download
-
-            file = File(uri=url)
-
-            # Access .path - should trigger download
-            _ = file.path
-
-            # Should have called download
+            # Should have called download during construction
             mock_download.assert_called_once()
+            assert file.uri == url
             assert file._resolved is True
 
-    def test_uri_access_does_not_trigger_download(self):
-        """Accessing .uri should NOT trigger download."""
+    def test_uri_available_after_construction(self):
+        """URI should be available after construction."""
         url = "https://example.com/image.jpg"
 
-        with patch.object(File, '_download_url') as mock_download:
+        with patch.object(File, '_download_url'):
             file = File(uri=url)
+            assert file.uri == url
 
-            # Access .uri multiple times
-            _ = file.uri
-            _ = file.uri
-            _ = file.uri
-
-            # Should NOT have called download
-            mock_download.assert_not_called()
-
-    def test_is_resolved_without_download(self):
-        """is_resolved() should not trigger download."""
+    def test_is_resolved_after_construction(self):
+        """File should be resolved after construction."""
         url = "https://example.com/image.jpg"
 
-        with patch.object(File, '_download_url') as mock_download:
+        with patch.object(File, '_download_url'):
             file = File(uri=url)
+            assert file.is_resolved() is True
 
-            # Check resolution status
-            assert file.is_resolved() is False
-
-            # Should NOT have called download
-            mock_download.assert_not_called()
-
-    def test_is_local_without_download(self):
-        """is_local() should not trigger download."""
+    def test_serialization_has_uri(self):
+        """Serializing to dict should include URI."""
         url = "https://example.com/image.jpg"
 
-        with patch.object(File, '_download_url') as mock_download:
+        with patch.object(File, '_download_url'):
             file = File(uri=url)
-
-            # Check local status
-            assert file.is_local() is False
-
-            # Should NOT have called download
-            mock_download.assert_not_called()
-
-    def test_serialization_does_not_trigger_download(self):
-        """Serializing to dict should NOT trigger download."""
-        url = "https://example.com/image.jpg"
-
-        with patch.object(File, '_download_url') as mock_download:
-            file = File(uri=url)
-
-            # Serialize
             data = file.to_dict()
-
-            # Should NOT have called download
-            mock_download.assert_not_called()
-
-            # Should have URI but no path
             assert data["uri"] == url
-            assert "path" not in data or data.get("path") is None
 
-    def test_data_uri_does_not_decode_on_construction(self):
-        """Data URIs should NOT decode when File is constructed."""
+    def test_data_uri_decodes_on_construction(self):
+        """Data URIs should decode eagerly on construction."""
         data_uri = "data:text/plain;base64,SGVsbG8gV29ybGQ="
 
         with patch.object(File, '_decode_data_uri') as mock_decode:
             file = File(uri=data_uri)
 
-            # Should NOT have called decode yet
-            mock_decode.assert_not_called()
-
-            # Should have URI available
-            assert file.uri == data_uri
-            assert file._resolved is False
-
-    def test_data_uri_decodes_on_path_access(self):
-        """Data URIs should decode when .path is accessed."""
-        data_uri = "data:text/plain;base64,SGVsbG8gV29ybGQ="
-
-        with patch.object(File, '_decode_data_uri') as mock_decode:
-            def fake_decode():
-                file._path = "/tmp/cached/file.txt"
-            mock_decode.side_effect = fake_decode
-
-            file = File(uri=data_uri)
-
-            # Access .path
-            _ = file.path
-
-            # Should have called decode
+            # Should have called decode during construction
             mock_decode.assert_called_once()
+            assert file.uri == data_uri
 
 
 class TestFileJsonSchema:
