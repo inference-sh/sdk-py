@@ -516,9 +516,11 @@ class Inference:
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
+        from . import __version__
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
+            "User-Agent": f"inference-sdk-py/{__version__}",
         }
 
     def _request(
@@ -1070,9 +1072,11 @@ class AsyncInference:
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
+        from . import __version__
         return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
+            "User-Agent": f"inference-sdk-py/{__version__}",
         }
 
     async def _request(

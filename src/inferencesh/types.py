@@ -242,6 +242,7 @@ class APIResponse(TypedDict, total=False):
 class APIError(TypedDict, total=False):
     code: str
     message: str
+    suggestions: List[str]
 
 # ApiAppRunRequest is the request body for /apps/run endpoint.
 # Supports two ways to specify the app:
