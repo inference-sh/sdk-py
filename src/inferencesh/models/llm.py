@@ -299,11 +299,12 @@ def build_messages(
                     
         if msg.files:
             for file in msg.files:
+                filename = file.filename or "file"
                 if file.path:
                     file_data_uri = file_to_base64_data_uri(file.path)
-                    parts.append({"type": "file_url", "file_url": {"url": file_data_uri}})
+                    parts.append({"type": "file", "file": {"filename": filename, "file_data": file_data_uri}})
                 elif file.uri:
-                    parts.append({"type": "file_url", "file_url": {"url": file.uri}})
+                    parts.append({"type": "file", "file": {"filename": filename, "file_data": file.uri}})
                 
         if msg.reasoning:
             parts.append({"type": "reasoning", "reasoning": msg.reasoning})
