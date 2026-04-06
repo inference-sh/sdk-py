@@ -1078,6 +1078,7 @@ class WorkerState(TypedDict, total=False):
     index: int
     status: str
     status_updated_at: str
+    heartbeat_at: str
     engine_id: str
     engine: EngineState
     task_id: str
@@ -1172,6 +1173,7 @@ class File(TypedDict, total=False):
     content_type: str
     size: int
     filename: str
+    category: str
     rating: ContentRating
     metadata: FileMetadata
 
@@ -1183,6 +1185,7 @@ class FileDTO(TypedDict, total=False):
     content_type: str
     size: int
     filename: str
+    category: str
     rating: ContentRating
     metadata: FileMetadata
 
