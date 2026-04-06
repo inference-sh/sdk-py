@@ -272,35 +272,46 @@ def file_to_base64_data_uri(file_path):
 def build_messages(
     input_data: LLMInput,
     transform_user_message: Optional[Callable[[str], str]] = None,
-    include_reasoning: bool = False
+    include_reasoning: bool = False,
+    file_mode: str = "base64",
+    image_mode: str = "base64"
 ) -> List[Dict[str, Any]]:
     """Build messages for LLaMA.cpp chat completion.
 
     If any message includes image content, builds OpenAI-style multipart format.
     Otherwise, uses plain string-only format.
+
+    file_mode/image_mode: "base64" encodes from local path, "url" passes original URL when available.
     """
+    def _is_http_url(s: str) -> bool:
+        return s.startswith("http://") or s.startswith("https://")
+
     def render_message(msg: ContextMessage, allow_multipart: bool) -> str | List[dict]:
         parts = []
         text = transform_user_message(msg.text) if transform_user_message and msg.role == ContextMessageRole.USER else msg.text
-        
-        
+
+
         if text:
             parts.append({"type": "text", "text": text})
         else:
             parts.append({"type": "text", "text": ""})
-            
+
         if msg.images:
             for image in msg.images:
-                if image.path:
+                if image_mode == "url" and image.uri and _is_http_url(image.uri):
+                    parts.append({"type": "image_url", "image_url": {"url": image.uri}})
+                elif image.path:
                     image_data_uri = image_to_base64_data_uri(image.path)
                     parts.append({"type": "image_url", "image_url": {"url": image_data_uri}})
                 elif image.uri:
                     parts.append({"type": "image_url", "image_url": {"url": image.uri}})
-                    
+
         if msg.files:
             for file in msg.files:
                 filename = file.filename or "file"
-                if file.path:
+                if file_mode == "url" and file.uri and _is_http_url(file.uri):
+                    parts.append({"type": "file", "file": {"filename": filename, "file_data": file.uri}})
+                elif file.path:
                     file_data_uri = file_to_base64_data_uri(file.path)
                     parts.append({"type": "file", "file": {"filename": filename, "file_data": file_data_uri}})
                 elif file.uri:
