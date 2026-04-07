@@ -269,16 +269,16 @@ def file_to_base64_data_uri(file_path):
             content_type = "application/pdf"
         return f"data:{content_type};base64,{base64_data}"
 
-def build_messages(
+def build_openai_messages(
     input_data: LLMInput,
     transform_user_message: Optional[Callable[[str], str]] = None,
     include_reasoning: bool = False,
     file_mode: str = "base64",
     image_mode: str = "base64"
 ) -> List[Dict[str, Any]]:
-    """Build messages for LLaMA.cpp chat completion.
+    """Build OpenAI-format messages for chat completion.
 
-    If any message includes image content, builds OpenAI-style multipart format.
+    If any message includes image/file content, builds multipart format.
     Otherwise, uses plain string-only format.
 
     file_mode/image_mode: "base64" encodes from local path, "url" passes original URL when available.
@@ -320,17 +320,20 @@ def build_messages(
         if msg.reasoning:
             parts.append({"type": "reasoning", "reasoning": msg.reasoning})
                     
-        if allow_multipart:
-            return parts
-        
+        # If the message only has a single text part, return as plain string
+        # even in multipart mode — avoids sending [{"type":"text","text":""}]
+        # for assistant/tool messages which some providers reject
         if len(parts) == 1 and parts[0]["type"] == "text":
             return parts[0]["text"]
-        
+
+        if allow_multipart:
+            return parts
+
         if len(parts) > 1:
             if parts.any(lambda x: x["type"] == "image_url"):
                 raise ValueError("Image content requires multipart support")
             return parts
-        
+
         raise ValueError("Invalid message content")
 
     messages = [{"role": "system", "content": input_data.system_prompt}] if input_data.system_prompt is not None and input_data.system_prompt != "" else []
@@ -458,6 +461,10 @@ def build_messages(
         messages.append(msg_dict)
 
     return messages
+
+
+# Backwards-compatible alias
+build_messages = build_openai_messages
 
 
 def build_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
