@@ -27,9 +27,6 @@ dependencies = [
 "Homepage" = "https://github.com/inference-sh/sdk"
 "Bug Tracker" = "https://github.com/inference-sh/sdk/issues"
 
-[project.scripts]
-infsh = "infsh.__main__:cli"
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
