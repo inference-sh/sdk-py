@@ -1208,6 +1208,8 @@ class FlowVersion(TypedDict, total=False):
     flow_id: str
     # ConfigHash for deduplication - SHA256 of config content
     config_hash: str
+    # GraphVersion is an incrementing counter for optimistic locking on action-based edits
+    graph_version: int
     # Flow graph configuration
     input_schema: Any
     input: FlowRunInputs
@@ -1288,6 +1290,7 @@ class FlowDTO(TypedDict, total=False):
     viewport: FlowViewport
 
 class FlowVersionDTO(TypedDict, total=False):
+    graph_version: int
     input_schema: Any
     input: FlowRunInputs
     output_schema: Any
