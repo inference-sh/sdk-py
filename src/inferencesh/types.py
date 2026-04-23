@@ -23,6 +23,8 @@ class ToolType(str, Enum):
     APP = "app"
     AGENT = "agent"
     HOOK = "hook"
+    HTTP = "http"
+    MCP = "mcp"
     CLIENT = "client"
     INTERNAL = "internal"
 
@@ -68,6 +70,28 @@ class ClientToolConfig(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
 
+# ToolAuthConfig declares how a tool authenticates. Resolved at runtime.
+class ToolAuthConfig(TypedDict, total=False):
+    type: str  # "integration", "api_key", "bearer", "none"
+    provider: str
+    integration_id: str
+    secret: str
+    header: str
+
+# HTTPToolConfig contains configuration for an authenticated HTTP tool
+class HTTPToolConfig(TypedDict, total=False):
+    url: str
+    method: str
+    auth: ToolAuthConfig
+    headers: Dict[str, str]
+    input_schema: Any
+    output_schema: Any
+
+# MCPToolConfig contains configuration for a remote MCP server tool
+class MCPToolConfig(TypedDict, total=False):
+    integration_id: str
+    tool_name: str
+
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
     name: str
@@ -80,6 +104,8 @@ class AgentTool(TypedDict, total=False):
     app: AppToolConfig
     agent: AgentToolConfig
     hook: HookToolConfig
+    http: HTTPToolConfig
+    mcp: MCPToolConfig
     client: ClientToolConfig
     internal: InternalToolConfig
 

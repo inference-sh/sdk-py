@@ -3,7 +3,7 @@ Tool Builder - Fluent API for defining agent tools
 """
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union
-from .types import AgentTool, InternalToolsConfig, ToolType
+from .types import AgentTool, InternalToolsConfig, ToolAuthConfig, ToolType
 
 
 # =============================================================================
@@ -271,6 +271,58 @@ class WebhookToolBuilder(_ToolBuilder):
         }
 
 
+class HTTPToolBuilder(_ToolBuilder):
+    """Builder for HTTP tools with credential injection."""
+
+    def __init__(self, name: str, url: str):
+        super().__init__(name)
+        self._url = url
+        self._method = "POST"
+        self._auth: Optional[ToolAuthConfig] = None
+        self._headers: Dict[str, str] = {}
+
+    def method(self, m: str) -> "HTTPToolBuilder":
+        """Set HTTP method (GET, POST, PUT, PATCH, DELETE)."""
+        self._method = m
+        return self
+
+    def auth(self, *, integration: Optional[str] = None, integration_id: Optional[str] = None,
+             api_key: Optional[str] = None, bearer: Optional[str] = None,
+             header: Optional[str] = None) -> "HTTPToolBuilder":
+        """Set authentication. Use integration for OAuth, api_key/bearer for secret store references."""
+        if integration:
+            self._auth = {"type": "integration", "provider": integration}
+            if integration_id:
+                self._auth["integration_id"] = integration_id
+        elif api_key:
+            self._auth = {"type": "api_key", "secret": api_key, "header": header or "X-API-Key"}
+        elif bearer:
+            self._auth = {"type": "bearer", "secret": bearer}
+        return self
+
+    def header(self, name: str, value: str) -> "HTTPToolBuilder":
+        """Add a static header. Use ${{secrets.NAME}} for secret references."""
+        self._headers[name] = value
+        return self
+
+    def build(self) -> AgentTool:
+        result: AgentTool = {
+            "name": self._name,
+            "display_name": self._display_name or self._name,
+            "description": self._description,
+            "type": ToolType.HTTP,
+            "require_approval": self._require_approval or None,
+            "http": {
+                "url": self._url,
+                "method": self._method if self._method != "POST" else None,
+                "auth": self._auth,
+                "headers": self._headers or None,
+                "input_schema": _to_json_schema(self._params),
+            },
+        }
+        return result
+
+
 # =============================================================================
 # Public API
 # =============================================================================
@@ -291,8 +343,13 @@ def agent_tool(name: str, agent_ref: str) -> AgentToolBuilder:
 
 
 def webhook_tool(name: str, url: str) -> WebhookToolBuilder:
-    """Create a webhook tool (calls external URL)."""
+    """Create a webhook tool (calls external URL). Legacy — prefer http_tool for new code."""
     return WebhookToolBuilder(name, url)
+
+
+def http_tool(name: str, url: str) -> HTTPToolBuilder:
+    """Create an HTTP tool with credential injection."""
+    return HTTPToolBuilder(name, url)
 
 
 # =============================================================================
