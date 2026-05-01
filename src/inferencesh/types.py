@@ -23,8 +23,8 @@ class ToolType(str, Enum):
     APP = "app"
     AGENT = "agent"
     HOOK = "hook"
-    HTTP = "http"
-    MCP = "mcp"
+    H_T_T_P = "http"
+    M_C_P = "mcp"
     CLIENT = "client"
     INTERNAL = "internal"
 
@@ -70,12 +70,17 @@ class ClientToolConfig(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
 
-# ToolAuthConfig declares how a tool authenticates. Resolved at runtime.
+# ToolAuthConfig declares how a tool authenticates. Resolved at runtime — never contains actual credentials.
 class ToolAuthConfig(TypedDict, total=False):
-    type: str  # "integration", "api_key", "bearer", "none"
+    # Type: "integration", "api_key", "bearer", "none"
+    type: str
+    # For type=integration: which provider to look up (e.g. "google", "mcp", "slack")
     provider: str
+    # For type=integration: specific integration ID (optional — if empty, uses team's primary for provider)
     integration_id: str
+    # For type=api_key or bearer: name of the secret in the team's secret store
     secret: str
+    # For type=api_key: which header to inject (default: "X-API-Key")
     header: str
 
 # HTTPToolConfig contains configuration for an authenticated HTTP tool
@@ -89,7 +94,9 @@ class HTTPToolConfig(TypedDict, total=False):
 
 # MCPToolConfig contains configuration for a remote MCP server tool
 class MCPToolConfig(TypedDict, total=False):
+    # IntegrationID references the MCP integration (has server_url, tokens, cached tools)
     integration_id: str
+    # ToolName is the tool name on the remote MCP server
     tool_name: str
 
 # AgentTool represents a unified tool that can be used by an agent
@@ -125,6 +132,8 @@ class AgentToolDTO(TypedDict, total=False):
     app: AppToolConfigDTO
     agent: AgentToolConfigDTO
     hook: HookToolConfigDTO
+    http: HTTPToolConfigDTO
+    mcp: MCPToolConfigDTO
     client: ClientToolConfigDTO
 
 class AppToolConfigDTO(TypedDict, total=False):
@@ -155,6 +164,18 @@ class HookToolConfigDTO(TypedDict, total=False):
 class ClientToolConfigDTO(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
+
+class HTTPToolConfigDTO(TypedDict, total=False):
+    url: str
+    method: str
+    auth: ToolAuthConfig
+    headers: Dict[str, str]
+    input_schema: Any
+    output_schema: Any
+
+class MCPToolConfigDTO(TypedDict, total=False):
+    integration_id: str
+    tool_name: str
 
 # CoreAppConfig references an app used as the agent's core
 class CoreAppConfig(TypedDict, total=False):
@@ -461,6 +482,13 @@ class CheckoutCompleteRequest(TypedDict, total=False):
 StripeCheckoutCreateRequest = CheckoutCreateRequest
 
 StripeCheckoutCompleteRequest = CheckoutCompleteRequest
+
+# AuthResponse is returned after successful authentication (OAuth, magic link, SSO)
+class AuthResponse(TypedDict, total=False):
+    user: UserDTO
+    session_id: str
+    otp_required: bool
+    redirect_to: str
 
 # DeviceAuthResponse is returned when a device initiates auth
 class DeviceAuthResponse(TypedDict, total=False):
