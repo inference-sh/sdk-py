@@ -489,6 +489,7 @@ class AuthResponse(TypedDict, total=False):
     session_id: str
     otp_required: bool
     redirect_to: str
+    provider: str
 
 # DeviceAuthResponse is returned when a device initiates auth
 class DeviceAuthResponse(TypedDict, total=False):
