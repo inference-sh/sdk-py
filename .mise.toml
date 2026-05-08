@@ -1,0 +1,3 @@
+[tools]
+python = "3.12"
+"go:github.com/caarlos0/svu/v2" = "latest"

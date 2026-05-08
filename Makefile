@@ -20,7 +20,7 @@ BASE_URL ?= $(INFERENCE_BASE_URL)
 # Setup & Build
 # =============================================================================
 
-.PHONY: install install-dev build clean venv
+.PHONY: install install-dev build clean clean-all venv
 
 # Create virtual environment if it doesn't exist
 $(VENV)/bin/activate:
@@ -41,11 +41,6 @@ install-dev: venv
 	@echo "Installing package with dev dependencies..."
 	$(PIP) install -e ".[test,async]"
 	$(PIP) install pytest-asyncio
-	@echo ""
-	@echo "✓ Setup complete! You can now run:"
-	@echo "  make test          - Run unit tests"
-	@echo "  make test-int      - Run integration tests (requires API_KEY)"
-	@echo "  make help          - Show all available commands"
 
 # Build package
 build: clean venv
@@ -71,12 +66,7 @@ clean-all: clean
 # Check that venv exists
 check-venv:
 	@if [ ! -f "$(PYTEST)" ]; then \
-		echo ""; \
-		echo "ERROR: Virtual environment not set up."; \
-		echo ""; \
-		echo "Run this first:"; \
-		echo "  make install-dev"; \
-		echo ""; \
+		echo "ERROR: Virtual environment not set up. Run: make install-dev"; \
 		exit 1; \
 	fi
 
@@ -119,51 +109,49 @@ else
 endif
 
 # =============================================================================
+# Version & Release
+# =============================================================================
+
+.PHONY: patch minor major release publish
+
+patch:
+	@./scripts/bump.sh patch
+
+minor:
+	@./scripts/bump.sh minor
+
+major:
+	@./scripts/bump.sh major
+
+# Push and create GitHub release (triggers PyPI publish via CI)
+release:
+	@VERSION=$$(git describe --tags --abbrev=0) && \
+	git push origin HEAD "$$VERSION" && \
+	gh release create "$$VERSION" --title "$$VERSION" --generate-notes && \
+	echo "Released $$VERSION"
+
+# Manual publish to PyPI
+publish: build
+	$(PIP) install twine
+	$(PYTHON) -m twine upload dist/*
+
+# =============================================================================
 # Code Quality
 # =============================================================================
 
 .PHONY: lint typecheck format check
 
-# Lint the code
 lint: check-venv
 	$(PYTHON) -m flake8 src/inferencesh tests --max-line-length=100
 
-# Type check
 typecheck: check-venv
 	$(PYTHON) -m mypy src/inferencesh --ignore-missing-imports
 
-# Format code (requires black)
 format: check-venv
 	$(PYTHON) -m black src/inferencesh tests examples
 
-# Quick sanity check - import the package
 check: check-venv
-	$(PYTHON) -c "from inferencesh import inference, AgentRuntimeConfig, is_terminal_status; print('✓ All imports OK')"
-
-# =============================================================================
-# Publishing
-# =============================================================================
-
-.PHONY: publish bump-major bump-minor bump-patch release
-
-# Publish to PyPI (requires twine)
-publish: build
-	$(PIP) install twine
-	$(PYTHON) -m twine upload dist/*
-
-# Version bumping (commits, tags, and pushes)
-bump-major:
-	./scripts/bump.sh major
-
-bump-minor:
-	./scripts/bump.sh minor
-
-bump-patch:
-	./scripts/bump.sh patch
-
-# Create GitHub release (requires gh CLI and being on main branch)
-release:
-	./scripts/release.sh
+	$(PYTHON) -c "from inferencesh import inference, AgentRuntimeConfig, is_terminal_status; print('All imports OK')"
 
 # =============================================================================
 # Helpers
@@ -187,32 +175,26 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  install        Create venv and install package"
-	@echo "  install-dev    Create venv and install with test dependencies"
+	@echo "  install-dev    Install with test dependencies"
 	@echo "  clean          Clean build artifacts"
 	@echo "  clean-all      Clean everything including venv"
 	@echo ""
 	@echo "Tests:"
-	@echo "  test           Run unit tests (no API key needed)"
+	@echo "  test           Run unit tests"
 	@echo "  test-cov       Run unit tests with coverage"
 	@echo "  test-int       Run integration tests (requires API_KEY)"
 	@echo "  test-int-dev   Run integration tests against dev API"
-	@echo "  test-file      Run specific test file (FILE=tests/test_x.py)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  example NAME=agent_chat    Run a specific example"
 	@echo ""
-	@echo "Code Quality:"
-	@echo "  lint           Run flake8 linter"
-	@echo "  typecheck      Run mypy type checker"
-	@echo "  format         Format with black"
-	@echo "  check          Quick import sanity check"
+	@echo "Release:"
+	@echo "  patch          Bump patch version"
+	@echo "  minor          Bump minor version"
+	@echo "  major          Bump major version"
+	@echo "  release        Create GitHub release (triggers PyPI publish)"
 	@echo ""
-	@echo "Publishing:"
-	@echo "  build          Build package distribution"
-	@echo "  publish        Publish to PyPI"
-	@echo "  bump-patch     Bump patch version"
-	@echo "  bump-minor     Bump minor version"
-	@echo "  bump-major     Bump major version"
-	@echo "  release        Create GitHub release"
+	@echo "Code Quality:"
+	@echo "  lint / typecheck / format / check"
 
 .DEFAULT_GOAL := help
