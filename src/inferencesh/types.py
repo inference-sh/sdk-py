@@ -587,6 +587,10 @@ class IntegrationConnectResponse(TypedDict, total=False):
     code_verifier: str
     # For service accounts - instructions
     instructions: str
+    # RequiresConfirmation — the connect was paused, user must acknowledge and retry with a flag.
+    requires_confirmation: bool
+    confirmation_type: str
+    message: str
 
 class ProjectCreateRequest(TypedDict, total=False):
     name: str
@@ -830,6 +834,25 @@ class AppSession(TypedDict, total=False):
     # Relations
     worker: WorkerState
     task: Task
+
+
+##########
+# source: app_store.go
+
+# PublicAppStoreDTO is a lean DTO for public app store display.
+class PublicAppStoreDTO(TypedDict, total=False):
+    id: str
+    category: str
+    subcategory: str
+    tags: List[str]
+    namespace: str
+    name: str
+    description: str
+    images: AppImages
+    is_featured: bool
+    rank: int
+    has_approved_version: bool
+    page_id: str
 
 
 ##########
@@ -1495,6 +1518,76 @@ class KnowledgeFile(TypedDict, total=False):
     content: str
 
 SkillFile = KnowledgeFile
+
+
+##########
+# source: knowledge_store.go
+
+class PublicSkillStoreDTO(TypedDict, total=False):
+    id: str
+    category: str
+    tags: List[str]
+    namespace: str
+    name: str
+    description: str
+    is_featured: bool
+    rank: int
+    has_approved_version: bool
+
+
+##########
+# source: page.go
+
+class PageStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+
+class PageMetadata(TypedDict, total=False):
+    title: str
+    description: str
+    image: str
+    tags: List[str]
+    # Docs-specific fields
+    order: int
+    type: str
+    icon: str
+    hide_from_nav: bool
+
+class PageType(str, Enum):
+    DOC = "doc"
+    BLOG = "blog"
+    PAGE = "page"
+
+class PageDTO(TypedDict, total=False):
+    is_featured: bool
+    title: str
+    content: str
+    excerpt: str
+    status: PageStatus
+    type: PageType
+    metadata: PageMetadata
+    slug: str
+
+# MenuItem represents an item in a menu (can be nested)
+class MenuItem(TypedDict, total=False):
+    id: str
+    label: str
+    slug: str
+    page_id: str
+    url: str
+    icon: str
+    order: int
+    is_group: bool
+    expanded: bool
+    children: List[MenuItem]
+
+class MenuDTO(TypedDict, total=False):
+    name: str
+    slug: str
+    description: str
+    items: List[MenuItem]
 
 
 ##########
