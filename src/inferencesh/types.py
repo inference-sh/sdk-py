@@ -723,6 +723,31 @@ class App(TypedDict, total=False):
     version_id: str
     version: AppVersion
 
+# AppPricing configures all pricing using CEL expressions
+# Empty expressions use defaults. All values in nanocents (1 cent = 1,000,000,000)
+class AppPricing(TypedDict, total=False):
+    prices: Dict[str, int]
+    upstream_pricing: str
+    # Resource fee expression (compute cost)
+    # Available variables: resources (list of {name, price_per_second}), usage_seconds, prices
+    # Default: sum(resources.map(r, r.price_per_second)) * usage_seconds
+    resource_expression: str
+    # CEL expressions for each fee type (result in nanocents)
+    # Available variables: inputs, outputs, prices, resource_fee, usage_seconds
+    inference_expression: str
+    royalty_expression: str
+    partner_expression: str
+    # Total expression combines all fees (can apply weights/discounts)
+    # Available variables: inputs, outputs, prices, resource_fee, usage_seconds, inference_fee, royalty_fee, partner_fee
+    # Default: resource_fee + inference_fee + royalty_fee + partner_fee
+    total_expression: str
+    description: str
+    # DescriptionRendered is the result of evaluating Description against the
+    # static prices map at save time. Frontends should display this rather than
+    # the raw CEL source. Empty string means the description failed to render
+    # (e.g. references variables outside `prices`).
+    description_rendered: str
+
 class AppGPUResource(TypedDict, total=False):
     count: int
     vram: int
