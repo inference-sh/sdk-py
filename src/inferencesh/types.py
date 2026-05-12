@@ -194,7 +194,7 @@ class AgentImages(TypedDict, total=False):
     thumbnail: str
     banner: str
 
-class Agent(TypedDict, total=False):
+class Agent(BaseModel, PermissionModel, TypedDict, total=False):
     # Basic info
     namespace: str
     name: str
@@ -204,7 +204,7 @@ class Agent(TypedDict, total=False):
     version: AgentVersion
 
 # AgentDTO for API responses
-class AgentDTO(TypedDict, total=False):
+class AgentDTO(BaseModel, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
     namespace: str
     name: str
     # Display images (like AppDTO)
@@ -243,7 +243,7 @@ class AgentConfig(TypedDict, total=False):
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
 
-class AgentVersion(TypedDict, total=False):
+class AgentVersion(BaseModel, PermissionModel, TypedDict, total=False):
     agent_id: str
     # ConfigHash for deduplication - SHA256 of config content
     config_hash: str
@@ -258,7 +258,7 @@ class CoreAppConfigDTO(TypedDict, total=False):
     # Input default values for the core app
     input: Any
 
-class AgentVersionDTO(TypedDict, total=False):
+class AgentVersionDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     description: str
     system_prompt: str
     example_prompts: List[str]
@@ -424,7 +424,7 @@ class CreateFlowRunRequest(TypedDict, total=False):
     input: Any
 
 # CreateAppRequest is the request body for POST /apps
-class CreateAppRequest(TypedDict, total=False):
+class CreateAppRequest(App, TypedDict, total=False):
     # PreserveCurrentVersion prevents auto-promoting the new version to current.
     # Default false = new versions become current (what most users expect).
     # Set true for admin deployments where you want to test before promoting.
@@ -707,7 +707,7 @@ class AppImages(TypedDict, total=False):
     thumbnail: str
     banner: str
 
-class App(TypedDict, total=False):
+class App(BaseModel, PermissionModel, TypedDict, total=False):
     # Namespace is copied from team.username at creation time and is IMMUTABLE.
     # This ensures stable references like "namespace/name" even if team username changes.
     # Default empty string allows GORM migration to add column, then MigrateAppNamespaces populates it.
@@ -773,7 +773,7 @@ class AppFunction(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
 
-class AppVersion(TypedDict, total=False):
+class AppVersion(BaseModel, TypedDict, total=False):
     app_id: str
     metadata: Dict[str, Any]
     repository: str
@@ -797,12 +797,12 @@ class AppVersion(TypedDict, total=False):
     # Checksum is the SHA256 checksum of the uploaded zip file
     checksum: str
 
-class LicenseRecord(TypedDict, total=False):
+class LicenseRecord(BaseModel, TypedDict, total=False):
     user_id: str
     app_id: str
     license: str
 
-class AppDTO(TypedDict, total=False):
+class AppDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
     description: str
@@ -812,7 +812,7 @@ class AppDTO(TypedDict, total=False):
     version_id: str
     version: AppVersionDTO
 
-class AppVersionDTO(TypedDict, total=False):
+class AppVersionDTO(BaseModel, TypedDict, total=False):
     metadata: Dict[str, Any]
     repository: str
     flow_version_id: str
@@ -841,7 +841,7 @@ class AppSessionStatus(str, Enum):
     ENDED = "ended"
     EXPIRED = "expired"
 
-class AppSession(TypedDict, total=False):
+class AppSession(BaseModel, PermissionModel, TypedDict, total=False):
     # Affinity binding
     worker_id: str
     app_id: str
@@ -1034,7 +1034,7 @@ class ChatTaskContextMessage(TypedDict, total=False):
     tool_calls: List[ToolCall]
     tool_call_id: str
 
-class ChatDTO(TypedDict, total=False):
+class ChatDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     parent_id: str
     parent: ChatDTO
     children: List[Optional[ChatDTO]]
@@ -1050,7 +1050,7 @@ class ChatDTO(TypedDict, total=False):
     chat_messages: List[ChatMessageDTO]
     agent_data: ChatData
 
-class ChatMessageDTO(TypedDict, total=False):
+class ChatMessageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     chat_id: str
     chat: ChatDTO
     order: int
@@ -1157,7 +1157,7 @@ class EngineStatus(str, Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
 
-class EngineState(TypedDict, total=False):
+class EngineState(BaseModel, PermissionModel, TypedDict, total=False):
     instance: Instance
     transaction_id: str
     config: EngineConfig
@@ -1168,7 +1168,7 @@ class EngineState(TypedDict, total=False):
     system_info: SystemInfo
     workers: List[Optional[WorkerState]]
 
-class EngineStateDTO(TypedDict, total=False):
+class EngineStateDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     instance: Instance
     config: EngineConfig
     name: str
@@ -1177,13 +1177,13 @@ class EngineStateDTO(TypedDict, total=False):
     system_info: SystemInfo
     workers: List[Optional[WorkerStateDTO]]
 
-class EngineStateSummary(TypedDict, total=False):
+class EngineStateSummary(BaseModel, PermissionModelDTO, TypedDict, total=False):
     instance: Instance
     name: str
     status: str
     workers: List[Optional[WorkerStateSummary]]
 
-class WorkerState(TypedDict, total=False):
+class WorkerState(BaseModel, PermissionModel, TypedDict, total=False):
     index: int
     status: str
     status_updated_at: str
@@ -1228,7 +1228,7 @@ class WorkerRAM(TypedDict, total=False):
     worker_id: str
     total: int
 
-class WorkerStateDTO(TypedDict, total=False):
+class WorkerStateDTO(BaseModel, TypedDict, total=False):
     user_id: str
     team_id: str
     index: int
@@ -1274,7 +1274,7 @@ class FileMetadata(TypedDict, total=False):
     channels: int
     codec: str
 
-class File(TypedDict, total=False):
+class File(BaseModel, PermissionModel, TypedDict, total=False):
     path: str
     remote_path: str
     upload_url: str
@@ -1286,7 +1286,7 @@ class File(TypedDict, total=False):
     rating: ContentRating
     metadata: FileMetadata
 
-class FileDTO(TypedDict, total=False):
+class FileDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     path: str
     remote_path: str
     upload_url: str
@@ -1302,7 +1302,7 @@ class FileDTO(TypedDict, total=False):
 ##########
 # source: flow.go
 
-class FlowVersion(TypedDict, total=False):
+class FlowVersion(BaseModel, TypedDict, total=False):
     # Permission fields - nullable for migration from existing data
     # After migration these will be populated from parent Flow
     user_id: str
@@ -1371,7 +1371,7 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping.
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
-class FlowDTO(TypedDict, total=False):
+class FlowDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     name: str
     description: str
     card_image: str
@@ -1393,7 +1393,7 @@ class FlowDTO(TypedDict, total=False):
     edges: List[FlowEdge]
     viewport: FlowViewport
 
-class FlowVersionDTO(TypedDict, total=False):
+class FlowVersionDTO(BaseModel, TypedDict, total=False):
     graph_version: int
     input_schema: Any
     input: FlowRunInputs
@@ -1416,7 +1416,7 @@ class FlowRunStatus(IntEnum):
     FAILED = 4
     CANCELLED = 5
 
-class FlowRunDTO(TypedDict, total=False):
+class FlowRunDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     flow_id: str
     flow_version_id: str
     flow_version: FlowVersionDTO
@@ -1478,7 +1478,7 @@ class GraphEdgeType(str, Enum):
     DUPLICATE = "duplicate"
 
 # GraphNodeDTO is the API representation of a graph node
-class GraphNodeDTO(TypedDict, total=False):
+class GraphNodeDTO(BaseModel, TypedDict, total=False):
     graph_id: str
     type: GraphNodeType
     label: str
@@ -1492,7 +1492,7 @@ class GraphNodeDTO(TypedDict, total=False):
     duration_ms: int
 
 # GraphEdgeDTO is the API representation of a graph edge
-class GraphEdgeDTO(TypedDict, total=False):
+class GraphEdgeDTO(BaseModel, TypedDict, total=False):
     type: GraphEdgeType
     from_node: str
     to_node: str
@@ -1516,7 +1516,7 @@ class ChatTraceDTO(TypedDict, total=False):
 StringSlice = List[str]
 
 # IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(TypedDict, total=False):
+class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     provider: str
     type: str
     auth: str
@@ -1586,7 +1586,7 @@ class PageType(str, Enum):
     BLOG = "blog"
     PAGE = "page"
 
-class PageDTO(TypedDict, total=False):
+class PageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     is_featured: bool
     title: str
     content: str
@@ -1609,7 +1609,7 @@ class MenuItem(TypedDict, total=False):
     expanded: bool
     children: List[MenuItem]
 
-class MenuDTO(TypedDict, total=False):
+class MenuDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     name: str
     slug: str
     description: str
@@ -1635,7 +1635,7 @@ class ProjectModelDTO(TypedDict, total=False):
     project: ProjectDTO
 
 # Project represents a container for organizing related resources
-class Project(TypedDict, total=False):
+class Project(BaseModel, PermissionModel, TypedDict, total=False):
     name: str
     description: str
     type: ProjectType
@@ -1647,7 +1647,7 @@ class Project(TypedDict, total=False):
     children: List[Optional[Project]]
 
 # ProjectDTO for API responses
-class ProjectDTO(TypedDict, total=False):
+class ProjectDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     name: str
     description: str
     type: ProjectType
@@ -1739,7 +1739,7 @@ class InstanceStatus(str, Enum):
     ACTIVE = "active"
     DELETED = "deleted"
 
-class Instance(TypedDict, total=False):
+class Instance(BaseModel, PermissionModel, TypedDict, total=False):
     cloud: InstanceCloudProvider
     name: str
     region: str
@@ -1949,7 +1949,7 @@ class TaskAction(TypedDict, total=False):
 class TaskMetadata(TypedDict, total=False):
     action: TaskAction
 
-class Task(TypedDict, total=False):
+class Task(BaseModel, PermissionModel, TypedDict, total=False):
     is_featured: bool
     status: str
     # Foreign keys
@@ -2018,7 +2018,7 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
-class TaskDTO(TypedDict, total=False):
+class TaskDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     graph_id: str
     user_public_key: bytes
     engine_public_key: bytes
@@ -2069,7 +2069,7 @@ class TeamStatus(str, Enum):
     SUSPENDED = "suspended"
     TERMINATED = "terminated"
 
-class Team(TypedDict, total=False):
+class Team(BaseModel, TypedDict, total=False):
     type: TeamType
     username: str
     email: str
@@ -2082,7 +2082,7 @@ class Team(TypedDict, total=False):
     max_concurrency: int
     status: TeamStatus
 
-class TeamDTO(TypedDict, total=False):
+class TeamDTO(BaseModel, TypedDict, total=False):
     type: TeamType
     name: str
     username: str
@@ -2126,7 +2126,7 @@ class ToolInvocationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 # ToolInvocationDTO for API responses
-class ToolInvocationDTO(TypedDict, total=False):
+class ToolInvocationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     chat_message_id: str
     tool_invocation_id: str
     type: ToolType
@@ -2173,7 +2173,7 @@ class UsageEventResourceTier(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
 
-class UsageEvent(TypedDict, total=False):
+class UsageEvent(BaseModel, PermissionModel, TypedDict, total=False):
     usage_billing_record_id: str
     reference_id: str
     resource_id: str
@@ -2205,7 +2205,7 @@ class Role(str, Enum):
     ADMIN = "admin"
     SYSTEM = "system"
 
-class UserDTO(TypedDict, total=False):
+class UserDTO(BaseModel, TypedDict, total=False):
     default_team_id: str
     role: str
     email: str
