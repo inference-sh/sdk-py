@@ -290,6 +290,7 @@ class APIError(TypedDict, total=False):
     code: str
     message: str
     suggestions: List[str]
+    meta: Dict[str, Any]
 
 # ApiAppRunRequest is the request body for /apps/run endpoint.
 # Supports two ways to specify the app:
@@ -1829,12 +1830,6 @@ class SystemInfo(TypedDict, total=False):
     hf_cache: HFCacheInfo
     gpus: List[GPU]
 
-class TelemetrySystemInfo(TypedDict, total=False):
-    cpus: List[CPU]
-    ram: RAM
-    gpus: List[GPU]
-    volumes: List[Volume]
-
 class Docker(TypedDict, total=False):
     binary_path: str
     installed: bool
@@ -1989,7 +1984,6 @@ class Task(TypedDict, total=False):
     # Relationships
     events: List[TaskEvent]
     logs: List[TaskLog]
-    telemetry: List[TimescaleTask]
     usage_events: List[Optional[UsageEvent]]
     # Secret refs for billing (tracks ownership to determine partner fee)
     secrets: List[SecretRef]
@@ -2057,22 +2051,9 @@ class TaskDTO(TypedDict, total=False):
     rating: ContentRating
     events: List[TaskEvent]
     logs: List[TaskLog]
-    telemetry: List[TimescaleTask]
     usage_events: List[Optional[UsageEvent]]
     session_id: str
     session_timeout: int
-
-class TimescaleTask(TypedDict, total=False):
-    id: str
-    timestamp: str
-    task_id: str
-    task_seq: int
-    app_id: str
-    app_version_id: str
-    engine_id: str
-    engine_resources: TelemetrySystemInfo
-    worker_id: str
-    system_info: TelemetrySystemInfo
 
 
 ##########
@@ -2082,6 +2063,11 @@ class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+
+class TeamStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TERMINATED = "terminated"
 
 class Team(TypedDict, total=False):
     type: TeamType
@@ -2094,6 +2080,7 @@ class Team(TypedDict, total=False):
     setup_completed: bool
     # MaxConcurrency limits total active tasks for this team (0 = use default)
     max_concurrency: int
+    status: TeamStatus
 
 class TeamDTO(TypedDict, total=False):
     type: TeamType
@@ -2103,6 +2090,7 @@ class TeamDTO(TypedDict, total=False):
     email: str
     setup_completed: bool
     max_concurrency: int
+    status: TeamStatus
 
 class TeamRole(str, Enum):
     OWNER = "owner"
