@@ -1522,6 +1522,7 @@ class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     auth: str
     status: str
     display_name: str
+    icon_url: str
     scopes: StringSlice
     expires_at: str
     service_account_email: str
