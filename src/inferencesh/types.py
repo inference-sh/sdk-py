@@ -394,6 +394,21 @@ class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
 
+# CreateAppRequest is the request body for POST /apps
+class CreateAppRequest(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    description: str
+    agent_description: str
+    category: AppCategory
+    images: AppImages
+    version: AppVersion
+    # PreserveCurrentVersion prevents auto-promoting the new version to current.
+    # Default false = new versions become current (what most users expect).
+    # Set true for admin deployments where you want to test before promoting.
+    preserve_current_version: bool
+
 # CreateAgentRequest is the request body for POST /agents
 # For new agents: omit ID, backend generates it
 # For new version of existing agent: include ID
@@ -704,6 +719,15 @@ class PublicAppStoreDTO(TypedDict, total=False):
 # source: base.go
 
 class BaseModel(TypedDict, total=False):
+    id: str
+    short_id: str
+    created_at: str
+    updated_at: str
+    deleted_at: str
+
+# BaseModelDTO is the contract-layer base embed — same fields, no gorm tags.
+# All DTOs should embed this instead of BaseModel.
+class BaseModelDTO(TypedDict, total=False):
     id: str
     short_id: str
     created_at: str
@@ -1108,16 +1132,6 @@ class SetupAction(TypedDict, total=False):
 
 
 ##########
-# source: secrets.go
-
-# SecretRef tracks which Secret record provided a value for a task (for billing)
-class SecretRef(TypedDict, total=False):
-    key: str
-    id: str
-    team_id: str
-
-
-##########
 # source: shadeform.go
 
 class InstanceConfiguration(TypedDict, total=False):
@@ -1506,47 +1520,6 @@ class AppVersion(BaseModel, TypedDict, total=False):
     # Checksum is the SHA256 checksum of the uploaded zip file
     checksum: str
 
-class LicenseRecord(BaseModel, TypedDict, total=False):
-    user_id: str
-    app_id: str
-    license: str
-
-class AppVersionDTO(BaseModel, TypedDict, total=False):
-    metadata: Dict[str, Any]
-    repository: str
-    flow_version_id: str
-    flow_version: FlowVersionDTO
-    setup_schema: Any
-    input_schema: Any
-    output_schema: Any
-    functions: Dict[str, AppFunction]
-    default_function: str
-    variants: Dict[str, AppVariant]
-    env: Dict[str, str]
-    kernel: str
-    # App requirements
-    required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
-    resources: AppResources
-    # Checksum is the SHA256 checksum of the uploaded zip file
-    checksum: str
-
-class WorkerStateDTO(BaseModel, TypedDict, total=False):
-    user_id: str
-    team_id: str
-    index: int
-    status: str
-    engine_id: str
-    task_id: str
-    app_id: str
-    app_version_id: str
-    active_session_id: str
-    gpus: List[WorkerGPU]
-    cpus: List[WorkerCPU]
-    rams: List[WorkerRAM]
-    system_info: SystemInfo
-    warm_apps: List[str]
-
 class FlowVersion(BaseModel, TypedDict, total=False):
     # Permission fields - nullable for migration from existing data
     # After migration these will be populated from parent Flow
@@ -1569,37 +1542,6 @@ class FlowVersion(BaseModel, TypedDict, total=False):
     edges: List[FlowEdge]
     viewport: FlowViewport
 
-class FlowVersionDTO(BaseModel, TypedDict, total=False):
-    graph_version: int
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
-
-# GraphNodeDTO is the API representation of a graph node
-class GraphNodeDTO(BaseModel, TypedDict, total=False):
-    graph_id: str
-    type: GraphNodeType
-    label: str
-    resource_id: str
-    resource_type: str
-    status: GraphNodeStatus
-    metadata: StringEncodedMap
-    ready_at: str
-    started_at: str
-    completed_at: str
-    duration_ms: int
-
-# GraphEdgeDTO is the API representation of a graph edge
-class GraphEdgeDTO(BaseModel, TypedDict, total=False):
-    type: GraphEdgeType
-    from_node: str
-    to_node: str
-
 class Team(BaseModel, TypedDict, total=False):
     type: TeamType
     username: str
@@ -1613,7 +1555,79 @@ class Team(BaseModel, TypedDict, total=False):
     max_concurrency: int
     status: TeamStatus
 
-class TeamDTO(BaseModel, TypedDict, total=False):
+class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
+    user_id: str
+    app_id: str
+    license: str
+
+class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    # App requirements
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+    # Checksum is the SHA256 checksum of the uploaded zip file
+    checksum: str
+
+class WorkerStateDTO(BaseModelDTO, TypedDict, total=False):
+    user_id: str
+    team_id: str
+    index: int
+    status: str
+    engine_id: str
+    task_id: str
+    app_id: str
+    app_version_id: str
+    active_session_id: str
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    system_info: SystemInfo
+    warm_apps: List[str]
+
+class FlowVersionDTO(BaseModelDTO, TypedDict, total=False):
+    graph_version: int
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
+
+# GraphNodeDTO is the API representation of a graph node
+class GraphNodeDTO(BaseModelDTO, TypedDict, total=False):
+    graph_id: str
+    type: GraphNodeType
+    label: str
+    resource_id: str
+    resource_type: str
+    status: GraphNodeStatus
+    metadata: StringEncodedMap
+    ready_at: str
+    started_at: str
+    completed_at: str
+    duration_ms: int
+
+# GraphEdgeDTO is the API representation of a graph edge
+class GraphEdgeDTO(BaseModelDTO, TypedDict, total=False):
+    type: GraphEdgeType
+    from_node: str
+    to_node: str
+
+class TeamDTO(BaseModelDTO, TypedDict, total=False):
     type: TeamType
     name: str
     username: str
@@ -1623,7 +1637,7 @@ class TeamDTO(BaseModel, TypedDict, total=False):
     max_concurrency: int
     status: TeamStatus
 
-class UserDTO(BaseModel, TypedDict, total=False):
+class UserDTO(BaseModelDTO, TypedDict, total=False):
     default_team_id: str
     role: str
     email: str
@@ -1663,75 +1677,6 @@ class App(BaseModel, PermissionModel, TypedDict, total=False):
     version_id: str
     version: AppVersion
 
-
-##########
-# source: app_session.go
-
-class AppSession(BaseModel, PermissionModel, TypedDict, total=False):
-    # Affinity binding
-    worker_id: str
-    app_id: str
-    app_version_id: str
-    # Lifecycle
-    status: AppSessionStatus
-    expires_at: str
-    ended_at: str
-    # Billing link
-    task_id: str
-    # Stats
-    call_count: int
-    last_call_at: str
-    # Custom idle timeout in seconds (nil = use default)
-    idle_timeout: int
-    # Relations
-    worker: WorkerState
-    task: Task
-
-class EngineState(BaseModel, PermissionModel, TypedDict, total=False):
-    instance: Instance
-    transaction_id: str
-    config: EngineConfig
-    public_key: str
-    name: str
-    api_url: str
-    status: str
-    system_info: SystemInfo
-    workers: List[Optional[WorkerState]]
-
-class WorkerState(BaseModel, PermissionModel, TypedDict, total=False):
-    index: int
-    status: str
-    status_updated_at: str
-    heartbeat_at: str
-    engine_id: str
-    engine: EngineState
-    task_id: str
-    app_id: str
-    app_version_id: str
-    # App session lease
-    active_session_id: str
-    active_session: AppSession
-    gpus: List[WorkerGPU]
-    cpus: List[WorkerCPU]
-    rams: List[WorkerRAM]
-    SystemInfo: SystemInfo
-    # WarmApps tracks app+version combos with warm containers for scheduling optimization.
-    # Format: "appID:versionID@setupHash" - managed by Engine, synced via heartbeat.
-    # Not persisted to DB - this is ephemeral runtime state.
-    warm_apps: List[str]
-
-class File(BaseModel, PermissionModel, TypedDict, total=False):
-    path: str
-    remote_path: str
-    upload_url: str
-    uri: str
-    content_type: str
-    size: int
-    filename: str
-    category: str
-    rating: ContentRating
-    metadata: FileMetadata
-
 # Project represents a container for organizing related resources
 class Project(BaseModel, PermissionModel, TypedDict, total=False):
     name: str
@@ -1770,53 +1715,6 @@ class Instance(BaseModel, PermissionModel, TypedDict, total=False):
     volume_mount: InstanceVolumeMountConfig
     envs: List[InstanceEnvVar]
 
-class Task(BaseModel, PermissionModel, TypedDict, total=False):
-    is_featured: bool
-    status: str
-    # Foreign keys
-    app_id: str
-    app: App
-    version_id: str
-    app_version: AppVersion
-    # Deprecated: Will be removed in favor of Setup
-    variant: str
-    # Function is the specific function to call on multi-function apps.
-    # DEPRECATED: Standardizing on explicit function name.
-    # Defaults to "run" for legacy tasks (backfilled via migration).
-    function: str
-    infra: Infra
-    workers: List[str]
-    engine_id: str
-    engine: EngineState
-    worker_id: str
-    worker: WorkerState
-    # Belongs to:
-    flow_run_id: str
-    chat_id: str
-    # Owns: (Can be replaced with graph execution edge/node)
-    sub_flow_run_id: str
-    webhook: str
-    metadata: TaskMetadata
-    setup: Any
-    input: Any
-    output: Any
-    error: str
-    rating: ContentRating
-    # Relationships
-    events: List[TaskEvent]
-    logs: List[TaskLog]
-    usage_events: List[Optional[UsageEvent]]
-    # Secret refs for billing (tracks ownership to determine partner fee)
-    secrets: List[SecretRef]
-    # App session reference (for session calls)
-    # Special value "new" means scheduler should create session when dispatching.
-    session_id: str
-    session: AppSession
-    # Session timeout in seconds (only used when session="new")
-    session_timeout: int
-    # Scheduled execution time (UTC). Scheduler skips task until this time.
-    run_at: str
-
 
 ##########
 # source: usage.go
@@ -1832,7 +1730,7 @@ class UsageEvent(BaseModel, PermissionModel, TypedDict, total=False):
     quantity: int
     unit: str
 
-class AgentVersionDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     system_prompt: str
     example_prompts: List[str]
@@ -1848,7 +1746,7 @@ class AgentVersionDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
 
-class AppDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
     description: str
@@ -1858,7 +1756,24 @@ class AppDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     version_id: str
     version: AppVersionDTO
 
-class ChatDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+
+##########
+# source: app_session.go
+
+# AppSessionDTO is the external representation
+class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    status: AppSessionStatus
+    expires_at: str
+    ended_at: str
+    task_id: str
+    call_count: int
+    last_call_at: str
+    idle_timeout: int
+
+class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     parent_id: str
     parent: ChatDTO
     children: List[Optional[ChatDTO]]
@@ -1875,7 +1790,7 @@ class ChatDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     chat_messages: List[ChatMessageDTO]
     agent_data: ChatData
 
-class ChatMessageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     chat_id: str
     chat: ChatDTO
     order: int
@@ -1887,7 +1802,7 @@ class ChatMessageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     tool_call_id: str
     tool_invocations: List[ToolInvocationDTO]
 
-class EngineStateDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class EngineStateDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     instance: Instance
     config: EngineConfig
     name: str
@@ -1896,13 +1811,13 @@ class EngineStateDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     system_info: SystemInfo
     workers: List[Optional[WorkerStateDTO]]
 
-class EngineStateSummary(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class EngineStateSummary(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     instance: Instance
     name: str
     status: str
     workers: List[Optional[WorkerStateSummary]]
 
-class FileDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     path: str
     remote_path: str
     upload_url: str
@@ -1914,7 +1829,7 @@ class FileDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     rating: ContentRating
     metadata: FileMetadata
 
-class FlowDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
     description: str
     card_image: str
@@ -1936,7 +1851,7 @@ class FlowDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     edges: List[FlowEdge]
     viewport: FlowViewport
 
-class FlowRunDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class FlowRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     flow_id: str
     flow_version_id: str
     flow_version: FlowVersionDTO
@@ -1952,7 +1867,7 @@ class FlowRunDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     node_tasks: Dict[str, Optional[NodeTaskDTO]]
 
 # IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     provider: str
     type: str
     auth: str
@@ -1968,7 +1883,7 @@ class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     is_primary: bool
     error_message: str
 
-class PageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     is_featured: bool
     title: str
     content: str
@@ -1978,14 +1893,14 @@ class PageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     metadata: PageMetadata
     slug: str
 
-class MenuDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
     slug: str
     description: str
     items: List[MenuItem]
 
 # ProjectDTO for API responses
-class ProjectDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
     description: str
     type: ProjectType
@@ -1995,7 +1910,7 @@ class ProjectDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     parent: ProjectDTO
     children: List[Optional[ProjectDTO]]
 
-class TaskDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     graph_id: str
     user_public_key: bytes
     engine_public_key: bytes
@@ -2033,7 +1948,7 @@ class TaskDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
     session_timeout: int
 
 # ToolInvocationDTO for API responses
-class ToolInvocationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+class ToolInvocationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     chat_message_id: str
     tool_invocation_id: str
     type: ToolType
@@ -2049,20 +1964,13 @@ class ToolInvocationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
 SkillFile = KnowledgeFile
 
 # AgentDTO for API responses
-class AgentDTO(BaseModel, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
+class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
     namespace: str
     name: str
     # Display images (like AppDTO)
     images: AgentImages
     version_id: str
     version: AgentVersionDTO
-
-# CreateAppRequest is the request body for POST /apps
-class CreateAppRequest(App, TypedDict, total=False):
-    # PreserveCurrentVersion prevents auto-promoting the new version to current.
-    # Default false = new versions become current (what most users expect).
-    # Set true for admin deployments where you want to test before promoting.
-    preserve_current_version: bool
 
 class ToolType(str, Enum):
     APP = "app"
