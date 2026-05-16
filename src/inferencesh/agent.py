@@ -56,10 +56,11 @@ class Agent:
         ```
     """
     
-    def __init__(self, client: "Inference", options: AgentOptions):
+    def __init__(self, client: "Inference", options: AgentOptions, context: Optional[Dict[str, str]] = None):
         """Internal constructor - use client.agent() instead."""
         self._client = client
         self._options = options
+        self._context = context
         self._chat_id: Optional[str] = None
         self._dispatched_tools: set[str] = set()  # tool invocation ids we've already processed
     
@@ -109,11 +110,11 @@ class Agent:
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
         input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
         if isinstance(self._options, str):
-            body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
+            body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
         else:
             # For ad-hoc agents, extract name from config for agent deduplication
             agent_name = self._options.get("name") if hasattr(self._options, "get") else None
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
+            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
 
         response = self._request("post", "/agents/run", data=body)
         if not response:
@@ -566,10 +567,11 @@ class AsyncAgent:
     Created via `client.agent()` - do not instantiate directly.
     """
     
-    def __init__(self, client: "AsyncInference", options: AgentOptions):
+    def __init__(self, client: "AsyncInference", options: AgentOptions, context: Optional[Dict[str, str]] = None):
         """Internal constructor - use client.agent() instead."""
         self._client = client
         self._options = options
+        self._context = context
         self._chat_id: Optional[str] = None
     
     @property
@@ -591,11 +593,11 @@ class AsyncAgent:
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
         input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
         if isinstance(self._options, str):
-            body = {"chat_id": self._chat_id, "agent": self._options, "input": input_data}
+            body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
         else:
             # For ad-hoc agents, extract name from config for agent deduplication
             agent_name = self._options.get("name") if hasattr(self._options, "get") else None
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "input": input_data}
+            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
 
         response = await self._request("post", "/agents/run", data=body)
         

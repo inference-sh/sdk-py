@@ -954,11 +954,12 @@ class Inference:
 
         return input_value
 
-    def agent(self, config: Union[str, "AgentConfig"]) -> "Agent":
+    def agent(self, config: Union[str, "AgentConfig"], context: Optional[Dict[str, str]] = None) -> "Agent":
         """Create an agent for chat interactions.
 
         Args:
             config: Either a template reference string (namespace/name@version) or ad-hoc config
+            context: Per-chat context variables — resolved in call tool URL templates ({{context.X}})
 
         Returns:
             An Agent instance for chat operations
@@ -980,7 +981,7 @@ class Inference:
         """
         from .agent import Agent
 
-        return Agent(self, config)
+        return Agent(self, config, context=context)
 
     def session(self, app: str, **kwargs: Any) -> "SessionHandle":
         """Create a session context manager for stateful interactions.
@@ -1479,11 +1480,12 @@ class AsyncInference:
             else:
                 yield parsed
 
-    def agent(self, config: Union[str, "AgentConfig"]) -> "AsyncAgent":
+    def agent(self, config: Union[str, "AgentConfig"], context: Optional[Dict[str, str]] = None) -> "AsyncAgent":
         """Create an async agent for chat interactions.
 
         Args:
             config: Either a template reference string (namespace/name@version) or ad-hoc config
+            context: Per-chat context variables — resolved in call tool URL templates ({{context.X}})
 
         Returns:
             An AsyncAgent instance for chat operations
@@ -1499,7 +1501,7 @@ class AsyncInference:
         """
         from .agent import AsyncAgent
 
-        return AsyncAgent(self, config)
+        return AsyncAgent(self, config, context=context)
 
     async def session(self, app: str, **kwargs: Any) -> "AsyncSessionHandle":
         """Create an async session context manager for stateful interactions.

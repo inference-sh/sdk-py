@@ -352,6 +352,35 @@ def http_tool(name: str, url: str) -> HTTPToolBuilder:
     return HTTPToolBuilder(name, url)
 
 
+def call_tool(name: str, url: str) -> HTTPToolBuilder:
+    """Create a call tool — makes authenticated HTTP requests. Preferred name for http_tool."""
+    return HTTPToolBuilder(name, url)
+
+
+class MCPToolBuilder(_ToolBuilder):
+    """Builder for MCP connector tools."""
+
+    def __init__(self, name: str, integration_id: str, tool_name: str):
+        super().__init__(name)
+        self._integration_id = integration_id
+        self._tool_name = tool_name
+
+    def build(self) -> AgentTool:
+        return {
+            "name": self._name,
+            "display_name": self._display_name or self._name,
+            "description": self._description,
+            "type": ToolType.M_C_P,
+            "require_approval": self._require_approval or None,
+            "mcp": {"integration_id": self._integration_id, "tool_name": self._tool_name},
+        }
+
+
+def mcp_tool(name: str, integration_id: str, tool_name: str) -> MCPToolBuilder:
+    """Create an MCP connector tool (calls a tool on a connected MCP server)."""
+    return MCPToolBuilder(name, integration_id, tool_name)
+
+
 # =============================================================================
 # Internal Tools Builder
 # =============================================================================

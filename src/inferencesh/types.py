@@ -24,6 +24,7 @@ class ToolType(str, Enum):
     AGENT = "agent"
     HOOK = "hook"
     H_T_T_P = "http"
+    CALL = "call"
     M_C_P = "mcp"
     CLIENT = "client"
     INTERNAL = "internal"
