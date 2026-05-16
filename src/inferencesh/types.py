@@ -19,16 +19,6 @@ class InternalToolsConfig(TypedDict, total=False):
     skills: bool
     host_context: bool
 
-class ToolType(str, Enum):
-    APP = "app"
-    AGENT = "agent"
-    HOOK = "hook"
-    H_T_T_P = "http"
-    CALL = "call"
-    M_C_P = "mcp"
-    CLIENT = "client"
-    INTERNAL = "internal"
-
 # AppToolConfig contains configuration for an app tool
 class AppToolConfig(TypedDict, total=False):
     # Ref is the human-readable reference: "namespace/name@shortVersionId"
@@ -113,6 +103,7 @@ class AgentTool(TypedDict, total=False):
     agent: AgentToolConfig
     hook: HookToolConfig
     http: HTTPToolConfig
+    call: CallToolConfig
     mcp: MCPToolConfig
     client: ClientToolConfig
     internal: InternalToolConfig
@@ -134,6 +125,7 @@ class AgentToolDTO(TypedDict, total=False):
     agent: AgentToolConfigDTO
     hook: HookToolConfigDTO
     http: HTTPToolConfigDTO
+    call: HTTPToolConfigDTO
     mcp: MCPToolConfigDTO
     client: ClientToolConfigDTO
 
@@ -195,24 +187,6 @@ class AgentImages(TypedDict, total=False):
     thumbnail: str
     banner: str
 
-class Agent(BaseModel, PermissionModel, TypedDict, total=False):
-    # Basic info
-    namespace: str
-    name: str
-    # Display images (like App)
-    images: AgentImages
-    version_id: str
-    version: AgentVersion
-
-# AgentDTO for API responses
-class AgentDTO(BaseModel, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
-    namespace: str
-    name: str
-    # Display images (like AppDTO)
-    images: AgentImages
-    version_id: str
-    version: AgentVersionDTO
-
 # SkillConfig defines a skill available to the agent.
 # Skills are loaded on-demand via the skill_get internal tool.
 class SkillConfig(TypedDict, total=False):
@@ -222,6 +196,15 @@ class SkillConfig(TypedDict, total=False):
     version_id: str
     url: str
     content: str
+    preload: bool
+
+# ContextField declares a context parameter expected by the agent.
+# Context is caller-provided at chat creation, stored on Chat, and available in tool URL templates.
+class ContextField(TypedDict, total=False):
+    name: str
+    description: str
+    required: bool
+    default: str
 
 # AgentConfig contains the shared configuration fields for agent execution.
 # This is embedded by both AgentVersion (DB model) and API request structs.
@@ -239,15 +222,12 @@ class AgentConfig(TypedDict, total=False):
     tools: List[Optional[AgentTool]]
     # Skills available to this agent (loaded on-demand via skill_get tool)
     skills: List[SkillConfig]
+    # Context declares expected context parameters (resolved in tool URL templates via {{context.X}})
+    context: List[ContextField]
     # Internal tools configuration (plan, memory, widget, finish, skills)
     internal_tools: InternalToolsConfig
     # Output schema for custom finish tool (sub-agents only)
     output_schema: Any
-
-class AgentVersion(BaseModel, PermissionModel, TypedDict, total=False):
-    agent_id: str
-    # ConfigHash for deduplication - SHA256 of config content
-    config_hash: str
 
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
@@ -258,20 +238,6 @@ class CoreAppConfigDTO(TypedDict, total=False):
     setup: Any
     # Input default values for the core app
     input: Any
-
-class AgentVersionDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    description: str
-    system_prompt: str
-    example_prompts: List[str]
-    core_app: CoreAppConfigDTO
-    # Unified tools array (apps, agents, hooks, client)
-    tools: List[Optional[AgentToolDTO]]
-    # Skills available to this agent (loaded on-demand via skill_get tool)
-    skills: List[SkillConfig]
-    # Internal tools configuration (plan, memory, widget, finish, skills)
-    internal_tools: InternalToolsConfig
-    # Output schema for custom finish tool (sub-agents only)
-    output_schema: Any
 
 
 ##########
@@ -345,6 +311,8 @@ class ApiAgentRunRequest(TypedDict, total=False):
     agent_name: str
     # The message to send
     input: ChatTaskInput
+    # Context values for this chat session (used in tool URL templates)
+    context: Dict[str, str]
     # If true, returns SSE stream instead of JSON response
     stream: bool
 
@@ -369,6 +337,8 @@ class CreateAgentMessageRequest(TypedDict, total=False):
     agent_config: AgentConfig
     # Optional name for the adhoc agent (used for deduplication and display)
     agent_name: str
+    # Context values for this chat session (used in tool URL templates)
+    context: Dict[str, str]
 
 class CreateAgentMessageResponse(TypedDict, total=False):
     user_message: ChatMessageDTO
@@ -424,13 +394,6 @@ class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
 
-# CreateAppRequest is the request body for POST /apps
-class CreateAppRequest(App, TypedDict, total=False):
-    # PreserveCurrentVersion prevents auto-promoting the new version to current.
-    # Default false = new versions become current (what most users expect).
-    # Set true for admin deployments where you want to test before promoting.
-    preserve_current_version: bool
-
 # CreateAgentRequest is the request body for POST /agents
 # For new agents: omit ID, backend generates it
 # For new version of existing agent: include ID
@@ -479,11 +442,6 @@ class CheckoutCreateRequest(TypedDict, total=False):
 
 class CheckoutCompleteRequest(TypedDict, total=False):
     session_id: str
-
-# Legacy aliases for backward compatibility
-StripeCheckoutCreateRequest = CheckoutCreateRequest
-
-StripeCheckoutCompleteRequest = CheckoutCompleteRequest
 
 # AuthResponse is returned after successful authentication (OAuth, magic link, SSO)
 class AuthResponse(TypedDict, total=False):
@@ -644,23 +602,6 @@ class EngineConfig(TypedDict, total=False):
 ##########
 # source: api_key_scopes.go
 
-class ScopeGroup(str, Enum):
-    AGENTS = "agents"
-    APPS = "apps"
-    CONVERSATIONS = "conversations"
-    FILES = "files"
-    DATASTORES = "datastores"
-    FLOWS = "flows"
-    PROJECTS = "projects"
-    TEAMS = "teams"
-    BILLING = "billing"
-    SECRETS = "secrets"
-    INTEGRATIONS = "integrations"
-    ENGINES = "engines"
-    API_KEYS = "apikeys"
-    USER = "user"
-    SETTINGS = "settings"
-
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
     value: str
@@ -685,48 +626,13 @@ class ScopePreset(TypedDict, total=False):
 ##########
 # source: app.go
 
-class AppCategory(str, Enum):
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
-    TEXT = "text"
-    CHAT = "chat"
-    _3_D = "3d"
-    OTHER = "other"
-    FLOW = "flow"
-
-class GPUType(str, Enum):
-    ANY = "any"
-    NONE = "none"
-    INTEL = "intel"
-    NVIDIA = "nvidia"
-    A_M_D = "amd"
-    APPLE = "apple"
-
 class AppImages(TypedDict, total=False):
     card: str
     thumbnail: str
     banner: str
 
-class App(BaseModel, PermissionModel, TypedDict, total=False):
-    # Namespace is copied from team.username at creation time and is IMMUTABLE.
-    # This ensures stable references like "namespace/name" even if team username changes.
-    # Default empty string allows GORM migration to add column, then MigrateAppNamespaces populates it.
-    namespace: str
-    # Name is IMMUTABLE after creation. Combined with Namespace forms unique identifier.
-    name: str
-    description: str
-    agent_description: str
-    # Category is a fundamental classification of the app (image, video, audio, text, chat, 3d, other)
-    category: AppCategory
-    # Developer's images
-    images: AppImages
-    # Current version (developer's latest)
-    version_id: str
-    version: AppVersion
-
 # AppPricing configures all pricing using CEL expressions
-# Empty expressions use defaults. All values in nanocents (1 cent = 1,000,000,000)
+# Empty expressions use defaults. All values in microcents (1 cent = 1,000,000; 1 dollar = 100,000,000)
 class AppPricing(TypedDict, total=False):
     prices: Dict[str, int]
     upstream_pricing: str
@@ -734,7 +640,7 @@ class AppPricing(TypedDict, total=False):
     # Available variables: resources (list of {name, price_per_second}), usage_seconds, prices
     # Default: sum(resources.map(r, r.price_per_second)) * usage_seconds
     resource_expression: str
-    # CEL expressions for each fee type (result in nanocents)
+    # CEL expressions for each fee type (result in microcents)
     # Available variables: inputs, outputs, prices, resource_fee, usage_seconds
     inference_expression: str
     royalty_expression: str
@@ -774,94 +680,6 @@ class AppFunction(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
 
-class AppVersion(BaseModel, TypedDict, total=False):
-    app_id: str
-    metadata: Dict[str, Any]
-    repository: str
-    flow_version_id: str
-    flow_version: FlowVersion
-    setup_schema: Any
-    input_schema: Any
-    output_schema: Any
-    # Functions contains the callable entry points for this app version.
-    # Each function has its own input/output schema. If nil/empty, the app uses legacy single-function mode
-    # with InputSchema/OutputSchema at the version level.
-    functions: Dict[str, AppFunction]
-    default_function: str
-    variants: Dict[str, AppVariant]
-    env: Dict[str, str]
-    kernel: str
-    # App requirements - secrets and integrations needed to run this app
-    required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
-    resources: AppResources
-    # Checksum is the SHA256 checksum of the uploaded zip file
-    checksum: str
-
-class LicenseRecord(BaseModel, TypedDict, total=False):
-    user_id: str
-    app_id: str
-    license: str
-
-class AppDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    namespace: str
-    name: str
-    description: str
-    agent_description: str
-    category: AppCategory
-    images: AppImages
-    version_id: str
-    version: AppVersionDTO
-
-class AppVersionDTO(BaseModel, TypedDict, total=False):
-    metadata: Dict[str, Any]
-    repository: str
-    flow_version_id: str
-    flow_version: FlowVersionDTO
-    setup_schema: Any
-    input_schema: Any
-    output_schema: Any
-    functions: Dict[str, AppFunction]
-    default_function: str
-    variants: Dict[str, AppVariant]
-    env: Dict[str, str]
-    kernel: str
-    # App requirements
-    required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
-    resources: AppResources
-    # Checksum is the SHA256 checksum of the uploaded zip file
-    checksum: str
-
-
-##########
-# source: app_session.go
-
-class AppSessionStatus(str, Enum):
-    ACTIVE = "active"
-    ENDED = "ended"
-    EXPIRED = "expired"
-
-class AppSession(BaseModel, PermissionModel, TypedDict, total=False):
-    # Affinity binding
-    worker_id: str
-    app_id: str
-    app_version_id: str
-    # Lifecycle
-    status: AppSessionStatus
-    expires_at: str
-    ended_at: str
-    # Billing link
-    task_id: str
-    # Stats
-    call_count: int
-    last_call_at: str
-    # Custom idle timeout in seconds (nil = use default)
-    idle_timeout: int
-    # Relations
-    worker: WorkerState
-    task: Task
-
 
 ##########
 # source: app_store.go
@@ -892,11 +710,6 @@ class BaseModel(TypedDict, total=False):
     updated_at: str
     deleted_at: str
 
-class Visibility(str, Enum):
-    PRIVATE = "private"
-    PUBLIC = "public"
-    UNLISTED = "unlisted"
-
 class PermissionModel(TypedDict, total=False):
     user_id: str
     user: User
@@ -921,12 +734,6 @@ class ResourceStatusDTO(TypedDict, total=False):
 ##########
 # source: chat.go
 
-class ChatStatus(str, Enum):
-    BUSY = "busy"
-    IDLE = "idle"
-    AWAITING_INPUT = "awaiting_input"
-    COMPLETED = "completed"
-
 class IntegrationContext(TypedDict, total=False):
     integration_type: IntegrationType
     integration_metadata: Any
@@ -944,37 +751,6 @@ class PlanStep(TypedDict, total=False):
     description: str
     notes: str
     status: PlanStepStatus
-
-class PlanStepStatus(str, Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-
-class ChatMessageRole(str, Enum):
-    SYSTEM = "system"
-    USER = "user"
-    ASSISTANT = "assistant"
-    TOOL = "tool"
-
-class ChatMessageStatus(str, Enum):
-    PENDING = "pending"
-    READY = "ready"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-class ChatMessageContentType(str, Enum):
-    TEXT = "text"
-    REASONING = "reasoning"
-    IMAGE = "image"
-    FILE = "file"
-    TOOL = "tool"
-
-class IntegrationType(str, Enum):
-    SLACK = "slack"
-    DISCORD = "discord"
-    TEAMS = "teams"
-    TELEGRAM = "telegram"
 
 # FileRef is a lightweight reference to a file with essential metadata.
 # Used in chat inputs/context instead of full File objects.
@@ -1035,34 +811,6 @@ class ChatTaskContextMessage(TypedDict, total=False):
     tool_calls: List[ToolCall]
     tool_call_id: str
 
-class ChatDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    parent_id: str
-    parent: ChatDTO
-    children: List[Optional[ChatDTO]]
-    status: ChatStatus
-    output: Any
-    # Agent version reference
-    agent_id: str
-    agent: AgentDTO
-    agent_version_id: str
-    agent_version: AgentVersionDTO
-    name: str
-    description: str
-    chat_messages: List[ChatMessageDTO]
-    agent_data: ChatData
-
-class ChatMessageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    chat_id: str
-    chat: ChatDTO
-    order: int
-    status: ChatMessageStatus
-    task_id: str
-    role: ChatMessageRole
-    content: List[ChatMessageContent]
-    tools: List[Tool]
-    tool_call_id: str
-    tool_invocations: List[ToolInvocationDTO]
-
 
 ##########
 # source: common.go
@@ -1084,26 +832,6 @@ class Filter(TypedDict, total=False):
     field: str
     operator: FilterOperator
     value: Any
-
-class FilterOperator(str, Enum):
-    OP_EQUAL = "eq"
-    OP_NOT_EQUAL = "neq"
-    OP_IN = "in"
-    OP_NOT_IN = "not_in"
-    OP_GREATER = "gt"
-    OP_GREATER_EQUAL = "gte"
-    OP_LESS = "lt"
-    OP_LESS_EQUAL = "lte"
-    OP_LIKE = "like"
-    OP_I_LIKE = "ilike"
-    OP_CONTAINS = "contains"
-    OP_NOT_CONTAINS = "not_contains"
-    # Null checks
-    OP_IS_NULL = "is_null"
-    OP_IS_NOT_NULL = "is_not_null"
-    # Empty checks (for strings)
-    OP_IS_EMPTY = "is_empty"
-    OP_IS_NOT_EMPTY = "is_not_empty"
 
 # SortOrder represents sorting configuration
 class SortOrder(TypedDict, total=False):
@@ -1136,75 +864,7 @@ class CursorListResponse(TypedDict, total=False):
 
 
 ##########
-# source: deviceauth.go
-
-class DeviceAuthStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    EXPIRED = "expired"
-    DENIED = "denied"
-    VALID = "valid"
-    INVALID = "invalid"
-    LOADING = "loading"
-
-
-##########
 # source: engine.go
-
-class EngineStatus(str, Enum):
-    RUNNING = "running"
-    PENDING = "pending"
-    DRAINING = "draining"
-    STOPPING = "stopping"
-    STOPPED = "stopped"
-
-class EngineState(BaseModel, PermissionModel, TypedDict, total=False):
-    instance: Instance
-    transaction_id: str
-    config: EngineConfig
-    public_key: str
-    name: str
-    api_url: str
-    status: str
-    system_info: SystemInfo
-    workers: List[Optional[WorkerState]]
-
-class EngineStateDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    instance: Instance
-    config: EngineConfig
-    name: str
-    api_url: str
-    status: str
-    system_info: SystemInfo
-    workers: List[Optional[WorkerStateDTO]]
-
-class EngineStateSummary(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    instance: Instance
-    name: str
-    status: str
-    workers: List[Optional[WorkerStateSummary]]
-
-class WorkerState(BaseModel, PermissionModel, TypedDict, total=False):
-    index: int
-    status: str
-    status_updated_at: str
-    heartbeat_at: str
-    engine_id: str
-    engine: EngineState
-    task_id: str
-    app_id: str
-    app_version_id: str
-    # App session lease
-    active_session_id: str
-    active_session: AppSession
-    gpus: List[WorkerGPU]
-    cpus: List[WorkerCPU]
-    rams: List[WorkerRAM]
-    SystemInfo: SystemInfo
-    # WarmApps tracks app+version combos with warm containers for scheduling optimization.
-    # Format: "appID:versionID@setupHash" - managed by Engine, synced via heartbeat.
-    # Not persisted to DB - this is ephemeral runtime state.
-    warm_apps: List[str]
 
 class WorkerGPU(TypedDict, total=False):
     id: str
@@ -1228,22 +888,6 @@ class WorkerRAM(TypedDict, total=False):
     id: str
     worker_id: str
     total: int
-
-class WorkerStateDTO(BaseModel, TypedDict, total=False):
-    user_id: str
-    team_id: str
-    index: int
-    status: str
-    engine_id: str
-    task_id: str
-    app_id: str
-    app_version_id: str
-    active_session_id: str
-    gpus: List[WorkerGPU]
-    cpus: List[WorkerCPU]
-    rams: List[WorkerRAM]
-    system_info: SystemInfo
-    warm_apps: List[str]
 
 class WorkerStateSummary(TypedDict, total=False):
     id: str
@@ -1275,55 +919,9 @@ class FileMetadata(TypedDict, total=False):
     channels: int
     codec: str
 
-class File(BaseModel, PermissionModel, TypedDict, total=False):
-    path: str
-    remote_path: str
-    upload_url: str
-    uri: str
-    content_type: str
-    size: int
-    filename: str
-    category: str
-    rating: ContentRating
-    metadata: FileMetadata
-
-class FileDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    path: str
-    remote_path: str
-    upload_url: str
-    uri: str
-    content_type: str
-    size: int
-    filename: str
-    category: str
-    rating: ContentRating
-    metadata: FileMetadata
-
 
 ##########
 # source: flow.go
-
-class FlowVersion(BaseModel, TypedDict, total=False):
-    # Permission fields - nullable for migration from existing data
-    # After migration these will be populated from parent Flow
-    user_id: str
-    user: User
-    team_id: str
-    team: Team
-    flow_id: str
-    # ConfigHash for deduplication - SHA256 of config content
-    config_hash: str
-    # GraphVersion is an incrementing counter for optimistic locking on action-based edits
-    graph_version: int
-    # Flow graph configuration
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
 
 class FlowViewport(TypedDict, total=False):
     x: float
@@ -1372,65 +970,9 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping.
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
-class FlowDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    description: str
-    card_image: str
-    thumbnail: str
-    banner_image: str
-    # Version references
-    draft_version_id: str
-    draft_version: FlowVersionDTO
-    published_version_id: str
-    published_version: FlowVersionDTO
-    # Flattened draft version fields for backward compatibility
-    # These come from the draft version (the editable one)
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
-
-class FlowVersionDTO(BaseModel, TypedDict, total=False):
-    graph_version: int
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
-
 class NodeTaskDTO(TypedDict, total=False):
     task_id: str
     task: TaskDTO
-
-class FlowRunStatus(IntEnum):
-    UNKNOWN = 0
-    PENDING = 1
-    RUNNING = 2
-    COMPLETED = 3
-    FAILED = 4
-    CANCELLED = 5
-
-class FlowRunDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    flow_id: str
-    flow_version_id: str
-    flow_version: FlowVersionDTO
-    task_id: str
-    status: FlowRunStatus
-    error: str
-    flow_run_started: str
-    flow_run_finished: str
-    flow_run_cancelled: str
-    input: FlowRunInputs
-    fail_on_error: bool
-    output: Any
-    node_tasks: Dict[str, Optional[NodeTaskDTO]]
 
 # Connection represents a connection between nodes in a flow
 class FlowNodeConnection(TypedDict, total=False):
@@ -1448,55 +990,6 @@ class FlowRunInput(TypedDict, total=False):
 
 ##########
 # source: graph.go
-
-class GraphNodeType(str, Enum):
-    UNKNOWN = "unknown"
-    JOIN = "join"
-    SPLIT = "split"
-    EXECUTION = "execution"
-    RESOURCE = "resource"
-    APPROVAL = "approval"
-    CONDITIONAL = "conditional"
-    FLOW_NODE = "flow_node"
-
-class GraphNodeStatus(str, Enum):
-    PENDING = "pending"
-    READY = "ready"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-    SKIPPED = "skipped"
-    BLOCKED = "blocked"
-
-class GraphEdgeType(str, Enum):
-    DEPENDENCY = "dependency"
-    FLOW = "flow"
-    CONDITIONAL = "conditional"
-    EXECUTION = "execution"
-    PARENT = "parent"
-    ANCESTOR = "ancestor"
-    DUPLICATE = "duplicate"
-
-# GraphNodeDTO is the API representation of a graph node
-class GraphNodeDTO(BaseModel, TypedDict, total=False):
-    graph_id: str
-    type: GraphNodeType
-    label: str
-    resource_id: str
-    resource_type: str
-    status: GraphNodeStatus
-    metadata: StringEncodedMap
-    ready_at: str
-    started_at: str
-    completed_at: str
-    duration_ms: int
-
-# GraphEdgeDTO is the API representation of a graph edge
-class GraphEdgeDTO(BaseModel, TypedDict, total=False):
-    type: GraphEdgeType
-    from_node: str
-    to_node: str
 
 # ChatTraceDTO is the trace response for chat observability
 class ChatTraceDTO(TypedDict, total=False):
@@ -1516,23 +1009,6 @@ class ChatTraceDTO(TypedDict, total=False):
 # StringSlice is a custom type for storing string slices in the database
 StringSlice = List[str]
 
-# IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    provider: str
-    type: str
-    auth: str
-    status: str
-    display_name: str
-    icon_url: str
-    scopes: StringSlice
-    expires_at: str
-    service_account_email: str
-    metadata: Dict[str, Any]
-    account_identifier: str
-    account_name: str
-    is_primary: bool
-    error_message: str
-
 
 ##########
 # source: knowledge.go
@@ -1544,8 +1020,6 @@ class KnowledgeFile(TypedDict, total=False):
     size: int
     hash: str
     content: str
-
-SkillFile = KnowledgeFile
 
 
 ##########
@@ -1566,12 +1040,6 @@ class PublicSkillStoreDTO(TypedDict, total=False):
 ##########
 # source: page.go
 
-class PageStatus(IntEnum):
-    UNKNOWN = 0
-    DRAFT = 1
-    PUBLISHED = 2
-    ARCHIVED = 3
-
 class PageMetadata(TypedDict, total=False):
     title: str
     description: str
@@ -1582,21 +1050,6 @@ class PageMetadata(TypedDict, total=False):
     type: str
     icon: str
     hide_from_nav: bool
-
-class PageType(str, Enum):
-    DOC = "doc"
-    BLOG = "blog"
-    PAGE = "page"
-
-class PageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    is_featured: bool
-    title: str
-    content: str
-    excerpt: str
-    status: PageStatus
-    type: PageType
-    metadata: PageMetadata
-    slug: str
 
 # MenuItem represents an item in a menu (can be nested)
 class MenuItem(TypedDict, total=False):
@@ -1611,21 +1064,9 @@ class MenuItem(TypedDict, total=False):
     expanded: bool
     children: List[MenuItem]
 
-class MenuDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    slug: str
-    description: str
-    items: List[MenuItem]
-
 
 ##########
 # source: project.go
-
-class ProjectType(str, Enum):
-    AGENT = "agent"
-    APP = "app"
-    FLOW = "flow"
-    OTHER = "other"
 
 # ProjectModel provides optional project association for models
 class ProjectModel(TypedDict, total=False):
@@ -1635,48 +1076,6 @@ class ProjectModel(TypedDict, total=False):
 class ProjectModelDTO(TypedDict, total=False):
     project_id: str
     project: ProjectDTO
-
-# Project represents a container for organizing related resources
-class Project(BaseModel, PermissionModel, TypedDict, total=False):
-    name: str
-    description: str
-    type: ProjectType
-    color: str
-    icon: str
-    # For future: nested folders/projects
-    parent_id: str
-    parent: Project
-    children: List[Optional[Project]]
-
-# ProjectDTO for API responses
-class ProjectDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    description: str
-    type: ProjectType
-    color: str
-    icon: str
-    parent_id: str
-    parent: ProjectDTO
-    children: List[Optional[ProjectDTO]]
-
-
-##########
-# source: rating.go
-
-class ContentRating(str, Enum):
-    CONTENT_SAFE = "safe"
-    # sexual content
-    CONTENT_SEXUAL_SUGGESTIVE = "sexual_suggestive"
-    CONTENT_SEXUAL_EXPLICIT = "sexual_explicit"
-    # violence
-    CONTENT_VIOLENCE_NON_GRAPHIC = "violence_non_graphic"
-    CONTENT_VIOLENCE_GRAPHIC = "violence_graphic"
-    # gore
-    CONTENT_GORE = "gore"
-    # other regulated content
-    CONTENT_DRUGS = "drugs"
-    CONTENT_SELF_HARM = "self_harm"
-    CONTENT_UNRATED = "unrated"
 
 
 ##########
@@ -1720,52 +1119,6 @@ class SecretRef(TypedDict, total=False):
 
 ##########
 # source: shadeform.go
-
-class InstanceCloudProvider(str, Enum):
-    CLOUD_A_W_S = "aws"
-    CLOUD_AZURE = "azure"
-    CLOUD_LAMBDA_LABS = "lambdalabs"
-    CLOUD_TENSOR_DOCK = "tensordock"
-    CLOUD_RUN_POD = "runpod"
-    CLOUD_LATITUDE = "latitude"
-    CLOUD_JARVIS_LABS = "jarvislabs"
-    CLOUD_OBLIVUS = "oblivus"
-    CLOUD_PAPERSPACE = "paperspace"
-    CLOUD_DATACRUNCH = "datacrunch"
-    CLOUD_MASSED_COMPUTE = "massedcompute"
-    CLOUD_VULTR = "vultr"
-    CLOUD_SHADE = "shade"
-
-class InstanceStatus(str, Enum):
-    PENDING = "pending"
-    ACTIVE = "active"
-    DELETED = "deleted"
-
-class Instance(BaseModel, PermissionModel, TypedDict, total=False):
-    cloud: InstanceCloudProvider
-    name: str
-    region: str
-    shade_cloud: bool
-    shade_instance_type: str
-    cloud_instance_type: str
-    cloud_assigned_id: str
-    os: str
-    ssh_key_id: str
-    ssh_user: str
-    ssh_port: int
-    ip: str
-    status: InstanceStatus
-    cost_estimate: str
-    hourly_price: int
-    template_id: str
-    volume_ids: List[str]
-    tags: List[str]
-    configuration: InstanceConfiguration
-    launch_configuration: InstanceLaunchConfiguration
-    auto_delete: InstanceThresholdConfig
-    alert: InstanceThresholdConfig
-    volume_mount: InstanceVolumeMountConfig
-    envs: List[InstanceEnvVar]
 
 class InstanceConfiguration(TypedDict, total=False):
     gpu_type: str
@@ -1920,26 +1273,6 @@ class HFCacheInfo(TypedDict, total=False):
 ##########
 # source: task.go
 
-class TaskStatus(IntEnum):
-    UNKNOWN = 0
-    RECEIVED = 1
-    QUEUED = 2
-    DISPATCHED = 3
-    PREPARING = 4
-    SERVING = 5
-    SETTING_UP = 6
-    RUNNING = 7
-    CANCELLING = 8
-    UPLOADING = 9
-    COMPLETED = 10
-    FAILED = 11
-    CANCELLED = 12
-
-class Infra(str, Enum):
-    PRIVATE = "private"
-    CLOUD = "cloud"
-    PRIVATE_FIRST = "private_first"
-
 # TaskAction defines an action to execute when a task reaches a specific status.
 # Used by the action projector to trigger side effects (e.g., updating app covers).
 class TaskAction(TypedDict, total=False):
@@ -1951,66 +1284,12 @@ class TaskAction(TypedDict, total=False):
 class TaskMetadata(TypedDict, total=False):
     action: TaskAction
 
-class Task(BaseModel, PermissionModel, TypedDict, total=False):
-    is_featured: bool
-    status: str
-    # Foreign keys
-    app_id: str
-    app: App
-    version_id: str
-    app_version: AppVersion
-    # Deprecated: Will be removed in favor of Setup
-    variant: str
-    # Function is the specific function to call on multi-function apps.
-    # DEPRECATED: Standardizing on explicit function name.
-    # Defaults to "run" for legacy tasks (backfilled via migration).
-    function: str
-    infra: Infra
-    workers: List[str]
-    engine_id: str
-    engine: EngineState
-    worker_id: str
-    worker: WorkerState
-    # Belongs to:
-    flow_run_id: str
-    chat_id: str
-    # Owns: (Can be replaced with graph execution edge/node)
-    sub_flow_run_id: str
-    webhook: str
-    metadata: TaskMetadata
-    setup: Any
-    input: Any
-    output: Any
-    error: str
-    rating: ContentRating
-    # Relationships
-    events: List[TaskEvent]
-    logs: List[TaskLog]
-    usage_events: List[Optional[UsageEvent]]
-    # Secret refs for billing (tracks ownership to determine partner fee)
-    secrets: List[SecretRef]
-    # App session reference (for session calls)
-    # Special value "new" means scheduler should create session when dispatching.
-    session_id: str
-    session: AppSession
-    # Session timeout in seconds (only used when session="new")
-    session_timeout: int
-    # Scheduled execution time (UTC). Scheduler skips task until this time.
-    run_at: str
-
 class TaskEvent(TypedDict, total=False):
     id: str
     created_at: str
     event_time: str
     task_id: str
     status: str
-
-class TaskLogType(IntEnum):
-    BUILD = 0
-    RUN = 1
-    SERVE = 2
-    SETUP = 3
-    TASK = 4
 
 class TaskLog(TypedDict, total=False):
     id: str
@@ -2020,84 +1299,9 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
-class TaskDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    graph_id: str
-    user_public_key: bytes
-    engine_public_key: bytes
-    is_featured: bool
-    status: str
-    app_id: str
-    app: AppDTO
-    app_version_id: str
-    app_version: AppVersionDTO
-    app_variant: str
-    function: str
-    infra: Infra
-    workers: List[str]
-    flow_run_id: str
-    chat_id: str
-    sub_flow_run_id: str
-    agent_id: str
-    agent_version_id: str
-    agent: AgentDTO
-    engine_id: str
-    engine: EngineStateSummary
-    worker_id: str
-    worker: WorkerStateSummary
-    run_at: str
-    webhook: str
-    setup: Any
-    input: Any
-    output: Any
-    error: str
-    rating: ContentRating
-    events: List[TaskEvent]
-    logs: List[TaskLog]
-    usage_events: List[Optional[UsageEvent]]
-    session_id: str
-    session_timeout: int
-
 
 ##########
 # source: team.go
-
-class TeamType(str, Enum):
-    PERSONAL = "personal"
-    TEAM = "team"
-    SYSTEM = "system"
-
-class TeamStatus(str, Enum):
-    ACTIVE = "active"
-    SUSPENDED = "suspended"
-    TERMINATED = "terminated"
-
-class Team(BaseModel, TypedDict, total=False):
-    type: TeamType
-    username: str
-    email: str
-    name: str
-    avatar_url: str
-    # SetupCompleted indicates whether the team has completed initial setup (chosen a username)
-    # Personal teams start with SetupCompleted=false and a generated temporary username
-    setup_completed: bool
-    # MaxConcurrency limits total active tasks for this team (0 = use default)
-    max_concurrency: int
-    status: TeamStatus
-
-class TeamDTO(BaseModel, TypedDict, total=False):
-    type: TeamType
-    name: str
-    username: str
-    avatar_url: str
-    email: str
-    setup_completed: bool
-    max_concurrency: int
-    status: TeamStatus
-
-class TeamRole(str, Enum):
-    OWNER = "owner"
-    ADMIN = "admin"
-    MEMBER = "member"
 
 # Team-related types
 class TeamRelationDTO(TypedDict, total=False):
@@ -2117,29 +1321,6 @@ class TeamRelationDTO(TypedDict, total=False):
 class ToolInvocationFunction(TypedDict, total=False):
     name: str
     arguments: StringEncodedMap
-
-class ToolInvocationStatus(str, Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    AWAITING_INPUT = "awaiting_input"
-    AWAITING_APPROVAL = "awaiting_approval"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-# ToolInvocationDTO for API responses
-class ToolInvocationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
-    chat_message_id: str
-    tool_invocation_id: str
-    type: ToolType
-    display_name: str
-    execution_id: str
-    function: ToolInvocationFunction
-    status: ToolInvocationStatus
-    result: str
-    # Unified fields
-    data: Any
-    widget: Widget
 
 class Tool(TypedDict, total=False):
     type: str
@@ -2169,25 +1350,6 @@ class ToolParameterProperty(TypedDict, total=False):
 
 
 ##########
-# source: usage.go
-
-class UsageEventResourceTier(str, Enum):
-    PRIVATE = "private"
-    CLOUD = "cloud"
-
-class UsageEvent(BaseModel, PermissionModel, TypedDict, total=False):
-    usage_billing_record_id: str
-    reference_id: str
-    resource_id: str
-    # Resource tier
-    tier: UsageEventResourceTier
-    type: str
-    model: str
-    quantity: int
-    unit: str
-
-
-##########
 # source: user.go
 
 # User-related types
@@ -2196,21 +1358,6 @@ class User(TypedDict, total=False):
     role: str
     email: str
     email_verified: bool
-    name: str
-    full_name: str
-    avatar_url: str
-    metadata: UserMetadata
-
-class Role(str, Enum):
-    GUEST = "guest"
-    USER = "user"
-    ADMIN = "admin"
-    SYSTEM = "system"
-
-class UserDTO(BaseModel, TypedDict, total=False):
-    default_team_id: str
-    role: str
-    email: str
     name: str
     full_name: str
     avatar_url: str
@@ -2246,40 +1393,6 @@ class WidgetActionButton(TypedDict, total=False):
     label: str
     action: WidgetAction
     variant: str
-
-class WidgetNodeType(str, Enum):
-    # Primitive node types (render literal values)
-    TEXT = "text"
-    MARKDOWN = "markdown"
-    IMAGE = "image"
-    BADGE = "badge"
-    BUTTON = "button"
-    INPUT = "input"
-    SELECT = "select"
-    CHECKBOX = "checkbox"
-    ROW = "row"
-    COL = "col"
-    # Layout node types
-    BOX = "box"
-    SPACER = "spacer"
-    DIVIDER = "divider"
-    FORM = "form"
-    # Typography node types
-    TITLE = "title"
-    CAPTION = "caption"
-    LABEL = "label"
-    # Control node types
-    TEXTAREA = "textarea"
-    RADIO_GROUP = "radio-group"
-    DATE_PICKER = "date-picker"
-    # Content node types
-    ICON = "icon"
-    CHART = "chart"
-    TRANSITION = "transition"
-    # Data-bound node types (deprecated - use templates instead)
-    PLAN_LIST = "plan-list"
-    KEY_VALUE = "key-value"
-    STATUS_BADGE = "status-badge"
 
 # WidgetNode represents a UI element in a widget (text, input, select, etc.)
 class WidgetNode(TypedDict, total=False):
@@ -2359,4 +1472,915 @@ class Widget(TypedDict, total=False):
     json: str
     children: List[WidgetNode]
     actions: List[WidgetActionButton]
+
+# CallToolConfig is the preferred name for HTTPToolConfig.
+# "call" is the user-facing type; "http" is kept for backward compatibility.
+CallToolConfig = HTTPToolConfig
+
+# Legacy aliases for backward compatibility
+StripeCheckoutCreateRequest = CheckoutCreateRequest
+
+StripeCheckoutCompleteRequest = CheckoutCompleteRequest
+
+class AppVersion(BaseModel, TypedDict, total=False):
+    app_id: str
+    metadata: Dict[str, Any]
+    repository: str
+    flow_version_id: str
+    flow_version: FlowVersion
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    # Functions contains the callable entry points for this app version.
+    # Each function has its own input/output schema. If nil/empty, the app uses legacy single-function mode
+    # with InputSchema/OutputSchema at the version level.
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    # App requirements - secrets and integrations needed to run this app
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+    # Checksum is the SHA256 checksum of the uploaded zip file
+    checksum: str
+
+class LicenseRecord(BaseModel, TypedDict, total=False):
+    user_id: str
+    app_id: str
+    license: str
+
+class AppVersionDTO(BaseModel, TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    # App requirements
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+    # Checksum is the SHA256 checksum of the uploaded zip file
+    checksum: str
+
+class WorkerStateDTO(BaseModel, TypedDict, total=False):
+    user_id: str
+    team_id: str
+    index: int
+    status: str
+    engine_id: str
+    task_id: str
+    app_id: str
+    app_version_id: str
+    active_session_id: str
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    system_info: SystemInfo
+    warm_apps: List[str]
+
+class FlowVersion(BaseModel, TypedDict, total=False):
+    # Permission fields - nullable for migration from existing data
+    # After migration these will be populated from parent Flow
+    user_id: str
+    user: User
+    team_id: str
+    team: Team
+    flow_id: str
+    # ConfigHash for deduplication - SHA256 of config content
+    config_hash: str
+    # GraphVersion is an incrementing counter for optimistic locking on action-based edits
+    graph_version: int
+    # Flow graph configuration
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
+
+class FlowVersionDTO(BaseModel, TypedDict, total=False):
+    graph_version: int
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
+
+# GraphNodeDTO is the API representation of a graph node
+class GraphNodeDTO(BaseModel, TypedDict, total=False):
+    graph_id: str
+    type: GraphNodeType
+    label: str
+    resource_id: str
+    resource_type: str
+    status: GraphNodeStatus
+    metadata: StringEncodedMap
+    ready_at: str
+    started_at: str
+    completed_at: str
+    duration_ms: int
+
+# GraphEdgeDTO is the API representation of a graph edge
+class GraphEdgeDTO(BaseModel, TypedDict, total=False):
+    type: GraphEdgeType
+    from_node: str
+    to_node: str
+
+class Team(BaseModel, TypedDict, total=False):
+    type: TeamType
+    username: str
+    email: str
+    name: str
+    avatar_url: str
+    # SetupCompleted indicates whether the team has completed initial setup (chosen a username)
+    # Personal teams start with SetupCompleted=false and a generated temporary username
+    setup_completed: bool
+    # MaxConcurrency limits total active tasks for this team (0 = use default)
+    max_concurrency: int
+    status: TeamStatus
+
+class TeamDTO(BaseModel, TypedDict, total=False):
+    type: TeamType
+    name: str
+    username: str
+    avatar_url: str
+    email: str
+    setup_completed: bool
+    max_concurrency: int
+    status: TeamStatus
+
+class UserDTO(BaseModel, TypedDict, total=False):
+    default_team_id: str
+    role: str
+    email: str
+    name: str
+    full_name: str
+    avatar_url: str
+    metadata: UserMetadata
+
+class Agent(BaseModel, PermissionModel, TypedDict, total=False):
+    # Basic info
+    namespace: str
+    name: str
+    # Display images (like App)
+    images: AgentImages
+    version_id: str
+    version: AgentVersion
+
+class AgentVersion(BaseModel, PermissionModel, TypedDict, total=False):
+    agent_id: str
+    # ConfigHash for deduplication - SHA256 of config content
+    config_hash: str
+
+class App(BaseModel, PermissionModel, TypedDict, total=False):
+    # Namespace is copied from team.username at creation time and is IMMUTABLE.
+    # This ensures stable references like "namespace/name" even if team username changes.
+    # Default empty string allows GORM migration to add column, then MigrateAppNamespaces populates it.
+    namespace: str
+    # Name is IMMUTABLE after creation. Combined with Namespace forms unique identifier.
+    name: str
+    description: str
+    agent_description: str
+    # Category is a fundamental classification of the app (image, video, audio, text, chat, 3d, other)
+    category: AppCategory
+    # Developer's images
+    images: AppImages
+    # Current version (developer's latest)
+    version_id: str
+    version: AppVersion
+
+
+##########
+# source: app_session.go
+
+class AppSession(BaseModel, PermissionModel, TypedDict, total=False):
+    # Affinity binding
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    # Lifecycle
+    status: AppSessionStatus
+    expires_at: str
+    ended_at: str
+    # Billing link
+    task_id: str
+    # Stats
+    call_count: int
+    last_call_at: str
+    # Custom idle timeout in seconds (nil = use default)
+    idle_timeout: int
+    # Relations
+    worker: WorkerState
+    task: Task
+
+class EngineState(BaseModel, PermissionModel, TypedDict, total=False):
+    instance: Instance
+    transaction_id: str
+    config: EngineConfig
+    public_key: str
+    name: str
+    api_url: str
+    status: str
+    system_info: SystemInfo
+    workers: List[Optional[WorkerState]]
+
+class WorkerState(BaseModel, PermissionModel, TypedDict, total=False):
+    index: int
+    status: str
+    status_updated_at: str
+    heartbeat_at: str
+    engine_id: str
+    engine: EngineState
+    task_id: str
+    app_id: str
+    app_version_id: str
+    # App session lease
+    active_session_id: str
+    active_session: AppSession
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    SystemInfo: SystemInfo
+    # WarmApps tracks app+version combos with warm containers for scheduling optimization.
+    # Format: "appID:versionID@setupHash" - managed by Engine, synced via heartbeat.
+    # Not persisted to DB - this is ephemeral runtime state.
+    warm_apps: List[str]
+
+class File(BaseModel, PermissionModel, TypedDict, total=False):
+    path: str
+    remote_path: str
+    upload_url: str
+    uri: str
+    content_type: str
+    size: int
+    filename: str
+    category: str
+    rating: ContentRating
+    metadata: FileMetadata
+
+# Project represents a container for organizing related resources
+class Project(BaseModel, PermissionModel, TypedDict, total=False):
+    name: str
+    description: str
+    type: ProjectType
+    color: str
+    icon: str
+    # For future: nested folders/projects
+    parent_id: str
+    parent: Project
+    children: List[Optional[Project]]
+
+class Instance(BaseModel, PermissionModel, TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    name: str
+    region: str
+    shade_cloud: bool
+    shade_instance_type: str
+    cloud_instance_type: str
+    cloud_assigned_id: str
+    os: str
+    ssh_key_id: str
+    ssh_user: str
+    ssh_port: int
+    ip: str
+    status: InstanceStatus
+    cost_estimate: str
+    hourly_price: int
+    template_id: str
+    volume_ids: List[str]
+    tags: List[str]
+    configuration: InstanceConfiguration
+    launch_configuration: InstanceLaunchConfiguration
+    auto_delete: InstanceThresholdConfig
+    alert: InstanceThresholdConfig
+    volume_mount: InstanceVolumeMountConfig
+    envs: List[InstanceEnvVar]
+
+class Task(BaseModel, PermissionModel, TypedDict, total=False):
+    is_featured: bool
+    status: str
+    # Foreign keys
+    app_id: str
+    app: App
+    version_id: str
+    app_version: AppVersion
+    # Deprecated: Will be removed in favor of Setup
+    variant: str
+    # Function is the specific function to call on multi-function apps.
+    # DEPRECATED: Standardizing on explicit function name.
+    # Defaults to "run" for legacy tasks (backfilled via migration).
+    function: str
+    infra: Infra
+    workers: List[str]
+    engine_id: str
+    engine: EngineState
+    worker_id: str
+    worker: WorkerState
+    # Belongs to:
+    flow_run_id: str
+    chat_id: str
+    # Owns: (Can be replaced with graph execution edge/node)
+    sub_flow_run_id: str
+    webhook: str
+    metadata: TaskMetadata
+    setup: Any
+    input: Any
+    output: Any
+    error: str
+    rating: ContentRating
+    # Relationships
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    usage_events: List[Optional[UsageEvent]]
+    # Secret refs for billing (tracks ownership to determine partner fee)
+    secrets: List[SecretRef]
+    # App session reference (for session calls)
+    # Special value "new" means scheduler should create session when dispatching.
+    session_id: str
+    session: AppSession
+    # Session timeout in seconds (only used when session="new")
+    session_timeout: int
+    # Scheduled execution time (UTC). Scheduler skips task until this time.
+    run_at: str
+
+
+##########
+# source: usage.go
+
+class UsageEvent(BaseModel, PermissionModel, TypedDict, total=False):
+    usage_billing_record_id: str
+    reference_id: str
+    resource_id: str
+    # Resource tier
+    tier: UsageEventResourceTier
+    type: str
+    model: str
+    quantity: int
+    unit: str
+
+class AgentVersionDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    description: str
+    system_prompt: str
+    example_prompts: List[str]
+    core_app: CoreAppConfigDTO
+    # Unified tools array (apps, agents, hooks, client)
+    tools: List[Optional[AgentToolDTO]]
+    # Skills available to this agent (loaded on-demand via skill_get tool)
+    skills: List[SkillConfig]
+    # Context declarations
+    context: List[ContextField]
+    # Internal tools configuration (plan, memory, widget, finish, skills)
+    internal_tools: InternalToolsConfig
+    # Output schema for custom finish tool (sub-agents only)
+    output_schema: Any
+
+class AppDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    agent_description: str
+    category: AppCategory
+    images: AppImages
+    version_id: str
+    version: AppVersionDTO
+
+class ChatDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    parent_id: str
+    parent: ChatDTO
+    children: List[Optional[ChatDTO]]
+    status: ChatStatus
+    output: Any
+    context: Dict[str, str]
+    # Agent version reference
+    agent_id: str
+    agent: AgentDTO
+    agent_version_id: str
+    agent_version: AgentVersionDTO
+    name: str
+    description: str
+    chat_messages: List[ChatMessageDTO]
+    agent_data: ChatData
+
+class ChatMessageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    chat_id: str
+    chat: ChatDTO
+    order: int
+    status: ChatMessageStatus
+    task_id: str
+    role: ChatMessageRole
+    content: List[ChatMessageContent]
+    tools: List[Tool]
+    tool_call_id: str
+    tool_invocations: List[ToolInvocationDTO]
+
+class EngineStateDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    instance: Instance
+    config: EngineConfig
+    name: str
+    api_url: str
+    status: str
+    system_info: SystemInfo
+    workers: List[Optional[WorkerStateDTO]]
+
+class EngineStateSummary(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    instance: Instance
+    name: str
+    status: str
+    workers: List[Optional[WorkerStateSummary]]
+
+class FileDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    path: str
+    remote_path: str
+    upload_url: str
+    uri: str
+    content_type: str
+    size: int
+    filename: str
+    category: str
+    rating: ContentRating
+    metadata: FileMetadata
+
+class FlowDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    card_image: str
+    thumbnail: str
+    banner_image: str
+    # Version references
+    draft_version_id: str
+    draft_version: FlowVersionDTO
+    published_version_id: str
+    published_version: FlowVersionDTO
+    # Flattened draft version fields for backward compatibility
+    # These come from the draft version (the editable one)
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
+
+class FlowRunDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    flow_id: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    task_id: str
+    status: FlowRunStatus
+    error: str
+    flow_run_started: str
+    flow_run_finished: str
+    flow_run_cancelled: str
+    input: FlowRunInputs
+    fail_on_error: bool
+    output: Any
+    node_tasks: Dict[str, Optional[NodeTaskDTO]]
+
+# IntegrationDTO for API responses (never exposes tokens)
+class IntegrationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    provider: str
+    type: str
+    auth: str
+    status: str
+    display_name: str
+    icon_url: str
+    scopes: StringSlice
+    expires_at: str
+    service_account_email: str
+    metadata: Dict[str, Any]
+    account_identifier: str
+    account_name: str
+    is_primary: bool
+    error_message: str
+
+class PageDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    is_featured: bool
+    title: str
+    content: str
+    excerpt: str
+    status: PageStatus
+    type: PageType
+    metadata: PageMetadata
+    slug: str
+
+class MenuDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    slug: str
+    description: str
+    items: List[MenuItem]
+
+# ProjectDTO for API responses
+class ProjectDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    type: ProjectType
+    color: str
+    icon: str
+    parent_id: str
+    parent: ProjectDTO
+    children: List[Optional[ProjectDTO]]
+
+class TaskDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    graph_id: str
+    user_public_key: bytes
+    engine_public_key: bytes
+    is_featured: bool
+    status: str
+    app_id: str
+    app: AppDTO
+    app_version_id: str
+    app_version: AppVersionDTO
+    app_variant: str
+    function: str
+    infra: Infra
+    workers: List[str]
+    flow_run_id: str
+    chat_id: str
+    sub_flow_run_id: str
+    agent_id: str
+    agent_version_id: str
+    agent: AgentDTO
+    engine_id: str
+    engine: EngineStateSummary
+    worker_id: str
+    worker: WorkerStateSummary
+    run_at: str
+    webhook: str
+    setup: Any
+    input: Any
+    output: Any
+    error: str
+    rating: ContentRating
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    usage_events: List[Optional[UsageEvent]]
+    session_id: str
+    session_timeout: int
+
+# ToolInvocationDTO for API responses
+class ToolInvocationDTO(BaseModel, PermissionModelDTO, TypedDict, total=False):
+    chat_message_id: str
+    tool_invocation_id: str
+    type: ToolType
+    display_name: str
+    execution_id: str
+    function: ToolInvocationFunction
+    status: ToolInvocationStatus
+    result: str
+    # Unified fields
+    data: Any
+    widget: Widget
+
+SkillFile = KnowledgeFile
+
+# AgentDTO for API responses
+class AgentDTO(BaseModel, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    # Display images (like AppDTO)
+    images: AgentImages
+    version_id: str
+    version: AgentVersionDTO
+
+# CreateAppRequest is the request body for POST /apps
+class CreateAppRequest(App, TypedDict, total=False):
+    # PreserveCurrentVersion prevents auto-promoting the new version to current.
+    # Default false = new versions become current (what most users expect).
+    # Set true for admin deployments where you want to test before promoting.
+    preserve_current_version: bool
+
+class ToolType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    HOOK = "hook"
+    H_T_T_P = "http"
+    CALL = "call"
+    M_C_P = "mcp"
+    CLIENT = "client"
+    INTERNAL = "internal"
+
+class ScopeGroup(str, Enum):
+    AGENTS = "agents"
+    APPS = "apps"
+    CONVERSATIONS = "conversations"
+    FILES = "files"
+    DATASTORES = "datastores"
+    FLOWS = "flows"
+    PROJECTS = "projects"
+    TEAMS = "teams"
+    BILLING = "billing"
+    SECRETS = "secrets"
+    INTEGRATIONS = "integrations"
+    ENGINES = "engines"
+    API_KEYS = "apikeys"
+    USER = "user"
+    SETTINGS = "settings"
+
+class AppCategory(str, Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    TEXT = "text"
+    CHAT = "chat"
+    _3_D = "3d"
+    OTHER = "other"
+    FLOW = "flow"
+
+class GPUType(str, Enum):
+    ANY = "any"
+    NONE = "none"
+    INTEL = "intel"
+    NVIDIA = "nvidia"
+    A_M_D = "amd"
+    APPLE = "apple"
+
+class AppSessionStatus(str, Enum):
+    ACTIVE = "active"
+    ENDED = "ended"
+    EXPIRED = "expired"
+
+class Visibility(str, Enum):
+    PRIVATE = "private"
+    PUBLIC = "public"
+    UNLISTED = "unlisted"
+
+class ChatStatus(str, Enum):
+    BUSY = "busy"
+    IDLE = "idle"
+    AWAITING_INPUT = "awaiting_input"
+    COMPLETED = "completed"
+
+class PlanStepStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+class ChatMessageRole(str, Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+class ChatMessageStatus(str, Enum):
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ChatMessageContentType(str, Enum):
+    TEXT = "text"
+    REASONING = "reasoning"
+    IMAGE = "image"
+    FILE = "file"
+    TOOL = "tool"
+
+class IntegrationType(str, Enum):
+    SLACK = "slack"
+    DISCORD = "discord"
+    TEAMS = "teams"
+    TELEGRAM = "telegram"
+
+class FilterOperator(str, Enum):
+    OP_EQUAL = "eq"
+    OP_NOT_EQUAL = "neq"
+    OP_IN = "in"
+    OP_NOT_IN = "not_in"
+    OP_GREATER = "gt"
+    OP_GREATER_EQUAL = "gte"
+    OP_LESS = "lt"
+    OP_LESS_EQUAL = "lte"
+    OP_LIKE = "like"
+    OP_I_LIKE = "ilike"
+    OP_CONTAINS = "contains"
+    OP_NOT_CONTAINS = "not_contains"
+    # Null checks
+    OP_IS_NULL = "is_null"
+    OP_IS_NOT_NULL = "is_not_null"
+    # Empty checks (for strings)
+    OP_IS_EMPTY = "is_empty"
+    OP_IS_NOT_EMPTY = "is_not_empty"
+
+
+##########
+# source: deviceauth.go
+
+class DeviceAuthStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    EXPIRED = "expired"
+    DENIED = "denied"
+    VALID = "valid"
+    INVALID = "invalid"
+    LOADING = "loading"
+
+class EngineStatus(str, Enum):
+    RUNNING = "running"
+    PENDING = "pending"
+    DRAINING = "draining"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+
+class FlowRunStatus(IntEnum):
+    UNKNOWN = 0
+    PENDING = 1
+    RUNNING = 2
+    COMPLETED = 3
+    FAILED = 4
+    CANCELLED = 5
+
+class GraphNodeType(str, Enum):
+    UNKNOWN = "unknown"
+    JOIN = "join"
+    SPLIT = "split"
+    EXECUTION = "execution"
+    RESOURCE = "resource"
+    APPROVAL = "approval"
+    CONDITIONAL = "conditional"
+    FLOW_NODE = "flow_node"
+
+class GraphNodeStatus(str, Enum):
+    PENDING = "pending"
+    READY = "ready"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+    BLOCKED = "blocked"
+
+class GraphEdgeType(str, Enum):
+    DEPENDENCY = "dependency"
+    FLOW = "flow"
+    CONDITIONAL = "conditional"
+    EXECUTION = "execution"
+    PARENT = "parent"
+    ANCESTOR = "ancestor"
+    DUPLICATE = "duplicate"
+
+class PageStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+
+class PageType(str, Enum):
+    DOC = "doc"
+    BLOG = "blog"
+    PAGE = "page"
+
+class ProjectType(str, Enum):
+    AGENT = "agent"
+    APP = "app"
+    FLOW = "flow"
+    OTHER = "other"
+
+
+##########
+# source: rating.go
+
+class ContentRating(str, Enum):
+    CONTENT_SAFE = "safe"
+    # sexual content
+    CONTENT_SEXUAL_SUGGESTIVE = "sexual_suggestive"
+    CONTENT_SEXUAL_EXPLICIT = "sexual_explicit"
+    # violence
+    CONTENT_VIOLENCE_NON_GRAPHIC = "violence_non_graphic"
+    CONTENT_VIOLENCE_GRAPHIC = "violence_graphic"
+    # gore
+    CONTENT_GORE = "gore"
+    # other regulated content
+    CONTENT_DRUGS = "drugs"
+    CONTENT_SELF_HARM = "self_harm"
+    CONTENT_UNRATED = "unrated"
+
+class InstanceCloudProvider(str, Enum):
+    CLOUD_A_W_S = "aws"
+    CLOUD_AZURE = "azure"
+    CLOUD_LAMBDA_LABS = "lambdalabs"
+    CLOUD_TENSOR_DOCK = "tensordock"
+    CLOUD_RUN_POD = "runpod"
+    CLOUD_LATITUDE = "latitude"
+    CLOUD_JARVIS_LABS = "jarvislabs"
+    CLOUD_OBLIVUS = "oblivus"
+    CLOUD_PAPERSPACE = "paperspace"
+    CLOUD_DATACRUNCH = "datacrunch"
+    CLOUD_MASSED_COMPUTE = "massedcompute"
+    CLOUD_VULTR = "vultr"
+    CLOUD_SHADE = "shade"
+
+class InstanceStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    DELETED = "deleted"
+
+class TaskStatus(IntEnum):
+    UNKNOWN = 0
+    RECEIVED = 1
+    QUEUED = 2
+    DISPATCHED = 3
+    PREPARING = 4
+    SERVING = 5
+    SETTING_UP = 6
+    RUNNING = 7
+    CANCELLING = 8
+    UPLOADING = 9
+    COMPLETED = 10
+    FAILED = 11
+    CANCELLED = 12
+
+class Infra(str, Enum):
+    PRIVATE = "private"
+    CLOUD = "cloud"
+    PRIVATE_FIRST = "private_first"
+
+class TaskLogType(IntEnum):
+    BUILD = 0
+    RUN = 1
+    SERVE = 2
+    SETUP = 3
+    TASK = 4
+
+class TeamType(str, Enum):
+    PERSONAL = "personal"
+    TEAM = "team"
+    SYSTEM = "system"
+
+class TeamStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TERMINATED = "terminated"
+
+class TeamRole(str, Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+
+class ToolInvocationStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    AWAITING_INPUT = "awaiting_input"
+    AWAITING_APPROVAL = "awaiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class UsageEventResourceTier(str, Enum):
+    PRIVATE = "private"
+    CLOUD = "cloud"
+
+class Role(str, Enum):
+    GUEST = "guest"
+    USER = "user"
+    ADMIN = "admin"
+    SYSTEM = "system"
+
+class WidgetNodeType(str, Enum):
+    # Primitive node types (render literal values)
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    IMAGE = "image"
+    BADGE = "badge"
+    BUTTON = "button"
+    INPUT = "input"
+    SELECT = "select"
+    CHECKBOX = "checkbox"
+    ROW = "row"
+    COL = "col"
+    # Layout node types
+    BOX = "box"
+    SPACER = "spacer"
+    DIVIDER = "divider"
+    FORM = "form"
+    # Typography node types
+    TITLE = "title"
+    CAPTION = "caption"
+    LABEL = "label"
+    # Control node types
+    TEXTAREA = "textarea"
+    RADIO_GROUP = "radio-group"
+    DATE_PICKER = "date-picker"
+    # Content node types
+    ICON = "icon"
+    CHART = "chart"
+    TRANSITION = "transition"
+    # Data-bound node types (deprecated - use templates instead)
+    PLAN_LIST = "plan-list"
+    KEY_VALUE = "key-value"
+    STATUS_BADGE = "status-badge"
 

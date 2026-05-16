@@ -17,20 +17,6 @@ class AppSDKTypes(TypedDict, total=False):
 ##########
 # source: usage.go
 
-class MetaItemType(str, Enum):
-    TEXT = "text"
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
-    RAW = "raw"
-
-class VideoResolution(str, Enum):
-    VIDEO_RES480_P = "480p"
-    VIDEO_RES720_P = "720p"
-    VIDEO_RES1080_P = "1080p"
-    VIDEO_RES1440_P = "1440p"
-    VIDEO_RES4_K = "4k"
-
 # MetaItem represents metadata about an input or output item
 class MetaItem(TypedDict, total=False):
     type: MetaItemType
@@ -58,4 +44,18 @@ class MetaItem(TypedDict, total=False):
 class OutputMeta(TypedDict, total=False):
     inputs: List[MetaItem]
     outputs: List[MetaItem]
+
+class MetaItemType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    RAW = "raw"
+
+class VideoResolution(str, Enum):
+    VIDEO_RES480_P = "480p"
+    VIDEO_RES720_P = "720p"
+    VIDEO_RES1080_P = "1080p"
+    VIDEO_RES1440_P = "1440p"
+    VIDEO_RES4_K = "4k"
 
