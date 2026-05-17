@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
-from ..types import AppSession
+from ..types import AppSessionDTO as AppSession
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference
