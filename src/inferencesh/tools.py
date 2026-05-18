@@ -3,7 +3,10 @@ Tool Builder - Fluent API for defining agent tools
 """
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union
-from .types import AgentTool, InternalToolsConfig, ToolAuthConfig, ToolType
+from .types import (
+    AgentTool, AppToolConfig, HookToolConfig, HTTPToolConfig,
+    InternalToolsConfig, ToolAuthConfig, ToolType,
+)
 
 
 # =============================================================================
@@ -159,7 +162,7 @@ class ClientToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.CLIENT,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "client": {"input_schema": _to_json_schema(self._params)},
         }
 
@@ -203,7 +206,7 @@ class AppToolBuilder(_ToolBuilder):
         return self
 
     def build(self) -> AgentTool:
-        app_config: Dict[str, Any] = {
+        app_config: AppToolConfig = {
             "ref": self._app_ref,
         }
         if self._function_name:
@@ -220,7 +223,7 @@ class AppToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.APP,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "app": app_config,
         }
 
@@ -238,7 +241,7 @@ class AgentToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.AGENT,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "agent": {"ref": self._agent_ref},
         }
 
@@ -257,17 +260,19 @@ class WebhookToolBuilder(_ToolBuilder):
         return self
     
     def build(self) -> AgentTool:
+        hook_config: HookToolConfig = {
+            "url": self._url,
+            "input_schema": _to_json_schema(self._params),
+        }
+        if self._secret is not None:
+            hook_config["secret"] = self._secret
         return {
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.HOOK,
-            "require_approval": self._require_approval or None,
-            "hook": {
-                "url": self._url,
-                "secret": self._secret,
-                "input_schema": _to_json_schema(self._params),
-            },
+            "require_approval": self._require_approval,
+            "hook": hook_config,
         }
 
 
@@ -306,21 +311,24 @@ class HTTPToolBuilder(_ToolBuilder):
         return self
 
     def build(self) -> AgentTool:
-        result: AgentTool = {
+        http_config: HTTPToolConfig = {
+            "url": self._url,
+            "input_schema": _to_json_schema(self._params),
+        }
+        if self._method != "POST":
+            http_config["method"] = self._method
+        if self._auth is not None:
+            http_config["auth"] = self._auth
+        if self._headers:
+            http_config["headers"] = self._headers
+        return {
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
-            "type": ToolType.HTTP,
-            "require_approval": self._require_approval or None,
-            "http": {
-                "url": self._url,
-                "method": self._method if self._method != "POST" else None,
-                "auth": self._auth,
-                "headers": self._headers or None,
-                "input_schema": _to_json_schema(self._params),
-            },
+            "type": ToolType.H_T_T_P,
+            "require_approval": self._require_approval,
+            "http": http_config,
         }
-        return result
 
 
 # =============================================================================
@@ -371,7 +379,7 @@ class MCPToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.M_C_P,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "mcp": {"integration_id": self._integration_id, "tool_name": self._tool_name},
         }
 

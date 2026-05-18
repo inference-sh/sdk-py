@@ -2078,6 +2078,9 @@ class ToolCallType(str, Enum):
     TOOL_PARAM_TYPE_ARRAY = "array"
     TOOL_PARAM_TYPE_NULL = "null"
 
+# Alias for parameter type annotations (same enum covers both call and param types)
+ToolParamType = ToolCallType
+
 class Role(str, Enum):
     GUEST = "guest"
     USER = "user"
