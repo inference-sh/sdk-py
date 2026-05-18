@@ -274,6 +274,35 @@ class SkillPublishRequest(TypedDict, total=False):
     user_invocable: Optional[bool]
     context: str
 
+class AuthResponse(TypedDict, total=False):
+    user: Optional[UserDTO]
+    session_id: str
+    otp_required: bool
+    redirect_to: str
+    provider: str
+
+class TeamCreateRequest(TypedDict, total=False):
+    name: str
+    username: str
+    email: str
+
+class TeamSetupRequest(TypedDict, total=False):
+    username: str
+
+class TeamMemberAddRequest(TypedDict, total=False):
+    email: str
+    role: TeamRole
+
+class TeamMemberUpdateRoleRequest(TypedDict, total=False):
+    role: TeamRole
+
+class IntegrationCompleteOAuthRequest(TypedDict, total=False):
+    provider: str
+    type: str
+    code: str
+    state: str
+    code_verifier: str
+
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
     value: Scope
@@ -286,6 +315,12 @@ class ScopeGroupDefinition(TypedDict, total=False):
     id: ScopeGroup
     label: str
     description: str
+
+# ScopesResponse is the API response for GET /scopes
+class ScopesResponse(TypedDict, total=False):
+    scopes: List[ScopeDefinition]
+    groups: List[ScopeGroupDefinition]
+    presets: List[ScopePreset]
 
 # ScopePreset represents a predefined bundle of scopes for common use cases
 class ScopePreset(TypedDict, total=False):
@@ -578,6 +613,31 @@ class InstanceTypeBootTime(TypedDict, total=False):
     updated_at: str
     sample_size: int
 
+# IntegrationConfigDTO is the API response for integration configuration
+class IntegrationConfigDTO(TypedDict, total=False):
+    provider: str
+    type: str
+    auth: str
+    name: str
+    short_name: str
+    description: str
+    icon_url: str
+    how_it_works: List[str]
+    docs_url: str
+    secret_fields: List[SecretFieldConfig]
+    allows_byok: bool
+    available: bool
+    has_managed: bool
+    integration: Optional[IntegrationDTO]
+
+# SecretFieldConfig defines a secret field for the UI
+class SecretFieldConfig(TypedDict, total=False):
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    optional: bool
+
 # KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
     path: str
@@ -629,6 +689,24 @@ class SkillStoreListingDTO(TypedDict, total=False):
     uses: int
     tags: List[str]
 
+# StringSlice is a custom type for storing string slices
+StringSlice = List[str]
+
+# UpdateNotificationPreferencesRequest is the request to update preferences
+class UpdateNotificationPreferencesRequest(TypedDict, total=False):
+    email_enabled: Optional[bool]
+    sms_enabled: Optional[bool]
+    push_enabled: Optional[bool]
+    slack_enabled: Optional[bool]
+    billing_notifications: Optional[bool]
+    task_notifications: Optional[bool]
+    system_notifications: Optional[bool]
+    marketing_emails: Optional[bool]
+    quiet_hours_enabled: Optional[bool]
+    quiet_hours_start: Optional[str]
+    quiet_hours_end: Optional[str]
+    timezone: Optional[str]
+
 # PageMetadata holds metadata for a page
 class PageMetadata(TypedDict, total=False):
     title: str
@@ -670,6 +748,16 @@ class SetupAction(TypedDict, total=False):
     type: str
     provider: str
     scopes: List[str]
+
+# CheckRequirementsRequest is the request body for checking requirements
+class CheckRequirementsRequest(TypedDict, total=False):
+    secrets: List[SecretRequirement]
+    integrations: List[IntegrationRequirement]
+
+# CheckRequirementsResponse is the API response for checking requirements
+class CheckRequirementsResponse(TypedDict, total=False):
+    satisfied: bool
+    errors: List[RequirementError]
 
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
@@ -797,6 +885,22 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
+# TeamMemberDTO is the API response for a team member.
+class TeamMemberDTO(TypedDict, total=False):
+    id: str
+    user_id: str
+    team_id: str
+    role: TeamRole
+    user: Optional[TeamMemberUserDTO]
+
+# TeamMemberUserDTO is a lightweight user view within team membership.
+class TeamMemberUserDTO(TypedDict, total=False):
+    id: str
+    email: str
+    name: str
+    full_name: str
+    avatar_url: str
+
 # TeamRelationDTO is a lightweight team reference embedded in other DTOs.
 class TeamRelationDTO(TypedDict, total=False):
     id: str
@@ -807,10 +911,48 @@ class TeamRelationDTO(TypedDict, total=False):
     avatar_url: str
     setup_completed: bool
 
+# TeamInviteDTO is the public representation of an invite
+class TeamInviteDTO(TypedDict, total=False):
+    id: str
+    team_id: str
+    email: str
+    role: TeamRole
+    status: TeamInviteStatus
+    expires_at: str
+    created_at: str
+    invited_by: Optional[TeamMemberUserDTO]
+    team: Optional[TeamRelationDTO]
+
+# TeamInviteCreateRequest is used when creating a team invite
+class TeamInviteCreateRequest(TypedDict, total=False):
+    email: str
+    role: TeamRole
+
 # ToolInvocationFunction contains the function details for a tool invocation
 class ToolInvocationFunction(TypedDict, total=False):
     name: str
     arguments: StringEncodedMap
+
+# MetaItem represents metadata about an input or output item
+class MetaItem(TypedDict, total=False):
+    type: MetaItemType
+    tokens: int
+    width: int
+    height: int
+    resolution_mp: float
+    steps: int
+    count: int
+    resolution: VideoResolution
+    seconds: float
+    fps: int
+    sample_rate: int
+    cost: float
+    extra: Dict[str, Any]
+
+# OutputMeta contains structured metadata about task inputs and outputs for pricing calculation
+class OutputMeta(TypedDict, total=False):
+    inputs: List[MetaItem]
+    outputs: List[MetaItem]
 
 # UserRelationDTO is a lightweight user reference embedded in other DTOs.
 class UserRelationDTO(TypedDict, total=False):
@@ -819,6 +961,15 @@ class UserRelationDTO(TypedDict, total=False):
     updated_at: str
     role: Role
     avatar_url: str
+
+# UserMetadataDTO is the API representation of user metadata.
+class UserMetadataDTO(TypedDict, total=False):
+    user_id: str
+    completed_onboarding: bool
+    use_case: str
+    use_case_reason: str
+    use_case_privacy: str
+    signup_source: str
 
 # WidgetAction represents an action triggered by a widget button
 class WidgetAction(TypedDict, total=False):
@@ -1119,6 +1270,18 @@ class WorkerDTO(BaseModelDTO, TypedDict, total=False):
     system_info: SystemInfo
     warm_apps: List[str]
 
+# EntitlementDTO for API responses
+class EntitlementDTO(BaseModelDTO, TypedDict, total=False):
+    team_id: str
+    resource: EntitlementResource
+    type: EntitlementType
+    enabled: bool
+    unlimited: bool
+    limit: int
+    source: EntitlementSource
+    enforcement: EnforcementMode
+    expires_at: Optional[str]
+
 # FlowVersionDTO for API responses
 class FlowVersionDTO(BaseModelDTO, TypedDict, total=False):
     graph_version: int
@@ -1169,6 +1332,16 @@ class SkillVersionDTO(BaseModelDTO, TypedDict, total=False):
     context: str
     metadata: Dict[str, str]
 
+# UserDTO is the API response for a full user.
+class UserDTO(BaseModelDTO, TypedDict, total=False):
+    default_team_id: str
+    role: Role
+    email: str
+    name: str
+    full_name: str
+    avatar_url: str
+    metadata: Optional[UserMetadataDTO]
+
 class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     system_prompt: str
@@ -1179,6 +1352,15 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
     output_schema: Optional[Any]
+
+# ApiKeyDTO for API responses
+class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    key: str
+    last_used_at: str
+    expires_at: Optional[str]
+    scopes: List[Scope]
+    source: str
 
 # AppDTO is the API response for a full app.
 class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -1339,6 +1521,23 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     availability: List[InstanceTypeAvailability]
     boot_time: Optional[InstanceTypeBootTime]
 
+# IntegrationDTO for API responses (never exposes tokens)
+class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    provider: str
+    type: str
+    auth: str
+    status: str
+    display_name: str
+    icon_url: str
+    scopes: StringSlice
+    expires_at: Optional[str]
+    service_account_email: str
+    metadata: Dict[str, Any]
+    account_identifier: str
+    account_name: str
+    is_primary: bool
+    error_message: str
+
 # SkillDTO for API responses (backward-compatible naming)
 class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
@@ -1347,6 +1546,21 @@ class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     repo_url: str
     version_id: str
     version: Optional[SkillVersionDTO]
+
+# NotificationPreferencesDTO is the data transfer object
+class NotificationPreferencesDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    email_enabled: bool
+    sms_enabled: bool
+    push_enabled: bool
+    slack_enabled: bool
+    billing_notifications: bool
+    task_notifications: bool
+    system_notifications: bool
+    marketing_emails: bool
+    quiet_hours_enabled: bool
+    quiet_hours_start: str
+    quiet_hours_end: str
+    timezone: str
 
 # PageDTO for API responses
 class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -1633,6 +1847,20 @@ class GraphEdgeType(str, Enum):
     ANCESTOR = "ancestor"
     DUPLICATE = "duplicate"
 
+class EntitlementSource(str, Enum):
+    TIER = "tier"
+    OVERRIDE = "override"
+    WHITELIST = "whitelist"
+    TRIAL = "trial"
+
+class EntitlementType(str, Enum):
+    BOOLEAN = "boolean"
+    LIMIT = "limit"
+
+class EnforcementMode(str, Enum):
+    ENFORCEMENT_BLOCK = "block"
+    ENFORCEMENT_WARN = "warn"
+
 class PageStatus(IntEnum):
     UNKNOWN = 0
     DRAFT = 1
@@ -1703,6 +1931,27 @@ class UsageEventResourceTier(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
 
+class MetaItemType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    RAW = "raw"
+
+class VideoResolution(str, Enum):
+    VIDEO_RES480_P = "480p"
+    VIDEO_RES720_P = "720p"
+    VIDEO_RES1080_P = "1080p"
+    VIDEO_RES1440_P = "1440p"
+    VIDEO_RES4_K = "4k"
+
+class TeamInviteStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    EXPIRED = "expired"
+    REVOKED = "revoked"
+
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
     OP_NOT_EQUAL = "neq"
@@ -1720,6 +1969,24 @@ class FilterOperator(str, Enum):
     OP_IS_NOT_NULL = "is_not_null"
     OP_IS_EMPTY = "is_empty"
     OP_IS_NOT_EMPTY = "is_not_empty"
+
+class EntitlementResource(str, Enum):
+    RESOURCE_A_P_I_KEYS = "api_keys"
+    RESOURCE_CONNECTORS = "connectors"
+    RESOURCE_KNOWLEDGE_BASES = "knowledge_bases"
+    RESOURCE_PRIVATE_APPS = "private_apps"
+    RESOURCE_STORAGE_M_B = "storage_mb"
+    RESOURCE_CONCURRENCY = "concurrency"
+    RESOURCE_RATE_PER_MIN = "rate_per_min"
+    RESOURCE_SEATS = "seats"
+    RESOURCE_TASK_EXECUTIONS = "task_executions"
+    RESOURCE_FEATURE_SCOPES = "feature:scopes"
+    RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
+    RESOURCE_FEATURE_B_Y_O_K = "feature:byok"
+    RESOURCE_FEATURE_TEAM_BILLING = "feature:team_billing"
+    RESOURCE_FEATURE_AUTO_RECHARGE = "feature:auto_recharge"
+    RESOURCE_FEATURE_INVOICES = "feature:invoices"
+    RESOURCE_FEATURE_PUBLISH_APPS = "feature:publish_apps"
 
 class ContentRating(str, Enum):
     CONTENT_SAFE = "safe"
@@ -1789,6 +2056,16 @@ class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+
+class TeamStatus(str, Enum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    TERMINATED = "terminated"
+
+class TeamRole(str, Enum):
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
 
 # Tool types and parameter types
 class ToolCallType(str, Enum):
