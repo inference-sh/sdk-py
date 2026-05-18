@@ -9,7 +9,7 @@ Note: Format negotiation tests may be skipped if server doesn't support NDJSON y
 
 import os
 import pytest
-import httpx
+httpx = pytest.importorskip("httpx")
 from inferencesh import Inference
 from inferencesh.streamable import streamable, stream_get
 from inferencesh.types import TaskStatus
