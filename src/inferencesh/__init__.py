@@ -96,7 +96,7 @@ from .types import (
     # Agent types
     AgentTool,
     AgentToolDTO,
-    AgentConfig,
+    AgentConfigInput as AgentConfig,
     InternalToolsConfig,
     # Chat types
     ChatDTO,

@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 ##########
-# source: agent.go
+# source: models.go
 
 # InternalToolsConfig controls which built-in tools are enabled for an agent
 class InternalToolsConfig(TypedDict, total=False):
@@ -19,91 +19,26 @@ class InternalToolsConfig(TypedDict, total=False):
     skills: bool
     host_context: bool
 
-# AppToolConfig contains configuration for an app tool
-class AppToolConfig(TypedDict, total=False):
-    # Ref is the human-readable reference: "namespace/name@shortVersionId"
-    # This is what users specify in configs/SDKs
-    ref: str
-    # ID and VersionID are resolved full database UUIDs (populated at runtime)
+# InternalToolDefinition describes a built-in tool category available to agents
+class InternalToolDefinition(TypedDict, total=False):
     id: str
-    version_id: str
-    # Resolved app object (populated at runtime)
-    app: App
-    # Function to call on multi-function apps (empty = app's default function)
-    function: str
-    # SessionEnabled allows the agent to control sessions for this tool
-    # When true, agent can pass session parameter and sees session_id in output
-    session_enabled: bool
-    # Pre-configured values
-    setup: Any
-    input: Any
-
-# AgentToolConfig contains configuration for a sub-agent tool
-class AgentToolConfig(TypedDict, total=False):
-    # Ref is the human-readable reference: "namespace/name@shortVersionId"
-    # This is what users specify in configs/SDKs
-    ref: str
-    # ID and VersionID are resolved full database UUIDs (populated at runtime)
-    id: str
-    version_id: str
-    # Resolved agent object (populated at runtime)
-    agent: Agent
-
-# HookToolConfig contains configuration for a webhook tool
-class HookToolConfig(TypedDict, total=False):
-    url: str
-    secret: str
-    input_schema: Any
-    output_schema: Any
-
-# ClientToolConfig contains configuration for a frontend-executed tool
-class ClientToolConfig(TypedDict, total=False):
-    input_schema: Any
-    output_schema: Any
-
-# ToolAuthConfig declares how a tool authenticates. Resolved at runtime — never contains actual credentials.
-class ToolAuthConfig(TypedDict, total=False):
-    # Type: "integration", "api_key", "bearer", "none"
-    type: str
-    # For type=integration: which provider to look up (e.g. "google", "mcp", "slack")
-    provider: str
-    # For type=integration: specific integration ID (optional — if empty, uses team's primary for provider)
-    integration_id: str
-    # For type=api_key or bearer: name of the secret in the team's secret store
-    secret: str
-    # For type=api_key: which header to inject (default: "X-API-Key")
-    header: str
-
-# HTTPToolConfig contains configuration for an authenticated HTTP tool
-class HTTPToolConfig(TypedDict, total=False):
-    url: str
-    method: str
-    auth: ToolAuthConfig
-    headers: Dict[str, str]
-    input_schema: Any
-    output_schema: Any
-
-# MCPToolConfig contains configuration for a remote MCP server tool
-class MCPToolConfig(TypedDict, total=False):
-    # IntegrationID references the MCP integration (has server_url, tokens, cached tools)
-    integration_id: str
-    # ToolName is the tool name on the remote MCP server
-    tool_name: str
+    name: str
+    description: str
+    tools: List[str]
+    scope: InternalToolScope
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
     name: str
     display_name: str
     description: str
-    type: ToolType
-    # Human-in-the-Loop: if true, tool execution requires user approval
+    type: str
     require_approval: bool
-    # Type-specific config (exactly one should be set based on Type)
     app: AppToolConfig
     agent: AgentToolConfig
     hook: HookToolConfig
     http: HTTPToolConfig
-    call: CallToolConfig
+    call: HTTPToolConfig
     mcp: MCPToolConfig
     client: ClientToolConfig
     internal: InternalToolConfig
@@ -113,13 +48,29 @@ class InternalToolConfig(TypedDict, total=False):
     category: str
     operation: str
 
+# SkillConfig defines a skill available to the agent.
+class SkillConfig(TypedDict, total=False):
+    name: str
+    description: str
+    skill_id: str
+    version_id: str
+    url: str
+    content: str
+    preload: bool
+
+# ContextField declares a context parameter expected by the agent.
+class ContextField(TypedDict, total=False):
+    name: str
+    description: str
+    required: bool
+    default: str
+
 # AgentToolDTO for API responses
 class AgentToolDTO(TypedDict, total=False):
     name: str
     display_name: str
     description: str
-    type: ToolType
-    # Human-in-the-Loop: if true, tool execution requires user approval
+    type: str
     require_approval: bool
     app: AppToolConfigDTO
     agent: AgentToolConfigDTO
@@ -129,16 +80,57 @@ class AgentToolDTO(TypedDict, total=False):
     mcp: MCPToolConfigDTO
     client: ClientToolConfigDTO
 
+class AppToolConfig(TypedDict, total=False):
+    ref: str
+    id: str
+    version_id: str
+    function: str
+    session_enabled: bool
+    setup: Any
+    input: Any
+
+class AgentToolConfig(TypedDict, total=False):
+    ref: str
+    id: str
+    version_id: str
+
+class HookToolConfig(TypedDict, total=False):
+    url: str
+    secret: str
+    input_schema: Any
+    output_schema: Any
+
+class ClientToolConfig(TypedDict, total=False):
+    input_schema: Any
+    output_schema: Any
+
+# ToolAuthConfig declares how a tool authenticates.
+class ToolAuthConfig(TypedDict, total=False):
+    type: str
+    provider: str
+    integration_id: str
+    secret: str
+    header: str
+
+class HTTPToolConfig(TypedDict, total=False):
+    url: str
+    method: str
+    auth: ToolAuthConfig
+    headers: Dict[str, str]
+    input_schema: Any
+    output_schema: Any
+
+class MCPToolConfig(TypedDict, total=False):
+    integration_id: str
+    tool_name: str
+
 class AppToolConfigDTO(TypedDict, total=False):
     ref: str
     id: str
     version_id: str
     app: AppDTO
-    # Function to call on multi-function apps
     function: str
-    # SessionEnabled allows the agent to control sessions for this tool
     session_enabled: bool
-    # Pre-configured values
     setup: Any
     input: Any
 
@@ -170,78 +162,393 @@ class MCPToolConfigDTO(TypedDict, total=False):
     integration_id: str
     tool_name: str
 
-# CoreAppConfig references an app used as the agent's core
-class CoreAppConfig(TypedDict, total=False):
-    id: str
-    version_id: str
-    # CoreAppRef is the user-facing ref (namespace/name@shortid) - used in ad-hoc configs, resolved at creation
-    ref: str
-    # Setup values for the core app (one-time configuration)
-    setup: Any
-    # Input default values for the core app
-    input: Any
-
-# AgentImages contains display images for an agent (like AppImages)
+# AgentImages contains display images for an agent
 class AgentImages(TypedDict, total=False):
     card: str
     thumbnail: str
     banner: str
 
-# SkillConfig defines a skill available to the agent.
-# Skills are loaded on-demand via the skill_get internal tool.
-class SkillConfig(TypedDict, total=False):
-    name: str
-    description: str
-    skill_id: str
-    version_id: str
-    url: str
-    content: str
-    preload: bool
-
-# ContextField declares a context parameter expected by the agent.
-# Context is caller-provided at chat creation, stored on Chat, and available in tool URL templates.
-class ContextField(TypedDict, total=False):
-    name: str
-    description: str
-    required: bool
-    default: str
-
-# AgentConfig contains the shared configuration fields for agent execution.
-# This is embedded by both AgentVersion (DB model) and API request structs.
-# Using Go embedding flattens these fields in JSON serialization.
-class AgentConfig(TypedDict, total=False):
-    # Optional name for the agent (used for adhoc agent deduplication — reuses existing agent by name).
-    # Not persisted as a DB column; only used in API requests.
-    name: str
-    description: str
-    system_prompt: str
-    example_prompts: List[str]
-    # Core LLM configuration
-    core_app: CoreAppConfig
-    # Tools (apps, agents, hooks, client tools)
-    tools: List[Optional[AgentTool]]
-    # Skills available to this agent (loaded on-demand via skill_get tool)
-    skills: List[SkillConfig]
-    # Context declares expected context parameters (resolved in tool URL templates via {{context.X}})
-    context: List[ContextField]
-    # Internal tools configuration (plan, memory, widget, finish, skills)
-    internal_tools: InternalToolsConfig
-    # Output schema for custom finish tool (sub-agents only)
-    output_schema: Any
-
+# CoreAppConfigDTO references an app used as the agent's core
 class CoreAppConfigDTO(TypedDict, total=False):
     id: str
     version_id: str
     ref: str
     app: AppDTO
-    # Setup values for the core app (one-time configuration)
     setup: Any
-    # Input default values for the core app
     input: Any
 
+# AgentDTO for API responses
+class AgentDTO(TypedDict, total=False):
+    namespace: str
+    name: str
+    images: AgentImages
+    version_id: str
+    version: AgentVersionDTO
 
-##########
-# source: api.go
+class AgentVersionDTO(TypedDict, total=False):
+    description: str
+    system_prompt: str
+    example_prompts: List[str]
+    core_app: CoreAppConfigDTO
+    tools: List[Optional[AgentToolDTO]]
+    skills: List[SkillConfig]
+    context: List[ContextField]
+    internal_tools: InternalToolsConfig
+    output_schema: Any
+
+# CreateAgentRequest is the request body for POST /agents
+# For new agents: omit ID, backend generates it
+# For new version of existing agent: include ID
+class CreateAgentRequest(TypedDict, total=False):
+    id: str
+    name: str
+    namespace: str
+    images: AgentImages
+    # Version config (embedded - backend generates version ID, timestamps, etc)
+    version: AgentConfigInput
+
+# AgentConfigInput is the API input shape for agent version config.
+# Mirrors AgentConfig's JSON contract without gorm tags or runtime pointers.
+class AgentConfigInput(TypedDict, total=False):
+    name: str
+    description: str
+    system_prompt: str
+    example_prompts: List[str]
+    core_app: CoreAppConfigInput
+    tools: List[Optional[AgentTool]]
+    skills: List[SkillConfig]
+    context: List[ContextField]
+    internal_tools: InternalToolsConfig
+    output_schema: Any
+
+# CoreAppConfigInput is the API input shape for core app configuration.
+class CoreAppConfigInput(TypedDict, total=False):
+    id: str
+    version_id: str
+    ref: str
+    setup: Any
+    input: Any
+
+# TimeWindow represents a single analytics time window
+class TimeWindow(TypedDict, total=False):
+    start: str
+    end: str
+    count: int
+
+# TaskStatusWindow represents a single analytics time window with task status
+class TaskStatusWindow(TypedDict, total=False):
+    start: str
+    status: TaskStatus
+    count: int
+
+# AppAnalytics represents usage statistics for an app
+class AppAnalytics(TypedDict, total=False):
+    app_id: str
+    app_namespace: str
+    app_name: str
+    version_id: str
+    task_count: int
+
+# TimeSeriesMetrics contains all time-series data
+class TimeSeriesMetrics(TypedDict, total=False):
+    active_users: List[TimeWindow]
+    new_users: List[TimeWindow]
+    tasks_by_status: List[TaskStatusWindow]
+    new_engines: List[TimeWindow]
+
+# TotalMetrics contains total counts for the time window
+class TotalMetrics(TypedDict, total=False):
+    active_users: int
+    new_users: int
+    tasks: int
+    new_engines: int
+    # Total running engines
+    running_engines: int
+    # Private running engines (visibility != 'public')
+    private_running_engines: int
+    # Cloud running engines (visibility = 'public')
+    cloud_running_engines: int
+    top_apps: List[AppAnalytics]
+
+# RealtimeMetrics contains current system state
+class RealtimeMetrics(TypedDict, total=False):
+    # Total tasks
+    queued_tasks: int
+    running_tasks: int
+    # Private tasks (infra = 'private')
+    private_queued_tasks: int
+    private_running_tasks: int
+    # Cloud tasks (infra = 'cloud')
+    cloud_queued_tasks: int
+    cloud_running_tasks: int
+    # User metrics
+    total_users: int
+    users_with_no_engines: int
+    users_with_no_tasks: int
+
+# AnalyticsResponse contains all analytics data
+class AnalyticsResponse(TypedDict, total=False):
+    time_series: TimeSeriesMetrics
+    totals: TotalMetrics
+    realtime: RealtimeMetrics
+
+# AnalyticsRequest represents the query parameters for analytics
+class AnalyticsRequest(TypedDict, total=False):
+    start: str
+    end: str
+    resolution: str
+
+# MoneyWindow represents a single analytics time window with an amount in microcents
+class MoneyWindow(TypedDict, total=False):
+    start: str
+    end: str
+    amount: int
+    count: int
+
+# AdminDashboard is a simplified analytics response for the admin dashboard
+class AdminDashboard(TypedDict, total=False):
+    resolution: str
+    users: UserStats
+    paying_users: UserStats
+    repeat_spenders: UserStats
+    tasks: TaskStats
+    apps: List[AppStats]
+    app_errors: List[AppErrorStats]
+    credit_user_apps: List[AppCreditUserStats]
+    unbilled_apps: List[UnbilledAppStats]
+    spend: SpendStats
+    credits: CreditStats
+    deferred_revenue: DeferredRevenueStats
+
+# DashboardUsersResponse contains user metrics for the admin dashboard
+class DashboardUsersResponse(TypedDict, total=False):
+    resolution: str
+    users: UserStats
+    paying_users: UserStats
+    repeat_spenders: UserStats
+
+# DashboardTasksResponse contains task metrics for the admin dashboard
+class DashboardTasksResponse(TypedDict, total=False):
+    resolution: str
+    tasks: TaskStats
+
+# DashboardRevenueResponse contains revenue metrics for the admin dashboard
+class DashboardRevenueResponse(TypedDict, total=False):
+    resolution: str
+    spend: SpendStats
+    credits: CreditStats
+    deferred_revenue: DeferredRevenueStats
+
+# DashboardAppsResponse contains app metrics for the admin dashboard
+class DashboardAppsResponse(TypedDict, total=False):
+    apps: List[AppStats]
+    app_errors: List[AppErrorStats]
+    credit_user_apps: List[AppCreditUserStats]
+    unbilled_apps: List[UnbilledAppStats]
+    app_revenue: List[AppRevenueStats]
+
+# AppRevenueStats contains cumulative revenue and partner fee per app
+class AppRevenueStats(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    total: int
+    partner_fee: int
+    task_count: int
+
+# SpendStats contains daily user spend metrics (debits from usage billing)
+class SpendStats(TypedDict, total=False):
+    total: int
+    timeseries: List[MoneyWindow]
+
+# CreditStats contains daily credit purchase metrics (Stripe payments)
+class CreditStats(TypedDict, total=False):
+    total: int
+    count: int
+    timeseries: List[MoneyWindow]
+
+# DeferredRevenueStats contains deferred revenue metrics (cash received but not yet earned)
+# Deferred Revenue = Stripe Payments - Usage Consumption (ASC 606 compliant)
+# Excludes: promo credits, manual adjustments, credit refunds (no cash impact)
+class DeferredRevenueStats(TypedDict, total=False):
+    current: int
+    today: int
+    yesterday: int
+    last_7_days: int
+    last_30_days: int
+    timeseries: List[MoneyWindow]
+
+# UserStats contains user metrics for the dashboard
+class UserStats(TypedDict, total=False):
+    total: int
+    today: int
+    last_7_days: int
+    this_month: int
+    last_30_days: int
+    timeseries: List[TimeWindow]
+
+# TaskStats contains task metrics for the dashboard
+class TaskStats(TypedDict, total=False):
+    total: int
+    today: int
+    last_7_days: int
+    this_month: int
+    last_30_days: int
+    timeseries: List[TimeWindow]
+    # Status breakdown for the selected range
+    completed: int
+    failed: int
+    cancelled: int
+    # Per-period status breakdown for stacked chart (zero-filled)
+    status_timeseries: List[TaskStatusWindow]
+
+# AppStats contains app usage statistics
+class AppStats(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    task_count: int
+    error_count: int
+
+# AppCreditUserStats contains app usage stats filtered to users who added credits
+class AppCreditUserStats(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    task_count: int
+    user_count: int
+
+# UnbilledAppStats contains stats for apps running without billing (revenue leakage)
+class UnbilledAppStats(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    task_count: int
+    user_count: int
+    sample_task_ids: List[str]
+
+# AppErrorStats contains error details for an app (for debugging)
+class AppErrorStats(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    error_count: int
+    current_ver_errors: int
+    recent_errors: List[str]
+    # Sample task IDs for quick debugging links
+    sample_task_ids: List[str]
+
+# AppErrorGroup represents a unique error message with occurrence count and sample tasks
+class AppErrorGroup(TypedDict, total=False):
+    error_message: str
+    count: int
+    task_ids: List[str]
+
+# AppErrorsResponse is the response for the per-app errors endpoint
+class AppErrorsResponse(TypedDict, total=False):
+    app_id: str
+    namespace: str
+    name: str
+    errors: List[AppErrorGroup]
+
+# LiveStats contains real-time system statistics for the admin dashboard
+# Streamed via SSE to subscribers
+class LiveStats(TypedDict, total=False):
+    total_engines: int
+    total_workers: int
+    busy_workers: int
+    idle_workers: int
+    tasks_received: int
+    tasks_queued: int
+    tasks_scheduled: int
+    tasks_inflight: int
+    # Per-minute task counts for the past 30 minutes (oldest first)
+    tasks_per_minute: List[TimeWindow]
+    # Quick glance: today vs yesterday
+    # "Yesterday" values are capped at the same time of day for fair comparison
+    # "YesterdayTotal" values are the full day totals
+    users_today: int
+    users_yesterday: int
+    users_yesterday_total: int
+    paying_today: int
+    paying_yesterday: int
+    paying_yesterday_total: int
+    tasks_today: int
+    tasks_yesterday: int
+    tasks_yesterday_total: int
+    spend_today: int
+    spend_yesterday: int
+    spend_yesterday_total: int
+    credits_today: int
+    credits_yesterday: int
+    credits_yesterday_total: int
+
+# DashboardRetentionResponse contains retention and purchase behavior metrics.
+# All monetary values are in USD dollars (float64). Percentages are 0-100.
+class DashboardRetentionResponse(TypedDict, total=False):
+    summary: RetentionSummary
+    cohorts: List[ActivityCohort]
+    purchase_frequency: List[PurchaseBucket]
+    spend_tiers: List[SpendTier]
+    purchase_by_spend: List[PurchaseSpendCross]
+    first_apps: List[FirstAppBreakdown]
+
+# RetentionSummary contains pre-computed health metrics so the consumer never does mental math.
+class RetentionSummary(TypedDict, total=False):
+    total_revenue: float
+    total_signups: int
+    activated_users: int
+    paying_users: int
+    retained_users: int
+    churned_users: int
+    power_users: int
+    activation_pct: float
+    retention_pct: float
+    paying_pct: float
+    concentration_pct: float
+    median_min_to_2nd_retained: float
+    median_min_to_2nd_churned: float
+
+# PurchaseBucket groups users by number of stripe purchases (1, 2, 3, 4, 5+).
+class PurchaseBucket(TypedDict, total=False):
+    purchases: str
+    users: int
+    pct: float
+    total_spend: float
+    avg_spend: float
+
+# SpendTier groups users by lifetime spend bracket.
+class SpendTier(TypedDict, total=False):
+    tier: str
+    users: int
+    pct: float
+    purchases: int
+    total_spend: float
+
+# PurchaseSpendCross is the intersection of purchase frequency and spend tier.
+class PurchaseSpendCross(TypedDict, total=False):
+    purchases: str
+    tier: str
+    users: int
+
+# ActivityCohort groups users by recency: active (14d), fading (15-60d), gone (60d+), never_ran.
+class ActivityCohort(TypedDict, total=False):
+    cohort: str
+    users: int
+    pct: float
+    avg_tasks: float
+    avg_purchases: float
+    avg_spend: float
+    total_spend: float
+
+# FirstAppBreakdown shows the first app used, split by retained vs churned.
+class FirstAppBreakdown(TypedDict, total=False):
+    cohort: str
+    app_id: str
+    namespace: str
+    name: str
+    users: int
+    pct: float
 
 class APIRequest(TypedDict, total=False):
     timestamp: str
@@ -260,15 +567,8 @@ class APIError(TypedDict, total=False):
     meta: Dict[str, Any]
 
 # ApiAppRunRequest is the request body for /apps/run endpoint.
-# Supports two ways to specify the app:
-# 1. App ref (recommended): "namespace/name@shortid" in the App field
-# 2. Direct IDs: app_id + version_id fields (for internal platform use)
 class ApiAppRunRequest(TypedDict, total=False):
-    # App reference in format: namespace/name@shortid (version required)
-    # Example: "okaris/flux@abc1"
-    # The short ID ensures your code always runs the same version.
     app: str
-    # Deprecated: use App ref instead. Direct ID bypasses ref routing.
     app_id: str
     version_id: str
     infra: Infra
@@ -276,54 +576,32 @@ class ApiAppRunRequest(TypedDict, total=False):
     webhook: str
     setup: Any
     input: Any
-    # If true, returns SSE stream instead of JSON response
     stream: bool
-    # If true, holds the connection open until the task reaches a terminal state and returns the final result.
-    # Mutually exclusive with Stream.
     wait: bool
-    # Function to call on multi-function apps (defaults to "run" or app's default_function)
     function: str
-    # Session control: "new" to start a new session, "sess_xxx" to continue existing session
-    # When using sessions, the worker is leased and state persists across calls
     session: str
-    # Session timeout in seconds (1-3600). Only valid when session="new"
     session_timeout: int
-    # Schedule execution for a specific time (ISO 8601 UTC, e.g. "2026-02-24T15:30:00Z").
-    # Task stays queued until this time. Past timestamps run immediately.
     run_at: str
-    # Optional metadata (e.g., action to trigger on completion)
     metadata: TaskMetadata
 
 # ApiAgentRunRequest is the request body for /agents/run endpoint.
-# Supports both template agents and ad-hoc agents.
 class ApiAgentRunRequest(TypedDict, total=False):
-    # Existing chat ID to continue a conversation (optional)
     chat_id: str
-    # Template agent reference in format: namespace/name@shortid
-    # Example: "my-org/assistant@abc123"
-    # Use this OR AgentConfig, not both
     agent: str
-    # Ad-hoc agent configuration
-    # For ad-hoc agents, set core_app.ref to the LLM app reference
-    # Example: { "core_app": { "ref": "infsh/claude-sonnet-4@abc123" }, "system_prompt": "..." }
-    agent_config: AgentConfig
-    # Optional name for the adhoc agent (used for deduplication and display)
+    agent_config: AgentConfigInput
     agent_name: str
-    # The message to send
     input: ChatTaskInput
-    # Context values for this chat session (used in tool URL templates)
     context: Dict[str, str]
-    # If true, returns SSE stream instead of JSON response
     stream: bool
 
 # EmbedAgentRunRequest is the embed variant of ApiAgentRunRequest.
-# Only template agents are supported (no ad-hoc configs).
 class EmbedAgentRunRequest(TypedDict, total=False):
     chat_id: str
     agent: str
     input: ChatTaskInput
     stream: bool
 
+# CreateAgentMessageRequest is the request for creating agent messages.
 class CreateAgentMessageRequest(TypedDict, total=False):
     chat_id: str
     agent_id: str
@@ -332,12 +610,8 @@ class CreateAgentMessageRequest(TypedDict, total=False):
     tool_call_id: str
     input: ChatTaskInput
     integration_context: IntegrationContext
-    # Ad-hoc agent config - use this instead of Agent for embedded configs
-    # If provided, creates a chat with this config directly (no agent reference)
-    agent_config: AgentConfig
-    # Optional name for the adhoc agent (used for deduplication and display)
+    agent_config: AgentConfigInput
     agent_name: str
-    # Context values for this chat session (used in tool URL templates)
     context: Dict[str, str]
 
 class CreateAgentMessageResponse(TypedDict, total=False):
@@ -345,11 +619,10 @@ class CreateAgentMessageResponse(TypedDict, total=False):
     assistant_message: ChatMessageDTO
 
 # ToolResultRequest represents a tool result submission
-# For widget actions, clients should JSON-serialize { action, form_data } as the result string
 class ToolResultRequest(TypedDict, total=False):
     result: str
 
-# WebhookPayload is the envelope for outbound webhook deliveries (e.g., task webhooks).
+# WebhookPayload is the envelope for outbound webhook deliveries.
 class WebhookPayload(TypedDict, total=False):
     event: str
     timestamp: str
@@ -357,24 +630,19 @@ class WebhookPayload(TypedDict, total=False):
 
 # HookPayload represents the request body sent to a webhook when a hook tool is invoked
 class HookPayload(TypedDict, total=False):
-    # Identification
     tool_invocation_id: str
     hook_name: str
-    # Callback - use this to submit the result back
     callback_url: str
     callback_method: str
-    # Timestamp in RFC3339 format
     timestamp: str
-    # The actual tool arguments from the LLM
     arguments: Dict[str, Any]
 
 # HookResponse represents the expected response from the hook URL
-# The hook should return 200 with success:true to acknowledge receipt
-# The actual result should be sent via the callback URL
 class HookResponse(TypedDict, total=False):
     success: bool
     message: str
 
+# PartialFile is the clean DTO version (no gorm tags).
 class PartialFile(TypedDict, total=False):
     uri: str
     path: str
@@ -383,7 +651,6 @@ class PartialFile(TypedDict, total=False):
     filename: str
 
 class FileCreateRequest(TypedDict, total=False):
-    # Category determines the storage path prefix: "uploads" (default), "inputs", "outputs", "repos"
     category: str
     files: List[PartialFile]
 
@@ -394,6 +661,22 @@ class CreateFlowRunRequest(TypedDict, total=False):
     flow: str
     input: Any
 
+# AppVersionInput is the API input shape for app version config (no gorm tags).
+class AppVersionInput(TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+
 # CreateAppRequest is the request body for POST /apps
 class CreateAppRequest(TypedDict, total=False):
     id: str
@@ -403,30 +686,8 @@ class CreateAppRequest(TypedDict, total=False):
     agent_description: str
     category: AppCategory
     images: AppImages
-    version: AppVersion
-    # PreserveCurrentVersion prevents auto-promoting the new version to current.
-    # Default false = new versions become current (what most users expect).
-    # Set true for admin deployments where you want to test before promoting.
+    version: AppVersionInput
     preserve_current_version: bool
-
-# CreateAgentRequest is the request body for POST /agents
-# For new agents: omit ID, backend generates it
-# For new version of existing agent: include ID
-class CreateAgentRequest(TypedDict, total=False):
-    # Existing agent ID (if updating/versioning)
-    id: str
-    # Agent metadata
-    name: str
-    namespace: str
-    images: AgentImages
-    # Version config (embedded - backend generates version ID, timestamps, etc)
-    version: AgentConfig
-
-# SDKTypes is a phantom struct that references types needed by the SDK.
-# This ensures the typegen traces these types without creating aliases.
-# Frontend uses generics like CursorListResponse<FlowDTO> directly.
-class SDKTypes(TypedDict, total=False):
-    pass
 
 class SkillPublishRequest(TypedDict, total=False):
     namespace: str
@@ -438,14 +699,12 @@ class SkillPublishRequest(TypedDict, total=False):
     allowed_tools: str
     compatibility: str
     instructions: str
-    files: List[SkillFile]
+    files: List[KnowledgeFile]
     metadata: Dict[str, str]
-    # Lineage — backend infers MutationType from context
     parent_skill_id: str
     parent_version_id: str
     source_url: str
     version_notes: str
-    # Spec fields for roundtrip fidelity
     disable_model_invocation: bool
     user_invocable: bool
     context: str
@@ -458,7 +717,6 @@ class CheckoutCreateRequest(TypedDict, total=False):
 class CheckoutCompleteRequest(TypedDict, total=False):
     session_id: str
 
-# AuthResponse is returned after successful authentication (OAuth, magic link, SSO)
 class AuthResponse(TypedDict, total=False):
     user: UserDTO
     session_id: str
@@ -466,7 +724,6 @@ class AuthResponse(TypedDict, total=False):
     redirect_to: str
     provider: str
 
-# DeviceAuthResponse is returned when a device initiates auth
 class DeviceAuthResponse(TypedDict, total=False):
     user_code: str
     device_code: str
@@ -475,31 +732,26 @@ class DeviceAuthResponse(TypedDict, total=False):
     expires_in: int
     interval: int
 
-# DeviceAuthPollResponse is returned when polling for auth status
 class DeviceAuthPollResponse(TypedDict, total=False):
     status: DeviceAuthStatus
     api_key: str
     team_id: str
 
-# DeviceAuthApproveRequest is sent when user approves the auth request
 class DeviceAuthApproveRequest(TypedDict, total=False):
     code: str
     team_id: str
     scopes: List[str]
 
-# DeviceAuthApproveResponse is returned after approval
 class DeviceAuthApproveResponse(TypedDict, total=False):
     success: bool
     message: str
 
-# DeviceAuthCodeInfo contains info about a pending auth code (for display on approve page)
 class DeviceAuthCodeInfo(TypedDict, total=False):
     user_code: str
     expires_at: str
     valid: bool
     status: DeviceAuthStatus
 
-# MeResponse is returned from GET /me with user and current team info
 class MeResponse(TypedDict, total=False):
     user: UserDTO
     team: TeamDTO
@@ -509,8 +761,6 @@ class TeamCreateRequest(TypedDict, total=False):
     username: str
     email: str
 
-# TeamSetupRequest is used for completing team setup (choosing username)
-# This marks the team as setup_completed=true after validation
 class TeamSetupRequest(TypedDict, total=False):
     username: str
 
@@ -521,48 +771,35 @@ class TeamMemberAddRequest(TypedDict, total=False):
 class TeamMemberUpdateRoleRequest(TypedDict, total=False):
     role: TeamRole
 
-# SecretCreateRequest for creating a new secret
 class SecretCreateRequest(TypedDict, total=False):
     key: str
     value: str
     description: str
 
-# SecretUpdateRequest for updating a secret value
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
     description: str
 
-# IntegrationConnectRequest for initiating an integration connection
 class IntegrationConnectRequest(TypedDict, total=False):
     provider: str
     type: str
     scopes: List[str]
-    # For API Key type
     api_key: str
-    # For BYOK integrations (e.g., X.com) - contains user-provided credentials
     metadata: Dict[str, Any]
 
-# IntegrationCompleteOAuthRequest for completing an OAuth flow
 class IntegrationCompleteOAuthRequest(TypedDict, total=False):
     provider: str
     type: str
     code: str
     state: str
-    # For PKCE - code_verifier to complete the exchange (required by some providers like X/Twitter)
     code_verifier: str
 
-# IntegrationConnectResponse after connecting
 class IntegrationConnectResponse(TypedDict, total=False):
     integration: IntegrationDTO
-    # For OAuth - redirect URL to start the flow
     auth_url: str
-    # For OAuth - state to be returned with the callback (frontend stores this)
     state: str
-    # For PKCE - code_verifier to be stored and sent back with CompleteOAuth (required by some providers like X/Twitter)
     code_verifier: str
-    # For service accounts - instructions
     instructions: str
-    # RequiresConfirmation — the connect was paused, user must acknowledge and retry with a flag.
     requires_confirmation: bool
     confirmation_type: str
     message: str
@@ -578,44 +815,289 @@ class MoveAgentToProjectRequest(TypedDict, total=False):
     agent_id: str
     project_id: str
 
-
-##########
-# source: api_internal.go
-
-# WorkerGPUConfig holds GPU identifiers for a worker.
-# GPUs accepts both integer indexes (legacy) and string GPU IDs.
-# Use GPUIndexes() and GPUIDs() to separate them after unmarshaling.
-class WorkerGPUConfig(TypedDict, total=False):
-    gpus: List[Any]
-
-class WorkerCPUConfig(TypedDict, total=False):
-    count: int
-
-class WorkerConfig(TypedDict, total=False):
-    gpu: List[WorkerGPUConfig]
-    cpu: WorkerCPUConfig
-
-class EngineConfig(TypedDict, total=False):
+# AuthenticatedUser represents the user data we store in context
+class AuthenticatedUser(TypedDict, total=False):
     id: str
-    name: str
-    api_url: str
-    engine_port: str
-    workers: WorkerConfig
     api_key: str
-    container_mode: bool
-    network_name: str
-    cache_path: str
-    gpus: List[str]
-    # CallbackBasePort overrides the base port for engine↔worker callback APIs.
-    # If 0, derived from EnginePort: 5000 + (enginePort - 8163) * 100.
-    callback_base_port: int
-    # EngineInternalAPIURL is the URL workers use to reach the engine's main API.
-    # If empty, derived as http://host.docker.internal:{EnginePort}.
-    engine_internal_api_url: str
+    role: str
 
+class RemoteEngineInstanceTypeRef(TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    region: str
+    shade_instance_type: str
+    hourly_price: int
 
-##########
-# source: api_key_scopes.go
+class RemoteEngineCreateRequest(TypedDict, total=False):
+    name: str
+    instance_type: RemoteEngineInstanceTypeRef
+    start_time: str
+    end_time: str
+
+class EngineRegisterRequest(TypedDict, total=False):
+    local_engine_state: LocalEngineState
+    api_url: str
+    system_info: SystemInfo
+    worker_config: WorkerConfig
+
+class EngineRegisterResponse(TypedDict, total=False):
+    engine_id: str
+    workers: List[AllocatedWorker]
+
+# AllocatedWorker is the minimal info engine needs from a register response.
+class AllocatedWorker(TypedDict, total=False):
+    id: str
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+
+# Request/Response Types for Engine-to-API communication
+class EngineAPIRequest(TypedDict, total=False):
+    data: Dict[str, Any]
+    metadata: EngineAPIRequestMetadata
+
+class EngineAPIRequestMetadata(TypedDict, total=False):
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    app_variant: str
+    gpu_ids: List[str]
+    task_id: str
+
+class WorkerAPIRequestMetadata(TypedDict, total=False):
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    app_variant: str
+    gpu_ids: List[str]
+    task_id: str
+
+# WorkerSetupRequest is the request body for worker /setup endpoint.
+class WorkerSetupRequest(TypedDict, total=False):
+    setup: Any
+    metadata: WorkerAPIRequestMetadata
+
+# WorkerRunRequest is the request body for worker /run endpoint.
+class WorkerRunRequest(TypedDict, total=False):
+    input: Any
+    function: str
+    metadata: WorkerAPIRequestMetadata
+
+class RunTaskRequest(TypedDict, total=False):
+    task: TaskDTO
+    user_env: Any
+
+# CreateTaskRequest is an internal struct — callers must resolve refs upstream before constructing this.
+class CreateTaskRequest(TypedDict, total=False):
+    id: str
+    app_id: str
+    version_id: str
+    function: str
+    infra: Infra
+    workers: List[str]
+    webhook: str
+    setup: Any
+    input: Any
+    flow_run_id: str
+    chat_id: str
+    graph_id: str
+    # Session control: "new" to start a new session, "sess_xxx" to continue existing session
+    session: str
+    # Session timeout in seconds (1-3600). Only valid when session="new"
+    session_timeout: int
+    # Scheduled execution time (UTC). Task won't be picked up until this time.
+    run_at: str
+    # Optional metadata (e.g., action to trigger on completion)
+    metadata: TaskMetadata
+
+# CancelTaskRequest is the optional request body for task cancellation.
+class CancelTaskRequest(TypedDict, total=False):
+    force: bool
+    timeout: int
+
+class CreateApiKeyRequest(TypedDict, total=False):
+    name: str
+    expires_at: str
+    scopes: List[str]
+
+class SchedulerMetrics(TypedDict, total=False):
+    tasks_queued: int
+    tasks_processed: int
+    tasks_failed: int
+    processing_errors: int
+    last_error: str
+    last_error_time: str
+    queue_metrics: List[QueueMetrics]
+    updated_at: str
+
+class QueueMetrics(TypedDict, total=False):
+    enqueued: int
+    dequeued: int
+    expired: int
+    dlq: int
+    in_flight: int
+
+class PublicEnginesForResourcesRequest(TypedDict, total=False):
+    resources: AppResources
+
+class PublicEnginesForResourcesResponse(TypedDict, total=False):
+    can_run: bool
+    min_price: int
+    max_price: int
+    error: str
+
+class EnginesForResourcesRequest(TypedDict, total=False):
+    resources: AppResources
+
+class PrivateEngineResponse(TypedDict, total=False):
+    workers: List[WorkerSummary]
+
+class CloudEngineResponse(TypedDict, total=False):
+    can_run: bool
+    min_price: int
+    max_price: int
+
+class EnginesForResourcesResponse(TypedDict, total=False):
+    private: PrivateEngineResponse
+    cloud: CloudEngineResponse
+    error: str
+
+# HandleSlackEventRequest models the outer event envelope and its inner event ("event") as received from Slack Events API.
+# It is designed for maximum compatibility with the event_callback style JSON, url_verification, and app_rate_limited events.
+class HandleSlackEventRequest(TypedDict, total=False):
+    type: str
+    token: str
+    team_id: str
+    api_app_id: str
+    event: Any
+    authed_users: List[str]
+    authed_teams: List[str]
+    authorizations: List[SlackEventAuthorization]
+    event_context: str
+    event_id: str
+    event_time: int
+    challenge: str
+    is_ext_shared_channel: bool
+    context_team_id: str
+    context_enterprise_id: str
+    # App Rate Limiting
+    minute_rate_limited: int
+
+class SlackEventAuthorization(TypedDict, total=False):
+    enterprise_id: str
+    team_id: str
+    user_id: str
+    is_bot: bool
+    is_enterprise_install: bool
+
+# Example: define inner events you want to care about and unmarshal HandleSlackEventRequest.Event as needed.
+# Common message event payload, not all fields are present for all types.
+class SlackMessageEvent(TypedDict, total=False):
+    type: str
+    subtype: str
+    channel: str
+    user: str
+    text: str
+    ts: str
+    event_ts: str
+    thread_ts: str
+    bot_id: str
+    bot_profile: Dict[str, Any]
+
+# SlackThreadMessage represents a message from a Slack thread (from conversations.replies)
+class SlackThreadMessage(TypedDict, total=False):
+    type: str
+    subtype: str
+    user: str
+    text: str
+    ts: str
+    thread_ts: str
+    parent_user_id: str
+    bot_id: str
+    bot_profile: Dict[str, Any]
+
+class CommentCreateRequest(TypedDict, total=False):
+    page_id: str
+    content: str
+
+class MenuCreateRequest(TypedDict, total=False):
+    name: str
+    slug: str
+    description: str
+    items: List[MenuItem]
+
+class TransactionCreateRequest(TypedDict, total=False):
+    user_id: str
+    team_id: str
+    type: TransactionType
+    amount: int
+    reference: str
+    notes: str
+    metadata: Dict[str, Any]
+
+# AdminPaymentCreateRequest is used by admins to create manual payments (bank transfers, wire, etc.)
+# This creates a PaymentRecord + Transaction, making it invoice-able like Stripe payments.
+class AdminPaymentCreateRequest(TypedDict, total=False):
+    user_id: str
+    team_id: str
+    type: PaymentRecordType
+    amount: int
+    currency: str
+    notes: str
+
+# AdminTransactionReverseRequest is used to reverse an existing transaction
+class AdminTransactionReverseRequest(TypedDict, total=False):
+    reason: str
+
+# CELEvalRequest is the request for evaluating CEL expressions
+class CELEvalRequest(TypedDict, total=False):
+    pricing: AppPricing
+    output_meta: OutputMeta
+    resources: List[CELResourceInfo]
+    usage_seconds: int
+    task_inputs: Dict[str, Any]
+
+# CELEvalResult is the result of a single expression evaluation
+class CELEvalResult(TypedDict, total=False):
+    value: int
+    error: str
+
+# CELStringResult is the result of a string expression evaluation
+class CELStringResult(TypedDict, total=False):
+    value: str
+    error: str
+
+# CELEvalResponse is the response from evaluating CEL expressions
+class CELEvalResponse(TypedDict, total=False):
+    resource_fee: CELEvalResult
+    inference_fee: CELEvalResult
+    royalty_fee: CELEvalResult
+    partner_fee: CELEvalResult
+    total: CELEvalResult
+    description: CELStringResult
+
+class FeatureTaskRequest(TypedDict, total=False):
+    is_featured: bool
+
+# QueueStatsBreakdown represents counts grouped by app/version/function
+class QueueStatsBreakdown(TypedDict, total=False):
+    app_id: str
+    app_name: str
+    version_id: str
+    function: str
+    count: int
+    with_run_at: int
+    in_progress: int
+
+# QueueStats provides an overview of queued tasks
+class QueueStats(TypedDict, total=False):
+    # Totals
+    total_queued: int
+    with_run_at: int
+    ready_to_run: int
+    in_progress: int
+    # Breakdowns
+    by_app: List[QueueStatsBreakdown]
+    by_app_function: List[QueueStatsBreakdown]
 
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
@@ -630,6 +1112,12 @@ class ScopeGroupDefinition(TypedDict, total=False):
     label: str
     description: str
 
+# ScopesResponse is the API response for GET /scopes
+class ScopesResponse(TypedDict, total=False):
+    scopes: List[ScopeDefinition]
+    groups: List[ScopeGroupDefinition]
+    presets: List[ScopePreset]
+
 # ScopePreset represents a predefined bundle of scopes for common use cases
 class ScopePreset(TypedDict, total=False):
     id: str
@@ -637,49 +1125,53 @@ class ScopePreset(TypedDict, total=False):
     description: str
     scopes: List[str]
 
+# ApiKeyDTO for API responses
+class ApiKeyDTO(TypedDict, total=False):
+    name: str
+    key: str
+    last_used_at: str
+    expires_at: str
+    scopes: List[str]
+    source: str
 
-##########
-# source: app.go
+# AppPricing configures all pricing using CEL expressions.
+# Empty expressions use defaults. All values in microcents.
+class AppPricing(TypedDict, total=False):
+    prices: Dict[str, int]
+    upstream_pricing: str
+    resource_expression: str
+    inference_expression: str
+    royalty_expression: str
+    partner_expression: str
+    total_expression: str
+    description: str
+    description_rendered: str
 
+# AppFunction represents a callable entry point within an app version.
+class AppFunction(TypedDict, total=False):
+    name: str
+    description: str
+    input_schema: Any
+    output_schema: Any
+
+# AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
     card: str
     thumbnail: str
     banner: str
 
-# AppPricing configures all pricing using CEL expressions
-# Empty expressions use defaults. All values in microcents (1 cent = 1,000,000; 1 dollar = 100,000,000)
-class AppPricing(TypedDict, total=False):
-    prices: Dict[str, int]
-    upstream_pricing: str
-    # Resource fee expression (compute cost)
-    # Available variables: resources (list of {name, price_per_second}), usage_seconds, prices
-    # Default: sum(resources.map(r, r.price_per_second)) * usage_seconds
-    resource_expression: str
-    # CEL expressions for each fee type (result in microcents)
-    # Available variables: inputs, outputs, prices, resource_fee, usage_seconds
-    inference_expression: str
-    royalty_expression: str
-    partner_expression: str
-    # Total expression combines all fees (can apply weights/discounts)
-    # Available variables: inputs, outputs, prices, resource_fee, usage_seconds, inference_fee, royalty_fee, partner_fee
-    # Default: resource_fee + inference_fee + royalty_fee + partner_fee
-    total_expression: str
-    description: str
-    # DescriptionRendered is the result of evaluating Description against the
-    # static prices map at save time. Frontends should display this rather than
-    # the raw CEL source. Empty string means the description failed to render
-    # (e.g. references variables outside `prices`).
-    description_rendered: str
-
+# AppGPUResource describes GPU requirements.
 class AppGPUResource(TypedDict, total=False):
     count: int
     vram: int
     type: GPUType
 
+# AppResources describes resource requirements.
 class AppResources(TypedDict, total=False):
     gpu: AppGPUResource
     ram: int
 
+# AppVariant is a named resource/env configuration variant.
 class AppVariant(TypedDict, total=False):
     name: str
     order: int
@@ -687,17 +1179,107 @@ class AppVariant(TypedDict, total=False):
     env: Dict[str, str]
     python: str
 
-# AppFunction represents a callable entry point within an app version.
-# Each function has its own input/output schema while sharing the app's setup.
-class AppFunction(TypedDict, total=False):
+# SecretRequirement defines a secret that an app requires to run.
+class SecretRequirement(TypedDict, total=False):
+    key: str
+    description: str
+    optional: bool
+
+# IntegrationRequirement defines an integration capability that an app requires.
+class IntegrationRequirement(TypedDict, total=False):
+    key: str
+    description: str
+    optional: bool
+
+# AppDTO is the API response for a full app.
+class AppDTO(TypedDict, total=False):
+    namespace: str
     name: str
     description: str
+    agent_description: str
+    category: AppCategory
+    images: AppImages
+    version_id: str
+    version: AppVersionDTO
+
+# AppVersionDTO is the API response for an app version.
+class AppVersionDTO(TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    setup_schema: Any
     input_schema: Any
     output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+    checksum: str
 
+# LicenseRecordDTO is the API response for a license record.
+class LicenseRecordDTO(TypedDict, total=False):
+    user_id: str
+    app_id: str
+    license: str
 
-##########
-# source: app_store.go
+# ChatModelCapabilities describes capabilities of a chat model.
+class ChatModelCapabilities(TypedDict, total=False):
+    Image: bool
+    Images: bool
+    Files: bool
+    Reasoning: bool
+
+# AppSessionDTO is the external representation
+class AppSessionDTO(TypedDict, total=False):
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    status: AppSessionStatus
+    expires_at: str
+    ended_at: str
+    task_id: str
+    call_count: int
+    last_call_at: str
+    idle_timeout: int
+
+# AppStoreListingDTO for API responses
+class AppStoreListingDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    deleted_at: str
+    category: str
+    subcategory: str
+    page_id: str
+    is_featured: bool
+    rank: int
+    allows_private_workers: bool
+    allows_cloud_workers: bool
+    max_concurrency: int
+    max_concurrency_per_team: int
+    tags: List[str]
+
+# AppStoreVersionDTO for API responses
+class AppStoreVersionDTO(TypedDict, total=False):
+    id: str
+    listing_id: str
+    created_at: str
+    updated_at: str
+    deleted_at: str
+    license: str
+    license_mandatory: bool
+    allows_commercial: bool
+    pricing: AppPricing
+    draft_pricing: AppPricing
+    status: StoreVersionStatus
+    reviewed_at: str
+    reviewed_by: str
+    rejection_reason: str
 
 # PublicAppStoreDTO is a lean DTO for public app store display.
 class PublicAppStoreDTO(TypedDict, total=False):
@@ -714,16 +1296,48 @@ class PublicAppStoreDTO(TypedDict, total=False):
     has_approved_version: bool
     page_id: str
 
+# CELResourceInfo describes a resource for pricing evaluation.
+class CELResourceInfo(TypedDict, total=False):
+    name: str
+    price_per_second: int
 
-##########
-# source: base.go
+# EvaluateDraftPricingRequest is the request for POST /pricing/evaluate.
+class EvaluateDraftPricingRequest(TypedDict, total=False):
+    task_id: str
+    task_index: int
+    output_meta: OutputMeta
+    resources: List[CELResourceInfo]
+    usage_seconds: int
+    task_inputs: Dict[str, Any]
+    pricing_override: AppPricing
 
-class BaseModel(TypedDict, total=False):
+# PublishDraftPricingResponse is the response for POST /pricing/publish.
+class PublishDraftPricingResponse(TypedDict, total=False):
+    pricing: AppPricing
+    previous_pricing: AppPricing
+
+# AppStoreVersionSubmitRequest is the request body for submitting an app version to the store.
+class AppStoreVersionSubmitRequest(TypedDict, total=False):
+    license: str
+    license_mandatory: bool
+    allows_commercial: bool
+    pricing: AppPricing
+
+# AuthSessionDTO is a safe representation of AuthSession for API responses.
+class AuthSessionDTO(TypedDict, total=False):
     id: str
-    short_id: str
     created_at: str
-    updated_at: str
-    deleted_at: str
+    expires_at: str
+    ip: str
+    city: str
+    country: str
+    country_code: str
+    region: str
+    os: str
+    browser: str
+    browser_version: str
+    auth_method: str
+    current: bool
 
 # BaseModelDTO is the contract-layer base embed — same fields, no gorm tags.
 # All DTOs should embed this instead of BaseModel.
@@ -734,13 +1348,7 @@ class BaseModelDTO(TypedDict, total=False):
     updated_at: str
     deleted_at: str
 
-class PermissionModel(TypedDict, total=False):
-    user_id: str
-    user: User
-    team_id: str
-    team: Team
-    visibility: Visibility
-
+# PermissionModelDTO is the contract-layer permission embed.
 class PermissionModelDTO(TypedDict, total=False):
     user_id: str
     user: UserRelationDTO
@@ -754,102 +1362,190 @@ class ResourceStatusDTO(TypedDict, total=False):
     status: Any
     updated_at: str
 
+# Address represents a structured postal address for billing/invoicing
+class Address(TypedDict, total=False):
+    line1: str
+    line2: str
+    city: str
+    state: str
+    postal_code: str
+    country: str
 
-##########
-# source: chat.go
+# BillingDTO is the data transfer object for Billing
+class BillingDTO(TypedDict, total=False):
+    balance: int
+    currency: str
+    status: BillingStatus
 
-class IntegrationContext(TypedDict, total=False):
-    integration_type: IntegrationType
-    integration_metadata: Any
+# BillingSettingsDTO is the data transfer object for BillingSettings
+class BillingSettingsDTO(TypedDict, total=False):
+    spending_limit: int
+    low_balance_threshold: int
+    auto_recharge_enabled: bool
+    auto_recharge_amount: int
+    auto_recharge_threshold: int
+    auto_recharge_last_failed_at: str
+    auto_recharge_failure_count: int
+    credit_limit: int
+    billing_email: str
+    low_balance_alerts: bool
+    usage_summary_enabled: bool
+    usage_summary_interval: str
+    company_name: str
+    tax_id: str
+    is_business_customer: bool
+    address: Address
+    vat_number: str
+    vat_validated: bool
+    vat_validated_at: str
+    vat_validated_name: str
+    invoice_details_complete: bool
+    payment_provider: PaymentProvider
+    has_payment_method: bool
+    payment_method_label: str
 
-# ChatData contains agent-specific data for a chat session
-class ChatData(TypedDict, total=False):
-    plan_steps: List[PlanStep]
-    memory: StringEncodedMap
-    always_allowed_tools: List[str]
+# BillingStatusUpdateRequest is the request to update billing status (admin only)
+class BillingStatusUpdateRequest(TypedDict, total=False):
+    status: BillingStatus
 
-# PlanStep represents a step in an agent's execution plan
-class PlanStep(TypedDict, total=False):
-    index: int
-    title: str
+# BillingSettingsUpdateRequest represents the fields a user can update
+class BillingSettingsUpdateRequest(TypedDict, total=False):
+    spending_limit: int
+    low_balance_threshold: int
+    auto_recharge_enabled: bool
+    auto_recharge_amount: int
+    auto_recharge_threshold: int
+    billing_email: str
+    low_balance_alerts: bool
+    usage_summary_enabled: bool
+    usage_summary_interval: str
+    company_name: str
+    tax_id: str
+    is_business_customer: bool
+    address: Address
+    vat_number: str
+
+# SetupCheckoutRequest is the request to create a Stripe Checkout session
+class SetupCheckoutRequest(TypedDict, total=False):
+    success_url: str
+    cancel_url: str
+
+# SetupCheckoutResponse is returned when creating a Stripe Checkout session for setup
+class SetupCheckoutResponse(TypedDict, total=False):
+    session_id: str
+    session_url: str
+
+# PaymentMethodResponse is the response after successfully saving a payment method
+class PaymentMethodResponse(TypedDict, total=False):
+    last4: str
+    brand: str
+
+# ChatDTO for API responses
+class ChatDTO(TypedDict, total=False):
+    parent_id: str
+    parent: ChatDTO
+    children: List[Optional[ChatDTO]]
+    status: ChatStatus
+    output: Any
+    context: Dict[str, str]
+    agent_id: str
+    agent: AgentDTO
+    agent_version_id: str
+    agent_version: AgentVersionDTO
+    name: str
     description: str
+    chat_messages: List[ChatMessageDTO]
+    agent_data: ChatData
+
+# ChatMessageDTO for API responses
+class ChatMessageDTO(TypedDict, total=False):
+    chat_id: str
+    chat: ChatDTO
+    order: int
+    status: ChatMessageStatus
+    task_id: str
+    role: ChatMessageRole
+    content: List[ChatMessageContent]
+    tools: List[Tool]
+    tool_call_id: str
+    tool_invocations: List[ToolInvocationDTO]
+
+# CreditGrantDTO is the API response for credit grants
+class CreditGrantDTO(TypedDict, total=False):
+    type: CreditGrantType
     notes: str
-    status: PlanStepStatus
+    amount: int
+    expires_at: str
+    status: CreditGrantStatus
+    payment_record_id: str
+    remaining: int
 
-# FileRef is a lightweight reference to a file with essential metadata.
-# Used in chat inputs/context instead of full File objects.
-class FileRef(TypedDict, total=False):
-    id: str
-    uri: str
-    filename: str
-    content_type: str
-    size: int
+# CreateGrantRequest is the internal request for creating a grant
+class CreateGrantRequest(TypedDict, total=False):
+    Type: CreditGrantType
+    Notes: str
+    Amount: int
+    ExpiresAt: str
+    PaymentRecordID: str
+    Reference: str
+    Metadata: Dict[str, Any]
 
-class ChatMessageContent(TypedDict, total=False):
-    type: ChatMessageContentType
-    error: str
-    text: str
-    image: str
-    file: str
-    tool_calls: List[ToolCall]
+# AdminCreateCreditGrantRequest is used by admins to create grants via API
+class AdminCreateCreditGrantRequest(TypedDict, total=False):
+    user_id: str
+    team_id: str
+    type: CreditGrantType
+    notes: str
+    amount: int
+    expires_at: str
 
-# ToolCall represents a tool call from an LLM response (wire format)
-# This is a transport object for parsing LLM responses, not a database model
-class ToolCall(TypedDict, total=False):
+# BalanceBreakdown shows balance split by grant type
+class BalanceBreakdown(TypedDict, total=False):
+    total: int
+    by_type: Dict[str, int]
+    expiring: List[ExpiringGrant]
+
+# ExpiringGrant is a summary of a grant that's expiring soon
+class ExpiringGrant(TypedDict, total=False):
     id: str
     type: str
-    function: ToolCallFunction
+    remaining: int
+    expires_at: str
 
-# ToolCallFunction contains the function name and arguments from an LLM tool call
-class ToolCallFunction(TypedDict, total=False):
-    name: str
-    arguments: StringEncodedMap
-
-class ChatTaskInput(TypedDict, total=False):
-    model: str
-    context_size: int
-    temperature: float
-    top_p: float
-    reasoning_effort: str
-    reasoning_max_tokens: int
-    system_prompt: str
-    context: List[ChatTaskContextMessage]
-    role: ChatMessageRole
-    text: str
-    reasoning: str
-    # Attachments is the SDK input field with full file metadata
-    attachments: List[FileRef]
-    # Images and Files are internal fields for task workers (filled from Attachments or context)
-    images: List[str]
-    files: List[str]
-    tools: List[Tool]
-    tool_call_id: str
-
-class ChatTaskContextMessage(TypedDict, total=False):
-    role: ChatMessageRole
-    text: str
-    reasoning: str
-    images: List[str]
-    files: List[str]
-    tools: List[Tool]
-    tool_calls: List[ToolCall]
-    tool_call_id: str
-
-
-##########
-# source: common.go
-
-StringEncodedMap = Dict[str, Any]
-
-
-##########
-# source: cursor.go
+# CreditGrantWithRemaining is a grant with its computed remaining balance
+class CreditGrantWithRemaining(TypedDict, total=False):
+    pass
 
 # SearchRequest represents a search request
 class SearchRequest(TypedDict, total=False):
     fields: List[str]
     term: str
     exact: bool
+
+# FilterRequest represents a filter request
+class FilterRequest(TypedDict, total=False):
+    field: str
+    operator: str
+    value: Any
+
+# ListRequest represents a list request with all options
+class ListRequest(TypedDict, total=False):
+    page: int
+    page_size: int
+    search: SearchRequest
+    filters: List[Filter]
+    sort: List[SortOrder]
+    preloads: List[str]
+    fields: List[str]
+    permissions: List[str]
+    include_others: bool
+
+class ListResponse(TypedDict, total=False):
+    items: List[Any]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 # Filter represents a single filter condition
 class Filter(TypedDict, total=False):
@@ -886,38 +1582,80 @@ class CursorListResponse(TypedDict, total=False):
     items_per_page: int
     total_items: int
 
+# CursorConfig represents the configuration for cursor-based pagination
+class CursorConfig(TypedDict, total=False):
+    field: str
+    direction: str
+    value: Any
 
-##########
-# source: engine.go
-
-class WorkerGPU(TypedDict, total=False):
+# EngineConfig holds engine configuration (no gorm tags).
+class EngineConfig(TypedDict, total=False):
     id: str
-    worker_id: str
-    gpu_id: str
-    type: GPUType
     name: str
-    vram: int
+    api_url: str
+    engine_port: str
+    workers: WorkerConfig
+    api_key: str
+    container_mode: bool
+    network_name: str
+    cache_path: str
+    gpus: List[str]
+    callback_base_port: int
+    engine_internal_api_url: str
 
-class WorkerCPU(TypedDict, total=False):
-    id: str
-    worker_id: str
+# WorkerGPUConfig defines GPU allocation for a worker.
+class WorkerGPUConfig(TypedDict, total=False):
+    gpus: List[Any]
+
+# WorkerCPUConfig defines CPU allocation for a worker.
+class WorkerCPUConfig(TypedDict, total=False):
+    count: int
+
+# WorkerConfig defines how workers are allocated on an engine.
+class WorkerConfig(TypedDict, total=False):
+    gpu: List[WorkerGPUConfig]
+    cpu: WorkerCPUConfig
+
+# EngineDTO is the full API response for an engine.
+class EngineDTO(TypedDict, total=False):
+    instance: InstanceDTO
+    config: EngineConfig
     name: str
-    vendor_id: str
-    family: str
-    model: str
-    cores: int
-    frequency: str
+    api_url: str
+    status: EngineStatus
+    system_info: SystemInfo
+    workers: List[Optional[WorkerDTO]]
 
-class WorkerRAM(TypedDict, total=False):
-    id: str
-    worker_id: str
-    total: int
+# EngineSummary is a lightweight engine response embedded in tasks.
+class EngineSummary(TypedDict, total=False):
+    instance: InstanceDTO
+    name: str
+    status: EngineStatus
+    workers: List[Optional[WorkerSummary]]
 
-class WorkerStateSummary(TypedDict, total=False):
+# WorkerDTO is the full API response for a worker.
+class WorkerDTO(TypedDict, total=False):
+    user_id: str
+    team_id: str
+    index: int
+    status: WorkerStatus
+    engine_id: str
+    task_id: str
+    app_id: str
+    app_version_id: str
+    active_session_id: str
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    system_info: SystemInfo
+    warm_apps: List[str]
+
+# WorkerSummary is a lightweight worker response.
+class WorkerSummary(TypedDict, total=False):
     id: str
     user_id: str
     index: int
-    status: str
+    status: WorkerStatus
     engine_id: str
     engine_name: str
     task_id: str
@@ -928,9 +1666,79 @@ class WorkerStateSummary(TypedDict, total=False):
     cpus: List[WorkerCPU]
     rams: List[WorkerRAM]
 
+# LocalEngineState is the minimal engine state returned to local CLI.
+class LocalEngineState(TypedDict, total=False):
+    id: str
+    name: str
+    config: EngineConfig
+    public_key: str
 
-##########
-# source: file.go
+# WorkerGPU describes a GPU attached to a worker (contract-only, no gorm).
+class WorkerGPU(TypedDict, total=False):
+    id: str
+    worker_id: str
+    gpu_id: str
+    type: GPUType
+    name: str
+    vram: int
+
+# WorkerCPU describes a CPU attached to a worker (contract-only, no gorm).
+class WorkerCPU(TypedDict, total=False):
+    id: str
+    worker_id: str
+    name: str
+    vendor_id: str
+    family: str
+    model: str
+    cores: int
+    frequency: str
+
+# WorkerRAM describes RAM attached to a worker (contract-only, no gorm).
+class WorkerRAM(TypedDict, total=False):
+    id: str
+    worker_id: str
+    total: int
+
+# EntitlementDTO for API responses
+class EntitlementDTO(TypedDict, total=False):
+    team_id: str
+    resource: EntitlementResource
+    type: EntitlementType
+    enabled: bool
+    unlimited: bool
+    limit: int
+    source: EntitlementSource
+    enforcement: EnforcementMode
+    expires_at: str
+
+# CheckResult is returned by Check with the enforcement decision and usage info.
+class CheckResult(TypedDict, total=False):
+    allowed: bool
+    warning: bool
+    message: str
+    resource: EntitlementResource
+    usage: int
+    limit: int
+    mode: EnforcementMode
+
+# EntitlementError is returned when access is denied.
+class EntitlementError(TypedDict, total=False):
+    code: str
+    message: str
+    resource: EntitlementResource
+    limit: int
+    current: int
+
+# InputValidationError represents input schema validation failures.
+# This allows API handlers to detect validation errors and return structured responses.
+class InputValidationError(TypedDict, total=False):
+    errors: List[InputFieldError]
+
+# InputFieldError represents a single field validation error.
+class InputFieldError(TypedDict, total=False):
+    path: str
+    message: str
+    keyword: str
 
 # FileMetadata holds probed media metadata cached on File records.
 class FileMetadata(TypedDict, total=False):
@@ -943,24 +1751,20 @@ class FileMetadata(TypedDict, total=False):
     channels: int
     codec: str
 
+# FileDTO for API responses
+class FileDTO(TypedDict, total=False):
+    path: str
+    remote_path: str
+    upload_url: str
+    uri: str
+    content_type: str
+    size: int
+    filename: str
+    category: str
+    rating: ContentRating
+    metadata: FileMetadata
 
-##########
-# source: flow.go
-
-class FlowViewport(TypedDict, total=False):
-    x: float
-    y: float
-    zoom: float
-
-class FlowNode(TypedDict, total=False):
-    id: str
-    type: str
-    position: FlowNodePosition
-
-class FlowNodePosition(TypedDict, total=False):
-    x: float
-    y: float
-
+# FlowNodeData describes a node's data within a flow
 class FlowNodeData(TypedDict, total=False):
     app: AppDTO
     app_id: str
@@ -973,71 +1777,208 @@ class FlowNodeData(TypedDict, total=False):
     task: TaskDTO
     task_id: str
 
+# FlowNodeDataMap maps node IDs to their data
 FlowNodeDataMap = Dict[str, "FlowNodeData"]
 
-class FlowEdge(TypedDict, total=False):
-    id: str
-    type: str
-    source: str
-    target: str
-    source_handle: str
-    target_handle: str
+# FlowDTO for API responses
+class FlowDTO(TypedDict, total=False):
+    name: str
+    description: str
+    card_image: str
+    thumbnail: str
+    banner_image: str
+    draft_version_id: str
+    draft_version: FlowVersionDTO
+    published_version_id: str
+    published_version: FlowVersionDTO
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
 
-# OutputFieldMapping represents a mapping from a source node's field to an output field in the flow output schema.
-class OutputFieldMapping(TypedDict, total=False):
-    sourceNodeId: str
-    sourceFieldPath: str
-    outputFieldName: str
-    type: str
-    schema: Any
+# FlowVersionDTO for API responses
+class FlowVersionDTO(TypedDict, total=False):
+    graph_version: int
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: FlowViewport
 
-# OutputMappings is a map of output field name to OutputFieldMapping.
-OutputMappings = Dict[str, "OutputFieldMapping"]
-
+# NodeTaskDTO represents a node task reference
 class NodeTaskDTO(TypedDict, total=False):
     task_id: str
     task: TaskDTO
 
-# Connection represents a connection between nodes in a flow
-class FlowNodeConnection(TypedDict, total=False):
-    nodeId: str
-    key: str
-    type: str
-    previousValue: Any
+# FlowRunDTO for API responses
+class FlowRunDTO(TypedDict, total=False):
+    flow_id: str
+    flow_version_id: str
+    flow_version: FlowVersionDTO
+    task_id: str
+    status: FlowRunStatus
+    error: str
+    flow_run_started: str
+    flow_run_finished: str
+    flow_run_cancelled: str
+    input: FlowRunInputs
+    fail_on_error: bool
+    output: Any
+    node_tasks: Dict[str, Optional[NodeTaskDTO]]
 
-FlowRunInputs = Dict[str, Dict[str, "FlowRunInput"]]
+# GraphTrace represents the full trace of a graph (nodes + edges)
+class GraphTrace(TypedDict, total=False):
+    graph_id: str
+    nodes: List[Optional[GraphNodeDTO]]
+    edges: List[Optional[GraphEdgeDTO]]
 
-class FlowRunInput(TypedDict, total=False):
-    Connection: FlowNodeConnection
-    Value: Any
+# GraphTraceDTO is the API response for graph traces
+class GraphTraceDTO(TypedDict, total=False):
+    graph_id: str
+    nodes: List[Optional[GraphNodeDTO]]
+    edges: List[Optional[GraphEdgeDTO]]
 
+# GraphNodeDTO is the API representation of a graph node
+class GraphNodeDTO(TypedDict, total=False):
+    graph_id: str
+    type: GraphNodeType
+    label: str
+    resource_id: str
+    resource_type: str
+    status: GraphNodeStatus
+    metadata: StringEncodedMap
+    ready_at: str
+    started_at: str
+    completed_at: str
+    duration_ms: int
 
-##########
-# source: graph.go
+# GraphEdgeDTO is the API representation of a graph edge
+class GraphEdgeDTO(TypedDict, total=False):
+    type: GraphEdgeType
+    from_node: str
+    to_node: str
 
 # ChatTraceDTO is the trace response for chat observability
 class ChatTraceDTO(TypedDict, total=False):
     graph_id: str
     nodes: List[Optional[GraphNodeDTO]]
     edges: List[Optional[GraphEdgeDTO]]
-    # Summary stats
     total_steps: int
     completed_steps: int
     running_steps: int
     failed_steps: int
 
+# InstanceDTO is the API representation of a cloud instance.
+class InstanceDTO(TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    name: str
+    region: str
+    shade_cloud: bool
+    shade_instance_type: str
+    cloud_instance_type: str
+    cloud_assigned_id: str
+    os: str
+    ssh_key_id: str
+    ssh_user: str
+    ssh_port: int
+    ip: str
+    status: InstanceStatus
+    cost_estimate: str
+    hourly_price: int
+    template_id: str
+    volume_ids: List[str]
+    tags: List[str]
+    configuration: Any
+    launch_configuration: Any
+    auto_delete: Any
+    alert: Any
+    volume_mount: Any
+    envs: Any
 
-##########
-# source: integration.go
+# IntegrationDTO for API responses (never exposes tokens)
+class IntegrationDTO(TypedDict, total=False):
+    provider: str
+    type: str
+    auth: str
+    status: str
+    display_name: str
+    icon_url: str
+    scopes: StringSlice
+    expires_at: str
+    service_account_email: str
+    metadata: Dict[str, Any]
+    account_identifier: str
+    account_name: str
+    is_primary: bool
+    error_message: str
 
-# StringSlice is a custom type for storing string slices in the database
-StringSlice = List[str]
+# OAuthConfig for OAuth providers
+class OAuthConfig(TypedDict, total=False):
+    ClientID: str
+    ClientSecret: str
+    RedirectURL: str
+    Scopes: List[str]
 
+# IntegrationCredentials returned by GetCredentials for runtime injection
+class IntegrationCredentials(TypedDict, total=False):
+    Provider: str
+    Type: str
+    Secrets: Dict[str, str]
 
-##########
-# source: knowledge.go
+# IntegrationConfigDTO is the API response for integration configuration
+class IntegrationConfigDTO(TypedDict, total=False):
+    provider: str
+    type: str
+    auth: str
+    name: str
+    short_name: str
+    description: str
+    icon_url: str
+    how_it_works: List[str]
+    docs_url: str
+    secret_fields: List[SecretFieldConfig]
+    allows_byok: bool
+    available: bool
+    has_managed: bool
+    integration: IntegrationDTO
 
-# KnowledgeFile represents a file in a knowledge entry (stored as JSONB in knowledge_versions)
+# SecretFieldConfig defines a secret field for the UI
+class SecretFieldConfig(TypedDict, total=False):
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    optional: bool
+
+# InvoiceDTO is the API response for invoices
+class InvoiceDTO(TypedDict, total=False):
+    type: InvoiceType
+    invoice_number: str
+    status: InvoiceStatus
+    issue_date: str
+    customer_legal_name: str
+    customer_country: str
+    currency: str
+    total_amount: int
+    tax_mode: TaxMode
+    pdf_path: str
+    original_invoice_id: str
+
+# InvoiceItemDTO is the API response for invoice items
+class InvoiceItemDTO(TypedDict, total=False):
+    description: str
+    quantity: int
+    unit_price: int
+    line_total: int
+
+# KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
     path: str
     uri: str
@@ -1045,10 +1986,147 @@ class KnowledgeFile(TypedDict, total=False):
     hash: str
     content: str
 
+# SkillDTO for API responses (backward-compatible naming)
+class SkillDTO(TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    repo_url: str
+    version_id: str
+    version: SkillVersionDTO
 
-##########
-# source: knowledge_store.go
+class SkillVersionDTO(TypedDict, total=False):
+    skill_id: str
+    instructions: KnowledgeFile
+    files: List[KnowledgeFile]
+    content_hash: str
+    description: str
+    tags: List[str]
+    allowed_tools: str
+    compatibility: str
+    license: str
+    source_url: str
+    mutation_type: str
+    version_notes: str
+    disable_model_invocation: bool
+    user_invocable: bool
+    context: str
+    metadata: Dict[str, str]
 
+# KnowledgeDTO — generic DTO for /knowledge endpoints (all types)
+class KnowledgeDTO(TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    type: str
+    lifecycle: str
+    version_id: str
+    version: KnowledgeVersionDTO
+
+class KnowledgeVersionDTO(TypedDict, total=False):
+    knowledge_id: str
+    content: KnowledgeFile
+    files: List[KnowledgeFile]
+    content_hash: str
+    description: str
+    tags: List[str]
+    metadata: Dict[str, str]
+    source_url: str
+    mutation_type: str
+    version_notes: str
+    last_confirmed_at: str
+
+# PublicSkillDTO is a lean DTO for public store/registry display
+class PublicSkillDTO(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    description: str
+    repo_url: str
+    version_short_id: str
+    tags: List[str]
+    mutation_type: str
+
+# SkillLineageResponse is returned by the lineage endpoint.
+class SkillLineageResponse(TypedDict, total=False):
+    skill: SkillLineageSkillRef
+    parents: List[SkillLineageSkillRef]
+    siblings: List[SkillLineageSkillRef]
+    forks: List[SkillLineageSkillRef]
+    duplicates: List[SkillLineageSkillRef]
+    fork_depth: int
+
+# SkillLineageSkillRef is a compact skill reference for lineage responses.
+class SkillLineageSkillRef(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    version_count: int
+    parent_version_id: str
+    versions_since_fork: int
+
+# SkillGitHubImportRequest is the request body for both discover and import.
+class SkillGitHubImportRequest(TypedDict, total=False):
+    url: str
+    paths: List[str]
+
+# SkillGitHubDiscoverResponse is returned by the discover endpoint.
+class SkillGitHubDiscoverResponse(TypedDict, total=False):
+    namespace: str
+    repo_url: str
+    skills: List[SkillGitHubDiscoverEntry]
+
+# SkillGitHubDiscoverEntry represents a single skill directory found in a repo.
+class SkillGitHubDiscoverEntry(TypedDict, total=False):
+    path: str
+    name: str
+    description: str
+    file_count: int
+    exists: bool
+    existing_id: str
+
+# SkillGitHubImportResponse is returned by the import endpoint.
+class SkillGitHubImportResponse(TypedDict, total=False):
+    results: List[SkillGitHubImportEntry]
+
+# SkillGitHubImportEntry represents the result of importing a single skill.
+class SkillGitHubImportEntry(TypedDict, total=False):
+    path: str
+    name: str
+    namespace: str
+    skill_id: str
+    version_id: str
+    created: bool
+    error: str
+    index: int
+    total: int
+
+# SkillLineageRef is a compact parent reference included in download responses.
+class SkillLineageRef(TypedDict, total=False):
+    namespace: str
+    name: str
+
+# SkillResolveResult is returned by the resolve endpoint.
+class SkillResolveResult(TypedDict, total=False):
+    source: SkillSource
+    namespace: str
+    name: str
+    content: str
+    files: List[KnowledgeFile]
+
+# SkillDownloadResponse is returned by the download endpoint
+class SkillDownloadResponse(TypedDict, total=False):
+    namespace: str
+    name: str
+    version: str
+    description: str
+    files: List[KnowledgeFile]
+    source_url: str
+    mutation_type: str
+    version_notes: str
+    parents: List[SkillLineageRef]
+
+# PublicSkillStoreDTO for public skill store display
 class PublicSkillStoreDTO(TypedDict, total=False):
     id: str
     category: str
@@ -1060,16 +2138,577 @@ class PublicSkillStoreDTO(TypedDict, total=False):
     rank: int
     has_approved_version: bool
 
+# SkillStoreListingDTO for API responses
+class SkillStoreListingDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    deleted_at: str
+    category: str
+    is_featured: bool
+    rank: int
+    installs: int
+    uses: int
+    tags: List[str]
 
-##########
-# source: page.go
+# SkillStoreVersionDTO for API responses
+class SkillStoreVersionDTO(TypedDict, total=False):
+    id: str
+    listing_id: str
+    created_at: str
+    updated_at: str
+    deleted_at: str
+    license: str
+    status: StoreVersionStatus
+    reviewed_at: str
+    reviewed_by: str
+    rejection_reason: str
+    scan_severity: str
+    scan_results: str
+    scanned_at: str
 
+# SkillStoreVersionSubmitRequest is the request body for submitting a skill version to the store
+class SkillStoreVersionSubmitRequest(TypedDict, total=False):
+    license: str
+
+# LinearWorkflowState represents a workflow state from Linear
+class LinearWorkflowState(TypedDict, total=False):
+    id: str
+    name: str
+    color: str
+    type: str
+
+# LinearLabel represents a label from Linear
+class LinearLabel(TypedDict, total=False):
+    id: str
+    name: str
+    color: str
+
+# LinearUser represents a user from Linear (minimal public info)
+class LinearUser(TypedDict, total=False):
+    id: str
+    name: str
+    display_name: str
+    avatar_url: str
+
+# LinearComment represents a comment on an issue
+class LinearComment(TypedDict, total=False):
+    id: str
+    body: str
+    created_at: str
+    updated_at: str
+    user: LinearUser
+    # For external comments (from our users)
+    external_user_id: str
+    external_user_name: str
+    external_user_email: str
+
+# LinearIssue represents an issue from Linear
+class LinearIssue(TypedDict, total=False):
+    id: str
+    identifier: str
+    title: str
+    description: str
+    priority: LinearIssuePriority
+    state: LinearWorkflowState
+    labels: List[LinearLabel]
+    assignee: LinearUser
+    created_at: str
+    updated_at: str
+    completed_at: str
+    canceled_at: str
+    # Public metadata
+    url: str
+    vote_count: int
+    comment_count: int
+    # Type categorization (derived from labels)
+    issue_type: LinearIssueType
+
+# LinearIssueDTO is the public DTO for issues
+class LinearIssueDTO(TypedDict, total=False):
+    id: str
+    identifier: str
+    title: str
+    description: str
+    priority: LinearIssuePriority
+    priority_name: str
+    state: LinearWorkflowState
+    labels: List[LinearLabel]
+    created_at: str
+    updated_at: str
+    url: str
+    vote_count: int
+    comment_count: int
+    issue_type: LinearIssueType
+    has_voted: bool
+
+# LinearCommentDTO is the public DTO for comments
+class LinearCommentDTO(TypedDict, total=False):
+    id: str
+    body: str
+    created_at: str
+    updated_at: str
+    user_name: str
+    user_avatar: str
+    is_external: bool
+
+# CreateFeedbackRequest is used to submit new feedback
+class CreateFeedbackRequest(TypedDict, total=False):
+    title: str
+    description: str
+    type: LinearIssueType
+    priority: int
+    # For model requests
+    model_name: str
+    model_provider: str
+    model_url: str
+    # For bug reports
+    steps: str
+    expected: str
+    actual: str
+    environment: str
+    # Turnstile captcha token
+    turnstile_token: str
+
+# CreateFeedbackResponse is returned after creating feedback
+class CreateFeedbackResponse(TypedDict, total=False):
+    issue: LinearIssueDTO
+
+# CreateCommentRequest is used to add a comment to an issue
+class CreateCommentRequest(TypedDict, total=False):
+    issue_id: str
+    body: str
+    # Turnstile captcha token
+    turnstile_token: str
+
+# CreateCommentResponse is returned after creating a comment
+class CreateCommentResponse(TypedDict, total=False):
+    comment: LinearCommentDTO
+
+# VoteFeedbackRequest is used to vote on an issue
+class VoteFeedbackRequest(TypedDict, total=False):
+    issue_id: str
+
+# VoteFeedbackResponse is returned after voting
+class VoteFeedbackResponse(TypedDict, total=False):
+    vote_count: int
+    has_voted: bool
+
+# ListFeedbackRequest is used to list feedback
+class ListFeedbackRequest(TypedDict, total=False):
+    type: LinearIssueType
+    state: str
+    search: str
+    cursor: str
+    limit: int
+
+# ListFeedbackResponse is returned when listing feedback
+class ListFeedbackResponse(TypedDict, total=False):
+    issues: List[LinearIssueDTO]
+    next_cursor: str
+    has_more: bool
+    total_count: int
+
+# GetFeedbackResponse is returned when getting a single issue
+class GetFeedbackResponse(TypedDict, total=False):
+    issue: LinearIssueDTO
+    comments: List[LinearCommentDTO]
+
+# FeedbackStats contains aggregate statistics
+class FeedbackStats(TypedDict, total=False):
+    total_issues: int
+    open_issues: int
+    completed_issues: int
+    by_type: Dict[str, int]
+    by_state: Dict[str, int]
+
+# ServerCapabilities represents the server's supported features
+class ServerCapabilitiesLogging(TypedDict, total=False):
+    level: str
+
+class ServerCapabilitiesPrompts(TypedDict, total=False):
+    listChanged: bool
+
+class ServerCapabilitiesResources(TypedDict, total=False):
+    subscribe: bool
+    listChanged: bool
+
+class ServerCapabilitiesTools(TypedDict, total=False):
+    listChanged: bool
+
+class ServerCapabilities(TypedDict, total=False):
+    logging: ServerCapabilitiesLogging
+    prompts: ServerCapabilitiesPrompts
+    resources: ServerCapabilitiesResources
+    tools: ServerCapabilitiesTools
+
+# ServerInfo represents information about the server
+class ServerInfo(TypedDict, total=False):
+    name: str
+    title: str
+    version: str
+
+# InitializeResponse represents the server's response to an initialization request
+class InitializeResponse(TypedDict, total=False):
+    protocolVersion: str
+    capabilities: ServerCapabilities
+    serverInfo: ServerInfo
+    instructions: str
+
+# CancellationParams represents the parameters for a cancellation notification
+class CancellationParams(TypedDict, total=False):
+    requestId: str
+    reason: str
+
+# ProgressParams represents progress update parameters
+class ProgressParams(TypedDict, total=False):
+    requestId: str
+    progress: float
+    message: str
+
+# ResourceRequest represents a request for resource operations
+class ResourceRequest(TypedDict, total=False):
+    operation: str
+    id: str
+    userId: str
+    resource: Any
+    listOptions: ListRequest
+
+# ResourceResponse represents a response for resource operations
+class ResourceResponse(TypedDict, total=False):
+    resources: List[Resource]
+    nextCursor: str
+
+# Resource represents a resource item
+class Resource(TypedDict, total=False):
+    uri: str
+    name: str
+    title: str
+    description: str
+    mimeType: str
+    size: int
+
+# ResourceContent represents resource content
+class ResourceContent(TypedDict, total=False):
+    uri: str
+    name: str
+    title: str
+    mimeType: str
+    text: str
+    blob: str
+
+# ResourceReadResponse represents a response for resource read operations
+class ResourceReadResponse(TypedDict, total=False):
+    contents: List[ResourceContent]
+
+# PromptRequest represents a request for prompt operations
+class PromptRequest(TypedDict, total=False):
+    operation: str
+    id: str
+    prompt: str
+    listOptions: ListRequest
+
+# PromptResponse represents a response for prompt operations
+class PromptResponse(TypedDict, total=False):
+    prompts: List[Prompt]
+    nextCursor: str
+
+# Prompt represents a prompt item
+class Prompt(TypedDict, total=False):
+    name: str
+    title: str
+    description: str
+    arguments: List[PromptArg]
+    messages: List[PromptMessage]
+
+# PromptArg represents a prompt argument
+class PromptArg(TypedDict, total=False):
+    name: str
+    description: str
+    required: bool
+
+# PromptMessage represents a message in a prompt
+class PromptMessage(TypedDict, total=False):
+    role: str
+    content: PromptContent
+
+# PromptContent represents content in a prompt message
+class PromptContent(TypedDict, total=False):
+    type: str
+    text: str
+    data: str
+    mimeType: str
+
+# ToolRequest represents a request for tool operations
+class ToolListRequest(TypedDict, total=False):
+    cursor: str
+
+# ToolResponse represents a response for tool operations
+class ToolListResponse(TypedDict, total=False):
+    tools: List[MCPTool]
+    nextCursor: str
+
+# Tool represents a tool item
+class MCPTool(TypedDict, total=False):
+    name: str
+    title: str
+    description: str
+    inputSchema: Any
+    outputSchema: Any
+
+# ToolCallRequest represents a request to call a tool
+class ToolCallRequest(TypedDict, total=False):
+    name: str
+    arguments: Dict[str, Any]
+
+# ToolCallResponse represents a response from a tool call
+class ToolCallResponse(TypedDict, total=False):
+    content: List[ToolContent]
+    structuredContent: Any
+    isError: bool
+
+# ToolContent represents content in a tool response
+class ToolContent(TypedDict, total=False):
+    type: str
+    text: str
+    data: str
+    mimeType: str
+    resource: ResourceContent
+
+# JSONRPCRequest represents a JSON-RPC 2.0 request (has id, expects a response).
+class JSONRPCRequest(TypedDict, total=False):
+    jsonrpc: str
+    id: Any
+    method: str
+    params: Any
+
+# JSONRPCNotification represents a JSON-RPC 2.0 notification (no id, no response expected).
+class JSONRPCNotification(TypedDict, total=False):
+    jsonrpc: str
+    method: str
+    params: Any
+
+# JSONRPCResponse represents a JSON-RPC response
+class JSONRPCResponse(TypedDict, total=False):
+    jsonrpc: str
+    id: Any
+    result: Any
+    error: JSONRPCError
+
+# JSONRPCError represents a JSON-RPC error
+class JSONRPCError(TypedDict, total=False):
+    code: int
+    message: str
+    data: Any
+
+# NotificationMessage represents a notification message
+class NotificationMessage(TypedDict, total=False):
+    jsonrpc: str
+    method: str
+    params: Any
+
+# MCPProgressParams represents MCP progress notification params (spec 2025-11-25).
+class MCPProgressParams(TypedDict, total=False):
+    progressToken: Any
+    message: str
+    data: Dict[str, Any]
+
+# ConnectedEvent represents a connected event
+class ConnectedEvent(TypedDict, total=False):
+    event: str
+    timestamp: str
+
+# ResourceTemplate represents a resource template
+class ResourceTemplate(TypedDict, total=False):
+    uriTemplate: str
+    name: str
+    title: str
+    description: str
+    mimeType: str
+
+# ResourceTemplateResponse represents a response for resource template operations
+class ResourceTemplateResponse(TypedDict, total=False):
+    resourceTemplates: List[ResourceTemplate]
+
+# StringSlice is a custom type for storing string slices
+StringSlice = List[str]
+
+# MCPServerDTO is the API response shape for the resource.
+class MCPServerDTO(TypedDict, total=False):
+    id: str
+    slug: str
+    name: str
+    description: str
+    icon_url: str
+    server_url: str
+    auth_type: MCPServerAuthType
+    oauth_client_id: str
+    default_scopes: StringSlice
+    documentation_url: str
+
+# MCPServerStoreListingDTO is the API response shape for the store listing.
+class MCPServerStoreListingDTO(TypedDict, total=False):
+    id: str
+    category: MCPServerCategory
+    is_featured: bool
+    rank: int
+    installs: int
+    uses: int
+
+# PublicMCPServerDTO is a lean DTO for the public MCP directory.
+class PublicMCPServerDTO(TypedDict, total=False):
+    id: str
+    slug: str
+    name: str
+    description: str
+    icon_url: str
+    category: MCPServerCategory
+    server_url: str
+    auth_type: MCPServerAuthType
+    default_scopes: StringSlice
+    documentation_url: str
+    namespace: str
+    is_featured: bool
+    rank: int
+    installs: int
+    uses: int
+
+# AdminMCPServerDTO is a flat DTO for admin CRUD
+class AdminMCPServerDTO(TypedDict, total=False):
+    id: str
+    slug: str
+    name: str
+    description: str
+    icon_url: str
+    server_url: str
+    auth_type: MCPServerAuthType
+    oauth_client_id: str
+    default_scopes: StringSlice
+    documentation_url: str
+    user_id: str
+    team_id: str
+    visibility: Visibility
+    namespace: str
+    category: MCPServerCategory
+    is_featured: bool
+    rank: int
+    installs: int
+    uses: int
+    created_at: str
+    updated_at: str
+
+# MCPServerDiscovery holds the result of probing an MCP server's auth requirements.
+class MCPServerDiscovery(TypedDict, total=False):
+    ready_to_connect: bool
+    cross_domain: bool
+    cross_domain_issuer: str
+    needs_credentials: bool
+    message: str
+
+# MCPServerCreateResponse combines the created resource with discovery info.
+class MCPServerCreateResponse(TypedDict, total=False):
+    discovery: MCPServerDiscovery
+
+# NotificationDTO is the data transfer object
+class NotificationDTO(TypedDict, total=False):
+    type: NotificationType
+    channel: NotificationChannel
+    priority: NotificationPriority
+    status: NotificationStatus
+    recipient_email: str
+    subject: str
+    body: str
+    scheduled_at: str
+    sent_at: str
+    delivered_at: str
+    failed_at: str
+    error_message: str
+    retry_count: int
+    reference_type: str
+    reference_id: str
+
+# NotificationPreferencesDTO is the data transfer object
+class NotificationPreferencesDTO(TypedDict, total=False):
+    email_enabled: bool
+    sms_enabled: bool
+    push_enabled: bool
+    slack_enabled: bool
+    billing_notifications: bool
+    task_notifications: bool
+    system_notifications: bool
+    marketing_emails: bool
+    quiet_hours_enabled: bool
+    quiet_hours_start: str
+    quiet_hours_end: str
+    timezone: str
+
+# NotificationTypeStats holds aggregated counts per type and status
+class NotificationTypeStats(TypedDict, total=False):
+    type: str
+    status: str
+    count: int
+
+# NotificationErrorGroup holds an error message and its count
+class NotificationErrorGroup(TypedDict, total=False):
+    type: str
+    error_message: str
+    count: int
+
+# BroadcastSummary holds summary info for a broadcast batch
+class BroadcastSummary(TypedDict, total=False):
+    reference_type: str
+    reference_id: str
+    subject: str
+    created_at: str
+    total: int
+    sent: int
+    pending: int
+    failed: int
+
+# CreateNotificationRequest is the request to create a notification
+class CreateNotificationRequest(TypedDict, total=False):
+    type: NotificationType
+    channel: NotificationChannel
+    priority: NotificationPriority
+    recipient_email: str
+    recipient_phone: str
+    subject: str
+    body: str
+    html_body: str
+    template_id: str
+    template_data: Dict[str, Any]
+    metadata: Dict[str, Any]
+    scheduled_at: str
+    reference_type: str
+    reference_id: str
+
+# UpdateNotificationPreferencesRequest is the request to update preferences
+class UpdateNotificationPreferencesRequest(TypedDict, total=False):
+    email_enabled: bool
+    sms_enabled: bool
+    push_enabled: bool
+    slack_enabled: bool
+    billing_notifications: bool
+    task_notifications: bool
+    system_notifications: bool
+    marketing_emails: bool
+    quiet_hours_enabled: bool
+    quiet_hours_start: str
+    quiet_hours_end: str
+    timezone: str
+
+# Attachment holds file data for email attachments
+class Attachment(TypedDict, total=False):
+    filename: str
+    content_type: str
+    data: bytes
+
+# PageMetadata holds metadata for a page
 class PageMetadata(TypedDict, total=False):
     title: str
     description: str
     image: str
     tags: List[str]
-    # Docs-specific fields
     order: int
     type: str
     icon: str
@@ -1088,34 +2727,160 @@ class MenuItem(TypedDict, total=False):
     expanded: bool
     children: List[MenuItem]
 
+# PageDTO for API responses
+class PageDTO(TypedDict, total=False):
+    is_featured: bool
+    title: str
+    content: str
+    excerpt: str
+    status: PageStatus
+    type: PageType
+    metadata: PageMetadata
+    slug: str
 
-##########
-# source: project.go
+# PageCreateRequest is the request body for creating/updating a page.
+class PageCreateRequest(TypedDict, total=False):
+    title: str
+    content: str
+    excerpt: str
+    status: PageStatus
+    type: PageType
+    metadata: PageMetadata
+    slug: str
+    visibility: Visibility
+    is_featured: bool
 
-# ProjectModel provides optional project association for models
-class ProjectModel(TypedDict, total=False):
-    project_id: str
-    project: Project
+# CommentDTO for API responses
+class CommentDTO(TypedDict, total=False):
+    page_id: str
+    content: str
+    parent_comment_id: str
+    children: List[CommentDTO]
+    status: CommentStatus
 
+# MenuDTO for API responses
+class MenuDTO(TypedDict, total=False):
+    name: str
+    slug: str
+    description: str
+    items: List[MenuItem]
+
+# PaymentRecordDTO is the API response for payment records
+class PaymentRecordDTO(TypedDict, total=False):
+    type: PaymentRecordType
+    status: PaymentRecordStatus
+    currency: str
+    credit_amount: int
+    service_fee: int
+    amount_subtotal: int
+    amount_tax: int
+    amount_total: int
+    tax_breakdown: List[TaxBreakdownItem]
+    receipt_url: str
+    session_url: str
+    invoice: InvoiceDTO
+
+# TaxBreakdownItem represents a single tax component
+class TaxBreakdownItem(TypedDict, total=False):
+    amount: int
+    rate: int
+    jurisdiction: str
+    display_name: str
+    inclusive: bool
+
+# StripePaymentRecordMetadata holds Stripe-specific payment record details
+class StripePaymentRecordMetadata(TypedDict, total=False):
+    session_id: str
+    session_url: str
+
+# StripePaymentMetadata holds Stripe payment method details for billing settings.
+class StripePaymentMetadata(TypedDict, total=False):
+    payment_method_id: str
+    last4: str
+    brand: str
+    exp_month: int
+    exp_year: int
+
+# PlanLimit defines a single resource limit or feature gate within a plan.
+class PlanLimit(TypedDict, total=False):
+    type: EntitlementType
+    enabled: bool
+    unlimited: bool
+    limit: int
+    enforcement: EnforcementMode
+
+# PlanLimits maps entitlement resources to their limits
+PlanLimits = Dict["EntitlementResource", "PlanLimit"]
+
+# PlanDTO for API responses
+class PlanDTO(TypedDict, total=False):
+    name: str
+    description: str
+    display_order: int
+    active: bool
+    self_serve: bool
+    price_monthly: int
+    price_yearly: int
+    credits_monthly: int
+    provider_price_id_monthly: str
+    provider_price_id_yearly: str
+    limits: PlanLimits
+
+# PriceSyncResult is returned by SyncProviderPrices to report what happened.
+class PriceSyncResult(TypedDict, total=False):
+    synced: List[str]
+    skipped: List[str]
+    errors: List[str]
+
+# ProjectModelDTO provides optional project association for DTOs
 class ProjectModelDTO(TypedDict, total=False):
     project_id: str
     project: ProjectDTO
 
-
-##########
-# source: requirements.go
-
-# SecretRequirement defines a secret that an app requires to run
-class SecretRequirement(TypedDict, total=False):
-    key: str
+# ProjectDTO for API responses
+class ProjectDTO(TypedDict, total=False):
+    name: str
     description: str
-    optional: bool
+    type: ProjectType
+    color: str
+    icon: str
+    parent_id: str
+    parent: ProjectDTO
+    children: List[Optional[ProjectDTO]]
 
-# IntegrationRequirement defines an integration capability that an app requires
-class IntegrationRequirement(TypedDict, total=False):
-    key: str
+# PublicationThemeColors defines the core colors for one mode (light or dark).
+class PublicationThemeColors(TypedDict, total=False):
+    primary: str
+    secondary: str
+    background: str
+    text: str
+    border: str
+
+# PublicationTheme defines branding colors for embedded UIs.
+class PublicationTheme(TypedDict, total=False):
+    light: PublicationThemeColors
+    dark: PublicationThemeColors
+
+# PublicationDTO for API responses.
+class PublicationDTO(TypedDict, total=False):
+    resource_type: str
+    resource_id: str
+    namespace: str
+    name: str
+    allowed_origins: List[str]
+    rate_limit_rpm: int
+    theme: PublicationTheme
+    label: str
+    enabled: bool
+
+# RefRouteDTO for API responses
+class RefRouteDTO(TypedDict, total=False):
+    type: RefRouteType
+    alias_ref: str
+    target_ref: str
+    primary: bool
     description: str
-    optional: bool
+    enabled: bool
 
 # RequirementError represents a single missing requirement with actionable info
 class RequirementError(TypedDict, total=False):
@@ -1130,58 +2895,204 @@ class SetupAction(TypedDict, total=False):
     provider: str
     scopes: List[str]
 
-
-##########
-# source: shadeform.go
-
-class InstanceConfiguration(TypedDict, total=False):
-    gpu_type: str
-    interconnect: str
-    memory_in_gb: int
-    num_gpus: int
-    os: str
-    storage_in_gb: int
-    vcpus: int
-    vram_per_gpu_in_gb: int
-
-class InstanceLaunchConfiguration(TypedDict, total=False):
+# Capability represents an integration capability that can be requested by apps
+class Capability(TypedDict, total=False):
+    key: str
+    provider: str
     type: str
-    docker_configuration: InstanceDockerConfig
-    script_configuration: InstanceScriptConfig
+    scopes: List[str]
+    satisfies: List[str]
+    display_name: str
+    description: str
+    available: bool
 
-class InstanceDockerConfig(TypedDict, total=False):
-    image: str
-    args: str
-    shared_memory_in_gb: int
-    envs: List[InstanceEnvVar]
-    port_mappings: List[InstancePortMapping]
-    volume_mounts: List[InstanceVolumeMount]
+# CapabilitiesResponse is the API response for listing available capabilities
+class CapabilitiesResponse(TypedDict, total=False):
+    capabilities: List[Capability]
 
-class InstanceScriptConfig(TypedDict, total=False):
-    base64_script: str
+# Trigger represents an event that can start an agent execution
+class Trigger(TypedDict, total=False):
+    key: str
+    provider: str
+    type: str
+    kind: TriggerKind
+    display_name: str
+    description: str
+    required_scopes: List[str]
+    category: str
+    config_schema: Any
+    payload_schema: Any
+    available: bool
 
-class InstancePortMapping(TypedDict, total=False):
-    host_port: int
-    container_port: int
+# TriggersResponse is the API response for listing available triggers
+class TriggersResponse(TypedDict, total=False):
+    triggers: List[Trigger]
 
-class InstanceVolumeMount(TypedDict, total=False):
-    host_path: str
-    container_path: str
+# CheckRequirementsRequest is the request body for checking requirements
+class CheckRequirementsRequest(TypedDict, total=False):
+    secrets: List[SecretRequirement]
+    integrations: List[IntegrationRequirement]
 
-class InstanceThresholdConfig(TypedDict, total=False):
-    date_threshold: str
-    spend_threshold: str
+# CheckRequirementsResponse is the API response for checking requirements
+class CheckRequirementsResponse(TypedDict, total=False):
+    satisfied: bool
+    errors: List[RequirementError]
 
-class InstanceVolumeMountConfig(TypedDict, total=False):
-    auto: bool
+# RequirementsNotMetError is a specific error type for missing requirements
+class RequirementsNotMetError(TypedDict, total=False):
+    Errors: List[RequirementError]
 
-class InstanceEnvVar(TypedDict, total=False):
-    name: str
-    value: str
+# SDKTypes is a phantom type for gotypegen dependency tracing.
+# Types listed here (and their transitive dependencies) are included
+# in the generated SDK output (TypeScript, Python, Go).
+# 
+# To expose a type to SDK consumers: reference it in this struct.
+class SDKTypes(TypedDict, total=False):
+    pass
 
+# SecretDTO for API responses - VALUE IS NEVER EXPOSED
+class SecretDTO(TypedDict, total=False):
+    key: str
+    masked_value: str
+    description: str
+    scope: SecretScope
 
-##########
-# source: system_info.go
+# SecretMap represents a map of secret key-value pairs (used for transport to workers)
+SecretMap = Dict[str, str]
+
+# PrepareSecretsRequest is the request for preparing secrets for a task
+class PrepareSecretsRequest(TypedDict, total=False):
+    task_id: str
+    infra: Infra
+    app_id: str
+    app_version_id: str
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+
+# PrepareSecretsResult holds the resolved secrets and refs
+class PrepareSecretsResult(TypedDict, total=False):
+    Secrets: SecretMap
+    Refs: List[SecretRef]
+    SatisfiedIntegrations: List[str]
+
+# SensitiveString is a string type that prevents accidental exposure of secrets.
+# It redacts in JSON/fmt output unless explicitly accessed via .Expose().
+# 
+# Encryption at rest is handled by the GORM "sensitive" serializer
+# (api/internal/lib/secrets). Fields must be tagged: `gorm:"serializer:sensitive"`
+# 
+# Note: map-based GORM Updates (map[string]any{"value": ...}) bypass serializers.
+# Always use struct-based operations for SensitiveString fields.
+# 
+# Redaction:
+#   - JSON serialization: always returns "" (empty string)
+#   - fmt.Sprintf with %s, %v, %#v: always returns "[REDACTED]"
+#   - Only .Expose() returns the actual value
+# 
+# Encryption is enabled when SECRETS_ENCRYPTION_KEY env var is set.
+# Values are stored as "enc:v2:<encrypted_dek>:<encrypted_data>" in the database.
+# Key rotation only re-encrypts the DEK, not the data.
+class SensitiveString(TypedDict, total=False):
+    pass
+
+class SlackResponse(TypedDict, total=False):
+    Body: bytes
+    ContentType: str
+
+# SlackIntegrationMetadata contains Slack-specific context for chat messages
+# This is stored in ChatMessage.IntegrationMetadata as JSON
+class SlackIntegrationMetadata(TypedDict, total=False):
+    channel: str
+    thread_ts: str
+    team_id: str
+    user_id: str
+    bot_message_ts: str
+    stream_started: bool
+    stream_ts: str
+
+# SlackBlock represents a Slack Block Kit block
+class SlackBlock(TypedDict, total=False):
+    type: str
+    text: Any
+
+# SlackTextObject represents a text object in Slack Block Kit
+class SlackTextObject(TypedDict, total=False):
+    type: str
+    text: str
+
+# SlackPostMessageRequest represents the payload for posting a message to Slack
+class SlackPostMessageRequest(TypedDict, total=False):
+    channel: str
+    text: str
+    markdown_text: str
+    blocks: List[SlackBlock]
+    thread_ts: str
+    mrkdwn: bool
+
+# SlackUpdateMessageRequest represents the payload for updating a Slack message
+class SlackUpdateMessageRequest(TypedDict, total=False):
+    channel: str
+    ts: str
+    text: str
+    blocks: List[SlackBlock]
+
+# SlackAssistantThreadsSetStatusRequest represents the payload for setting assistant thread status
+# This shows a typing indicator in Slack (requires assistant:write scope)
+class SlackAssistantThreadsSetStatusRequest(TypedDict, total=False):
+    channel_id: str
+    thread_ts: str
+    status: str
+    loading_messages: List[str]
+
+# SlackAssistantThreadsSetStopSuggestedRequest represents the payload to stop the typing indicator
+class SlackAssistantThreadsSetStopSuggestedRequest(TypedDict, total=False):
+    channel_id: str
+    thread_ts: str
+
+# SlackAPIResponse represents a standard Slack API response
+class SlackAPIResponse(TypedDict, total=False):
+    ok: bool
+    error: str
+    ts: str
+
+# SlackConversationsRepliesResponse represents the response from conversations.replies
+class SlackConversationsRepliesResponse(TypedDict, total=False):
+    ok: bool
+    error: str
+    messages: List[SlackThreadMessage]
+
+# SlackStartStreamRequest represents the payload for starting a streaming message
+class SlackStartStreamRequest(TypedDict, total=False):
+    channel: str
+    thread_ts: str
+    markdown_text: str
+    recipient_user_id: str
+    recipient_team_id: str
+
+# SlackAppendStreamRequest represents the payload for appending to a streaming message
+class SlackAppendStreamRequest(TypedDict, total=False):
+    channel: str
+    ts: str
+    markdown_text: str
+
+# SlackStopStreamRequest represents the payload for stopping a streaming message
+class SlackStopStreamRequest(TypedDict, total=False):
+    channel: str
+    ts: str
+
+# SubscriptionDTO for API responses
+class SubscriptionDTO(TypedDict, total=False):
+    team_id: str
+    stripe_subscription_id: str
+    plan_id: str
+    plan: PlanDTO
+    interval: SubscriptionInterval
+    status: SubscriptionStatus
+    current_period_start: str
+    current_period_end: str
+    trial_end: str
+    cancel_at_period_end: bool
+    credits_per_period: int
 
 # Hardware/System related types
 class SystemInfo(TypedDict, total=False):
@@ -1198,6 +3109,12 @@ class SystemInfo(TypedDict, total=False):
     volumes: List[Volume]
     hf_cache: HFCacheInfo
     gpus: List[GPU]
+
+class TelemetrySystemInfo(TypedDict, total=False):
+    cpus: List[CPU]
+    ram: RAM
+    gpus: List[GPU]
+    volumes: List[Volume]
 
 class Docker(TypedDict, total=False):
     binary_path: str
@@ -1283,28 +3200,38 @@ class HFCacheInfo(TypedDict, total=False):
     size_on_disk: int
     warnings: List[str]
 
+# DeletionStrategy represents a strategy for deleting revisions
+class DeletionStrategy(TypedDict, total=False):
+    repos: List[CachedRepoInfo]
+    snapshots: List[str]
+    expected_freed_size: int
+    expected_freed_size_str: str
 
-##########
-# source: task.go
+class CacheNotFoundError(TypedDict, total=False):
+    cache_dir: str
 
-# TaskAction defines an action to execute when a task reaches a specific status.
-# Used by the action projector to trigger side effects (e.g., updating app covers).
-class TaskAction(TypedDict, total=False):
+# SystemSettingDTO for API responses - VALUE IS ALWAYS REDACTED
+class SystemSettingDTO(TypedDict, total=False):
+    id: str
     key: str
-    on: str
-    params: Any
+    env: str
+    masked_value: str
+    description: str
+    type: str
+    category: str
+    created_at: str
+    updated_at: str
 
-# TaskMetadata holds optional metadata attached to a task.
-class TaskMetadata(TypedDict, total=False):
-    action: TaskAction
-
+# TaskEvent represents a single status transition event.
+# Duplicated here (no gorm tags) so DTOs can reference it without importing models.
 class TaskEvent(TypedDict, total=False):
     id: str
     created_at: str
     event_time: str
     task_id: str
-    status: str
+    status: TaskStatus
 
+# TaskLog represents a single log entry for a task.
 class TaskLog(TypedDict, total=False):
     id: str
     created_at: str
@@ -1313,11 +3240,142 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
+# TaskDTO is the full API response for a task.
+class TaskDTO(TypedDict, total=False):
+    graph_id: str
+    user_public_key: bytes
+    engine_public_key: bytes
+    is_featured: bool
+    status: TaskStatus
+    app_id: str
+    app: AppDTO
+    app_version_id: str
+    app_version: AppVersionDTO
+    app_variant: str
+    function: str
+    infra: Infra
+    workers: List[str]
+    flow_run_id: str
+    chat_id: str
+    sub_flow_run_id: str
+    agent_id: str
+    agent_version_id: str
+    agent: AgentDTO
+    engine_id: str
+    engine: EngineSummary
+    worker_id: str
+    worker: WorkerSummary
+    run_at: str
+    webhook: str
+    setup: Any
+    input: Any
+    output: Any
+    error: str
+    rating: ContentRating
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    usage_events: List[Optional[UsageEventDTO]]
+    session_id: str
+    session_timeout: int
 
-##########
-# source: team.go
+# TaskStreamDTO is a slim response for task streaming.
+class TaskStreamDTO(TypedDict, total=False):
+    status: TaskStatus
+    app_id: str
+    app_version_id: str
+    app_variant: str
+    function: str
+    infra: Infra
+    flow_run_id: str
+    chat_id: str
+    sub_flow_run_id: str
+    agent_id: str
+    agent_version_id: str
+    engine_id: str
+    worker_id: str
+    run_at: str
+    webhook: str
+    output: Any
+    error: str
+    rating: ContentRating
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    session_id: str
+    session_timeout: int
 
-# Team-related types
+# TaskResultDTO is a slim response for task run/result endpoints.
+class TaskResultDTO(TypedDict, total=False):
+    id: str
+    short_id: str
+    status: TaskStatus
+    status_text: str
+    output: Any
+    error: str
+    session_id: str
+    created_at: str
+    updated_at: str
+    run_at: str
+
+# TaskLogsDTO is a lightweight response for task logs endpoint.
+class TaskLogsDTO(TypedDict, total=False):
+    task_id: str
+    status: TaskStatus
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+
+# TaskTimingGroup represents a high-level phase of task execution with its duration.
+class TaskTimingGroup(TypedDict, total=False):
+    label: str
+    start_at: str
+    end_at: str
+    duration: str
+    duration_ms: int
+
+# TaskTimingEvent represents a single status transition with the time spent before the next transition.
+class TaskTimingEvent(TypedDict, total=False):
+    status: str
+    timestamp: str
+    duration: str
+    duration_ms: int
+    next_status: str
+
+# TaskTimingsDTO is the response for the task timings endpoint.
+class TaskTimingsDTO(TypedDict, total=False):
+    task_id: str
+    status: TaskStatus
+    total_duration: str
+    total_duration_ms: int
+    groups: List[TaskTimingGroup]
+    events: List[TaskTimingEvent]
+
+# TeamDTO is the API response for a full team.
+class TeamDTO(TypedDict, total=False):
+    type: TeamType
+    name: str
+    username: str
+    avatar_url: str
+    email: str
+    setup_completed: bool
+    max_concurrency: int
+    status: TeamStatus
+
+# TeamMemberDTO is the API response for a team member.
+class TeamMemberDTO(TypedDict, total=False):
+    id: str
+    user_id: str
+    team_id: str
+    role: TeamRole
+    user: TeamMemberUserDTO
+
+# TeamMemberUserDTO is a lightweight user view within team membership.
+class TeamMemberUserDTO(TypedDict, total=False):
+    id: str
+    email: str
+    name: str
+    full_name: str
+    avatar_url: str
+
+# TeamRelationDTO is a lightweight team reference embedded in other DTOs.
 class TeamRelationDTO(TypedDict, total=False):
     id: str
     created_at: str
@@ -1327,75 +3385,231 @@ class TeamRelationDTO(TypedDict, total=False):
     avatar_url: str
     setup_completed: bool
 
+# TeamInviteDTO is the public representation of an invite
+class TeamInviteDTO(TypedDict, total=False):
+    id: str
+    team_id: str
+    email: str
+    role: TeamRole
+    status: TeamInviteStatus
+    expires_at: str
+    created_at: str
+    invited_by: TeamMemberUserDTO
+    team: TeamRelationDTO
 
-##########
-# source: tools.go
+# TeamInviteCreateRequest is used when creating a team invite
+class TeamInviteCreateRequest(TypedDict, total=False):
+    email: str
+    role: TeamRole
+
+# TeamPlanDTO for API responses
+class TeamPlanDTO(TypedDict, total=False):
+    team_id: str
+    plan_id: str
+    status: TeamPlanStatus
+    is_primary: bool
+    plan: PlanDTO
 
 # ToolInvocationFunction contains the function details for a tool invocation
 class ToolInvocationFunction(TypedDict, total=False):
     name: str
     arguments: StringEncodedMap
 
-class Tool(TypedDict, total=False):
-    type: str
-    function: ToolFunction
+# ToolInvocationDTO for API responses
+class ToolInvocationDTO(TypedDict, total=False):
+    chat_message_id: str
+    tool_invocation_id: str
+    type: ToolType
+    display_name: str
+    execution_id: str
+    function: ToolInvocationFunction
+    status: ToolInvocationStatus
+    result: str
+    data: Any
+    widget: Widget
 
-class ToolFunction(TypedDict, total=False):
+# TransactionDTO for API responses
+class TransactionDTO(TypedDict, total=False):
+    type: TransactionType
+    amount: int
+    reference: str
+    notes: str
+    payment_record_id: str
+    usage_billing_record_id: str
+    grant_id: str
+    reversal_id: str
+    reference_id: str
+
+# TaskCostDTO is the public-facing cost summary for a task.
+class TaskCostDTO(TypedDict, total=False):
+    total: int
+    discount: int
+    charged: int
+    refunded: int
+
+# DiscountItem represents a single discount applied to a billing record
+class DiscountItem(TypedDict, total=False):
+    reason: str
+    amount: int
+
+# FeeConfig controls which fees are enabled for billing.
+class FeeConfig(TypedDict, total=False):
+    inference: bool
+    royalty: bool
+    partner: bool
+
+# PricingErrorApp is returned by the admin pricing errors endpoint.
+class PricingErrorApp(TypedDict, total=False):
+    app_id: str
+    namespace: str
     name: str
+    version_id: str
+    task_short_ids: List[str]
+
+# UsagePricingResult contains the calculated pricing breakdown for a task.
+class UsagePricingResult(TypedDict, total=False):
+    total: int
+    resource_fee: int
+    inference_fee: int
+    royalty_fee: int
+    partner_fee: int
+    fee_config: FeeConfig
     description: str
-    parameters: ToolParameters
-    required: List[str]
+    pricing_errors: Dict[str, str]
 
-class ToolParameters(TypedDict, total=False):
-    type: str
-    title: str
-    properties: ToolParameterProperties
-    required: List[str]
-
-ToolParameterProperties = Dict[str, "ToolParameterProperty"]
-
-class ToolParameterProperty(TypedDict, total=False):
-    type: str
-    title: str
+# ReplayUsageResult contains the result of replaying usage for a task.
+class ReplayUsageResult(TypedDict, total=False):
+    task_id: str
+    old_total: int
+    new_total: int
+    delta: int
+    old_errors: Dict[str, str]
+    new_errors: Dict[str, str]
+    old_resource_fee: int
+    old_inference_fee: int
+    old_royalty_fee: int
+    old_partner_fee: int
+    resource_fee: int
+    inference_fee: int
+    royalty_fee: int
+    partner_fee: int
     description: str
-    properties: ToolParameterProperties
-    items: ToolParameterProperty
-    required: List[str]
 
+# RecalcPricingOpts are the options for recalculating pricing.
+class RecalcPricingOpts(TypedDict, total=False):
+    dry_run: bool
+    errors_only: bool
+    version_id: str
+    sample: bool
+    skip_failed: bool
+    task_ids: List[str]
+    only_increases: bool
 
-##########
-# source: user.go
+# RecalcPricingResult is the aggregated result of recalculating pricing.
+class RecalcPricingResult(TypedDict, total=False):
+    app_id: str
+    dry_run: bool
+    sample: bool
+    total: int
+    total_all: int
+    updated: int
+    skipped: int
+    skipped_decreases: int
+    errored: int
+    unresolved: int
+    total_delta: int
+    results: List[ReplayUsageResult]
 
-# User-related types
-class User(TypedDict, total=False):
+# MetaItem represents metadata about an input or output item
+class MetaItem(TypedDict, total=False):
+    type: MetaItemType
+    tokens: int
+    width: int
+    height: int
+    resolution_mp: float
+    steps: int
+    count: int
+    resolution: VideoResolution
+    seconds: float
+    fps: int
+    sample_rate: int
+    cost: float
+    extra: Dict[str, Any]
+
+# OutputMeta contains structured metadata about task inputs and outputs for pricing calculation
+class OutputMeta(TypedDict, total=False):
+    inputs: List[MetaItem]
+    outputs: List[MetaItem]
+
+# UsageEventSummary contains aggregated usage summary
+class UsageEventSummary(TypedDict, total=False):
+    tier_usage: Dict[UsageEventResourceTier, int]
+    type_usage: Dict[str, int]
+    model_usage: Dict[str, int]
+    total_usage: int
+
+# UsageBreakdownRequest specifies the date range for usage breakdown
+class UsageBreakdownRequest(TypedDict, total=False):
+    range: str
+
+# UsageBreakdownDataPoint represents one day's usage data per app
+class UsageBreakdownDataPoint(TypedDict, total=False):
+    date: str
+    per_app: Dict[str, int]
+
+# UsagePerApp represents aggregated usage statistics for a single app
+class UsagePerApp(TypedDict, total=False):
+    app_endpoint: str
+    call_count: int
+    cost: int
+
+# TeamUsageBreakdown is the response for the usage breakdown API
+class TeamUsageBreakdown(TypedDict, total=False):
+    timeseries: List[UsageBreakdownDataPoint]
+    models: List[str]
+    per_model: List[UsagePerApp]
+    total_cost: int
+    period_start: str
+    period_end: str
+    trend_percent: float
+
+# UsageEventDTO is the API representation of a usage event.
+class UsageEventDTO(TypedDict, total=False):
+    usage_billing_record_id: str
+    reference_id: str
+    resource_id: str
+    tier: UsageEventResourceTier
+    type: str
+    model: str
+    quantity: int
+    unit: str
+
+# UserDTO is the API response for a full user.
+class UserDTO(TypedDict, total=False):
     default_team_id: str
-    role: str
+    role: Role
     email: str
-    email_verified: bool
     name: str
     full_name: str
     avatar_url: str
-    metadata: UserMetadata
+    metadata: UserMetadataDTO
 
-# User-related types
+# UserRelationDTO is a lightweight user reference embedded in other DTOs.
 class UserRelationDTO(TypedDict, total=False):
     id: str
     created_at: str
     updated_at: str
-    role: str
+    role: Role
     avatar_url: str
 
-class UserMetadata(TypedDict, total=False):
+# UserMetadataDTO is the API representation of user metadata.
+class UserMetadataDTO(TypedDict, total=False):
     user_id: str
     completed_onboarding: bool
     use_case: str
     use_case_reason: str
     use_case_privacy: str
     signup_source: str
-
-
-##########
-# source: widget.go
 
 # WidgetAction represents an action triggered by a widget button
 class WidgetAction(TypedDict, total=False):
@@ -1487,500 +3701,406 @@ class Widget(TypedDict, total=False):
     children: List[WidgetNode]
     actions: List[WidgetActionButton]
 
-# CallToolConfig is the preferred name for HTTPToolConfig.
-# "call" is the user-facing type; "http" is kept for backward compatibility.
-CallToolConfig = HTTPToolConfig
+# WidgetFormData represents the form data collected from widget inputs
+WidgetFormData = Dict[str, Any]
+
+# WidgetActionResult represents the result of a widget action submission
+class WidgetActionResult(TypedDict, total=False):
+    action: WidgetAction
+    form_data: WidgetFormData
+
+class WsTaskLogPayload(TypedDict, total=False):
+    task_id: str
+    log_type: TaskLogType
+    logs: bytes
+
+class WsTaskOutputPayload(TypedDict, total=False):
+    task_id: str
+    output: bytes
+
+class WsTaskFailedPayload(TypedDict, total=False):
+    task_id: str
+    error: str
+
+class WsTaskAcceptedPayload(TypedDict, total=False):
+    task_id: str
+
+class WsTaskRejectedPayload(TypedDict, total=False):
+    task_id: str
+    reason: RejectionReason
+
+# WsTaskLifecyclePayload is shared by preparing/serving/setting_up/running/uploading events.
+class WsTaskLifecyclePayload(TypedDict, total=False):
+    task_id: str
+
+class WsTaskCompletedPayload(TypedDict, total=False):
+    task_id: str
+    output: bytes
+
+class WsTaskRunPayload(TypedDict, total=False):
+    task: TaskDTO
+    secrets: str
+
+class WsTaskCancelPayload(TypedDict, total=False):
+    task: TaskDTO
+    force: bool
+    timeout: int
+
+class WsTaskForceCancelPayload(TypedDict, total=False):
+    task: TaskDTO
+
+# WsTaskCancelResultPayload is sent from engine to API with cancel outcome.
+class WsTaskCancelResultPayload(TypedDict, total=False):
+    task_id: str
+    success: bool
+    reason: str
+
+WorkerStatusMap = Dict[str, "WorkerStatus"]
+
+class WsEngineHeartbeatPayload(TypedDict, total=False):
+    engine_id: str
+    engine_status: EngineStatus
+    worker_statuses: WorkerStatusMap
+    worker_tasks: Dict[str, Optional[str]]
+
+# EngineTelemetry is the clean contract for engine→API telemetry.
+class EngineTelemetry(TypedDict, total=False):
+    engine_id: str
+    status: EngineStatus
+    system_info: SystemInfo
+    workers: List[WorkerTelemetry]
+
+# WorkerTelemetry is the minimal telemetry data engine sends per worker.
+class WorkerTelemetry(TypedDict, total=False):
+    id: str
+    status: WorkerStatus
+    task_id: str
+    app_id: str
+    app_version_id: str
+    active_session_id: str
+    system_info: SystemInfo
+    warm_apps: List[str]
+
+class WsEngineDeleteHFCacheRepoPayload(TypedDict, total=False):
+    repo_id: str
+
+# WsSessionEndPayload notifies engine to clear worker's session lease
+class WsSessionEndPayload(TypedDict, total=False):
+    session_id: str
+    worker_id: str
+
+# ChatData contains agent-specific data for a chat session
+class ChatData(TypedDict, total=False):
+    plan_steps: List[PlanStep]
+    memory: StringEncodedMap
+    always_allowed_tools: List[str]
+
+# PlanStep represents a step in an agent's execution plan
+class PlanStep(TypedDict, total=False):
+    index: int
+    title: str
+    description: str
+    notes: str
+    status: PlanStepStatus
+
+# ChatMessageContent represents the content of a chat message
+class ChatMessageContent(TypedDict, total=False):
+    type: ChatMessageContentType
+    error: str
+    text: str
+    image: str
+    file: str
+    tool_calls: List[ToolCall]
+
+# IntegrationContext holds integration-specific metadata for a chat
+class IntegrationContext(TypedDict, total=False):
+    integration_type: IntegrationType
+    integration_metadata: Any
+
+# ChatTaskOutput is the output envelope from a chat LLM task
+class ChatTaskOutput(TypedDict, total=False):
+    response: str
+    reasoning: str
+    tool_calls: List[ToolCall]
+    usage: LLMUsage
+
+# ChatTaskInput is the input envelope for a chat LLM task
+class ChatTaskInput(TypedDict, total=False):
+    model: str
+    context_size: int
+    temperature: float
+    top_p: float
+    reasoning_effort: str
+    reasoning_max_tokens: int
+    system_prompt: str
+    context: List[ChatTaskContextMessage]
+    role: ChatMessageRole
+    text: str
+    reasoning: str
+    # Attachments is the SDK input field with full file metadata
+    attachments: List[FileRef]
+    # Images and Files are internal fields for task workers (filled from Attachments or context)
+    images: List[str]
+    files: List[str]
+    tools: List[Tool]
+    tool_call_id: str
+
+# BaseLLMInput contains base configuration for LLM task execution
+class BaseLLMInput(TypedDict, total=False):
+    app_id: str
+    app_version_id: str
+    model: str
+    system_prompt: str
+    tools: List[Tool]
+    context_size: int
+    temperature: float
+    top_p: float
+    reasoning_effort: str
+    reasoning_max_tokens: int
+    # Setup values for the core app (one-time configuration)
+    setup: Any
+
+# ChatTaskContextMessage represents a message in the chat context for LLM tasks
+class ChatTaskContextMessage(TypedDict, total=False):
+    role: ChatMessageRole
+    text: str
+    reasoning: str
+    images: List[str]
+    files: List[str]
+    tools: List[Tool]
+    tool_calls: List[ToolCall]
+    tool_call_id: str
+
+StringEncodedMap = Dict[str, Any]
+
+# FlowViewport represents the viewport state of a flow canvas
+class FlowViewport(TypedDict, total=False):
+    x: float
+    y: float
+    zoom: float
+
+# FlowNode represents a node in a flow graph
+class FlowNode(TypedDict, total=False):
+    id: str
+    type: str
+    position: FlowNodePosition
+
+# FlowNodePosition represents the position of a node
+class FlowNodePosition(TypedDict, total=False):
+    x: float
+    y: float
+
+# FlowEdge represents an edge between nodes in a flow graph
+class FlowEdge(TypedDict, total=False):
+    id: str
+    type: str
+    source: str
+    target: str
+    source_handle: str
+    target_handle: str
+
+# FlowNodeConnection represents a connection between nodes in a flow
+class FlowNodeConnection(TypedDict, total=False):
+    nodeId: str
+    key: str
+    type: str
+    previousValue: Any
+
+# FlowRunInputs maps node IDs to their input key-value pairs
+FlowRunInputs = Dict[str, Dict[str, "FlowRunInput"]]
+
+# FlowRunInput represents a single input value or connection for a flow node
+class FlowRunInput(TypedDict, total=False):
+    Connection: FlowNodeConnection
+    Value: Any
+
+# OutputFieldMapping represents a mapping from a source node's field to an output field
+class OutputFieldMapping(TypedDict, total=False):
+    sourceNodeId: str
+    sourceFieldPath: str
+    outputFieldName: str
+    type: str
+    schema: Any
+
+# OutputMappings is a map of output field name to OutputFieldMapping
+OutputMappings = Dict[str, "OutputFieldMapping"]
+
+# NodePosition represents x,y coordinates
+class NodePosition(TypedDict, total=False):
+    x: float
+    y: float
+
+# CoordinateExtent represents a bounding box with [x1, y1, x2, y2]
+CoordinateExtent = List[float]
+
+# NodeHandle represents a handle on a node for connections
+class NodeHandle(TypedDict, total=False):
+    x: float
+    y: float
+    position: str
+    id: str
+    width: float
+    height: float
+    type: str
+    name: str
+
+# SecretRef tracks which Secret record provided a value for a task (for billing)
+class SecretRef(TypedDict, total=False):
+    key: str
+    id: str
+    team_id: str
+
+# TaskAction defines an action to execute when a task reaches a specific status.
+class TaskAction(TypedDict, total=False):
+    key: str
+    on: str
+    params: Any
+
+# TaskMetadata holds optional metadata attached to a task.
+class TaskMetadata(TypedDict, total=False):
+    action: TaskAction
+
+# ToolCall represents a tool call from an LLM response (wire format)
+# This is a transport object for parsing LLM responses, not a database model
+class ToolCall(TypedDict, total=False):
+    id: str
+    type: str
+    function: ToolCallFunction
+
+# ToolCallFunction contains the function name and arguments from an LLM tool call
+class ToolCallFunction(TypedDict, total=False):
+    name: str
+    arguments: StringEncodedMap
+
+# LLMUsage contains token usage and performance metrics from an LLM response
+class LLMUsage(TypedDict, total=False):
+    stop_reason: str
+    time_to_first_token: float
+    tokens_per_second: float
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    reasoning_tokens: int
+    reasoning_time: float
+
+# FileRef is a lightweight reference to a file with essential metadata.
+# Used in chat inputs/context instead of full File objects.
+class FileRef(TypedDict, total=False):
+    id: str
+    uri: str
+    filename: str
+    content_type: str
+    size: int
+
+# Tool represents a tool definition for LLM function calling
+class Tool(TypedDict, total=False):
+    type: str
+    function: ToolFunction
+
+class ToolFunction(TypedDict, total=False):
+    name: str
+    description: str
+    parameters: ToolParameters
+    required: List[str]
+
+class ToolParameters(TypedDict, total=False):
+    type: str
+    title: str
+    properties: ToolParameterProperties
+    required: List[str]
+
+ToolParameterProperties = Dict[str, "ToolParameterProperty"]
+
+class ToolParameterProperty(TypedDict, total=False):
+    type: str
+    title: str
+    description: str
+    properties: ToolParameterProperties
+    items: ToolParameterProperty
+    required: List[str]
 
 # Legacy aliases for backward compatibility
 StripeCheckoutCreateRequest = CheckoutCreateRequest
 
 StripeCheckoutCompleteRequest = CheckoutCompleteRequest
 
-class AppVersion(BaseModel, TypedDict, total=False):
-    app_id: str
-    metadata: Dict[str, Any]
-    repository: str
-    flow_version_id: str
-    flow_version: FlowVersion
-    setup_schema: Any
-    input_schema: Any
-    output_schema: Any
-    # Functions contains the callable entry points for this app version.
-    # Each function has its own input/output schema. If nil/empty, the app uses legacy single-function mode
-    # with InputSchema/OutputSchema at the version level.
-    functions: Dict[str, AppFunction]
-    default_function: str
-    variants: Dict[str, AppVariant]
-    env: Dict[str, str]
-    kernel: str
-    # App requirements - secrets and integrations needed to run this app
-    required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
-    resources: AppResources
-    # Checksum is the SHA256 checksum of the uploaded zip file
-    checksum: str
+CommentUpdateRequest = CommentCreateRequest
 
-class FlowVersion(BaseModel, TypedDict, total=False):
-    # Permission fields - nullable for migration from existing data
-    # After migration these will be populated from parent Flow
-    user_id: str
-    user: User
-    team_id: str
-    team: Team
-    flow_id: str
-    # ConfigHash for deduplication - SHA256 of config content
-    config_hash: str
-    # GraphVersion is an incrementing counter for optimistic locking on action-based edits
-    graph_version: int
-    # Flow graph configuration
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
+MenuUpdateRequest = MenuCreateRequest
 
-class Team(BaseModel, TypedDict, total=False):
-    type: TeamType
-    username: str
-    email: str
-    name: str
-    avatar_url: str
-    # SetupCompleted indicates whether the team has completed initial setup (chosen a username)
-    # Personal teams start with SetupCompleted=false and a generated temporary username
-    setup_completed: bool
-    # MaxConcurrency limits total active tasks for this team (0 = use default)
-    max_concurrency: int
-    status: TeamStatus
-
-class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
-    user_id: str
-    app_id: str
-    license: str
-
-class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
-    metadata: Dict[str, Any]
-    repository: str
-    flow_version_id: str
-    flow_version: FlowVersionDTO
-    setup_schema: Any
-    input_schema: Any
-    output_schema: Any
-    functions: Dict[str, AppFunction]
-    default_function: str
-    variants: Dict[str, AppVariant]
-    env: Dict[str, str]
-    kernel: str
-    # App requirements
-    required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
-    resources: AppResources
-    # Checksum is the SHA256 checksum of the uploaded zip file
-    checksum: str
-
-class WorkerStateDTO(BaseModelDTO, TypedDict, total=False):
-    user_id: str
-    team_id: str
-    index: int
-    status: str
-    engine_id: str
-    task_id: str
-    app_id: str
-    app_version_id: str
-    active_session_id: str
-    gpus: List[WorkerGPU]
-    cpus: List[WorkerCPU]
-    rams: List[WorkerRAM]
-    system_info: SystemInfo
-    warm_apps: List[str]
-
-class FlowVersionDTO(BaseModelDTO, TypedDict, total=False):
-    graph_version: int
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
-
-# GraphNodeDTO is the API representation of a graph node
-class GraphNodeDTO(BaseModelDTO, TypedDict, total=False):
-    graph_id: str
-    type: GraphNodeType
-    label: str
-    resource_id: str
-    resource_type: str
-    status: GraphNodeStatus
-    metadata: StringEncodedMap
-    ready_at: str
-    started_at: str
-    completed_at: str
-    duration_ms: int
-
-# GraphEdgeDTO is the API representation of a graph edge
-class GraphEdgeDTO(BaseModelDTO, TypedDict, total=False):
-    type: GraphEdgeType
-    from_node: str
-    to_node: str
-
-class TeamDTO(BaseModelDTO, TypedDict, total=False):
-    type: TeamType
-    name: str
-    username: str
-    avatar_url: str
-    email: str
-    setup_completed: bool
-    max_concurrency: int
-    status: TeamStatus
-
-class UserDTO(BaseModelDTO, TypedDict, total=False):
-    default_team_id: str
-    role: str
-    email: str
-    name: str
-    full_name: str
-    avatar_url: str
-    metadata: UserMetadata
-
-class Agent(BaseModel, PermissionModel, TypedDict, total=False):
-    # Basic info
-    namespace: str
-    name: str
-    # Display images (like App)
-    images: AgentImages
-    version_id: str
-    version: AgentVersion
-
-class AgentVersion(BaseModel, PermissionModel, TypedDict, total=False):
-    agent_id: str
-    # ConfigHash for deduplication - SHA256 of config content
-    config_hash: str
-
-class App(BaseModel, PermissionModel, TypedDict, total=False):
-    # Namespace is copied from team.username at creation time and is IMMUTABLE.
-    # This ensures stable references like "namespace/name" even if team username changes.
-    # Default empty string allows GORM migration to add column, then MigrateAppNamespaces populates it.
-    namespace: str
-    # Name is IMMUTABLE after creation. Combined with Namespace forms unique identifier.
-    name: str
-    description: str
-    agent_description: str
-    # Category is a fundamental classification of the app (image, video, audio, text, chat, 3d, other)
-    category: AppCategory
-    # Developer's images
-    images: AppImages
-    # Current version (developer's latest)
-    version_id: str
-    version: AppVersion
-
-# Project represents a container for organizing related resources
-class Project(BaseModel, PermissionModel, TypedDict, total=False):
-    name: str
-    description: str
-    type: ProjectType
-    color: str
-    icon: str
-    # For future: nested folders/projects
-    parent_id: str
-    parent: Project
-    children: List[Optional[Project]]
-
-class Instance(BaseModel, PermissionModel, TypedDict, total=False):
-    cloud: InstanceCloudProvider
-    name: str
-    region: str
-    shade_cloud: bool
-    shade_instance_type: str
-    cloud_instance_type: str
-    cloud_assigned_id: str
-    os: str
-    ssh_key_id: str
-    ssh_user: str
-    ssh_port: int
-    ip: str
-    status: InstanceStatus
-    cost_estimate: str
-    hourly_price: int
-    template_id: str
-    volume_ids: List[str]
-    tags: List[str]
-    configuration: InstanceConfiguration
-    launch_configuration: InstanceLaunchConfiguration
-    auto_delete: InstanceThresholdConfig
-    alert: InstanceThresholdConfig
-    volume_mount: InstanceVolumeMountConfig
-    envs: List[InstanceEnvVar]
+PageUpdateRequest = PageCreateRequest
 
 
 ##########
-# source: usage.go
+# source: models.go
 
-class UsageEvent(BaseModel, PermissionModel, TypedDict, total=False):
-    usage_billing_record_id: str
-    reference_id: str
-    resource_id: str
-    # Resource tier
-    tier: UsageEventResourceTier
-    type: str
-    model: str
-    quantity: int
-    unit: str
-
-class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    description: str
-    system_prompt: str
-    example_prompts: List[str]
-    core_app: CoreAppConfigDTO
-    # Unified tools array (apps, agents, hooks, client)
-    tools: List[Optional[AgentToolDTO]]
-    # Skills available to this agent (loaded on-demand via skill_get tool)
-    skills: List[SkillConfig]
-    # Context declarations
-    context: List[ContextField]
-    # Internal tools configuration (plan, memory, widget, finish, skills)
-    internal_tools: InternalToolsConfig
-    # Output schema for custom finish tool (sub-agents only)
-    output_schema: Any
-
-class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    namespace: str
-    name: str
-    description: str
-    agent_description: str
-    category: AppCategory
-    images: AppImages
-    version_id: str
-    version: AppVersionDTO
+# API Key Scopes - hierarchical permission system.
+# Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
+# Empty scopes = full access (for backwards compatibility with existing keys).
+ScopeAll = "*"
+# Resource-level scopes (implies all actions)
+ScopeAgents = "agents"
+ScopeApps = "apps"
+ScopeConversations = "conversations"
+ScopeFiles = "files"
+ScopeDatastores = "datastores"
+ScopeTemplates = "templates"
+ScopeFlows = "flows"
+ScopeProjects = "projects"
+ScopeTeams = "teams"
+ScopeBilling = "billing"
+# Action-level scopes for Agents
+ScopeAgentsRead = "agents:read"
+ScopeAgentsWrite = "agents:write"
+ScopeAgentsExecute = "agents:execute"
+# Action-level scopes for Apps
+ScopeAppsRead = "apps:read"
+ScopeAppsWrite = "apps:write"
+ScopeAppsExecute = "apps:execute"
+# Action-level scopes for Conversations/Chats
+ScopeConversationsRead = "conversations:read"
+ScopeConversationsWrite = "conversations:write"
+# Action-level scopes for Files
+ScopeFilesRead = "files:read"
+ScopeFilesWrite = "files:write"
+# Action-level scopes for Datastores
+ScopeDatastoresRead = "datastores:read"
+ScopeDatastoresWrite = "datastores:write"
+# Action-level scopes for Flows
+ScopeFlowsRead = "flows:read"
+ScopeFlowsWrite = "flows:write"
+ScopeFlowsExecute = "flows:execute"
+# Action-level scopes for Projects
+ScopeProjectsRead = "projects:read"
+ScopeProjectsWrite = "projects:write"
+# Action-level scopes for Teams
+ScopeTeamsRead = "teams:read"
+ScopeTeamsWrite = "teams:write"
+# Action-level scopes for Billing
+ScopeBillingRead = "billing:read"
+ScopeBillingWrite = "billing:write"
+# Action-level scopes for Secrets (sensitive - not in read/run presets)
+ScopeSecretsRead = "secrets:read"
+ScopeSecretsWrite = "secrets:write"
+# Action-level scopes for Integrations
+ScopeIntegrationsRead = "integrations:read"
+ScopeIntegrationsWrite = "integrations:write"
+# Action-level scopes for Engines
+ScopeEnginesRead = "engines:read"
+ScopeEnginesWrite = "engines:write"
+# Action-level scopes for API Keys
+ScopeApiKeysRead = "apikeys:read"
+ScopeApiKeysWrite = "apikeys:write"
+# Action-level scopes for User profile
+ScopeUserRead = "user:read"
+ScopeUserWrite = "user:write"
+# Action-level scopes for Settings/Notifications
+ScopeSettingsRead = "settings:read"
+ScopeSettingsWrite = "settings:write"
 
 
 ##########
-# source: app_session.go
-
-# AppSessionDTO is the external representation
-class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    worker_id: str
-    app_id: str
-    app_version_id: str
-    status: AppSessionStatus
-    expires_at: str
-    ended_at: str
-    task_id: str
-    call_count: int
-    last_call_at: str
-    idle_timeout: int
-
-class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    parent_id: str
-    parent: ChatDTO
-    children: List[Optional[ChatDTO]]
-    status: ChatStatus
-    output: Any
-    context: Dict[str, str]
-    # Agent version reference
-    agent_id: str
-    agent: AgentDTO
-    agent_version_id: str
-    agent_version: AgentVersionDTO
-    name: str
-    description: str
-    chat_messages: List[ChatMessageDTO]
-    agent_data: ChatData
-
-class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    chat_id: str
-    chat: ChatDTO
-    order: int
-    status: ChatMessageStatus
-    task_id: str
-    role: ChatMessageRole
-    content: List[ChatMessageContent]
-    tools: List[Tool]
-    tool_call_id: str
-    tool_invocations: List[ToolInvocationDTO]
-
-class EngineStateDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    instance: Instance
-    config: EngineConfig
-    name: str
-    api_url: str
-    status: str
-    system_info: SystemInfo
-    workers: List[Optional[WorkerStateDTO]]
-
-class EngineStateSummary(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    instance: Instance
-    name: str
-    status: str
-    workers: List[Optional[WorkerStateSummary]]
-
-class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    path: str
-    remote_path: str
-    upload_url: str
-    uri: str
-    content_type: str
-    size: int
-    filename: str
-    category: str
-    rating: ContentRating
-    metadata: FileMetadata
-
-class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    description: str
-    card_image: str
-    thumbnail: str
-    banner_image: str
-    # Version references
-    draft_version_id: str
-    draft_version: FlowVersionDTO
-    published_version_id: str
-    published_version: FlowVersionDTO
-    # Flattened draft version fields for backward compatibility
-    # These come from the draft version (the editable one)
-    input_schema: Any
-    input: FlowRunInputs
-    output_schema: Any
-    output_mappings: OutputMappings
-    node_data: FlowNodeDataMap
-    nodes: List[FlowNode]
-    edges: List[FlowEdge]
-    viewport: FlowViewport
-
-class FlowRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    flow_id: str
-    flow_version_id: str
-    flow_version: FlowVersionDTO
-    task_id: str
-    status: FlowRunStatus
-    error: str
-    flow_run_started: str
-    flow_run_finished: str
-    flow_run_cancelled: str
-    input: FlowRunInputs
-    fail_on_error: bool
-    output: Any
-    node_tasks: Dict[str, Optional[NodeTaskDTO]]
-
-# IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    provider: str
-    type: str
-    auth: str
-    status: str
-    display_name: str
-    icon_url: str
-    scopes: StringSlice
-    expires_at: str
-    service_account_email: str
-    metadata: Dict[str, Any]
-    account_identifier: str
-    account_name: str
-    is_primary: bool
-    error_message: str
-
-class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    is_featured: bool
-    title: str
-    content: str
-    excerpt: str
-    status: PageStatus
-    type: PageType
-    metadata: PageMetadata
-    slug: str
-
-class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    slug: str
-    description: str
-    items: List[MenuItem]
-
-# ProjectDTO for API responses
-class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    name: str
-    description: str
-    type: ProjectType
-    color: str
-    icon: str
-    parent_id: str
-    parent: ProjectDTO
-    children: List[Optional[ProjectDTO]]
-
-class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    graph_id: str
-    user_public_key: bytes
-    engine_public_key: bytes
-    is_featured: bool
-    status: str
-    app_id: str
-    app: AppDTO
-    app_version_id: str
-    app_version: AppVersionDTO
-    app_variant: str
-    function: str
-    infra: Infra
-    workers: List[str]
-    flow_run_id: str
-    chat_id: str
-    sub_flow_run_id: str
-    agent_id: str
-    agent_version_id: str
-    agent: AgentDTO
-    engine_id: str
-    engine: EngineStateSummary
-    worker_id: str
-    worker: WorkerStateSummary
-    run_at: str
-    webhook: str
-    setup: Any
-    input: Any
-    output: Any
-    error: str
-    rating: ContentRating
-    events: List[TaskEvent]
-    logs: List[TaskLog]
-    usage_events: List[Optional[UsageEvent]]
-    session_id: str
-    session_timeout: int
-
-# ToolInvocationDTO for API responses
-class ToolInvocationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    chat_message_id: str
-    tool_invocation_id: str
-    type: ToolType
-    display_name: str
-    execution_id: str
-    function: ToolInvocationFunction
-    status: ToolInvocationStatus
-    result: str
-    # Unified fields
-    data: Any
-    widget: Widget
-
-SkillFile = KnowledgeFile
-
-# AgentDTO for API responses
-class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
-    namespace: str
-    name: str
-    # Display images (like AppDTO)
-    images: AgentImages
-    version_id: str
-    version: AgentVersionDTO
-
-class ToolType(str, Enum):
-    APP = "app"
-    AGENT = "agent"
-    HOOK = "hook"
-    H_T_T_P = "http"
-    CALL = "call"
-    M_C_P = "mcp"
-    CLIENT = "client"
-    INTERNAL = "internal"
+# source: models.go
 
 class ScopeGroup(str, Enum):
     AGENTS = "agents"
@@ -1999,6 +4119,145 @@ class ScopeGroup(str, Enum):
     USER = "user"
     SETTINGS = "settings"
 
+
+##########
+# source: models.go
+
+# Environment values
+SettingsEnvDev = "dev"
+SettingsEnvProd = "prod"
+
+
+##########
+# source: models.go
+
+# Settings keys by category
+# Email theming
+SettingsKeyEmailSupportEmail = "email.support_email"
+SettingsKeyEmailPrimaryColor = "email.primary_color"
+SettingsKeyEmailLogoURL = "email.logo_url"
+# Email features
+SettingsKeyEmailWelcomeEnabled = "email.welcome_enabled"
+SettingsKeyEmailOnboardingSeriesEnabled = "email.onboarding_series_enabled"
+SettingsKeyEmailUnsubscribeSecret = "email.unsubscribe_secret"
+# SMTP
+SettingsKeySMTPHost = "smtp.host"
+SettingsKeySMTPPort = "smtp.port"
+SettingsKeySMTPUsername = "smtp.username"
+SettingsKeySMTPPassword = "smtp.password"
+SettingsKeySMTPUseTLS = "smtp.use_tls"
+SettingsKeySMTPFromEmail = "smtp.from_email"
+SettingsKeySMTPFromName = "smtp.from_name"
+SettingsKeySMTPReplyTo = "smtp.reply_to"
+# Auth/SSO
+SettingsKeyAuthGoogleClientID = "auth.google.client_id"
+SettingsKeyAuthGoogleClientSecret = "auth.google.client_secret"
+SettingsKeyAuthGitHubClientID = "auth.github.client_id"
+SettingsKeyAuthGitHubClientSecret = "auth.github.client_secret"
+SettingsKeyAuthDiscordClientID = "auth.discord.client_id"
+SettingsKeyAuthDiscordClientSecret = "auth.discord.client_secret"
+SettingsKeyAuthTurnstileSiteKey = "auth.turnstile.site_key"
+SettingsKeyAuthTurnstileSecretKey = "auth.turnstile.secret_key"
+# Storage
+SettingsKeyStorageType = "storage.type"
+SettingsKeyStorageEndpoint = "storage.endpoint"
+SettingsKeyStorageRegion = "storage.region"
+SettingsKeyStorageBucket = "storage.bucket"
+SettingsKeyStorageURL = "storage.url"
+SettingsKeyStorageLocalPath = "storage.local_path"
+SettingsKeyStorageAccessKeyID = "storage.access_key_id"
+SettingsKeyStorageAccessKeySecret = "storage.access_key_secret"
+SettingsKeyStorageSecretKey = "storage.secret_key"
+# Billing
+SettingsKeyBillingStripeSecretKey = "billing.stripe.secret_key"
+SettingsKeyBillingStripeWebhookSecret = "billing.stripe.webhook_secret"
+SettingsKeyBillingStripeCreditProductID = "billing.stripe.credit_product_id"
+# Service Fee
+SettingsKeyBillingServiceFeeRate = "billing.service_fee.rate"
+SettingsKeyBillingServiceFeeBase = "billing.service_fee.base"
+SettingsKeyBillingServiceFeeProductID = "billing.service_fee.product_id"
+# Tax
+SettingsKeyBillingTaxEnabled = "billing.tax.enabled"
+# External Services
+SettingsKeyServicesShadeformAPIURL = "services.shadeform.api_url"
+SettingsKeyServicesShadeformAPIKey = "services.shadeform.api_key"
+SettingsKeyServicesLinearAPIKey = "services.linear.api_key"
+SettingsKeyServicesLinearTeamID = "services.linear.team_id"
+SettingsKeyServicesGitHubImportToken = "services.github.import_token"
+SettingsKeyServicesLogoDevAPIKey = "services.logodev.api_key"
+# Limits
+SettingsKeyLimitsDefaultMaxConcurrentTasks = "limits.default_max_concurrent_tasks"
+# GCP
+SettingsKeyGCPServiceAccountPrefix = "gcp.service_account_prefix"
+SettingsKeyGCPWIFPoolID = "gcp.wif.pool_id"
+SettingsKeyGCPWIFProviderID = "gcp.wif.provider_id"
+SettingsKeyGCPWIFServiceAccount = "gcp.wif.service_account"
+SettingsKeyGCPWIFIssuerURL = "gcp.wif.issuer_url"
+SettingsKeyGCPWIFKeyID = "gcp.wif.key_id"
+# Invoice Issuer (company details for invoices)
+SettingsKeyInvoiceIssuerLegalName = "invoice.issuer.legal_name"
+SettingsKeyInvoiceIssuerAddressLine1 = "invoice.issuer.address_line1"
+SettingsKeyInvoiceIssuerAddressLine2 = "invoice.issuer.address_line2"
+SettingsKeyInvoiceIssuerCity = "invoice.issuer.city"
+SettingsKeyInvoiceIssuerState = "invoice.issuer.state"
+SettingsKeyInvoiceIssuerPostalCode = "invoice.issuer.postal_code"
+SettingsKeyInvoiceIssuerCountry = "invoice.issuer.country"
+SettingsKeyInvoiceIssuerTaxID = "invoice.issuer.tax_id"
+SettingsKeyInvoiceIssuerEmail = "invoice.issuer.email"
+SettingsKeyInvoiceIssuerLogoURL = "invoice.issuer.logo_url"
+SettingsKeyInvoiceNumberPrefix = "invoice.number_prefix"
+
+
+##########
+# source: models.go
+
+# Widget type constants - only two fundamental types
+WidgetTypeUI = "ui"
+WidgetTypeHTML = "html"
+
+
+##########
+# source: models.go
+
+# Task WebSocket events (Engine → API)
+WSEventTaskLog = "task_log"
+WSEventTaskProgress = "task_progress"
+WSEventTaskFailed = "task_failed"
+WSEventTaskAccepted = "task_accepted"
+WSEventTaskRejected = "task_rejected"
+WSEventTaskPreparing = "task_preparing"
+WSEventTaskServing = "task_serving"
+WSEventTaskSettingUp = "task_setting_up"
+WSEventTaskRunning = "task_running"
+WSEventTaskUploading = "task_uploading"
+WSEventTaskCompleted = "task_completed"
+WSEventTaskCancelled = "task_cancelled"
+
+
+##########
+# source: models.go
+
+WSEventTaskRun = "task_run"
+WSEventTaskCancel = "task_cancel"
+WSEventTaskForceCancel = "task_force_cancel"
+WSEventTaskCancelResult = "task_cancel_result"
+WSEventEngineStop = "engine_stop"
+WSEventEngineDrain = "engine_drain"
+WSEventEngineDeleteHFCacheRepo = "engine_delete_hfcache_repo"
+WSEventSessionEnd = "session_end"
+
+
+##########
+# source: models.go
+
+# Engine WebSocket
+WSEventEngineHeartbeat = "engine_heartbeat"
+WSEventEngineTelemetry = "engine_telemetry"
+
+
+##########
+# source: models.go
+
 class AppCategory(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
@@ -2009,6 +4268,10 @@ class AppCategory(str, Enum):
     OTHER = "other"
     FLOW = "flow"
 
+
+##########
+# source: models.go
+
 class GPUType(str, Enum):
     ANY = "any"
     NONE = "none"
@@ -2017,15 +4280,136 @@ class GPUType(str, Enum):
     A_M_D = "amd"
     APPLE = "apple"
 
-class AppSessionStatus(str, Enum):
-    ACTIVE = "active"
-    ENDED = "ended"
-    EXPIRED = "expired"
+
+##########
+# source: models.go
 
 class Visibility(str, Enum):
     PRIVATE = "private"
     PUBLIC = "public"
     UNLISTED = "unlisted"
+
+
+##########
+# source: models.go
+
+class PaymentProvider(str, Enum):
+    NONE = ""
+    STRIPE = "stripe"
+    MANUAL = "manual"
+
+
+##########
+# source: models.go
+
+class BillingStatus(str, Enum):
+    ACTIVE = "active"
+    SPEND_LOCKED = "spend_locked"
+    MANUAL_HOLD = "manual_hold"
+    SUSPENDED = "suspended"
+
+
+##########
+# source: models.go
+
+class CreditGrantType(str, Enum):
+    TOPUP = "topup"
+    AUTO_RECHARGE = "auto_recharge"
+    BANK_TRANSFER = "bank_transfer"
+    TRIAL = "trial"
+    PROMOTION = "promotion"
+    REFERRAL = "referral"
+    SUBSCRIPTION = "subscription"
+
+
+##########
+# source: models.go
+
+class CreditGrantStatus(str, Enum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    VOIDED = "voided"
+
+
+##########
+# source: models.go
+
+class InvoiceType(str, Enum):
+    INVOICE = "invoice"
+    CREDIT_NOTE = "credit_note"
+
+
+##########
+# source: models.go
+
+class InvoiceStatus(str, Enum):
+    DRAFT = "draft"
+    FINALIZED = "finalized"
+    CORRECTED = "corrected"
+    VOIDED = "voided"
+
+
+##########
+# source: models.go
+
+class TaxMode(str, Enum):
+    NONE = "none"
+    V_A_T = "vat"
+    REVERSE_CHARGE = "reverse_charge"
+
+
+##########
+# source: models.go
+
+class SubscriptionStatus(str, Enum):
+    TRIALING = "trialing"
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    PAUSED = "paused"
+
+
+##########
+# source: models.go
+
+class SubscriptionInterval(str, Enum):
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+##########
+# source: models.go
+
+class PaymentRecordStatus(IntEnum):
+    PENDING = 0
+    COMPLETE = 1
+    FAILED = 2
+    EXPIRED = 3
+    PROCESSING = 4
+    REFUNDED = 5
+    DISPUTED = 6
+
+
+##########
+# source: models.go
+
+class PaymentRecordType(str, Enum):
+    CHECKOUT = "checkout"
+    AUTO_RECHARGE = "auto_recharge"
+    MANUAL = "manual"
+    BANK_TRANSFER = "bank_transfer"
+
+
+##########
+# source: models.go
+
+class TransactionType(str, Enum):
+    CREDIT = "credit"
+    DEBIT = "debit"
+
+
+##########
+# source: models.go
 
 class ChatStatus(str, Enum):
     BUSY = "busy"
@@ -2033,11 +4417,19 @@ class ChatStatus(str, Enum):
     AWAITING_INPUT = "awaiting_input"
     COMPLETED = "completed"
 
+
+##########
+# source: models.go
+
 class PlanStepStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
 
 class ChatMessageRole(str, Enum):
     SYSTEM = "system"
@@ -2045,11 +4437,19 @@ class ChatMessageRole(str, Enum):
     ASSISTANT = "assistant"
     TOOL = "tool"
 
+
+##########
+# source: models.go
+
 class ChatMessageStatus(str, Enum):
     PENDING = "pending"
     READY = "ready"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
 
 class ChatMessageContentType(str, Enum):
     TEXT = "text"
@@ -2058,44 +4458,19 @@ class ChatMessageContentType(str, Enum):
     FILE = "file"
     TOOL = "tool"
 
+
+##########
+# source: models.go
+
 class IntegrationType(str, Enum):
     SLACK = "slack"
     DISCORD = "discord"
     TEAMS = "teams"
     TELEGRAM = "telegram"
 
-class FilterOperator(str, Enum):
-    OP_EQUAL = "eq"
-    OP_NOT_EQUAL = "neq"
-    OP_IN = "in"
-    OP_NOT_IN = "not_in"
-    OP_GREATER = "gt"
-    OP_GREATER_EQUAL = "gte"
-    OP_LESS = "lt"
-    OP_LESS_EQUAL = "lte"
-    OP_LIKE = "like"
-    OP_I_LIKE = "ilike"
-    OP_CONTAINS = "contains"
-    OP_NOT_CONTAINS = "not_contains"
-    # Null checks
-    OP_IS_NULL = "is_null"
-    OP_IS_NOT_NULL = "is_not_null"
-    # Empty checks (for strings)
-    OP_IS_EMPTY = "is_empty"
-    OP_IS_NOT_EMPTY = "is_not_empty"
-
 
 ##########
-# source: deviceauth.go
-
-class DeviceAuthStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    EXPIRED = "expired"
-    DENIED = "denied"
-    VALID = "valid"
-    INVALID = "invalid"
-    LOADING = "loading"
+# source: models.go
 
 class EngineStatus(str, Enum):
     RUNNING = "running"
@@ -2104,6 +4479,20 @@ class EngineStatus(str, Enum):
     STOPPING = "stopping"
     STOPPED = "stopped"
 
+
+##########
+# source: models.go
+
+class WorkerStatus(str, Enum):
+    RESERVED = "reserved"
+    BUSY = "busy"
+    IDLE = "idle"
+    INACTIVE = "inactive"
+
+
+##########
+# source: models.go
+
 class FlowRunStatus(IntEnum):
     UNKNOWN = 0
     PENDING = 1
@@ -2111,6 +4500,10 @@ class FlowRunStatus(IntEnum):
     COMPLETED = 3
     FAILED = 4
     CANCELLED = 5
+
+
+##########
+# source: models.go
 
 class GraphNodeType(str, Enum):
     UNKNOWN = "unknown"
@@ -2122,6 +4515,21 @@ class GraphNodeType(str, Enum):
     CONDITIONAL = "conditional"
     FLOW_NODE = "flow_node"
 
+
+##########
+# source: models.go
+
+class GraphStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
+
 class GraphNodeStatus(str, Enum):
     PENDING = "pending"
     READY = "ready"
@@ -2132,6 +4540,10 @@ class GraphNodeStatus(str, Enum):
     SKIPPED = "skipped"
     BLOCKED = "blocked"
 
+
+##########
+# source: models.go
+
 class GraphEdgeType(str, Enum):
     DEPENDENCY = "dependency"
     FLOW = "flow"
@@ -2141,41 +4553,129 @@ class GraphEdgeType(str, Enum):
     ANCESTOR = "ancestor"
     DUPLICATE = "duplicate"
 
+
+##########
+# source: models.go
+
+class SecretScope(str, Enum):
+    # SecretScopeTeam is a normal user secret, visible in team secret lists
+    TEAM = "team"
+    # SecretScopeInternal is an integration-managed secret, hidden from user lists
+    INTERNAL = "internal"
+    # SecretScopeSystem is a global system setting, owned by system team, admin-only
+    SYSTEM = "system"
+
+
+##########
+# source: models.go
+
+class EntitlementSource(str, Enum):
+    TIER = "tier"
+    OVERRIDE = "override"
+    WHITELIST = "whitelist"
+    TRIAL = "trial"
+
+
+##########
+# source: models.go
+
+class EntitlementType(str, Enum):
+    BOOLEAN = "boolean"
+    LIMIT = "limit"
+
+
+##########
+# source: models.go
+
+class EnforcementMode(str, Enum):
+    ENFORCEMENT_BLOCK = "block"
+    ENFORCEMENT_WARN = "warn"
+
+
+##########
+# source: models.go
+
 class PageStatus(IntEnum):
     UNKNOWN = 0
     DRAFT = 1
     PUBLISHED = 2
     ARCHIVED = 3
 
+
+##########
+# source: models.go
+
 class PageType(str, Enum):
     DOC = "doc"
     BLOG = "blog"
     PAGE = "page"
 
-class ProjectType(str, Enum):
-    AGENT = "agent"
-    APP = "app"
-    FLOW = "flow"
-    OTHER = "other"
+
+##########
+# source: models.go
+
+class CommentStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
 
 
 ##########
-# source: rating.go
+# source: models.go
 
-class ContentRating(str, Enum):
-    CONTENT_SAFE = "safe"
-    # sexual content
-    CONTENT_SEXUAL_SUGGESTIVE = "sexual_suggestive"
-    CONTENT_SEXUAL_EXPLICIT = "sexual_explicit"
-    # violence
-    CONTENT_VIOLENCE_NON_GRAPHIC = "violence_non_graphic"
-    CONTENT_VIOLENCE_GRAPHIC = "violence_graphic"
-    # gore
-    CONTENT_GORE = "gore"
-    # other regulated content
-    CONTENT_DRUGS = "drugs"
-    CONTENT_SELF_HARM = "self_harm"
-    CONTENT_UNRATED = "unrated"
+class ToolInvocationStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    AWAITING_INPUT = "awaiting_input"
+    AWAITING_APPROVAL = "awaiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
+
+class ToolFinishStatus(str, Enum):
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
+
+class InternalToolScope(str, Enum):
+    ALL = "all"
+    TOP_LEVEL = "top_level"
+    SUB_AGENT = "sub_agent"
+
+
+##########
+# source: models.go
+
+class ToolType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    HOOK = "hook"
+    H_T_T_P = "http"
+    CALL = "call"
+    M_C_P = "mcp"
+    CLIENT = "client"
+    INTERNAL = "internal"
+
+
+##########
+# source: models.go
+
+class SkillSource(str, Enum):
+    STORE = "store"
+    GIT_HUB = "github"
+
+
+##########
+# source: models.go
 
 class InstanceCloudProvider(str, Enum):
     CLOUD_A_W_S = "aws"
@@ -2192,10 +4692,398 @@ class InstanceCloudProvider(str, Enum):
     CLOUD_VULTR = "vultr"
     CLOUD_SHADE = "shade"
 
+
+##########
+# source: models.go
+
 class InstanceStatus(str, Enum):
     PENDING = "pending"
     ACTIVE = "active"
     DELETED = "deleted"
+
+
+##########
+# source: models.go
+
+class InstanceTypeDeploymentType(str, Enum):
+    V_M = "vm"
+    CONTAINER = "container"
+    BAREMETAL = "baremetal"
+
+
+##########
+# source: models.go
+
+class AppSessionStatus(str, Enum):
+    ACTIVE = "active"
+    ENDED = "ended"
+    EXPIRED = "expired"
+
+
+##########
+# source: models.go
+
+class StoreVersionStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+##########
+# source: models.go
+
+class ProjectType(str, Enum):
+    AGENT = "agent"
+    APP = "app"
+    FLOW = "flow"
+    OTHER = "other"
+
+
+##########
+# source: models.go
+
+class UsageEventResourceTier(str, Enum):
+    PRIVATE = "private"
+    CLOUD = "cloud"
+
+
+##########
+# source: models.go
+
+class MetaItemType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    RAW = "raw"
+
+
+##########
+# source: models.go
+
+class VideoResolution(str, Enum):
+    VIDEO_RES480_P = "480p"
+    VIDEO_RES720_P = "720p"
+    VIDEO_RES1080_P = "1080p"
+    VIDEO_RES1440_P = "1440p"
+    VIDEO_RES4_K = "4k"
+
+
+##########
+# source: models.go
+
+class MCPServerCategory(str, Enum):
+    DEVELOPER = "developer"
+    PRODUCTIVITY = "productivity"
+    DATA = "data"
+    COMMUNICATION = "communication"
+    A_I = "ai"
+    OTHER = "other"
+
+
+##########
+# source: models.go
+
+class MCPServerAuthType(str, Enum):
+    M_C_P_SERVER_AUTH_O_AUTH = "oauth"
+    M_C_P_SERVER_AUTH_A_P_I_KEY = "api_key"
+    M_C_P_SERVER_AUTH_NONE = "none"
+
+
+##########
+# source: models.go
+
+class MCPToolCallStatus(str, Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+##########
+# source: models.go
+
+class OAuthClientType(str, Enum):
+    METADATA_DOCUMENT = "metadata_document"
+    DYNAMIC = "dynamic"
+
+
+##########
+# source: models.go
+
+class AuthChallengeType(str, Enum):
+    AUTH_CHALLENGE_MAGIC_LINK = "magic_link"
+    AUTH_CHALLENGE_DEVICE_AUTH = "device_auth"
+    AUTH_CHALLENGE_O_AUTH_STATE = "oauth_state"
+    AUTH_CHALLENGE_O_T_P_EMAIL = "otp_email"
+    AUTH_CHALLENGE_O_AUTH_CODE = "oauth_code"
+    AUTH_CHALLENGE_O_AUTH_REFRESH = "oauth_refresh"
+    AUTH_CHALLENGE_M_C_P_STATE = "mcp_oauth_state"
+
+
+##########
+# source: models.go
+
+class AuthChallengeStatus(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    APPROVED = "approved"
+    DENIED = "denied"
+    EXPIRED = "expired"
+
+
+##########
+# source: models.go
+
+class TeamInviteStatus(str, Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    EXPIRED = "expired"
+    REVOKED = "revoked"
+
+
+##########
+# source: models.go
+
+class TeamPlanStatus(str, Enum):
+    ACTIVE = "active"
+    CANCELLED = "cancelled"
+    PAST_DUE = "past_due"
+    TRIALING = "trialing"
+    COMPLIMENTARY = "complimentary"
+
+
+##########
+# source: models.go
+
+class RefRouteType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    SKILL = "skill"
+
+
+##########
+# source: models.go
+
+class TriggerKind(str, Enum):
+    WEBHOOK = "webhook"
+    CRON = "cron"
+    POLL = "poll"
+    MANUAL = "manual"
+
+
+##########
+# source: models.go
+
+class LinearIssueState(str, Enum):
+    TRIAGE = "triage"
+    BACKLOG = "backlog"
+    TODO = "todo"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    CANCELED = "canceled"
+
+
+##########
+# source: models.go
+
+class LinearIssuePriority(IntEnum):
+    LINEAR_PRIORITY_NONE = 0
+    LINEAR_PRIORITY_URGENT = 1
+    LINEAR_PRIORITY_HIGH = 2
+    LINEAR_PRIORITY_MEDIUM = 3
+    LINEAR_PRIORITY_LOW = 4
+
+
+##########
+# source: models.go
+
+class LinearIssueType(str, Enum):
+    BUG_REPORT = "bug_report"
+    FEATURE_REQUEST = "feature_request"
+    MODEL_REQUEST = "model_request"
+    QUESTION = "question"
+    OTHER = "other"
+
+
+##########
+# source: models.go
+
+class FilterOperator(str, Enum):
+    OP_EQUAL = "eq"
+    OP_NOT_EQUAL = "neq"
+    OP_IN = "in"
+    OP_NOT_IN = "not_in"
+    OP_GREATER = "gt"
+    OP_GREATER_EQUAL = "gte"
+    OP_LESS = "lt"
+    OP_LESS_EQUAL = "lte"
+    OP_LIKE = "like"
+    OP_I_LIKE = "ilike"
+    OP_CONTAINS = "contains"
+    OP_NOT_CONTAINS = "not_contains"
+    OP_IS_NULL = "is_null"
+    OP_IS_NOT_NULL = "is_not_null"
+    OP_IS_EMPTY = "is_empty"
+    OP_IS_NOT_EMPTY = "is_not_empty"
+
+
+##########
+# source: models.go
+
+class DeviceAuthStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    EXPIRED = "expired"
+    DENIED = "denied"
+    VALID = "valid"
+    INVALID = "invalid"
+    LOADING = "loading"
+
+
+##########
+# source: models.go
+
+class EntitlementResource(str, Enum):
+    RESOURCE_A_P_I_KEYS = "api_keys"
+    RESOURCE_CONNECTORS = "connectors"
+    RESOURCE_KNOWLEDGE_BASES = "knowledge_bases"
+    RESOURCE_PRIVATE_APPS = "private_apps"
+    RESOURCE_STORAGE_M_B = "storage_mb"
+    RESOURCE_CONCURRENCY = "concurrency"
+    RESOURCE_RATE_PER_MIN = "rate_per_min"
+    RESOURCE_SEATS = "seats"
+    RESOURCE_TASK_EXECUTIONS = "task_executions"
+    RESOURCE_FEATURE_SCOPES = "feature:scopes"
+    RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
+    RESOURCE_FEATURE_B_Y_O_K = "feature:byok"
+    RESOURCE_FEATURE_TEAM_BILLING = "feature:team_billing"
+    RESOURCE_FEATURE_AUTO_RECHARGE = "feature:auto_recharge"
+    RESOURCE_FEATURE_INVOICES = "feature:invoices"
+
+
+##########
+# source: models.go
+
+class ContentRating(str, Enum):
+    CONTENT_SAFE = "safe"
+    CONTENT_SEXUAL_SUGGESTIVE = "sexual_suggestive"
+    CONTENT_SEXUAL_EXPLICIT = "sexual_explicit"
+    CONTENT_VIOLENCE_NON_GRAPHIC = "violence_non_graphic"
+    CONTENT_VIOLENCE_GRAPHIC = "violence_graphic"
+    CONTENT_GORE = "gore"
+
+
+##########
+# source: models.go
+
+class WidgetNodeType(str, Enum):
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    IMAGE = "image"
+    BADGE = "badge"
+    BUTTON = "button"
+    INPUT = "input"
+    SELECT = "select"
+    CHECKBOX = "checkbox"
+    ROW = "row"
+    COL = "col"
+    BOX = "box"
+    SPACER = "spacer"
+    DIVIDER = "divider"
+    FORM = "form"
+    TITLE = "title"
+    CAPTION = "caption"
+    LABEL = "label"
+    TEXTAREA = "textarea"
+    RADIO_GROUP = "radio-group"
+    DATE_PICKER = "date-picker"
+    ICON = "icon"
+    CHART = "chart"
+    TRANSITION = "transition"
+    PLAN_LIST = "plan-list"
+    KEY_VALUE = "key-value"
+    STATUS_BADGE = "status-badge"
+
+
+##########
+# source: models.go
+
+class RejectionReason(str, Enum):
+    REJECTION_WORKER_BUSY = "worker_busy"
+    REJECTION_WORKER_NOT_FOUND = "worker_not_found"
+    REJECTION_WORKER_I_D_NIL = "worker_id_nil"
+    REJECTION_ENGINE_DRAINING = "engine_draining"
+
+
+##########
+# source: models.go
+
+class NotificationChannel(str, Enum):
+    EMAIL = "email"
+    S_M_S = "sms"
+    PUSH = "push"
+    SLACK = "slack"
+
+
+##########
+# source: models.go
+
+class NotificationPriority(str, Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+##########
+# source: models.go
+
+class NotificationType(str, Enum):
+    # Billing notifications
+    LOW_BALANCE = "low_balance"
+    AUTO_RECHARGE = "auto_recharge"
+    PAYMENT_SUCCESS = "payment_success"
+    PAYMENT_FAILED = "payment_failed"
+    USAGE_SUMMARY = "usage_summary"
+    SPENDING_LIMIT = "spending_limit"
+    INVOICE = "invoice"
+    # Account notifications
+    WELCOME = "welcome"
+    WELCOME_AGENTS = "welcome_agents"
+    WELCOME_APPS = "welcome_apps"
+    WELCOME_FLOWS = "welcome_flows"
+    WELCOME_S_D_K = "welcome_sdk"
+    PASSWORD_RESET = "password_reset"
+    EMAIL_VERIFY = "email_verify"
+    SECURITY_ALERT = "security_alert"
+    # Task notifications
+    TASK_COMPLETE = "task_complete"
+    TASK_FAILED = "task_failed"
+    # System notifications
+    SYSTEM_ALERT = "system_alert"
+    MAINTENANCE = "maintenance"
+    TOS_UPDATE = "tos_update"
+    SERVICE_NOTICE = "service_notice"
+    # Team notifications
+    TEAM_INVITE = "team_invite"
+
+
+##########
+# source: models.go
+
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+    CANCELLED = "cancelled"
+
+
+##########
+# source: models.go
 
 class TaskStatus(IntEnum):
     UNKNOWN = 0
@@ -2212,10 +5100,18 @@ class TaskStatus(IntEnum):
     FAILED = 11
     CANCELLED = 12
 
+
+##########
+# source: models.go
+
 class Infra(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
     PRIVATE_FIRST = "private_first"
+
+
+##########
+# source: models.go
 
 class TaskLogType(IntEnum):
     BUILD = 0
@@ -2224,71 +5120,54 @@ class TaskLogType(IntEnum):
     SETUP = 3
     TASK = 4
 
+
+##########
+# source: models.go
+
 class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+
+
+##########
+# source: models.go
 
 class TeamStatus(str, Enum):
     ACTIVE = "active"
     SUSPENDED = "suspended"
     TERMINATED = "terminated"
 
+
+##########
+# source: models.go
+
 class TeamRole(str, Enum):
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
 
-class ToolInvocationStatus(str, Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    AWAITING_INPUT = "awaiting_input"
-    AWAITING_APPROVAL = "awaiting_approval"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
-class UsageEventResourceTier(str, Enum):
-    PRIVATE = "private"
-    CLOUD = "cloud"
+##########
+# source: models.go
+
+# Tool types and parameter types
+ToolTypeFunction = "function"
+ToolParamTypeObject = "object"
+ToolParamTypeString = "string"
+ToolParamTypeInteger = "integer"
+ToolParamTypeNumber = "number"
+ToolParamTypeBoolean = "boolean"
+ToolParamTypeArray = "array"
+ToolParamTypeNull = "null"
+
+
+##########
+# source: models.go
 
 class Role(str, Enum):
     GUEST = "guest"
     USER = "user"
     ADMIN = "admin"
     SYSTEM = "system"
-
-class WidgetNodeType(str, Enum):
-    # Primitive node types (render literal values)
-    TEXT = "text"
-    MARKDOWN = "markdown"
-    IMAGE = "image"
-    BADGE = "badge"
-    BUTTON = "button"
-    INPUT = "input"
-    SELECT = "select"
-    CHECKBOX = "checkbox"
-    ROW = "row"
-    COL = "col"
-    # Layout node types
-    BOX = "box"
-    SPACER = "spacer"
-    DIVIDER = "divider"
-    FORM = "form"
-    # Typography node types
-    TITLE = "title"
-    CAPTION = "caption"
-    LABEL = "label"
-    # Control node types
-    TEXTAREA = "textarea"
-    RADIO_GROUP = "radio-group"
-    DATE_PICKER = "date-picker"
-    # Content node types
-    ICON = "icon"
-    CHART = "chart"
-    TRANSITION = "transition"
-    # Data-bound node types (deprecated - use templates instead)
-    PLAN_LIST = "plan-list"
-    KEY_VALUE = "key-value"
-    STATUS_BADGE = "status-badge"
 

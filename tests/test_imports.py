@@ -110,7 +110,7 @@ def test_submodule_importable(module):
     "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
     "AppSessionDTO",
     # Agent config
-    "AgentConfig", "AgentTool", "InternalToolsConfig",
+    "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
 ])

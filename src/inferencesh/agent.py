@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from .types import (
     ChatDTO,
     ChatMessageDTO,
-    AgentConfig,
+    AgentConfigInput as AgentConfig,
     FileRef,
     ToolType,
     ToolInvocationStatus,

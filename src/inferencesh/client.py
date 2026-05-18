@@ -77,7 +77,7 @@ def is_message_ready(status: str | None) -> bool:
 
 
 if TYPE_CHECKING:
-    from .types import AgentConfig
+    from .types import AgentConfigInput as AgentConfig
     from .agent import Agent, AsyncAgent
 
 
