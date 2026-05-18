@@ -6,7 +6,7 @@ from typing import Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference
-    from ..types import AgentConfig
+    from ..types import AgentConfigInput as AgentConfig
     from ..agent import Agent, AsyncAgent
 
 

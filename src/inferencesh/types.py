@@ -1212,6 +1212,8 @@ class ToolFunction(TypedDict, total=False):
     parameters: ToolParameters
     required: Optional[List[str]]
 
+ToolParamType = str  # JSON Schema parameter type ("string", "integer", "object", etc.)
+
 class ToolParameters(TypedDict, total=False):
     type: ToolParamType
     title: str

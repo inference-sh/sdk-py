@@ -79,6 +79,18 @@ def is_message_ready(status: str | None) -> bool:
 if TYPE_CHECKING:
     from .types import AgentConfigInput as AgentConfig
     from .agent import Agent, AsyncAgent
+    from .api import (
+        TasksAPI,
+        AsyncTasksAPI,
+        FilesAPI,
+        AsyncFilesAPI,
+        AgentsAPI,
+        AsyncAgentsAPI,
+        SessionsAPI,
+        AsyncSessionsAPI,
+        SessionHandle,
+        AsyncSessionHandle,
+    )
 
 
 class TaskStream(AbstractContextManager['TaskStream']):
