@@ -276,7 +276,7 @@ class SkillPublishRequest(TypedDict, total=False):
 
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
-    value: str
+    value: Scope
     label: str
     description: str
     group: ScopeGroup
@@ -292,7 +292,7 @@ class ScopePreset(TypedDict, total=False):
     id: str
     label: str
     description: str
-    scopes: List[str]
+    scopes: List[Scope]
 
 # AppPricing configures all pricing using CEL expressions.
 # Empty expressions use defaults. All values in microcents.
@@ -1033,7 +1033,7 @@ class TaskMetadata(TypedDict, total=False):
 # This is a transport object for parsing LLM responses, not a database model
 class ToolCall(TypedDict, total=False):
     id: str
-    type: str
+    type: ToolCallType
     function: ToolCallFunction
 
 # ToolCallFunction contains the function name and arguments from an LLM tool call
@@ -1052,7 +1052,7 @@ class FileRef(TypedDict, total=False):
 
 # Tool represents a tool definition for LLM function calling
 class Tool(TypedDict, total=False):
-    type: str
+    type: ToolCallType
     function: ToolFunction
 
 class ToolFunction(TypedDict, total=False):
@@ -1062,7 +1062,7 @@ class ToolFunction(TypedDict, total=False):
     required: Optional[List[str]]
 
 class ToolParameters(TypedDict, total=False):
-    type: str
+    type: ToolParamType
     title: str
     properties: ToolParameterProperties
     required: Optional[List[str]]
@@ -1070,7 +1070,7 @@ class ToolParameters(TypedDict, total=False):
 ToolParameterProperties = Dict[str, "ToolParameterProperty"]
 
 class ToolParameterProperty(TypedDict, total=False):
-    type: str
+    type: ToolParamType
     title: str
     description: str
     properties: Optional[ToolParameterProperties]
@@ -1447,6 +1447,71 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     version_id: str
     version: Optional[AgentVersionDTO]
 
+# API Key Scopes - hierarchical permission system.
+# Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
+# Empty scopes = full access (for backwards compatibility with existing keys).
+class Scope(str, Enum):
+    ALL = "*"
+    # Resource-level scopes (implies all actions)
+    AGENTS = "agents"
+    APPS = "apps"
+    CONVERSATIONS = "conversations"
+    FILES = "files"
+    DATASTORES = "datastores"
+    TEMPLATES = "templates"
+    FLOWS = "flows"
+    PROJECTS = "projects"
+    TEAMS = "teams"
+    BILLING = "billing"
+    # Action-level scopes for Agents
+    AGENTS_READ = "agents:read"
+    AGENTS_WRITE = "agents:write"
+    AGENTS_EXECUTE = "agents:execute"
+    # Action-level scopes for Apps
+    APPS_READ = "apps:read"
+    APPS_WRITE = "apps:write"
+    APPS_EXECUTE = "apps:execute"
+    # Action-level scopes for Conversations/Chats
+    CONVERSATIONS_READ = "conversations:read"
+    CONVERSATIONS_WRITE = "conversations:write"
+    # Action-level scopes for Files
+    FILES_READ = "files:read"
+    FILES_WRITE = "files:write"
+    # Action-level scopes for Datastores
+    DATASTORES_READ = "datastores:read"
+    DATASTORES_WRITE = "datastores:write"
+    # Action-level scopes for Flows
+    FLOWS_READ = "flows:read"
+    FLOWS_WRITE = "flows:write"
+    FLOWS_EXECUTE = "flows:execute"
+    # Action-level scopes for Projects
+    PROJECTS_READ = "projects:read"
+    PROJECTS_WRITE = "projects:write"
+    # Action-level scopes for Teams
+    TEAMS_READ = "teams:read"
+    TEAMS_WRITE = "teams:write"
+    # Action-level scopes for Billing
+    BILLING_READ = "billing:read"
+    BILLING_WRITE = "billing:write"
+    # Action-level scopes for Secrets (sensitive - not in read/run presets)
+    SECRETS_READ = "secrets:read"
+    SECRETS_WRITE = "secrets:write"
+    # Action-level scopes for Integrations
+    INTEGRATIONS_READ = "integrations:read"
+    INTEGRATIONS_WRITE = "integrations:write"
+    # Action-level scopes for Engines
+    ENGINES_READ = "engines:read"
+    ENGINES_WRITE = "engines:write"
+    # Action-level scopes for API Keys
+    API_KEYS_READ = "apikeys:read"
+    API_KEYS_WRITE = "apikeys:write"
+    # Action-level scopes for User profile
+    USER_READ = "user:read"
+    USER_WRITE = "user:write"
+    # Action-level scopes for Settings/Notifications
+    SETTINGS_READ = "settings:read"
+    SETTINGS_WRITE = "settings:write"
+
 class ScopeGroup(str, Enum):
     AGENTS = "agents"
     APPS = "apps"
@@ -1724,6 +1789,17 @@ class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+
+# Tool types and parameter types
+class ToolCallType(str, Enum):
+    TOOL_TYPE_FUNCTION = "function"
+    TOOL_PARAM_TYPE_OBJECT = "object"
+    TOOL_PARAM_TYPE_STRING = "string"
+    TOOL_PARAM_TYPE_INTEGER = "integer"
+    TOOL_PARAM_TYPE_NUMBER = "number"
+    TOOL_PARAM_TYPE_BOOLEAN = "boolean"
+    TOOL_PARAM_TYPE_ARRAY = "array"
+    TOOL_PARAM_TYPE_NULL = "null"
 
 class Role(str, Enum):
     GUEST = "guest"
