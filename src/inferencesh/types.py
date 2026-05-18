@@ -1201,6 +1201,9 @@ class FileRef(TypedDict, total=False):
     content_type: str
     size: int
 
+# ToolParamType represents JSON Schema primitive types used in tool parameter definitions
+ToolParamType = str
+
 # Tool represents a tool definition for LLM function calling
 class Tool(TypedDict, total=False):
     type: ToolCallType
