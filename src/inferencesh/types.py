@@ -1749,7 +1749,7 @@ class AppCategory(str, Enum):
     AUDIO = "audio"
     TEXT = "text"
     CHAT = "chat"
-    _3_D = "3d"
+    _3D = "3d"
     OTHER = "other"
     FLOW = "flow"
 
@@ -1758,7 +1758,7 @@ class GPUType(str, Enum):
     NONE = "none"
     INTEL = "intel"
     NVIDIA = "nvidia"
-    A_M_D = "amd"
+    AMD = "amd"
     APPLE = "apple"
 
 class Visibility(str, Enum):
@@ -1885,14 +1885,14 @@ class ToolType(str, Enum):
     APP = "app"
     AGENT = "agent"
     HOOK = "hook"
-    H_T_T_P = "http"
+    HTTP = "http"
     CALL = "call"
-    M_C_P = "mcp"
+    MCP = "mcp"
     CLIENT = "client"
     INTERNAL = "internal"
 
 class InstanceCloudProvider(str, Enum):
-    CLOUD_A_W_S = "aws"
+    CLOUD_AWS = "aws"
     CLOUD_AZURE = "azure"
     CLOUD_LAMBDA_LABS = "lambdalabs"
     CLOUD_TENSOR_DOCK = "tensordock"
@@ -1912,7 +1912,7 @@ class InstanceStatus(str, Enum):
     DELETED = "deleted"
 
 class InstanceTypeDeploymentType(str, Enum):
-    V_M = "vm"
+    VM = "vm"
     CONTAINER = "container"
     BAREMETAL = "baremetal"
 
@@ -1939,11 +1939,11 @@ class MetaItemType(str, Enum):
     RAW = "raw"
 
 class VideoResolution(str, Enum):
-    VIDEO_RES480_P = "480p"
-    VIDEO_RES720_P = "720p"
-    VIDEO_RES1080_P = "1080p"
-    VIDEO_RES1440_P = "1440p"
-    VIDEO_RES4_K = "4k"
+    VIDEO_RES480P = "480p"
+    VIDEO_RES720P = "720p"
+    VIDEO_RES1080P = "1080p"
+    VIDEO_RES1440P = "1440p"
+    VIDEO_RES4K = "4k"
 
 class TeamInviteStatus(str, Enum):
     PENDING = "pending"
@@ -1971,18 +1971,18 @@ class FilterOperator(str, Enum):
     OP_IS_NOT_EMPTY = "is_not_empty"
 
 class EntitlementResource(str, Enum):
-    RESOURCE_A_P_I_KEYS = "api_keys"
+    RESOURCE_API_KEYS = "api_keys"
     RESOURCE_CONNECTORS = "connectors"
     RESOURCE_KNOWLEDGE_BASES = "knowledge_bases"
     RESOURCE_PRIVATE_APPS = "private_apps"
-    RESOURCE_STORAGE_M_B = "storage_mb"
+    RESOURCE_STORAGE_MB = "storage_mb"
     RESOURCE_CONCURRENCY = "concurrency"
     RESOURCE_RATE_PER_MIN = "rate_per_min"
     RESOURCE_SEATS = "seats"
     RESOURCE_TASK_EXECUTIONS = "task_executions"
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
     RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
-    RESOURCE_FEATURE_B_Y_O_K = "feature:byok"
+    RESOURCE_FEATURE_BYOK = "feature:byok"
     RESOURCE_FEATURE_TEAM_BILLING = "feature:team_billing"
     RESOURCE_FEATURE_AUTO_RECHARGE = "feature:auto_recharge"
     RESOURCE_FEATURE_INVOICES = "feature:invoices"

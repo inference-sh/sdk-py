@@ -370,7 +370,7 @@ class MCPToolBuilder(_ToolBuilder):
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
-            "type": ToolType.M_C_P,
+            "type": ToolType.MCP,
             "require_approval": self._require_approval or None,
             "mcp": {"integration_id": self._integration_id, "tool_name": self._tool_name},
         }
