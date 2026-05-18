@@ -24,7 +24,7 @@ class AgentTool(TypedDict, total=False):
     name: str
     display_name: str
     description: str
-    type: str
+    type: ToolType
     require_approval: bool
     app: Optional[AppToolConfig]
     agent: Optional[AgentToolConfig]
@@ -56,6 +56,21 @@ class ContextField(TypedDict, total=False):
     description: str
     required: bool
     default: str
+
+# AgentToolDTO for API responses
+class AgentToolDTO(TypedDict, total=False):
+    name: str
+    display_name: str
+    description: str
+    type: ToolType
+    require_approval: bool
+    app: Optional[AppToolConfigDTO]
+    agent: Optional[AgentToolConfigDTO]
+    hook: Optional[HookToolConfigDTO]
+    http: Optional[HTTPToolConfigDTO]
+    call: Optional[HTTPToolConfigDTO]
+    mcp: Optional[MCPToolConfigDTO]
+    client: Optional[ClientToolConfigDTO]
 
 class AppToolConfig(TypedDict, total=False):
     ref: str
@@ -100,6 +115,70 @@ class HTTPToolConfig(TypedDict, total=False):
 class MCPToolConfig(TypedDict, total=False):
     integration_id: str
     tool_name: str
+
+class AppToolConfigDTO(TypedDict, total=False):
+    ref: str
+    id: str
+    version_id: str
+    app: Optional[AppDTO]
+    function: str
+    session_enabled: bool
+    setup: Optional[Any]
+    input: Optional[Any]
+
+class AgentToolConfigDTO(TypedDict, total=False):
+    ref: str
+    id: str
+    version_id: str
+    agent: Optional[AgentDTO]
+
+class HookToolConfigDTO(TypedDict, total=False):
+    url: str
+    secret: str
+    input_schema: Optional[Any]
+    output_schema: Optional[Any]
+
+class ClientToolConfigDTO(TypedDict, total=False):
+    input_schema: Optional[Any]
+    output_schema: Optional[Any]
+
+class HTTPToolConfigDTO(TypedDict, total=False):
+    url: str
+    method: str
+    auth: Optional[ToolAuthConfig]
+    headers: Dict[str, str]
+    input_schema: Any
+    output_schema: Any
+
+class MCPToolConfigDTO(TypedDict, total=False):
+    integration_id: str
+    tool_name: str
+
+# AgentImages contains display images for an agent
+class AgentImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+
+# CoreAppConfigDTO references an app used as the agent's core
+class CoreAppConfigDTO(TypedDict, total=False):
+    id: Optional[str]
+    version_id: Optional[str]
+    ref: Optional[str]
+    app: Optional[AppDTO]
+    setup: Optional[Any]
+    input: Optional[Any]
+
+# CreateAgentRequest is the request body for POST /agents
+# For new agents: omit ID, backend generates it
+# For new version of existing agent: include ID
+class CreateAgentRequest(TypedDict, total=False):
+    id: str
+    name: str
+    namespace: str
+    images: AgentImages
+    # Version config (embedded - backend generates version ID, timestamps, etc)
+    version: Optional[AgentConfigInput]
 
 # AgentConfigInput is the API input shape for agent version config.
 # Mirrors AgentConfig's JSON contract without gorm tags or runtime pointers.
@@ -163,6 +242,18 @@ class ApiAgentRunRequest(TypedDict, total=False):
     context: Dict[str, str]
     stream: bool
 
+# ToolResultRequest represents a tool result submission
+class ToolResultRequest(TypedDict, total=False):
+    result: str
+
+# PartialFile is the clean DTO version (no gorm tags).
+class PartialFile(TypedDict, total=False):
+    uri: str
+    path: Optional[str]
+    content_type: Optional[str]
+    size: Optional[int]
+    filename: Optional[str]
+
 class SkillPublishRequest(TypedDict, total=False):
     namespace: str
     name: str
@@ -183,6 +274,310 @@ class SkillPublishRequest(TypedDict, total=False):
     user_invocable: Optional[bool]
     context: str
 
+# ScopeDefinition describes a single scope for UI rendering
+class ScopeDefinition(TypedDict, total=False):
+    value: str
+    label: str
+    description: str
+    group: ScopeGroup
+
+# ScopeGroupDefinition describes a group of scopes for UI rendering
+class ScopeGroupDefinition(TypedDict, total=False):
+    id: ScopeGroup
+    label: str
+    description: str
+
+# ScopePreset represents a predefined bundle of scopes for common use cases
+class ScopePreset(TypedDict, total=False):
+    id: str
+    label: str
+    description: str
+    scopes: List[str]
+
+# AppPricing configures all pricing using CEL expressions.
+# Empty expressions use defaults. All values in microcents.
+class AppPricing(TypedDict, total=False):
+    prices: Dict[str, int]
+    upstream_pricing: str
+    resource_expression: str
+    inference_expression: str
+    royalty_expression: str
+    partner_expression: str
+    total_expression: str
+    description: str
+    description_rendered: str
+
+# AppFunction represents a callable entry point within an app version.
+class AppFunction(TypedDict, total=False):
+    name: str
+    description: str
+    input_schema: Any
+    output_schema: Any
+
+# AppImages holds developer-provided images for the app.
+class AppImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+
+# AppGPUResource describes GPU requirements.
+class AppGPUResource(TypedDict, total=False):
+    count: int
+    vram: int
+    type: GPUType
+
+# AppResources describes resource requirements.
+class AppResources(TypedDict, total=False):
+    gpu: AppGPUResource
+    ram: int
+
+# AppVariant is a named resource/env configuration variant.
+class AppVariant(TypedDict, total=False):
+    name: str
+    order: int
+    resources: AppResources
+    env: Dict[str, str]
+    python: str
+
+# SecretRequirement defines a secret that an app requires to run.
+class SecretRequirement(TypedDict, total=False):
+    key: str
+    description: str
+    optional: bool
+
+# IntegrationRequirement defines an integration capability that an app requires.
+class IntegrationRequirement(TypedDict, total=False):
+    key: str
+    description: str
+    optional: bool
+
+# AppStoreListingDTO for API responses
+class AppStoreListingDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    deleted_at: Optional[str]
+    category: str
+    subcategory: str
+    page_id: Optional[str]
+    is_featured: bool
+    rank: int
+    allows_private_workers: bool
+    allows_cloud_workers: bool
+    max_concurrency: int
+    max_concurrency_per_team: int
+    tags: List[str]
+
+# PublicAppStoreDTO is a lean DTO for public app store display.
+class PublicAppStoreDTO(TypedDict, total=False):
+    id: str
+    category: str
+    subcategory: str
+    tags: List[str]
+    namespace: str
+    name: str
+    description: str
+    images: AppImages
+    is_featured: bool
+    rank: int
+    has_approved_version: bool
+    page_id: Optional[str]
+
+# BaseModelDTO is the contract-layer base embed — same fields, no gorm tags.
+# All DTOs should embed this instead of BaseModel.
+class BaseModelDTO(TypedDict, total=False):
+    id: str
+    short_id: str
+    created_at: str
+    updated_at: str
+    deleted_at: Optional[str]
+
+# PermissionModelDTO is the contract-layer permission embed.
+class PermissionModelDTO(TypedDict, total=False):
+    user_id: str
+    user: Optional[UserRelationDTO]
+    team_id: str
+    team: Optional[TeamRelationDTO]
+    visibility: Visibility
+
+# ResourceStatusDTO is a lightweight status-only response for polling transports.
+class ResourceStatusDTO(TypedDict, total=False):
+    id: str
+    status: Any
+    updated_at: str
+
+# SearchRequest represents a search request
+class SearchRequest(TypedDict, total=False):
+    fields: List[str]
+    term: str
+    exact: bool
+
+# Filter represents a single filter condition
+class Filter(TypedDict, total=False):
+    field: str
+    operator: FilterOperator
+    value: Any
+
+# SortOrder represents sorting configuration
+class SortOrder(TypedDict, total=False):
+    field: str
+    dir: str
+
+# CursorListRequest represents a cursor-based list request with all options
+class CursorListRequest(TypedDict, total=False):
+    cursor: str
+    page: Optional[int]
+    limit: int
+    direction: str
+    search: Optional[SearchRequest]
+    filters: List[Filter]
+    preloads: List[str]
+    sort: List[SortOrder]
+    fields: List[str]
+    permissions: List[str]
+    include_others: bool
+
+# CursorListResponse represents a cursor-based paginated response
+class CursorListResponse(TypedDict, total=False):
+    items: List[Any]
+    next_cursor: str
+    prev_cursor: str
+    has_next: bool
+    has_previous: bool
+    items_per_page: int
+    total_items: int
+
+# EngineConfig holds engine configuration (no gorm tags).
+class EngineConfig(TypedDict, total=False):
+    id: str
+    name: str
+    api_url: str
+    engine_port: str
+    workers: WorkerConfig
+    api_key: str
+    container_mode: bool
+    network_name: str
+    cache_path: str
+    gpus: List[str]
+    callback_base_port: int
+    engine_internal_api_url: str
+
+# WorkerGPUConfig defines GPU allocation for a worker.
+class WorkerGPUConfig(TypedDict, total=False):
+    gpus: List[Any]
+
+# WorkerCPUConfig defines CPU allocation for a worker.
+class WorkerCPUConfig(TypedDict, total=False):
+    count: int
+
+# WorkerConfig defines how workers are allocated on an engine.
+class WorkerConfig(TypedDict, total=False):
+    gpu: List[WorkerGPUConfig]
+    cpu: WorkerCPUConfig
+
+# WorkerSummary is a lightweight worker response.
+class WorkerSummary(TypedDict, total=False):
+    id: str
+    user_id: str
+    index: int
+    status: WorkerStatus
+    engine_id: str
+    engine_name: str
+    task_id: Optional[str]
+    app_id: str
+    app_version_id: str
+    active_session_id: Optional[str]
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+
+# WorkerGPU describes a GPU attached to a worker (contract-only, no gorm).
+class WorkerGPU(TypedDict, total=False):
+    id: str
+    worker_id: str
+    gpu_id: str
+    type: GPUType
+    name: str
+    vram: int
+
+# WorkerCPU describes a CPU attached to a worker (contract-only, no gorm).
+class WorkerCPU(TypedDict, total=False):
+    id: str
+    worker_id: str
+    name: str
+    vendor_id: str
+    family: str
+    model: str
+    cores: int
+    frequency: str
+
+# WorkerRAM describes RAM attached to a worker (contract-only, no gorm).
+class WorkerRAM(TypedDict, total=False):
+    id: str
+    worker_id: str
+    total: int
+
+# FileMetadata holds probed media metadata cached on File records.
+class FileMetadata(TypedDict, total=False):
+    type: str
+    width: int
+    height: int
+    duration: float
+    fps: float
+    sample_rate: int
+    channels: int
+    codec: str
+
+# FlowNodeData describes a node's data within a flow
+class FlowNodeData(TypedDict, total=False):
+    app: Optional[AppDTO]
+    app_id: str
+    app_version_id: str
+    function: str
+    infra: Infra
+    workers: List[str]
+    setup: Optional[Any]
+    additional: Optional[Any]
+    task: Optional[TaskDTO]
+    task_id: Optional[str]
+
+# FlowNodeDataMap maps node IDs to their data
+FlowNodeDataMap = Dict[str, "FlowNodeData"]
+
+# NodeTaskDTO represents a node task reference
+class NodeTaskDTO(TypedDict, total=False):
+    task_id: str
+    task: Optional[TaskDTO]
+
+# ChatTraceDTO is the trace response for chat observability
+class ChatTraceDTO(TypedDict, total=False):
+    graph_id: str
+    nodes: List[Optional[GraphNodeDTO]]
+    edges: List[Optional[GraphEdgeDTO]]
+    total_steps: int
+    completed_steps: int
+    running_steps: int
+    failed_steps: int
+
+class InstanceTypeConfiguration(TypedDict, total=False):
+    gpu_type: str
+    interconnect: str
+    memory_in_gb: int
+    num_gpus: int
+    os_options: List[str]
+    storage_in_gb: int
+    vcpus: int
+    vram_per_gpu_in_gb: int
+
+class InstanceTypeAvailability(TypedDict, total=False):
+    available: bool
+    region: str
+
+class InstanceTypeBootTime(TypedDict, total=False):
+    average_seconds: int
+    updated_at: str
+    sample_size: int
+
 # KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
     path: str
@@ -190,6 +585,353 @@ class KnowledgeFile(TypedDict, total=False):
     size: int
     hash: str
     content: str
+
+# SkillLineageResponse is returned by the lineage endpoint.
+class SkillLineageResponse(TypedDict, total=False):
+    skill: SkillLineageSkillRef
+    parents: List[SkillLineageSkillRef]
+    siblings: List[SkillLineageSkillRef]
+    forks: List[SkillLineageSkillRef]
+    duplicates: List[SkillLineageSkillRef]
+    fork_depth: int
+
+# SkillLineageSkillRef is a compact skill reference for lineage responses.
+class SkillLineageSkillRef(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    version_count: int
+    parent_version_id: str
+    versions_since_fork: int
+
+# PublicSkillStoreDTO for public skill store display
+class PublicSkillStoreDTO(TypedDict, total=False):
+    id: str
+    category: str
+    tags: List[str]
+    namespace: str
+    name: str
+    description: str
+    is_featured: bool
+    rank: int
+    has_approved_version: bool
+
+# SkillStoreListingDTO for API responses
+class SkillStoreListingDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    deleted_at: Optional[str]
+    category: str
+    is_featured: bool
+    rank: int
+    installs: int
+    uses: int
+    tags: List[str]
+
+# PageMetadata holds metadata for a page
+class PageMetadata(TypedDict, total=False):
+    title: str
+    description: str
+    image: str
+    tags: List[str]
+    order: int
+    type: str
+    icon: str
+    hide_from_nav: bool
+
+# MenuItem represents an item in a menu (can be nested)
+class MenuItem(TypedDict, total=False):
+    id: str
+    label: str
+    slug: str
+    page_id: str
+    url: str
+    icon: str
+    order: int
+    is_group: bool
+    expanded: bool
+    children: List[MenuItem]
+
+# ProjectModelDTO provides optional project association for DTOs
+class ProjectModelDTO(TypedDict, total=False):
+    project_id: Optional[str]
+    project: Optional[ProjectDTO]
+
+# RequirementError represents a single missing requirement with actionable info
+class RequirementError(TypedDict, total=False):
+    type: str
+    key: str
+    message: str
+    action: Optional[SetupAction]
+
+# SetupAction provides actionable info for resolving a missing requirement
+class SetupAction(TypedDict, total=False):
+    type: str
+    provider: str
+    scopes: List[str]
+
+# SDKTypes is a phantom type for gotypegen dependency tracing.
+# Types listed here (and their transitive dependencies) are included
+# in the generated SDK output (TypeScript, Python, Go).
+# 
+# To expose a type to SDK consumers: reference it in this struct.
+class SDKTypes(TypedDict, total=False):
+    pass
+
+# Hardware/System related types
+class SystemInfo(TypedDict, total=False):
+    hostname: str
+    engine_version: str
+    ipv4: str
+    ipv6: str
+    mac_address: str
+    os: str
+    docker: Docker
+    wsl2: WSL2
+    cpus: List[CPU]
+    ram: RAM
+    volumes: List[Volume]
+    hf_cache: HFCacheInfo
+    gpus: List[GPU]
+
+class Docker(TypedDict, total=False):
+    binary_path: str
+    installed: bool
+    socket_path: str
+    socket_available: bool
+    running: bool
+    version: str
+
+class WSL2(TypedDict, total=False):
+    installed: bool
+    enabled: bool
+    version: str
+
+class CPU(TypedDict, total=False):
+    name: str
+    vendor_id: str
+    family: str
+    model: str
+    cores: int
+    frequency: str
+    usage: float
+    normalized_usage: float
+
+class Volume(TypedDict, total=False):
+    name: str
+    size: int
+    used: int
+    free: int
+    usage: float
+
+class RAM(TypedDict, total=False):
+    total: int
+    available: int
+    used: int
+    free: int
+    usage: float
+    total_physical: int
+    total_usable: int
+    bootloader_usage: int
+    swap_total: int
+    swap_used: int
+    swap_free: int
+    swap_usage: float
+
+class GPU(TypedDict, total=False):
+    id: str
+    name: str
+    index: int
+    cuda_version: str
+    driver_version: str
+    memory_used: int
+    memory_total: int
+    temperature: int
+
+# CachedRevisionInfo represents information about a cached revision
+class CachedRevisionInfo(TypedDict, total=False):
+    commit_hash: str
+    snapshot_path: str
+    last_modified: str
+    size_on_disk: int
+    size_on_disk_str: str
+    nb_files: int
+    refs: List[str]
+
+# CachedRepoInfo represents information about a cached repository
+class CachedRepoInfo(TypedDict, total=False):
+    repo_id: str
+    repo_type: str
+    repo_path: str
+    last_accessed: str
+    last_modified: str
+    size_on_disk: int
+    size_on_disk_str: str
+    nb_files: int
+    refs: List[str]
+    revisions: List[CachedRevisionInfo]
+
+# HFCacheInfo represents information about the Huggingface cache
+class HFCacheInfo(TypedDict, total=False):
+    cache_dir: str
+    repos: List[CachedRepoInfo]
+    size_on_disk: int
+    warnings: List[str]
+
+# TaskEvent represents a single status transition event.
+# Duplicated here (no gorm tags) so DTOs can reference it without importing models.
+class TaskEvent(TypedDict, total=False):
+    id: str
+    created_at: str
+    event_time: str
+    task_id: str
+    status: TaskStatus
+
+# TaskLog represents a single log entry for a task.
+class TaskLog(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    task_id: str
+    log_type: TaskLogType
+    content: bytes
+
+# TeamRelationDTO is a lightweight team reference embedded in other DTOs.
+class TeamRelationDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    type: TeamType
+    username: str
+    avatar_url: str
+    setup_completed: bool
+
+# ToolInvocationFunction contains the function details for a tool invocation
+class ToolInvocationFunction(TypedDict, total=False):
+    name: str
+    arguments: StringEncodedMap
+
+# UserRelationDTO is a lightweight user reference embedded in other DTOs.
+class UserRelationDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    role: Role
+    avatar_url: str
+
+# WidgetAction represents an action triggered by a widget button
+class WidgetAction(TypedDict, total=False):
+    type: str
+    payload: Dict[str, Any]
+
+# WidgetActionButton represents a button in a widget's action bar
+class WidgetActionButton(TypedDict, total=False):
+    label: str
+    action: WidgetAction
+    variant: str
+
+# WidgetNode represents a UI element in a widget (text, input, select, etc.)
+class WidgetNode(TypedDict, total=False):
+    type: WidgetNodeType
+    value: str
+    src: str
+    alt: str
+    label: str
+    name: str
+    placeholder: str
+    defaultValue: str
+    variant: str
+    action: Optional[WidgetAction]
+    options: List[WidgetSelectOption]
+    defaultChecked: bool
+    children: List[WidgetNode]
+    gap: int
+    # Layout props (Box, Row, Col, Form)
+    align: str
+    justify: str
+    padding: Any
+    background: Any
+    radius: str
+    direction: str
+    wrap: str
+    flex: Any
+    # Typography props (Text, Title, Caption, Label)
+    size: str
+    weight: str
+    color: Any
+    textAlign: str
+    truncate: bool
+    maxLines: int
+    # Control props (Input, Textarea, Select, Checkbox, RadioGroup, DatePicker, Button)
+    disabled: bool
+    required: bool
+    rows: int
+    fieldName: str
+    submit: bool
+    pattern: str
+    min: str
+    max: str
+    clearable: bool
+    # Action handler for buttons (form data is collected locally and sent with action)
+    onClickAction: Optional[WidgetAction]
+    # Content props (Icon, Spacer, Divider, Chart)
+    iconName: str
+    spacing: Any
+    minSize: Any
+    height: Any
+    width: Any
+    # Chart specific props
+    chartData: Any
+    chartSeries: Any
+    xAxis: Any
+    showYAxis: bool
+    showLegend: bool
+    showTooltip: bool
+    # Form-specific props
+    onSubmitAction: Optional[WidgetAction]
+    # Data binding (deprecated - use templates instead)
+    dataKey: str
+
+# WidgetSelectOption represents an option in a select widget
+class WidgetSelectOption(TypedDict, total=False):
+    label: str
+    value: str
+
+# Widget represents an interactive widget for display in chat
+# Type is either "ui" (structured nodes) or "html" (raw HTML)
+# For "ui" widgets, data-bound nodes read values from ToolInvocation.Data
+class Widget(TypedDict, total=False):
+    type: str
+    interactive: bool
+    title: str
+    html: str
+    json: str
+    children: List[WidgetNode]
+    actions: List[WidgetActionButton]
+
+# ChatData contains agent-specific data for a chat session
+class ChatData(TypedDict, total=False):
+    plan_steps: List[PlanStep]
+    memory: StringEncodedMap
+    always_allowed_tools: List[str]
+
+# PlanStep represents a step in an agent's execution plan
+class PlanStep(TypedDict, total=False):
+    index: int
+    title: str
+    description: str
+    notes: Optional[str]
+    status: PlanStepStatus
+
+# ChatMessageContent represents the content of a chat message
+class ChatMessageContent(TypedDict, total=False):
+    type: ChatMessageContentType
+    error: Optional[str]
+    text: Optional[str]
+    image: Optional[str]
+    file: Optional[str]
+    tool_calls: Optional[List[ToolCall]]
 
 # ChatTaskInput is the input envelope for a chat LLM task
 class ChatTaskInput(TypedDict, total=False):
@@ -224,6 +966,58 @@ class ChatTaskContextMessage(TypedDict, total=False):
     tool_call_id: Optional[str]
 
 StringEncodedMap = Dict[str, Any]
+
+# FlowViewport represents the viewport state of a flow canvas
+class FlowViewport(TypedDict, total=False):
+    x: float
+    y: float
+    zoom: float
+
+# FlowNode represents a node in a flow graph
+class FlowNode(TypedDict, total=False):
+    id: str
+    type: str
+    position: FlowNodePosition
+
+# FlowNodePosition represents the position of a node
+class FlowNodePosition(TypedDict, total=False):
+    x: float
+    y: float
+
+# FlowEdge represents an edge between nodes in a flow graph
+class FlowEdge(TypedDict, total=False):
+    id: str
+    type: str
+    source: str
+    target: str
+    source_handle: Optional[str]
+    target_handle: Optional[str]
+
+# FlowNodeConnection represents a connection between nodes in a flow
+class FlowNodeConnection(TypedDict, total=False):
+    nodeId: str
+    key: str
+    type: str
+    previousValue: Any
+
+# FlowRunInputs maps node IDs to their input key-value pairs
+FlowRunInputs = Dict[str, Dict[str, "FlowRunInput"]]
+
+# FlowRunInput represents a single input value or connection for a flow node
+class FlowRunInput(TypedDict, total=False):
+    Connection: Optional[FlowNodeConnection]
+    Value: Any
+
+# OutputFieldMapping represents a mapping from a source node's field to an output field
+class OutputFieldMapping(TypedDict, total=False):
+    sourceNodeId: str
+    sourceFieldPath: str
+    outputFieldName: str
+    type: str
+    schema: Any
+
+# OutputMappings is a map of output field name to OutputFieldMapping
+OutputMappings = Dict[str, "OutputFieldMapping"]
 
 # TaskAction defines an action to execute when a task reaches a specific status.
 class TaskAction(TypedDict, total=False):
@@ -283,14 +1077,657 @@ class ToolParameterProperty(TypedDict, total=False):
     items: Optional[ToolParameterProperty]
     required: Optional[List[str]]
 
+# AppVersionDTO is the API response for an app version.
+class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    flow_version_id: Optional[str]
+    flow_version: Optional[FlowVersionDTO]
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+    checksum: str
+
+# LicenseRecordDTO is the API response for a license record.
+class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
+    user_id: str
+    app_id: str
+    license: str
+
+# WorkerDTO is the full API response for a worker.
+class WorkerDTO(BaseModelDTO, TypedDict, total=False):
+    user_id: str
+    team_id: str
+    index: int
+    status: WorkerStatus
+    engine_id: str
+    task_id: Optional[str]
+    app_id: str
+    app_version_id: str
+    active_session_id: Optional[str]
+    gpus: List[WorkerGPU]
+    cpus: List[WorkerCPU]
+    rams: List[WorkerRAM]
+    system_info: SystemInfo
+    warm_apps: List[str]
+
+# FlowVersionDTO for API responses
+class FlowVersionDTO(BaseModelDTO, TypedDict, total=False):
+    graph_version: int
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: Optional[FlowViewport]
+
+# GraphNodeDTO is the API representation of a graph node
+class GraphNodeDTO(BaseModelDTO, TypedDict, total=False):
+    graph_id: str
+    type: GraphNodeType
+    label: str
+    resource_id: str
+    resource_type: str
+    status: GraphNodeStatus
+    metadata: StringEncodedMap
+    ready_at: Optional[str]
+    started_at: Optional[str]
+    completed_at: Optional[str]
+    duration_ms: Optional[int]
+
+# GraphEdgeDTO is the API representation of a graph edge
+class GraphEdgeDTO(BaseModelDTO, TypedDict, total=False):
+    type: GraphEdgeType
+    from_node: str
+    to_node: str
+
+class SkillVersionDTO(BaseModelDTO, TypedDict, total=False):
+    skill_id: str
+    instructions: KnowledgeFile
+    files: List[KnowledgeFile]
+    content_hash: str
+    description: str
+    tags: List[str]
+    allowed_tools: str
+    compatibility: str
+    license: str
+    source_url: str
+    mutation_type: str
+    version_notes: str
+    disable_model_invocation: bool
+    user_invocable: Optional[bool]
+    context: str
+    metadata: Dict[str, str]
+
+class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    description: str
+    system_prompt: str
+    example_prompts: List[str]
+    core_app: Optional[CoreAppConfigDTO]
+    tools: List[Optional[AgentToolDTO]]
+    skills: List[SkillConfig]
+    context: List[ContextField]
+    internal_tools: Optional[InternalToolsConfig]
+    output_schema: Optional[Any]
+
+# AppDTO is the API response for a full app.
+class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    agent_description: str
+    category: AppCategory
+    images: AppImages
+    version_id: str
+    version: Optional[AppVersionDTO]
+
+# AppSessionDTO is the external representation
+class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    worker_id: str
+    app_id: str
+    app_version_id: str
+    status: AppSessionStatus
+    expires_at: str
+    ended_at: Optional[str]
+    task_id: Optional[str]
+    call_count: int
+    last_call_at: Optional[str]
+    idle_timeout: Optional[int]
+
+# ChatDTO for API responses
+class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    parent_id: Optional[str]
+    parent: Optional[ChatDTO]
+    children: List[Optional[ChatDTO]]
+    status: ChatStatus
+    output: Optional[Any]
+    context: Dict[str, str]
+    agent_id: Optional[str]
+    agent: Optional[AgentDTO]
+    agent_version_id: Optional[str]
+    agent_version: Optional[AgentVersionDTO]
+    name: str
+    description: str
+    chat_messages: List[ChatMessageDTO]
+    agent_data: ChatData
+
+# ChatMessageDTO for API responses
+class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    chat_id: str
+    chat: Optional[ChatDTO]
+    order: int
+    status: ChatMessageStatus
+    task_id: Optional[str]
+    role: ChatMessageRole
+    content: List[ChatMessageContent]
+    tools: Optional[List[Tool]]
+    tool_call_id: Optional[str]
+    tool_invocations: Optional[List[ToolInvocationDTO]]
+
+# EngineDTO is the full API response for an engine.
+class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    instance: Optional[InstanceDTO]
+    config: EngineConfig
+    name: str
+    api_url: str
+    status: EngineStatus
+    system_info: Optional[SystemInfo]
+    workers: List[Optional[WorkerDTO]]
+
+# EngineSummary is a lightweight engine response embedded in tasks.
+class EngineSummary(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    instance: Optional[InstanceDTO]
+    name: str
+    status: EngineStatus
+    workers: List[Optional[WorkerSummary]]
+
+# FileDTO for API responses
+class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    path: str
+    remote_path: str
+    upload_url: str
+    uri: str
+    content_type: str
+    size: int
+    filename: str
+    category: str
+    rating: ContentRating
+    metadata: Optional[FileMetadata]
+
+# FlowDTO for API responses
+class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    card_image: str
+    thumbnail: str
+    banner_image: str
+    draft_version_id: str
+    draft_version: Optional[FlowVersionDTO]
+    published_version_id: str
+    published_version: Optional[FlowVersionDTO]
+    input_schema: Any
+    input: FlowRunInputs
+    output_schema: Any
+    output_mappings: OutputMappings
+    node_data: FlowNodeDataMap
+    nodes: List[FlowNode]
+    edges: List[FlowEdge]
+    viewport: Optional[FlowViewport]
+
+# FlowRunDTO for API responses
+class FlowRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    flow_id: str
+    flow_version_id: str
+    flow_version: Optional[FlowVersionDTO]
+    task_id: Optional[str]
+    status: FlowRunStatus
+    error: Optional[str]
+    flow_run_started: Optional[str]
+    flow_run_finished: Optional[str]
+    flow_run_cancelled: Optional[str]
+    input: FlowRunInputs
+    fail_on_error: bool
+    output: Any
+    node_tasks: Dict[str, Optional[NodeTaskDTO]]
+
+# InstanceDTO is the API representation of a cloud instance.
+class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    name: str
+    region: str
+    shade_cloud: bool
+    shade_instance_type: str
+    cloud_instance_type: str
+    cloud_assigned_id: str
+    os: str
+    ssh_key_id: str
+    ssh_user: str
+    ssh_port: int
+    ip: str
+    status: InstanceStatus
+    cost_estimate: str
+    hourly_price: int
+    template_id: str
+    volume_ids: List[str]
+    tags: List[str]
+    configuration: Any
+    launch_configuration: Any
+    auto_delete: Any
+    alert: Any
+    volume_mount: Any
+    envs: Any
+
+# InstanceTypeDTO is the API representation of a cloud instance type.
+class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    region: str
+    shade_instance_type: str
+    cloud_instance_type: str
+    deployment_type: InstanceTypeDeploymentType
+    hourly_price: int
+    configuration: Optional[InstanceTypeConfiguration]
+    availability: List[InstanceTypeAvailability]
+    boot_time: Optional[InstanceTypeBootTime]
+
+# SkillDTO for API responses (backward-compatible naming)
+class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    repo_url: str
+    version_id: str
+    version: Optional[SkillVersionDTO]
+
+# PageDTO for API responses
+class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    is_featured: bool
+    title: str
+    content: str
+    excerpt: str
+    status: PageStatus
+    type: PageType
+    metadata: PageMetadata
+    slug: str
+
+# MenuDTO for API responses
+class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    slug: str
+    description: str
+    items: List[MenuItem]
+
+# ProjectDTO for API responses
+class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    type: ProjectType
+    color: Optional[str]
+    icon: Optional[str]
+    parent_id: Optional[str]
+    parent: Optional[ProjectDTO]
+    children: List[Optional[ProjectDTO]]
+
+# TaskDTO is the full API response for a task.
+class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    graph_id: Optional[str]
+    user_public_key: bytes
+    engine_public_key: bytes
+    is_featured: bool
+    status: TaskStatus
+    app_id: str
+    app: Optional[AppDTO]
+    app_version_id: str
+    app_version: Optional[AppVersionDTO]
+    app_variant: str
+    function: str
+    infra: Infra
+    workers: List[str]
+    flow_run_id: Optional[str]
+    chat_id: Optional[str]
+    sub_flow_run_id: Optional[str]
+    agent_id: Optional[str]
+    agent_version_id: Optional[str]
+    agent: Optional[AgentDTO]
+    engine_id: Optional[str]
+    engine: Optional[EngineSummary]
+    worker_id: Optional[str]
+    worker: Optional[WorkerSummary]
+    run_at: Optional[str]
+    webhook: Optional[str]
+    setup: Optional[Any]
+    input: Any
+    output: Any
+    error: Optional[str]
+    rating: ContentRating
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+    usage_events: List[Optional[UsageEventDTO]]
+    session_id: Optional[str]
+    session_timeout: Optional[int]
+
+# ToolInvocationDTO for API responses
+class ToolInvocationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    chat_message_id: str
+    tool_invocation_id: str
+    type: ToolType
+    display_name: str
+    execution_id: Optional[str]
+    function: ToolInvocationFunction
+    status: ToolInvocationStatus
+    result: Optional[str]
+    data: Optional[Any]
+    widget: Optional[Widget]
+
+# UsageEventDTO is the API representation of a usage event.
+class UsageEventDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    usage_billing_record_id: str
+    reference_id: str
+    resource_id: str
+    tier: UsageEventResourceTier
+    type: str
+    model: str
+    quantity: int
+    unit: str
+
+# AgentDTO for API responses
+class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    images: AgentImages
+    version_id: str
+    version: Optional[AgentVersionDTO]
+
+class ScopeGroup(str, Enum):
+    AGENTS = "agents"
+    APPS = "apps"
+    CONVERSATIONS = "conversations"
+    FILES = "files"
+    DATASTORES = "datastores"
+    FLOWS = "flows"
+    PROJECTS = "projects"
+    TEAMS = "teams"
+    BILLING = "billing"
+    SECRETS = "secrets"
+    INTEGRATIONS = "integrations"
+    ENGINES = "engines"
+    API_KEYS = "apikeys"
+    USER = "user"
+    SETTINGS = "settings"
+
+class AppCategory(str, Enum):
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    TEXT = "text"
+    CHAT = "chat"
+    _3_D = "3d"
+    OTHER = "other"
+    FLOW = "flow"
+
+class GPUType(str, Enum):
+    ANY = "any"
+    NONE = "none"
+    INTEL = "intel"
+    NVIDIA = "nvidia"
+    A_M_D = "amd"
+    APPLE = "apple"
+
+class Visibility(str, Enum):
+    PRIVATE = "private"
+    PUBLIC = "public"
+    UNLISTED = "unlisted"
+
+class ChatStatus(str, Enum):
+    BUSY = "busy"
+    IDLE = "idle"
+    AWAITING_INPUT = "awaiting_input"
+    COMPLETED = "completed"
+
+class PlanStepStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
 class ChatMessageRole(str, Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
 
+class ChatMessageStatus(str, Enum):
+    PENDING = "pending"
+    READY = "ready"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ChatMessageContentType(str, Enum):
+    TEXT = "text"
+    REASONING = "reasoning"
+    IMAGE = "image"
+    FILE = "file"
+    TOOL = "tool"
+
+class EngineStatus(str, Enum):
+    RUNNING = "running"
+    PENDING = "pending"
+    DRAINING = "draining"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+
+class WorkerStatus(str, Enum):
+    RESERVED = "reserved"
+    BUSY = "busy"
+    IDLE = "idle"
+    INACTIVE = "inactive"
+
+class FlowRunStatus(IntEnum):
+    UNKNOWN = 0
+    PENDING = 1
+    RUNNING = 2
+    COMPLETED = 3
+    FAILED = 4
+    CANCELLED = 5
+
+class GraphNodeType(str, Enum):
+    UNKNOWN = "unknown"
+    JOIN = "join"
+    SPLIT = "split"
+    EXECUTION = "execution"
+    RESOURCE = "resource"
+    APPROVAL = "approval"
+    CONDITIONAL = "conditional"
+    FLOW_NODE = "flow_node"
+
+class GraphNodeStatus(str, Enum):
+    PENDING = "pending"
+    READY = "ready"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+    BLOCKED = "blocked"
+
+class GraphEdgeType(str, Enum):
+    DEPENDENCY = "dependency"
+    FLOW = "flow"
+    CONDITIONAL = "conditional"
+    EXECUTION = "execution"
+    PARENT = "parent"
+    ANCESTOR = "ancestor"
+    DUPLICATE = "duplicate"
+
+class PageStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+
+class PageType(str, Enum):
+    DOC = "doc"
+    BLOG = "blog"
+    PAGE = "page"
+
+class ToolInvocationStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    AWAITING_INPUT = "awaiting_input"
+    AWAITING_APPROVAL = "awaiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ToolType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    HOOK = "hook"
+    H_T_T_P = "http"
+    CALL = "call"
+    M_C_P = "mcp"
+    CLIENT = "client"
+    INTERNAL = "internal"
+
+class InstanceCloudProvider(str, Enum):
+    CLOUD_A_W_S = "aws"
+    CLOUD_AZURE = "azure"
+    CLOUD_LAMBDA_LABS = "lambdalabs"
+    CLOUD_TENSOR_DOCK = "tensordock"
+    CLOUD_RUN_POD = "runpod"
+    CLOUD_LATITUDE = "latitude"
+    CLOUD_JARVIS_LABS = "jarvislabs"
+    CLOUD_OBLIVUS = "oblivus"
+    CLOUD_PAPERSPACE = "paperspace"
+    CLOUD_DATACRUNCH = "datacrunch"
+    CLOUD_MASSED_COMPUTE = "massedcompute"
+    CLOUD_VULTR = "vultr"
+    CLOUD_SHADE = "shade"
+
+class InstanceStatus(str, Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    DELETED = "deleted"
+
+class InstanceTypeDeploymentType(str, Enum):
+    V_M = "vm"
+    CONTAINER = "container"
+    BAREMETAL = "baremetal"
+
+class AppSessionStatus(str, Enum):
+    ACTIVE = "active"
+    ENDED = "ended"
+    EXPIRED = "expired"
+
+class ProjectType(str, Enum):
+    AGENT = "agent"
+    APP = "app"
+    FLOW = "flow"
+    OTHER = "other"
+
+class UsageEventResourceTier(str, Enum):
+    PRIVATE = "private"
+    CLOUD = "cloud"
+
+class FilterOperator(str, Enum):
+    OP_EQUAL = "eq"
+    OP_NOT_EQUAL = "neq"
+    OP_IN = "in"
+    OP_NOT_IN = "not_in"
+    OP_GREATER = "gt"
+    OP_GREATER_EQUAL = "gte"
+    OP_LESS = "lt"
+    OP_LESS_EQUAL = "lte"
+    OP_LIKE = "like"
+    OP_I_LIKE = "ilike"
+    OP_CONTAINS = "contains"
+    OP_NOT_CONTAINS = "not_contains"
+    OP_IS_NULL = "is_null"
+    OP_IS_NOT_NULL = "is_not_null"
+    OP_IS_EMPTY = "is_empty"
+    OP_IS_NOT_EMPTY = "is_not_empty"
+
+class ContentRating(str, Enum):
+    CONTENT_SAFE = "safe"
+    CONTENT_SEXUAL_SUGGESTIVE = "sexual_suggestive"
+    CONTENT_SEXUAL_EXPLICIT = "sexual_explicit"
+    CONTENT_VIOLENCE_NON_GRAPHIC = "violence_non_graphic"
+    CONTENT_VIOLENCE_GRAPHIC = "violence_graphic"
+    CONTENT_GORE = "gore"
+    CONTENT_UNRATED = "unrated"
+
+class WidgetNodeType(str, Enum):
+    TEXT = "text"
+    MARKDOWN = "markdown"
+    IMAGE = "image"
+    BADGE = "badge"
+    BUTTON = "button"
+    INPUT = "input"
+    SELECT = "select"
+    CHECKBOX = "checkbox"
+    ROW = "row"
+    COL = "col"
+    BOX = "box"
+    SPACER = "spacer"
+    DIVIDER = "divider"
+    FORM = "form"
+    TITLE = "title"
+    CAPTION = "caption"
+    LABEL = "label"
+    TEXTAREA = "textarea"
+    RADIO_GROUP = "radio-group"
+    DATE_PICKER = "date-picker"
+    ICON = "icon"
+    CHART = "chart"
+    TRANSITION = "transition"
+    PLAN_LIST = "plan-list"
+    KEY_VALUE = "key-value"
+    STATUS_BADGE = "status-badge"
+
+class TaskStatus(IntEnum):
+    UNKNOWN = 0
+    RECEIVED = 1
+    QUEUED = 2
+    DISPATCHED = 3
+    PREPARING = 4
+    SERVING = 5
+    SETTING_UP = 6
+    RUNNING = 7
+    CANCELLING = 8
+    UPLOADING = 9
+    COMPLETED = 10
+    FAILED = 11
+    CANCELLED = 12
+
 class Infra(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
     PRIVATE_FIRST = "private_first"
+
+class TaskLogType(IntEnum):
+    BUILD = 0
+    RUN = 1
+    SERVE = 2
+    SETUP = 3
+    TASK = 4
+
+class TeamType(str, Enum):
+    PERSONAL = "personal"
+    TEAM = "team"
+    SYSTEM = "system"
+
+class Role(str, Enum):
+    GUEST = "guest"
+    USER = "user"
+    ADMIN = "admin"
+    SYSTEM = "system"
 
