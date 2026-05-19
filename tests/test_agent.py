@@ -170,3 +170,68 @@ def test_stream_all_dispatches_client_tool_once(monkeypatch, patch_agent_request
     agent.stream_all(on_tool_call=lambda info: seen.append(info.id))
 
     assert seen == ["inv_dup"]
+
+
+@pytest.mark.asyncio
+async def test_async_agent_stream_messages_yields_chat_message_events(monkeypatch, patch_agent_requests):
+    from inferencesh import AsyncInference
+
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    async def fake_send(text, **kwargs):
+        agent._chat_id = "chat_1"
+        return {"id": "msg_1", "chat_id": "chat_1", "text": "Hi", "role": "assistant"}
+
+    async def fake_stream(endpoint):
+        assert endpoint == "/chats/chat_1/stream"
+        yield ("chat_messages", {"id": "msg_2", "text": "Update", "role": "assistant"})
+        yield ("chats", {"id": "chat_1", "status": "idle"})
+
+    monkeypatch.setattr(agent, "send_message", fake_send)
+    monkeypatch.setattr(agent, "_stream_typed_ndjson", fake_stream)
+
+    await agent.send_message("Hi")
+    messages = [msg async for msg in agent.stream_messages()]
+
+    assert len(messages) == 1
+    assert messages[0]["text"] == "Update"
+
+
+@pytest.mark.asyncio
+async def test_async_agent_stream_chat_yields_chat_events(monkeypatch, patch_agent_requests):
+    from inferencesh import AsyncInference
+
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    async def fake_send(text, **kwargs):
+        agent._chat_id = "chat_1"
+        return {"id": "msg_1", "chat_id": "chat_1", "text": "Hi", "role": "assistant"}
+
+    async def fake_stream(endpoint):
+        yield ("chat_messages", {"id": "msg_1", "text": "Hi", "role": "assistant"})
+        yield ("chats", {"id": "chat_1", "status": "busy"})
+        yield ("chats", {"id": "chat_1", "status": "idle"})
+
+    monkeypatch.setattr(agent, "send_message", fake_send)
+    monkeypatch.setattr(agent, "_stream_typed_ndjson", fake_stream)
+
+    await agent.send_message("Hi")
+    chats = [chat async for chat in agent.stream_chat()]
+
+    assert len(chats) == 2
+    assert chats[0]["status"] == "busy"
+    assert chats[1]["status"] == "idle"
+
+
+@pytest.mark.asyncio
+async def test_async_agent_stream_requires_active_chat(monkeypatch):
+    from inferencesh import AsyncInference
+
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    with pytest.raises(RuntimeError, match="No active chat"):
+        async for _ in agent.stream_messages():
+            pass
