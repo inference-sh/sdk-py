@@ -1212,8 +1212,6 @@ class ToolFunction(TypedDict, total=False):
     parameters: ToolParameters
     required: Optional[List[str]]
 
-ToolParamType = str  # JSON Schema parameter type ("string", "integer", "object", etc.)
-
 class ToolParameters(TypedDict, total=False):
     type: ToolParamType
     title: str
@@ -1525,10 +1523,10 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 
 # IntegrationDTO for API responses (never exposes tokens)
 class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    provider: str
-    type: str
-    auth: str
-    status: str
+    provider: IntegrationProvider
+    type: IntegrationAuthType
+    auth: IntegrationAuthType
+    status: IntegrationStatus
     display_name: str
     icon_url: str
     scopes: StringSlice
@@ -1909,8 +1907,12 @@ class InstanceCloudProvider(str, Enum):
     CLOUD_SHADE = "shade"
 
 class InstanceStatus(str, Enum):
+    CREATING = "creating"
+    PENDING_PROVIDER = "pending_provider"
     PENDING = "pending"
     ACTIVE = "active"
+    ERROR = "error"
+    DELETING = "deleting"
     DELETED = "deleted"
 
 class InstanceTypeDeploymentType(str, Enum):
@@ -1999,6 +2001,32 @@ class ContentRating(str, Enum):
     CONTENT_GORE = "gore"
     CONTENT_UNRATED = "unrated"
 
+class IntegrationProvider(str, Enum):
+    GOOGLE = "google"
+    SLACK = "slack"
+    NOTION = "notion"
+    GIT_HUB = "github"
+    X = "x"
+    MICROSOFT = "microsoft"
+    SALESFORCE = "salesforce"
+    DISCORD = "discord"
+    GCP = "gcp"
+    MCP = "mcp"
+    REDDIT = "reddit"
+
+class IntegrationAuthType(str, Enum):
+    SERVICE_ACCOUNT = "service_account"
+    O_AUTH = "oauth"
+    API_KEY = "api_key"
+    WIF = "wif"
+    MCP = "mcp"
+
+class IntegrationStatus(str, Enum):
+    CONNECTED = "connected"
+    DISCONNECTED = "disconnected"
+    EXPIRED = "expired"
+    ERROR = "error"
+
 class WidgetNodeType(str, Enum):
     TEXT = "text"
     MARKDOWN = "markdown"
@@ -2069,16 +2097,19 @@ class TeamRole(str, Enum):
     ADMIN = "admin"
     MEMBER = "member"
 
-# Tool types and parameter types
+# Tool call types
 class ToolCallType(str, Enum):
     TOOL_TYPE_FUNCTION = "function"
-    TOOL_PARAM_TYPE_OBJECT = "object"
-    TOOL_PARAM_TYPE_STRING = "string"
-    TOOL_PARAM_TYPE_INTEGER = "integer"
-    TOOL_PARAM_TYPE_NUMBER = "number"
-    TOOL_PARAM_TYPE_BOOLEAN = "boolean"
-    TOOL_PARAM_TYPE_ARRAY = "array"
-    TOOL_PARAM_TYPE_NULL = "null"
+
+# Tool parameter types
+class ToolParamType(str, Enum):
+    OBJECT = "object"
+    STRING = "string"
+    INTEGER = "integer"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    ARRAY = "array"
+    NULL = "null"
 
 class Role(str, Enum):
     GUEST = "guest"
