@@ -130,6 +130,49 @@ def patch_requests(monkeypatch):
     yield fake_requests
 
 
+def test_process_input_uploads_base64_string(monkeypatch, patch_requests):
+    """Long valid base64 strings in input are uploaded and replaced with URIs."""
+    import base64
+
+    client = Inference(api_key="test")
+    payload = base64.b64encode(b"hello world data").decode("ascii")
+
+    task = client.run({
+        "app": "some/app",
+        "input": {"blob": payload},
+    }, wait=False)
+
+    assert task["input"]["blob"].startswith("https://cloud.inference.sh/")
+    assert len(patch_requests.put_calls) == 1
+
+
+def test_process_input_uploads_data_uri(monkeypatch, patch_requests):
+    """data: URIs in input are uploaded and replaced with URIs."""
+    client = Inference(api_key="test")
+    data_uri = "data:text/plain;base64,aGVsbG8="
+
+    task = client.run({
+        "app": "some/app",
+        "input": {"doc": data_uri},
+    }, wait=False)
+
+    assert task["input"]["doc"].startswith("https://cloud.inference.sh/")
+    assert len(patch_requests.put_calls) == 1
+
+
+def test_short_strings_are_not_treated_as_base64(monkeypatch, patch_requests):
+    """Plain short strings must not trigger spurious file uploads."""
+    client = Inference(api_key="test")
+
+    task = client.run({
+        "app": "some/app",
+        "input": {"label": "hello"},
+    }, wait=False)
+
+    assert task["input"]["label"] == "hello"
+    assert patch_requests.put_calls == []
+
+
 def test_run_raises_requirements_not_met_on_412(monkeypatch, patch_requests):
     """412 with errors array must raise RequirementsNotMetError (not APIError)."""
     import inferencesh.client as client_mod
@@ -536,6 +579,62 @@ def patch_aiohttp(monkeypatch):
     monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
     
     return mock_aiohttp
+
+
+@pytest.mark.asyncio
+async def test_async_run_raises_requirements_not_met_on_412(monkeypatch):
+    """Async 412 with errors array must raise RequirementsNotMetError."""
+    import inferencesh.client as client_mod
+
+    class FailingResponse:
+        def __init__(self):
+            self.status = 412
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return False
+
+        async def text(self):
+            return json.dumps({
+                "errors": [{"type": "secret", "key": "API_KEY", "message": "Missing API_KEY"}],
+            })
+
+        async def json(self):
+            return json.loads(await self.text())
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class FailingClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            if url.endswith("/apps/run"):
+                return FailingResponse()
+            return MockAsyncResponse()
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: FailingClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(RequirementsNotMetError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.errors[0].key == "API_KEY"
 
 
 @pytest.mark.asyncio

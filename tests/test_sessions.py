@@ -1,0 +1,222 @@
+"""Unit tests for Sessions API and SessionHandle (mocked HTTP)."""
+
+import json
+from unittest.mock import MagicMock
+
+import pytest
+
+from inferencesh import Inference, AsyncInference
+from inferencesh.api.sessions import SessionHandle
+
+
+@pytest.fixture
+def patch_sessions_requests(monkeypatch):
+    """Mock requests for session CRUD and task runs."""
+    calls = []
+
+    def fake_request(method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+        calls.append({
+            "method": method.upper(),
+            "url": url,
+            "data": json.loads(data) if data else None,
+        })
+
+        if url.endswith("/apps/run") and method.upper() == "POST":
+            body = calls[-1]["data"]
+            return _dummy_response(json_data={
+                "success": True,
+                "data": {
+                    "id": "task_sess",
+                    "status": 1,
+                    "session_id": "sess_new",
+                    "input": body.get("input"),
+                },
+            })
+
+        if "/tasks/task_sess" in url and method.upper() == "GET" and not url.endswith("/stream"):
+            return _dummy_response(json_data={
+                "success": True,
+                "data": {
+                    "id": "task_sess",
+                    "status": 10,
+                    "session_id": "sess_new",
+                    "output": {"ok": True},
+                },
+            })
+
+        if url.endswith("/tasks/task_sess/stream") and stream:
+            event = json.dumps({
+                "id": "task_sess",
+                "status": 10,
+                "session_id": "sess_new",
+                "output": {"ok": True},
+            })
+            return _StreamResponse(lines=[event])
+
+        if url.endswith("/sessions/sess_new") and method.upper() == "GET":
+            return _dummy_response(json_data={
+                "success": True,
+                "data": {"id": "sess_new", "status": "active"},
+            })
+
+        if url.endswith("/sessions/sess_new/keepalive") and method.upper() == "POST":
+            return _dummy_response(json_data={
+                "success": True,
+                "data": {"id": "sess_new", "status": "active", "expires_at": "2099-01-01"},
+            })
+
+        if url.endswith("/sessions/sess_new") and method.upper() == "DELETE":
+            return _dummy_response(status_code=204, json_data=None)
+
+        if url.endswith("/sessions") and method.upper() == "GET":
+            return _dummy_response(json_data={
+                "success": True,
+                "data": [{"id": "sess_new", "status": "active"}],
+            })
+
+        return _dummy_response(status_code=404, json_data={"success": False, "error": {"message": "not found"}})
+
+    class FakeRequestsModule:
+        def request(self, *args, **kwargs):
+            return fake_request(*args, **kwargs)
+
+    import inferencesh.client as client_mod
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    yield calls
+
+
+class _dummy_response:
+    def __init__(self, status_code=200, json_data=None):
+        self.status_code = status_code
+        self._json_data = json_data if json_data is not None else {"success": True, "data": {}}
+        self.text = json.dumps(self._json_data) if self._json_data is not None else ""
+
+    @property
+    def ok(self):
+        return 200 <= self.status_code < 300
+
+
+class _StreamResponse:
+    def __init__(self, lines):
+        self.status_code = 200
+        self._lines = lines
+        self.raw = None
+
+    @property
+    def ok(self):
+        return True
+
+    def iter_lines(self, decode_unicode=False, chunk_size=None):
+        for line in self._lines:
+            yield line
+
+    def close(self):
+        pass
+
+
+def test_session_context_manager_runs_and_ends(patch_sessions_requests):
+    client = Inference(api_key="test")
+
+    with client.session("my-app@v1", input={"start": True}) as session:
+        assert session.session_id == "sess_new"
+        session.call("step", {"x": 1}, wait=False)
+
+    run_calls = [c for c in patch_sessions_requests if c["url"].endswith("/apps/run")]
+    assert len(run_calls) == 2
+    assert run_calls[0]["data"]["session"] == "new"
+    assert run_calls[1]["data"]["session"] == "sess_new"
+    assert run_calls[1]["data"]["function"] == "step"
+
+    delete_calls = [c for c in patch_sessions_requests if c["method"] == "DELETE"]
+    assert len(delete_calls) == 1
+
+
+def test_session_call_after_end_raises(patch_sessions_requests):
+    client = Inference(api_key="test")
+    handle = SessionHandle(client, "my-app@v1", "sess_new")
+    handle.end()
+
+    with pytest.raises(RuntimeError, match="Session has been ended"):
+        handle.call("step")
+
+
+def test_sessions_api_get_list_keepalive_end(patch_sessions_requests):
+    client = Inference(api_key="test")
+
+    info = client.sessions.get("sess_new")
+    assert info["id"] == "sess_new"
+
+    sessions = client.sessions.list()
+    assert len(sessions) == 1
+
+    kept = client.sessions.keepalive("sess_new")
+    assert kept["expires_at"] == "2099-01-01"
+
+    client.sessions.end("sess_new")
+    assert any(c["method"] == "DELETE" for c in patch_sessions_requests)
+
+
+@pytest.mark.asyncio
+async def test_async_sessions_api(monkeypatch):
+    """Async sessions namespace hits _request with expected paths."""
+    calls = []
+
+    class MockAsyncResponse:
+        def __init__(self, json_data=None, status=200):
+            self._json_data = json_data or {"success": True, "data": {"id": "sess_a"}}
+            self.status = status
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return self.status < 400
+
+        async def text(self):
+            return json.dumps(self._json_data)
+
+        async def json(self):
+            return self._json_data
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class MockClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            calls.append({"method": method.upper(), "url": url})
+            if url.endswith("/sessions") and method.upper() == "GET":
+                return MockAsyncResponse({"success": True, "data": [{"id": "sess_a"}]})
+            if method.upper() == "DELETE":
+                return MockAsyncResponse(status=204)
+            return MockAsyncResponse({"success": True, "data": {"id": "sess_a"}})
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: MockClientSession()
+
+    import inferencesh.client as client_mod
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    info = await client.sessions.get("sess_a")
+    assert info["id"] == "sess_a"
+
+    listed = await client.sessions.list()
+    assert listed[0]["id"] == "sess_a"
+
+    await client.sessions.end("sess_a")
+    assert any(c["method"] == "DELETE" for c in calls)
