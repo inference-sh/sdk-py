@@ -10,18 +10,17 @@ from inferencesh.models.output_meta import OutputMeta
 
 class Metadata(BaseModel):
     """Runtime metadata passed to app setup and run methods."""
+    model_config = ConfigDict(extra="allow")
+
     app_id: Optional[str] = None
     app_version_id: Optional[str] = None
     app_variant: Optional[str] = None
     worker_id: Optional[str] = None
-    
+
     def update(self, other: Dict[str, Any] | BaseModel) -> None:
         update_dict = other.model_dump() if isinstance(other, BaseModel) else other
         for key, value in update_dict.items():
             setattr(self, key, value)
-    
-    class Config:
-        extra = "allow"
 
 
 class OrderedSchemaModel(BaseModel):
@@ -122,39 +121,39 @@ class OptionalImageFieldMixin(BaseModel):
     image: Optional[File] = Field(
         description="the image to use for the model",
         default=None,
-        contentMediaType="image/*",
+        json_schema_extra={"contentMediaType": "image/*"},
     )
 
 class RequiredImageFieldMixin(BaseModel):
     image: File = Field(
         description="the image to use for the model",
-        contentMediaType="image/*",
+        json_schema_extra={"contentMediaType": "image/*"},
     )
-    
+
 class OptionalVideoFieldMixin(BaseModel):
     video: Optional[File] = Field(
         description="the video to use for the model",
         default=None,
-        contentMediaType="video/*",
+        json_schema_extra={"contentMediaType": "video/*"},
     )
-    
+
 class RequiredVideoFieldMixin(BaseModel):
     video: File = Field(
         description="the video to use for the model",
-        contentMediaType="video/*",
+        json_schema_extra={"contentMediaType": "video/*"},
     )
-    
+
 class OptionalAudioFieldMixin(BaseModel):
     audio: Optional[File] = Field(
         description="the audio to use for the model",
         default=None,
-        contentMediaType="audio/*",
+        json_schema_extra={"contentMediaType": "audio/*"},
     )
-    
+
 class RequiredAudioFieldMixin(BaseModel):
     audio: File = Field(
         description="the audio to use for the model",
-        contentMediaType="audio/*",
+        json_schema_extra={"contentMediaType": "audio/*"},
     )
     
 class OptionalTextFieldMixin(BaseModel):
