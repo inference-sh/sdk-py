@@ -14,6 +14,19 @@ run ai models, build ai agents, and deploy generative ai applications. access 25
 pip install inferencesh
 ```
 
+## client api
+
+The `Inference` client exposes namespaced APIs:
+
+| Property | Purpose |
+|----------|---------|
+| `client.tasks` | Run and manage tasks |
+| `client.files` | Upload files |
+| `client.agents` | Create agents (`agents.create()` is the same as `agent()` without per-chat context) |
+| `client.sessions` | List, inspect, and end sessions; use `client.session()` for a context manager |
+
+`client.run()` and `client.upload_file()` remain supported as legacy aliases for `client.tasks.run()` and `client.files.upload()`.
+
 ## client usage
 
 ```python
@@ -264,7 +277,7 @@ weather_tool = (
     .handler(lambda args: '{"temp": 72, "conditions": "sunny"}')
 )
 
-# Create ad-hoc agent (AgentConfig dict)
+# Create ad-hoc agent (AgentConfig dict; export: from inferencesh import AgentConfig)
 agent = client.agents.create({
     "core_app": {"ref": "infsh/claude-sonnet-4@abc123"},
     "system_prompt": "You are a helpful assistant.",
