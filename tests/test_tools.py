@@ -7,6 +7,9 @@ from inferencesh.tools import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     number,
@@ -17,6 +20,7 @@ from inferencesh.tools import (
     array,
     optional,
 )
+from inferencesh.types import ToolType
 
 
 class TestSchemaHelpers:
@@ -340,6 +344,121 @@ class TestWebhookToolBuilder:
         }
 
 
+class TestHTTPToolBuilder:
+    """Tests for HTTP/call tool builder (credential injection)."""
+
+    def test_creates_http_tool_minimal(self):
+        t = http_tool("fetch", "https://api.example.com/data").build()
+
+        assert t["type"] == ToolType.HTTP
+        assert t["type"] == "http"
+        assert t["http"]["url"] == "https://api.example.com/data"
+        assert t["http"]["method"] is None
+        assert t["http"]["auth"] is None
+        assert t["http"]["headers"] is None
+        assert t["http"]["input_schema"] == {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+    def test_call_tool_is_alias_for_http_tool(self):
+        t = call_tool("ping", "https://api.example.com/ping").build()
+        assert t["type"] == "http"
+        assert t["http"]["url"] == "https://api.example.com/ping"
+
+    def test_non_post_method_preserved(self):
+        t = http_tool("list", "https://api.example.com/items").method("GET").build()
+        assert t["http"]["method"] == "GET"
+
+    def test_integration_auth(self):
+        t = (
+            http_tool("github", "https://api.github.com/user")
+            .auth(integration="github", integration_id="int_123")
+            .build()
+        )
+        assert t["http"]["auth"] == {
+            "type": "integration",
+            "provider": "github",
+            "integration_id": "int_123",
+        }
+
+    def test_api_key_auth_default_header(self):
+        t = http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY").build()
+        assert t["http"]["auth"] == {
+            "type": "api_key",
+            "secret": "MY_KEY",
+            "header": "X-API-Key",
+        }
+
+    def test_api_key_auth_custom_header(self):
+        t = (
+            http_tool("svc", "https://api.example.com")
+            .auth(api_key="MY_KEY", header="Authorization")
+            .build()
+        )
+        assert t["http"]["auth"]["header"] == "Authorization"
+
+    def test_bearer_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(bearer="TOKEN").build()
+        assert t["http"]["auth"] == {"type": "bearer", "secret": "TOKEN"}
+
+    def test_static_headers(self):
+        t = (
+            http_tool("svc", "https://api.example.com")
+            .header("X-Custom", "value")
+            .header("Accept", "application/json")
+            .build()
+        )
+        assert t["http"]["headers"] == {
+            "X-Custom": "value",
+            "Accept": "application/json",
+        }
+
+    def test_http_tool_input_schema(self):
+        t = (
+            http_tool("search", "https://api.example.com/search")
+            .param("q", string("Query"))
+            .param("limit", optional(integer("Max results")))
+            .build()
+        )
+        assert t["http"]["input_schema"]["required"] == ["q"]
+
+    def test_require_approval(self):
+        t = http_tool("delete", "https://api.example.com/item").require_approval().build()
+        assert t["require_approval"] is True
+
+
+class TestMCPToolBuilder:
+    """Tests for MCP connector tool builder."""
+
+    def test_creates_mcp_tool(self):
+        t = (
+            mcp_tool("list_repos", "int_github", "list_repositories")
+            .describe("List GitHub repositories")
+            .build()
+        )
+
+        assert t["type"] == ToolType.MCP
+        assert t["type"] == "mcp"
+        assert t["mcp"] == {
+            "integration_id": "int_github",
+            "tool_name": "list_repositories",
+        }
+        assert t["description"] == "List GitHub repositories"
+
+    def test_mcp_tool_display_name_and_approval(self):
+        t = (
+            mcp_tool("run", "int_slack", "post_message")
+            .display_name("Post to Slack")
+            .require_approval()
+            .build()
+        )
+
+        assert t["display_name"] == "Post to Slack"
+        assert t["require_approval"] is True
+
+
 class TestInternalToolsBuilder:
     """Tests for internal tools builder."""
 
@@ -403,4 +522,3 @@ class TestFluentAPIChaining:
         assert t["description"] == "A complex tool with many params"
         assert t["require_approval"] is True
         assert t["client"]["input_schema"]["required"] == ["name", "count"]
-

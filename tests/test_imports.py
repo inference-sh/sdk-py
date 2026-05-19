@@ -59,7 +59,7 @@ def test_all_exports_resolvable():
     # Agent SDK
     "Agent", "AsyncAgent",
     # Tools
-    "tool", "app_tool", "agent_tool",
+    "tool", "app_tool", "agent_tool", "http_tool", "call_tool", "mcp_tool",
     # Errors
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable
@@ -101,6 +101,50 @@ def test_submodule_importable(module):
 
 
 # ── Generated types (from typegen) ───────────────────────────────────────────
+
+@pytest.mark.parametrize("enum_cls,members", [
+    (
+        "ToolType",
+        {
+            "HTTP": "http",
+            "MCP": "mcp",
+            "CLIENT": "client",
+            "APP": "app",
+        },
+    ),
+    (
+        "InstanceCloudProvider",
+        {"CLOUD_AWS": "aws"},
+    ),
+    (
+        "GPUType",
+        {"AMD": "amd"},
+    ),
+    (
+        "EntitlementResource",
+        {
+            "RESOURCE_API_KEYS": "api_keys",
+            "RESOURCE_STORAGE_MB": "storage_mb",
+            "RESOURCE_FEATURE_BYOK": "feature:byok",
+        },
+    ),
+    (
+        "VideoResolution",
+        {
+            "VIDEO_RES480P": "480p",
+            "VIDEO_RES4K": "4k",
+        },
+    ),
+])
+def test_generated_enum_acronym_members(enum_cls, members):
+    """Gotypegen must preserve acronyms (HTTP not H_T_T_P, MCP not M_C_P)."""
+    from inferencesh import types
+
+    cls = getattr(types, enum_cls)
+    for member_name, value in members.items():
+        assert hasattr(cls, member_name), f"{enum_cls}.{member_name} missing"
+        assert getattr(cls, member_name).value == value
+
 
 @pytest.mark.parametrize("name", [
     # Enums
