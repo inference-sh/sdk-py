@@ -330,7 +330,7 @@ def build_openai_messages(
             return parts
 
         if len(parts) > 1:
-            if parts.any(lambda x: x["type"] == "image_url"):
+            if any(x["type"] == "image_url" for x in parts):
                 raise ValueError("Image content requires multipart support")
             return parts
 

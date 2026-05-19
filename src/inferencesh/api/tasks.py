@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Union, Iterator, AsyncIterator, TYPE_CHECKING
+from typing import Any, Dict, Union, Iterator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference, TaskStream, AsyncTaskStream

@@ -32,7 +32,10 @@ from .models import (
 )
 
 from .utils import StorageDir, download
-from .client import Inference, AsyncInference, UploadFileOptions, is_terminal_status, is_message_ready
+from .client import (
+    Inference, AsyncInference, UploadFileOptions,
+    parse_status, is_terminal_status, is_message_ready,
+)
 from .streamable import streamable, streamable_raw, iter_ndjson, stream_post, stream_get, StreamableMessage
 from .api import (
     TasksAPI,
@@ -47,7 +50,6 @@ from .api import (
     AsyncSessionHandle,
 )
 from .types import TaskStatus, ChatMessageStatus
-from .client import parse_status, is_terminal_status
 from .models.errors import (
     APIError,
     RequirementsNotMetError,
@@ -137,6 +139,7 @@ def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInfere
     """
     return AsyncInference(api_key=api_key, base_url=base_url)
 
+
 __all__ = [
     # Base types
     "BaseApp",
@@ -175,6 +178,7 @@ __all__ = [
     "UploadFileOptions",
     "TaskStatus",
     "ChatMessageStatus",
+    "parse_status",
     "is_terminal_status",
     "is_message_ready",
     # Errors

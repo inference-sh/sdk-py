@@ -76,6 +76,31 @@ class TestFileEagerLoading:
             assert file.uri == data_uri
 
 
+class TestFileDataUriParsing:
+    """Regression tests for data URI parsing edge cases."""
+
+    def test_parse_url_encoded_plaintext(self):
+        media_type, ext, data = File._parse_data_uri("data:text/plain,Hello%20World")
+        assert media_type == "text/plain"
+        assert data == b"Hello World"
+        assert ext in (".txt", "")
+
+    def test_parse_base64_with_url_safe_chars(self):
+        media_type, _ext, data = File._parse_data_uri(
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        )
+        assert media_type == "image/png"
+        assert len(data) > 0
+
+    def test_invalid_data_uri_raises(self):
+        with pytest.raises(ValueError, match="Invalid data URI"):
+            File._parse_data_uri("not-a-data-uri")
+
+    def test_init_requires_uri_or_path(self):
+        with pytest.raises(ValueError, match="Either 'uri' or 'path'"):
+            File()
+
+
 class TestFileJsonSchema:
     """Test that File generates correct JSON schema via Pydantic."""
 

@@ -222,7 +222,7 @@ class File:
         # Match: data:[<mediatype>][;base64],<data>
         match = re.match(r"^data:([^;,]*)?(?:;(base64))?,(.*)$", uri, re.DOTALL)
         if not match:
-            raise ValueError(f"Invalid data URI format")
+            raise ValueError("Invalid data URI format")
 
         media_type = match.group(1) or "text/plain"
         is_base64 = match.group(2) == "base64"
