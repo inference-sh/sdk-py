@@ -1,5 +1,7 @@
 """Tests for LLM message/tool builders (build_openai_messages, build_tools)."""
 
+import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -9,8 +11,11 @@ from inferencesh.models.llm import (
     ContextMessage,
     ContextMessageRole,
     LLMInput,
+    build_messages,
     build_openai_messages,
     build_tools,
+    file_to_base64_data_uri,
+    image_to_base64_data_uri,
 )
 
 
@@ -131,6 +136,95 @@ class TestBuildOpenAIMessages:
         tool_msg = next(m for m in messages if m["role"] == "tool")
         assert tool_msg["tool_call_id"] == "call_abc"
 
+    def test_assistant_text_only_uses_plain_string_content(self):
+        """Providers reject multipart arrays for text-only assistant messages."""
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(role=ContextMessageRole.ASSISTANT, text="done"),
+                ],
+                system_prompt="",
+            ),
+        )
+        assistant = next(m for m in messages if m["role"] == "assistant")
+        assert assistant["content"] == "done"
+        assert not isinstance(assistant["content"], list)
+
+    def test_file_attachment_url_mode(self):
+        doc = _file("https://cdn.example.com/report.pdf")
+        messages = build_openai_messages(
+            LLMInput(
+                text="summarize",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="see attached",
+                        files=[doc],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            file_mode="url",
+        )
+        user = next(m for m in messages if m["role"] == "user")
+        file_parts = [p for p in user["content"] if p["type"] == "file"]
+        assert len(file_parts) == 1
+        assert file_parts[0]["file"]["file_data"] == "https://cdn.example.com/report.pdf"
+        assert file_parts[0]["file"]["filename"] == "file"
+
+    def test_local_image_encodes_to_data_uri_in_base64_mode(self):
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(b"\x89PNG\r\n\x1a\n")
+            path = f.name
+        try:
+            image = File(path=path)
+            messages = build_openai_messages(
+                LLMInput(
+                    text="describe",
+                    context=[
+                        ContextMessage(
+                            role=ContextMessageRole.USER,
+                            text="look",
+                            images=[image],
+                        ),
+                    ],
+                    system_prompt="",
+                ),
+                image_mode="base64",
+            )
+            user = next(m for m in messages if m["role"] == "user")
+            image_parts = [p for p in user["content"] if p["type"] == "image_url"]
+            assert len(image_parts) == 1
+            assert image_parts[0]["image_url"]["url"].startswith("data:image/png;base64,")
+        finally:
+            os.unlink(path)
+
+    def test_build_messages_is_alias_for_build_openai_messages(self):
+        assert build_messages is build_openai_messages
+
+
+class TestDataUriHelpers:
+    def test_image_to_base64_data_uri_png(self):
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(b"\x89PNG\r\n\x1a\n")
+            path = f.name
+        try:
+            uri = image_to_base64_data_uri(path)
+            assert uri.startswith("data:image/png;base64,")
+        finally:
+            os.unlink(path)
+
+    def test_file_to_base64_data_uri_pdf(self):
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            f.write(b"%PDF-1.4")
+            path = f.name
+        try:
+            uri = file_to_base64_data_uri(path)
+            assert uri.startswith("data:application/pdf;base64,")
+        finally:
+            os.unlink(path)
+
 
 class TestBuildTools:
     def test_none_or_empty_returns_none(self):
@@ -186,15 +280,25 @@ class TestBuildTools:
 
 
 class TestImagePartDetectionRegression:
-    """Guard against JavaScript-style list.any() in render_message."""
+    """Guard against JavaScript-style list.any() in render_message (PR #17)."""
 
-    def test_builtin_any_detects_image_url_parts(self):
-        parts = [
-            {"type": "text", "text": "caption"},
-            {"type": "image_url", "image_url": {"url": "https://example.com/x.png"}},
-        ]
-        assert any(p["type"] == "image_url" for p in parts)
-
-    def test_lists_do_not_expose_any_method(self):
-        parts = [{"type": "text", "text": "x"}]
-        assert not hasattr(parts, "any")
+    def test_multipart_user_message_with_image_builds_without_error(self):
+        """Would raise AttributeError if render_message used list.any()."""
+        image = _file("https://cdn.example.com/x.png")
+        messages = build_openai_messages(
+            LLMInput(
+                text="caption",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="",
+                        images=[image],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+        )
+        user = next(m for m in messages if m["role"] == "user")
+        assert isinstance(user["content"], list)
+        assert any(p["type"] == "image_url" for p in user["content"])

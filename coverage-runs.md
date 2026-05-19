@@ -31,3 +31,14 @@
 - `tests/test_sessions.py`: `SessionHandle` context manager, ended-session guard, `SessionsAPI` CRUD, async sessions namespace.
 - `tests/test_streamable.py`: `stream_post` / `stream_get` httpx-style helpers.
 - `tests/test_agent.py`: `client.agents.create()` delegates to agent run flow.
+
+## 2026-05-19 (run 4)
+
+**Recent changes reviewed:** `8cb6eaf` on main (Pydantic v2 base models, `list.any()` fix in `render_message`, `parse_status` export, LLM/client/file test additions from PRs #15–#25).
+
+**Open PRs checked:** #26–#28 are draft mypy/import fixes — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_models_base.py`: `Metadata` extra fields + `update()`, media mixin `contentMediaType` in JSON schema (Pydantic v2 `json_schema_extra` migration), `OrderedSchemaModel` field order.
+- `tests/test_llm.py`: assistant plain-string content, file attachments, local image base64 encoding, data URI helpers, real `list.any()` regression via multipart image messages, `build_messages` alias.
+- `tests/test_imports.py`: `parse_status`, `is_terminal_status`, `is_message_ready` in public API smoke list.
