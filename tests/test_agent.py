@@ -90,6 +90,16 @@ def test_agent_ad_hoc_config_includes_context(patch_agent_requests):
     assert body["context"] == {"tenant": "acme"}
 
 
+def test_agents_create_delegates_to_client_agent(patch_agent_requests):
+    """client.agents.create() returns an agent that can call /agents/run."""
+    client = Inference(api_key="test")
+    agent = client.agents.create("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    body = patch_agent_requests[0]["data"]
+    assert body["agent"] == "okaris/assistant@abc123"
+
+
 def test_agent_without_context_sends_none(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")

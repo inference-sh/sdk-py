@@ -157,6 +157,67 @@ class TestIterNdjson:
         assert len(heartbeats) == 1
 
 
+class TestStreamPostGet:
+    """Tests for httpx-style stream_post/stream_get helpers."""
+
+    def test_stream_post_yields_ndjson_items(self):
+        from inferencesh.streamable import stream_post
+
+        class MockStreamResponse:
+            def raise_for_status(self):
+                return None
+
+            def iter_lines(self):
+                yield '{"id":1}'
+                yield '{"id":2}'
+
+        class MockStreamContext:
+            def __init__(self, response):
+                self._response = response
+
+            def __enter__(self):
+                return self._response
+
+            def __exit__(self, *args):
+                return False
+
+        class MockClient:
+            def stream(self, method, url, json=None, headers=None, timeout=None):
+                assert method == "POST"
+                assert url == "https://api.example.com/stream"
+                assert headers["Accept"] == "application/x-ndjson"
+                assert json == {"q": "test"}
+                return MockStreamContext(MockStreamResponse())
+
+        results = list(stream_post(MockClient(), "https://api.example.com/stream", json_body={"q": "test"}))
+        assert results == [{"id": 1}, {"id": 2}]
+
+    def test_stream_get_yields_ndjson_items(self):
+        from inferencesh.streamable import stream_get
+
+        class MockStreamResponse:
+            def raise_for_status(self):
+                return None
+
+            def iter_lines(self):
+                yield '{"ok":true}'
+
+        class MockStreamContext:
+            def __enter__(self):
+                return MockStreamResponse()
+
+            def __exit__(self, *args):
+                return False
+
+        class MockClient:
+            def stream(self, method, url, headers=None, timeout=None):
+                assert method == "GET"
+                return MockStreamContext()
+
+        results = list(stream_get(MockClient(), "https://api.example.com/events"))
+        assert results == [{"ok": True}]
+
+
 class TestChunkingEdgeCases:
     """Tests for various edge cases."""
 
