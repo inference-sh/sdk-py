@@ -214,7 +214,7 @@ def test_run_wait_false(tmp_path):
         "input": {"text": "hello"},
         "worker_selection_mode": "private",
     }, wait=False)
-    
+
     assert task["id"] == "task_123"
     assert task["status"] == 1  # RECEIVED
 
@@ -229,7 +229,7 @@ def test_run_wait_true(tmp_path):
         "input": {"text": "hello"},
         "worker_selection_mode": "private",
     })
-    
+
     assert result["id"] == "task_123"
     assert result["output"] == {"ok": True}
     assert result["logs"] == ["done"]
@@ -262,7 +262,7 @@ def test_get_task(tmp_path):
     client = Inference(api_key="test")
 
     task = client.get_task("task_123")
-    
+
     assert task["id"] == "task_123"
     assert task["status"] == 7  # RUNNING
 
@@ -396,7 +396,7 @@ def test_upload_file_from_bytes(tmp_path, patch_requests):
     client = Inference(api_key="test")
 
     file_obj = client.upload_file(b"PNGDATA")
-    
+
     assert file_obj["id"] == "file_1"
     assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_1.png"
     assert len(patch_requests.put_calls) == 1
@@ -411,7 +411,7 @@ def test_upload_file_from_path(tmp_path, patch_requests):
     client = Inference(api_key="test")
 
     file_obj = client.upload_file(str(file_path))
-    
+
     assert file_obj["id"] == "file_1"
     assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_1.png"
     assert len(patch_requests.put_calls) == 1
@@ -443,23 +443,23 @@ class MockAsyncResponse:
         self.status = status
         self._lines = lines or []
         self.content_type = "application/json"
-    
+
     @property
     def ok(self):
         return 200 <= self.status < 300
-    
+
     async def text(self):
         return json.dumps(self._json_data)
-    
+
     async def json(self):
         return self._json_data
-    
+
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, *args):
         pass
-    
+
     @property
     def content(self):
         """Async iterator for SSE lines."""
@@ -470,10 +470,10 @@ class MockAsyncIterator:
     """Mock async iterator for SSE content."""
     def __init__(self, lines):
         self._lines = iter(lines)
-    
+
     def __aiter__(self):
         return self
-    
+
     async def __anext__(self):
         try:
             return next(self._lines)
@@ -485,25 +485,25 @@ class MockClientSession:
     """Mock aiohttp.ClientSession."""
     def __init__(self, responses):
         self._responses = responses
-    
+
     async def __aenter__(self):
         return self
-    
+
     async def __aexit__(self, *args):
         pass
-    
+
     def request(self, method, url, **kwargs):
         return self._get_response(method, url, kwargs)
-    
+
     def get(self, url, **kwargs):
         return self._get_response("GET", url, kwargs)
-    
+
     def post(self, url, **kwargs):
         return self._get_response("POST", url, kwargs)
-    
+
     def put(self, url, **kwargs):
         return self._get_response("PUT", url, kwargs)
-    
+
     def _get_response(self, method, url, kwargs):
         # Create task
         if url.endswith("/apps/run") and method.upper() == "POST":
@@ -516,7 +516,7 @@ class MockClientSession:
                     "input": data.get("input"),
                 },
             })
-        
+
         # Get task
         if "/tasks/task_async_123" in url and method.upper() == "GET" and not url.endswith("/stream"):
             return MockAsyncResponse(json_data={
@@ -527,7 +527,7 @@ class MockClientSession:
                     "input": {"text": "hello"},
                 },
             })
-        
+
         # NDJSON stream
         if url.endswith("/tasks/task_async_123/stream") and method.upper() == "GET":
             event_payload = json.dumps({
@@ -540,11 +540,11 @@ class MockClientSession:
                 f"{event_payload}\n".encode(),
             ]
             return MockAsyncResponse(status=200, lines=lines)
-        
+
         # Cancel
         if url.endswith("/tasks/task_async_123/cancel") and method.upper() == "POST":
             return MockAsyncResponse(json_data={"success": True, "data": None})
-        
+
         # Files create
         if url.endswith("/files") and method.upper() == "POST":
             return MockAsyncResponse(json_data={
@@ -557,11 +557,11 @@ class MockClientSession:
                     }
                 ],
             })
-        
+
         # File upload PUT
         if method.upper() == "PUT":
             return MockAsyncResponse(status=200)
-        
+
         return MockAsyncResponse()
 
 
@@ -571,13 +571,13 @@ def patch_aiohttp(monkeypatch):
     mock_aiohttp = MagicMock()
     mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
     mock_aiohttp.ClientSession = lambda **kwargs: MockClientSession({})
-    
+
     async def require_aiohttp():
         return mock_aiohttp
-    
+
     from inferencesh import client as client_mod
     monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
-    
+
     return mock_aiohttp
 
 
@@ -641,12 +641,12 @@ async def test_async_run_raises_requirements_not_met_on_412(monkeypatch):
 async def test_async_run_wait_false(patch_aiohttp):
     """Test async run() with wait=False returns task info immediately."""
     client = AsyncInference(api_key="test")
-    
+
     task = await client.run({
         "app": "some/app",
         "input": {"text": "hello"},
     }, wait=False)
-    
+
     assert task["id"] == "task_async_123"
     assert task["status"] == 1  # RECEIVED
 
@@ -655,12 +655,12 @@ async def test_async_run_wait_false(patch_aiohttp):
 async def test_async_run_wait_true(patch_aiohttp):
     """Test async run() with wait=True (default) waits for completion."""
     client = AsyncInference(api_key="test")
-    
+
     result = await client.run({
         "app": "some/app",
         "input": {"text": "hello"},
     })
-    
+
     assert result["id"] == "task_async_123"
     assert result["output"] == {"async_ok": True}
     assert result["status"] == TaskStatus.COMPLETED
@@ -670,7 +670,7 @@ async def test_async_run_wait_true(patch_aiohttp):
 async def test_async_run_stream(patch_aiohttp):
     """Test async run() with stream=True returns async iterator."""
     client = AsyncInference(api_key="test")
-    
+
     updates = []
     async for update in await client.run({
         "app": "some/app",
@@ -679,7 +679,7 @@ async def test_async_run_stream(patch_aiohttp):
         updates.append(update)
         if update.get("status") == TaskStatus.COMPLETED:
             break
-    
+
     assert len(updates) >= 1
     final = updates[-1]
     assert final["id"] == "task_async_123"
@@ -691,9 +691,9 @@ async def test_async_run_stream(patch_aiohttp):
 async def test_async_get_task(patch_aiohttp):
     """Test async get_task() returns current task state."""
     client = AsyncInference(api_key="test")
-    
+
     task = await client.get_task("task_async_123")
-    
+
     assert task["id"] == "task_async_123"
     assert task["status"] == 7  # RUNNING
 
@@ -702,7 +702,7 @@ async def test_async_get_task(patch_aiohttp):
 async def test_async_cancel(patch_aiohttp):
     """Test async cancel() cancels a task."""
     client = AsyncInference(api_key="test")
-    
+
     # Should not raise
     await client.cancel("task_async_123")
 
