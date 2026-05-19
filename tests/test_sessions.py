@@ -183,6 +183,23 @@ def test_session_call_after_end_raises(patch_sessions_requests):
         handle.call("step")
 
 
+def test_session_handle_info_and_keepalive(patch_sessions_requests):
+    """SessionHandle.info/keepalive delegate to the sessions namespace."""
+    client = Inference(api_key="test")
+    handle = SessionHandle(client, "my-app@v1", "sess_new")
+
+    info = handle.info()
+    assert info["id"] == "sess_new"
+
+    kept = handle.keepalive()
+    assert kept["expires_at"] == "2099-01-01"
+
+    get_calls = [c for c in patch_sessions_requests if c["url"].endswith("/sessions/sess_new") and c["method"] == "GET"]
+    keepalive_calls = [c for c in patch_sessions_requests if c["url"].endswith("/keepalive")]
+    assert len(get_calls) == 1
+    assert len(keepalive_calls) == 1
+
+
 def test_sessions_api_get_list_keepalive_end(patch_sessions_requests):
     client = Inference(api_key="test")
 

@@ -63,3 +63,13 @@
 - `tests/test_sessions.py`: `session.call()` wait/stream parity with `client.run()`; missing `session_id` error; async session context manager.
 - `tests/test_agent.py`: `AsyncAgent.stream_messages()` / `stream_chat()` event filtering; guard when no active chat.
 - `tests/test_models_base.py`: nested `OrderedSchemaModel` field-order fallback path.
+
+## 2026-05-19 (run 6)
+
+**Recent changes reviewed:** `e39d401`–`f3bbb54` on main (docs for namespaced client API, session.call options, ToolParamType split). Production risk remains in agent file upload/run helpers and SessionHandle wrappers (doc-only session.py changes).
+
+**Open PRs checked:** #46–#53 are documentation drafts — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_agent.py`: `agent.run()` finish output, `reset()`, `upload_file()` (bytes/data URI/invalid URI), `send_message(files=...)`, `AsyncAgentsAPI.create()`.
+- `tests/test_sessions.py`: `SessionHandle.info()` / `keepalive()` delegation.
