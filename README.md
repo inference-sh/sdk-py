@@ -311,9 +311,11 @@ response = agent.send_message(
 
 ### per-chat context variables
 
-Pass context when creating an agent. Values are available in HTTP/call tool URL templates as `{{context.KEY}}`:
+Pass context when creating an agent with `client.agent()` (the `context` argument is not available on `client.agents.create()`). Values are available in HTTP/call tool URL templates as `{{context.KEY}}`:
 
 ```python
+from inferencesh import call_tool
+
 agent = client.agent(
     "my-org/assistant@abc123",
     context={"tenant_id": "acme", "user_id": "42"},
