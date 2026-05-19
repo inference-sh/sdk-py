@@ -181,6 +181,50 @@ result = client.tasks.run({
 - Maximum timeout: 3600 seconds (1 hour)
 - Each successful call resets the idle timer
 
+#### session context manager
+
+Use `client.session()` for multi-step workflows on one worker. The first call creates the session (`session: "new"`); later `session.call()` calls reuse it. The session is ended automatically when the context exits.
+
+```python
+from inferencesh import parse_status, TaskStatus
+
+with client.session("browser-app@abc123", input={"url": "https://example.com"}) as session:
+    print(session.session_id)
+
+    # Default: wait=True, returns completed task dict
+    result = session.call("screenshot", {})
+    print(result["output"])
+
+    # Fire-and-forget (same as client.tasks.run(..., wait=False))
+    task = session.call("click", {"selector": "#btn"}, wait=False)
+
+    # Stream updates (same semantics as client.tasks.run(..., stream=True))
+    for update in session.call("navigate", {"url": "/next"}, stream=True):
+        if parse_status(update.get("status")) == TaskStatus.COMPLETED:
+            break
+# client.sessions.end() is called on exit
+```
+
+Async sessions use `async with await client.session(...)`:
+
+```python
+async with await client.session("my-app@v1", input={"boot": True}) as session:
+    result = await session.call("step", {"n": 2})
+```
+
+If the initial run does not return a `session_id`, `client.session()` raises `RuntimeError`. Calling `session.call()` after the handle has ended raises `RuntimeError("Session has been ended")`.
+
+#### sessions API
+
+Manage sessions without the context manager:
+
+```python
+info = client.sessions.get(session_id)
+sessions = client.sessions.list()
+client.sessions.keepalive(session_id)  # extend idle timeout
+client.sessions.end(session_id)        # release worker immediately
+```
+
 For complete session documentation including error handling, best practices, and advanced patterns, see the [Sessions Developer Guide](https://inference.sh/docs/extend/sessions).
 
 ### file upload
@@ -427,13 +471,25 @@ except RequirementsNotMetError as e:
 ### async agent
 
 ```python
-from inferencesh import async_inference
+from inferencesh import async_inference, is_message_ready
 
 client = async_inference(api_key="your-api-key")
-agent = client.agents.create("my-org/assistant@abc123")
+agent = client.agent("my-org/assistant@abc123")
 
 response = await agent.send_message("Hello!")
+
+# Stream message updates (requires an active chat — send a message first)
+async for message in agent.stream_messages():
+    print(message.get("text", ""))
+    if is_message_ready(message.get("status")):
+        break
+
+# Stream chat-level status updates
+async for chat in agent.stream_chat():
+    print(chat.get("status"))
 ```
+
+`stream_messages()` and `stream_chat()` raise `RuntimeError("No active chat - send a message first")` if called before `send_message()`.
 
 ## async client
 
