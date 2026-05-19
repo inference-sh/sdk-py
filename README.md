@@ -2,7 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/inferencesh.svg)](https://pypi.org/project/inferencesh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
 official python sdk for [inference.sh](https://inference.sh) — the ai agent runtime for serverless ai inference.
 
@@ -95,15 +95,16 @@ from inferencesh import TaskStatus
 
 TaskStatus.RECEIVED    # 1 - Task received by server
 TaskStatus.QUEUED      # 2 - Task queued for processing
-TaskStatus.SCHEDULED   # 3 - Task scheduled to a worker
+TaskStatus.DISPATCHED  # 3 - Task dispatched to a worker
 TaskStatus.PREPARING   # 4 - Worker preparing environment
 TaskStatus.SERVING     # 5 - Model being loaded
 TaskStatus.SETTING_UP  # 6 - Task setup in progress
 TaskStatus.RUNNING     # 7 - Task actively running
-TaskStatus.UPLOADING   # 8 - Uploading results
-TaskStatus.COMPLETED   # 9 - Task completed successfully
-TaskStatus.FAILED      # 10 - Task failed
-TaskStatus.CANCELLED   # 11 - Task was cancelled
+TaskStatus.CANCELLING  # 8 - Task cancellation in progress
+TaskStatus.UPLOADING   # 9 - Uploading results
+TaskStatus.COMPLETED   # 10 - Task completed successfully
+TaskStatus.FAILED      # 11 - Task failed
+TaskStatus.CANCELLED   # 12 - Task was cancelled
 ```
 
 ### sessions (stateful execution)
@@ -186,7 +187,9 @@ Note: Files in task input are automatically uploaded. You only need `files.uploa
 
 ## agent chat
 
-Chat with AI agents using `client.agents.create()`.
+Chat with AI agents using `client.agent()`. The `client.agents.create()` method is an alias that calls the same API.
+
+For full agent SDK documentation, see [Agent SDK Overview](https://inference.sh/docs/api/agent/overview).
 
 ### using a template agent
 
@@ -198,7 +201,7 @@ from inferencesh import inference
 client = inference(api_key="your-api-key")
 
 # Create agent from template
-agent = client.agents.create("my-org/assistant@abc123")
+agent = client.agent("my-org/assistant@abc123")
 
 # Send a message with streaming
 def on_message(msg):
@@ -207,44 +210,43 @@ def on_message(msg):
         if c.get("type") == "text" and c.get("text"):
             print(c["text"], end="", flush=True)
 
-response = agent.send_message("Hello!", on_message=on_message)
+agent.send_message("Hello!", on_message=on_message)
 print(f"\nChat ID: {agent.chat_id}")
 ```
 
 ### creating an ad-hoc agent
 
-Create agents on-the-fly without saving to your workspace:
+Create agents on-the-fly without saving to your workspace. Pass an `AgentConfig` dict (exported from `inferencesh`):
 
 ```python
-from inferencesh import inference, AdHocAgentOptions
-from inferencesh import tool, string
+from inferencesh import inference, tool, string
 
 client = inference(api_key="your-api-key")
 
 # Define a client tool
 weather_tool = (
     tool("get_weather")
-    .description("Get current weather")
-    .params({"city": string("City name")})
+    .describe("Get current weather")
+    .param("city", string("City name"))
     .handler(lambda args: '{"temp": 72, "conditions": "sunny"}')
     .build()
 )
 
 # Create ad-hoc agent
-agent = client.agents.create(AdHocAgentOptions(
-    core_app="infsh/claude-sonnet-4@abc123",  # LLM to use
-    system_prompt="You are a helpful assistant.",
-    tools=[weather_tool]
-))
+agent = client.agent({
+    "core_app": {"ref": "infsh/claude-sonnet-4@abc123"},
+    "system_prompt": "You are a helpful assistant.",
+    "tools": [weather_tool],
+})
 
 def on_tool_call(call):
     print(f"[Tool: {call.name}]")
     # Tools with handlers are auto-executed
 
-response = agent.send_message(
+agent.send_message(
     "What's the weather in Paris?",
     on_message=on_message,
-    on_tool_call=on_tool_call
+    on_tool_call=on_tool_call,
 )
 ```
 
@@ -266,9 +268,9 @@ response = agent.send_message(
 from inferencesh import async_inference
 
 client = async_inference(api_key="your-api-key")
-agent = client.agents.create("my-org/assistant@abc123")
+agent = client.agent("my-org/assistant@abc123")
 
-response = await agent.send_message("Hello!")
+await agent.send_message("Hello!")
 ```
 
 ## async client
