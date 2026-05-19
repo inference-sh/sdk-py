@@ -7,6 +7,9 @@ from inferencesh.tools import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     number,
@@ -17,6 +20,7 @@ from inferencesh.tools import (
     array,
     optional,
 )
+from inferencesh.types import ToolType
 
 
 class TestSchemaHelpers:
@@ -338,6 +342,93 @@ class TestWebhookToolBuilder:
             },
             "required": ["message"],
         }
+
+
+class TestHTTPToolBuilder:
+    """Tests for HTTP / call tool builders."""
+
+    def test_creates_http_tool(self):
+        t = (
+            http_tool("fetch_data", "https://api.example.com/data")
+            .describe("Fetch remote data")
+            .build()
+        )
+
+        assert t["type"] == ToolType.HTTP
+        assert t["http"]["url"] == "https://api.example.com/data"
+        assert t["description"] == "Fetch remote data"
+        assert t["http"]["method"] is None  # POST is omitted
+
+    def test_call_tool_is_http_builder_alias(self):
+        t_http = http_tool("x", "https://example.com").build()
+        t_call = call_tool("x", "https://example.com").build()
+        assert t_call == t_http
+
+    def test_non_post_method(self):
+        t = http_tool("read", "https://api.example.com").method("GET").build()
+        assert t["http"]["method"] == "GET"
+
+    def test_integration_auth(self):
+        t = (
+            http_tool("gh", "https://api.github.com/user")
+            .auth(integration="github", integration_id="int-42")
+            .build()
+        )
+        assert t["http"]["auth"] == {
+            "type": "integration",
+            "provider": "github",
+            "integration_id": "int-42",
+        }
+
+    def test_api_key_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY").build()
+        assert t["http"]["auth"] == {
+            "type": "api_key",
+            "secret": "MY_KEY",
+            "header": "X-API-Key",
+        }
+
+    def test_bearer_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(bearer="TOKEN").build()
+        assert t["http"]["auth"] == {"type": "bearer", "secret": "TOKEN"}
+
+    def test_static_headers_and_params(self):
+        t = (
+            http_tool("notify", "https://api.example.com/hook")
+            .header("X-Custom", "value")
+            .param("message", string("Message body"))
+            .build()
+        )
+
+        assert t["http"]["headers"] == {"X-Custom": "value"}
+        assert t["http"]["input_schema"]["required"] == ["message"]
+
+
+class TestMCPToolBuilder:
+    """Tests for MCP connector tool builder."""
+
+    def test_creates_mcp_tool(self):
+        t = (
+            mcp_tool("web_search", "int-abc", "search")
+            .describe("Search the web via MCP")
+            .build()
+        )
+
+        assert t["type"] == ToolType.MCP
+        assert t["type"].value == "mcp"
+        assert t["mcp"] == {"integration_id": "int-abc", "tool_name": "search"}
+        assert t["description"] == "Search the web via MCP"
+
+    def test_mcp_tool_with_display_and_approval(self):
+        t = (
+            mcp_tool("run_query", "int-1", "query")
+            .display("Run Query")
+            .require_approval()
+            .build()
+        )
+
+        assert t["display_name"] == "Run Query"
+        assert t["require_approval"] is True
 
 
 class TestInternalToolsBuilder:

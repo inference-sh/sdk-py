@@ -59,7 +59,7 @@ def test_all_exports_resolvable():
     # Agent SDK
     "Agent", "AsyncAgent",
     # Tools
-    "tool", "app_tool", "agent_tool",
+    "tool", "app_tool", "agent_tool", "http_tool", "call_tool", "mcp_tool",
     # Errors
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable
