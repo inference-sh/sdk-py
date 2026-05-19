@@ -159,6 +159,34 @@ result2 = client.tasks.run({
 })
 ```
 
+#### session context manager
+
+For multi-step workflows, use `client.session()` to create a session and call app functions by name. The session ends automatically when the context exits.
+
+```python
+with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as session:
+    # First argument is the app function name; second is input data
+    session.call("process", {"step": 1})
+    session.call("process", {"step": 2}, wait=False)  # same options as client.run()
+
+    # Stream updates for a session call
+    for update in session.call("run", {"prompt": "..."}, stream=True):
+        print(update.get("status"))
+
+print(session.session_id)  # available on the handle
+```
+
+`session.call()` forwards to `client.run()` with the session ID pinned, so it accepts the same keyword arguments: `wait`, `stream`, `auto_reconnect`, and related streaming options.
+
+#### session management
+
+```python
+info = client.sessions.get(session_id)
+sessions = client.sessions.list()
+client.sessions.keepalive(session_id)  # extend idle timeout without a task call
+client.sessions.end(session_id)
+```
+
 #### custom session timeout
 
 By default, sessions expire after 60 seconds of inactivity. You can customize this with `session_timeout` (1-3600 seconds):
@@ -424,6 +452,12 @@ async def main():
     async with client.tasks.stream(task_id) as stream:
         async for update in stream:
             print(f"Update: {update}")
+
+    # Stateful session (async)
+    async with client.session("my-app@abc123", input={"start": True}) as session:
+        await session.call("step", {"x": 1})
+        async for update in await session.call("run", {"prompt": "..."}, stream=True):
+            print(update.get("status"))
 ```
 
 ## file handling
