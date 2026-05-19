@@ -57,9 +57,12 @@ task = client.tasks.run(params, wait=False)
 task_id = task["id"]  # Use this to check status later
 
 # Stream updates as they happen
+from inferencesh import parse_status, is_terminal_status
+
 for update in client.tasks.run(params, stream=True):
-    print(f"Status: {TaskStatus(update['status']).name}")
-    if update.get("status") == TaskStatus.COMPLETED:
+    status = parse_status(update.get("status"))
+    print(f"Status: {status.name if status else 'unknown'}")
+    if status == TaskStatus.COMPLETED:
         print(f"Output: {update.get('output')}")
 ```
 
@@ -79,9 +82,10 @@ result = client.tasks.wait_for_completion(task_id)
 # Stream updates for an existing task
 with client.tasks.stream(task_id) as stream:
     for update in stream:
-        print(f"Status: {TaskStatus(update['status']).name}")
-        if update.get("status") == TaskStatus.COMPLETED:
+        if parse_status(update.get("status")) == TaskStatus.COMPLETED:
             print(f"Result: {update.get('output')}")
+            break
+        if is_terminal_status(update.get("status")):
             break
 
 # Access final result after streaming
@@ -90,21 +94,47 @@ print(f"Final result: {stream.result}")
 
 ### task status values
 
+Task statuses are integer enums. Streaming responses may return either integers or lowercase strings (for example `"running"`).
+
 ```python
 from inferencesh import TaskStatus
 
 TaskStatus.RECEIVED    # 1 - Task received by server
 TaskStatus.QUEUED      # 2 - Task queued for processing
-TaskStatus.SCHEDULED   # 3 - Task scheduled to a worker
+TaskStatus.DISPATCHED  # 3 - Task dispatched to a worker
 TaskStatus.PREPARING   # 4 - Worker preparing environment
 TaskStatus.SERVING     # 5 - Model being loaded
 TaskStatus.SETTING_UP  # 6 - Task setup in progress
 TaskStatus.RUNNING     # 7 - Task actively running
-TaskStatus.UPLOADING   # 8 - Uploading results
-TaskStatus.COMPLETED   # 9 - Task completed successfully
-TaskStatus.FAILED      # 10 - Task failed
-TaskStatus.CANCELLED   # 11 - Task was cancelled
+TaskStatus.CANCELLING  # 8 - Cancellation in progress
+TaskStatus.UPLOADING   # 9 - Uploading results
+TaskStatus.COMPLETED   # 10 - Task completed successfully
+TaskStatus.FAILED      # 11 - Task failed
+TaskStatus.CANCELLED   # 12 - Task was cancelled
 ```
+
+### status helpers
+
+Use these helpers when handling streamed task or agent message updates:
+
+```python
+from inferencesh import parse_status, is_terminal_status, is_message_ready, TaskStatus
+
+# Tasks: parse int or string status values
+status = parse_status(update.get("status"))  # TaskStatus or None
+if status == TaskStatus.COMPLETED:
+    ...
+
+# Tasks: check for a terminal task state (completed, failed, cancelled)
+if is_terminal_status(update.get("status")):
+    ...
+
+# Agent chat: check if a message has finished streaming
+if is_message_ready(message.get("status")):  # ready, failed, or cancelled
+    ...
+```
+
+`is_terminal_status()` is for **task** statuses. For **chat message** statuses, use `is_message_ready()` instead.
 
 ### sessions (stateful execution)
 
@@ -186,14 +216,14 @@ Note: Files in task input are automatically uploaded. You only need `files.uploa
 
 ## agent chat
 
-Chat with AI agents using `client.agents.create()`.
+Chat with AI agents using `client.agents.create()` or `client.agent()`. Both return the same `Agent` instance; use `client.agent()` when you need per-chat **context** variables (see below).
 
 ### using a template agent
 
 Use an existing agent from your workspace by its `namespace/name@shortid`:
 
 ```python
-from inferencesh import inference
+from inferencesh import inference, is_message_ready
 
 client = inference(api_key="your-api-key")
 
@@ -209,6 +239,12 @@ def on_message(msg):
 
 response = agent.send_message("Hello!", on_message=on_message)
 print(f"\nChat ID: {agent.chat_id}")
+
+# Or stream manually and stop when the message is ready
+for message in agent.stream_messages():
+    on_message(message)
+    if is_message_ready(message.get("status")):
+        break
 ```
 
 ### creating an ad-hoc agent
@@ -373,9 +409,10 @@ async def main():
     task = await client.tasks.run(params, wait=False)
 
     # Stream updates
+    from inferencesh import parse_status
+
     async for update in await client.tasks.run(params, stream=True):
-        print(f"Status: {TaskStatus(update['status']).name}")
-        if update.get("status") == TaskStatus.COMPLETED:
+        if parse_status(update.get("status")) == TaskStatus.COMPLETED:
             print(f"Output: {update.get('output')}")
 
     # Task management
@@ -456,6 +493,8 @@ class MyApp(BaseApp):
         # Clean up resources
         pass
 ```
+
+Input and output models inherit from `BaseAppInput` / `BaseAppOutput` (Pydantic v2). The runtime may pass a `Metadata` object (with `app_id`, `worker_id`, and extra fields) to app methods. JSON schemas preserve field definition order for the app store UI.
 
 app lifecycle has three main methods:
 - `setup()`: called when the app starts, use it to initialize models
