@@ -32,8 +32,13 @@ from .models import (
 )
 
 from .utils import StorageDir, download
-from .client import Inference, AsyncInference, UploadFileOptions, is_terminal_status, is_message_ready
-from .streamable import streamable, streamable_raw, iter_ndjson, stream_post, stream_get, StreamableMessage
+from .client import (
+    Inference, AsyncInference, UploadFileOptions,
+    is_terminal_status, is_message_ready, parse_status,
+)
+from .streamable import (
+    streamable, streamable_raw, iter_ndjson, stream_post, stream_get, StreamableMessage,
+)
 from .api import (
     TasksAPI,
     AsyncTasksAPI,
@@ -47,7 +52,6 @@ from .api import (
     AsyncSessionHandle,
 )
 from .types import TaskStatus, ChatMessageStatus
-from .client import parse_status, is_terminal_status
 from .models.errors import (
     APIError,
     RequirementsNotMetError,
@@ -118,7 +122,7 @@ from .types import (
 
 def inference(*, api_key: str, base_url: str | None = None) -> Inference:
     """Factory function for creating an Inference client (lowercase for branding).
-    
+
     Example:
         ```python
         client = inference(api_key="your-api-key")
@@ -129,13 +133,14 @@ def inference(*, api_key: str, base_url: str | None = None) -> Inference:
 
 def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInference:
     """Factory function for creating an AsyncInference client (lowercase for branding).
-    
+
     Example:
         ```python
         client = async_inference(api_key="your-api-key")
         ```
     """
     return AsyncInference(api_key=api_key, base_url=base_url)
+
 
 __all__ = [
     # Base types
@@ -177,6 +182,7 @@ __all__ = [
     "ChatMessageStatus",
     "is_terminal_status",
     "is_message_ready",
+    "parse_status",
     # Errors
     "APIError",
     "RequirementsNotMetError",
