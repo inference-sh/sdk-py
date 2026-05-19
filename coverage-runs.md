@@ -20,3 +20,14 @@
 - `tests/test_errors.py`: `RequirementsNotMetError`, `RequirementError`, session error types.
 - `tests/test_client.py`: 412 → `RequirementsNotMetError` on `client.run()`.
 - `tests/test_tools.py`: `require_approval` defaults to `False`, `display_name()`, `.handler()`.
+
+## 2026-05-19 (run 3)
+
+**Recent changes reviewed:** merge of PR #12 (agent context, 412 errors, tool defaults) — remaining gaps in status helpers, input upload heuristics, sessions API, async 412.
+
+**Gaps filled:**
+- `tests/test_client_status.py`: `parse_status`, `is_terminal_status`, `is_message_ready`, `_process_stream_event` (completed/failed/cancelled).
+- `tests/test_client.py`: base64 and `data:` URI input upload paths; short-string false positive guard; async `RequirementsNotMetError` on 412.
+- `tests/test_sessions.py`: `SessionHandle` context manager, ended-session guard, `SessionsAPI` CRUD, async sessions namespace.
+- `tests/test_streamable.py`: `stream_post` / `stream_get` httpx-style helpers.
+- `tests/test_agent.py`: `client.agents.create()` delegates to agent run flow.
