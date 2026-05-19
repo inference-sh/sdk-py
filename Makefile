@@ -198,3 +198,6 @@ help:
 	@echo "  lint / typecheck / format / check"
 
 .DEFAULT_GOAL := help
+
+main:
+	git push origin dev:main
