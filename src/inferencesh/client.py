@@ -505,25 +505,21 @@ class Inference:
     @property
     def tasks(self) -> "TasksAPI":
         """Tasks API namespace."""
-        from .api import TasksAPI
         return self._tasks
 
     @property
     def files(self) -> "FilesAPI":
         """Files API namespace."""
-        from .api import FilesAPI
         return self._files
 
     @property
     def agents(self) -> "AgentsAPI":
         """Agents API namespace."""
-        from .api import AgentsAPI
         return self._agents
 
     @property
     def sessions(self) -> "SessionsAPI":
         """Sessions API namespace."""
-        from .api import SessionsAPI
         return self._sessions
 
     # --------------- HTTP helpers ---------------
@@ -1062,25 +1058,21 @@ class AsyncInference:
     @property
     def tasks(self) -> "AsyncTasksAPI":
         """Tasks API namespace."""
-        from .api import AsyncTasksAPI
         return self._tasks
 
     @property
     def files(self) -> "AsyncFilesAPI":
         """Files API namespace."""
-        from .api import AsyncFilesAPI
         return self._files
 
     @property
     def agents(self) -> "AsyncAgentsAPI":
         """Agents API namespace."""
-        from .api import AsyncAgentsAPI
         return self._agents
 
     @property
     def sessions(self) -> "AsyncSessionsAPI":
         """Sessions API namespace."""
-        from .api import AsyncSessionsAPI
         return self._sessions
 
     # --------------- HTTP helpers ---------------
