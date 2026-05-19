@@ -191,7 +191,7 @@ class File:
 
     def refresh_metadata(self) -> None:
         """Re-read metadata from disk (triggers download if needed)."""
-        if self.path and os.path.exists(self._path):
+        if self._path and os.path.exists(self._path):
             self.content_type = self._guess_content_type()
             self.size = self._get_file_size()
             self.filename = self._get_filename()
@@ -254,6 +254,7 @@ class File:
     def _decode_data_uri(self) -> None:
         """Decode a data URI and save to cache."""
         uri = self.uri
+        assert uri is not None  # only called when self.uri is a data URI
 
         # Create cache path based on hash of the data URI
         uri_hash = hashlib.sha256(uri.encode()).hexdigest()[:16]
@@ -291,6 +292,7 @@ class File:
         import time
 
         original_url = self.uri
+        assert original_url is not None  # only called when self.uri is a URL
         cache_path = self._get_cache_path(original_url)
 
         if cache_path.exists():
@@ -327,7 +329,7 @@ class File:
                     block_size = 65536
 
                     with tqdm(total=total_size, unit="iB", unit_scale=True) as pbar:
-                        with open(self._tmp_path, "wb") as out_file:
+                        with open(tmp_path, "wb") as out_file:
                             while True:
                                 non_chunking = False
                                 try:
@@ -345,7 +347,7 @@ class File:
                                 if non_chunking:
                                     break
 
-                os.rename(self._tmp_path, cache_path)
+                os.rename(tmp_path, cache_path)
                 self._tmp_path = None
                 self._path = str(cache_path)
                 self._populate_metadata()
