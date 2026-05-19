@@ -52,6 +52,7 @@ safe-outputs:
   noop:
     report-as-issue: false
   create-pull-request:
+    base-branch: dev
     title-prefix: "[code-review] "
     labels: [code-review, ai]
     reviewers: [okaris]
