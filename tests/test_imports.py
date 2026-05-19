@@ -115,6 +115,10 @@ def test_submodule_importable(module):
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
+    "ToolCallType", "ToolParamType",
+    # Integrations
+    "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
+    "InstanceStatus",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
