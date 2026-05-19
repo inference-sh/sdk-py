@@ -216,26 +216,24 @@ print(f"\nChat ID: {agent.chat_id}")
 Create agents on-the-fly without saving to your workspace:
 
 ```python
-from inferencesh import inference, AdHocAgentOptions
-from inferencesh import tool, string
+from inferencesh import inference, tool, string
 
 client = inference(api_key="your-api-key")
 
-# Define a client tool
+# Define a client tool (handler runs in your process)
 weather_tool = (
     tool("get_weather")
-    .description("Get current weather")
-    .params({"city": string("City name")})
+    .describe("Get current weather")
+    .param("city", string("City name"))
     .handler(lambda args: '{"temp": 72, "conditions": "sunny"}')
-    .build()
 )
 
-# Create ad-hoc agent
-agent = client.agents.create(AdHocAgentOptions(
-    core_app="infsh/claude-sonnet-4@abc123",  # LLM to use
-    system_prompt="You are a helpful assistant.",
-    tools=[weather_tool]
-))
+# Create ad-hoc agent (AgentConfig dict)
+agent = client.agents.create({
+    "core_app": {"ref": "infsh/claude-sonnet-4@abc123"},
+    "system_prompt": "You are a helpful assistant.",
+    "tools": [weather_tool],
+})
 
 def on_tool_call(call):
     print(f"[Tool: {call.name}]")
@@ -244,8 +242,91 @@ def on_tool_call(call):
 response = agent.send_message(
     "What's the weather in Paris?",
     on_message=on_message,
-    on_tool_call=on_tool_call
+    on_tool_call=on_tool_call,
 )
+```
+
+### per-chat context variables
+
+Pass context when creating an agent. Values are available in HTTP/call tool URL templates as `{{context.KEY}}`:
+
+```python
+agent = client.agent(
+    "my-org/assistant@abc123",
+    context={"tenant_id": "acme", "user_id": "42"},
+)
+
+# call_tool URL can reference context, e.g.:
+# https://api.example.com/users/{{context.user_id}}/data
+lookup = (
+    call_tool("fetch_user", "https://api.example.com/users/{{context.user_id}}")
+    .auth(bearer="API_TOKEN")
+    .describe("Fetch user profile")
+    .build()
+)
+```
+
+### tool builder
+
+Define tools with the fluent API (`tool`, `app_tool`, `agent_tool`, `call_tool`, `mcp_tool`, `webhook_tool`):
+
+```python
+from inferencesh import (
+    tool, app_tool, agent_tool, call_tool, mcp_tool,
+    string, optional, boolean,
+)
+
+# Client tool (runs in your code)
+search = (
+    tool("search")
+    .describe("Search files")
+    .param("pattern", string("Glob pattern"))
+    .build()
+)
+
+# App tool (runs another inference app)
+generate = (
+    app_tool("generate", "infsh/flux-schnell@latest")
+    .describe("Generate an image")
+    .param("prompt", string("Image description"))
+    .function("generate")          # multi-function apps
+    .session_enabled()             # agent can pass session IDs
+    .require_approval()            # human-in-the-loop
+    .build()
+)
+
+# HTTP tool with auth (call_tool is an alias for http_tool)
+notify = (
+    call_tool("notify", "https://api.example.com/notify")
+    .method("POST")
+    .auth(api_key="MY_API_KEY")
+    .header("X-Tenant", "{{context.tenant_id}}")
+    .param("message", string("Notification body"))
+    .build()
+)
+
+# MCP connector tool (integration must be connected in workspace)
+web_search = (
+    mcp_tool("web_search", "int-abc123", "search")
+    .describe("Search via connected MCP server")
+    .build()
+)
+```
+
+See the [Tool Builder reference](https://inference.sh/docs/api/agent-tools) for schema helpers and more examples.
+
+### requirements errors (HTTP 412)
+
+When an app is missing secrets, integrations, or scopes, `client.tasks.run()` raises `RequirementsNotMetError`:
+
+```python
+from inferencesh import RequirementsNotMetError
+
+try:
+    result = client.tasks.run({"app": "my-app", "input": {...}})
+except RequirementsNotMetError as e:
+    for err in e.errors:
+        print(f"{err.type}: {err.key} — {err.message}")
 ```
 
 ### agent methods
@@ -313,7 +394,7 @@ async def main():
 the `File` class provides a standardized way to handle files in the inference.sh ecosystem:
 
 ```python
-from infsh import File
+from inferencesh import File
 
 # Basic file creation
 file = File(path="/path/to/file.png")
@@ -352,7 +433,7 @@ the `File` class automatically handles:
 to create an inference app, inherit from `BaseApp` and define your input/output types:
 
 ```python
-from infsh import BaseApp, BaseAppInput, BaseAppOutput, File
+from inferencesh import BaseApp, BaseAppInput, BaseAppOutput, File
 
 class AppInput(BaseAppInput):
     image: str  # URL or file path to image
