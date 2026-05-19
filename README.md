@@ -177,6 +177,7 @@ result2 = client.tasks.run({
 For multi-step workflows, use `client.session()` to create a session and call app functions by name. The session ends automatically when the context exits.
 
 ```python
+# Optional kwargs for the initial run: input, function (default "run")
 with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as session:
     # First argument is the app function name; second is input data
     session.call("process", {"step": 1})
