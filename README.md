@@ -351,6 +351,53 @@ web_search = (
 
 See the [Tool Builder reference](https://inference.sh/docs/api/agent-tools) for schema helpers and more examples.
 
+### generated tool types
+
+The fluent tool builder produces JSON Schema objects. For lower-level typing (parsing LLM tool calls or building `Tool` / `ToolParameters` dicts by hand), import enums from `inferencesh.types`:
+
+| Enum | Purpose | Members |
+|------|---------|---------|
+| `ToolCallType` | Discriminator on tool calls and tool definitions | `TOOL_TYPE_FUNCTION` (`"function"`) |
+| `ToolParamType` | JSON Schema parameter types in `ToolParameters` | `OBJECT`, `STRING`, `INTEGER`, `NUMBER`, `BOOLEAN`, `ARRAY`, `NULL` |
+
+```python
+from inferencesh.types import ToolCallType, ToolParamType
+
+# Tool / ToolCall wire format
+assert ToolCallType.TOOL_TYPE_FUNCTION.value == "function"
+
+# Parameter schema (matches JSON Schema "type" strings)
+assert ToolParamType.STRING.value == "string"
+```
+
+`ToolParamType` is separate from `ToolCallType`. Parameter types such as `"string"` and `"object"` belong on `ToolParamType`, not on `ToolCallType`.
+
+Package exports (`Tool`, `ToolCall`, `ToolParameters`, and related TypedDicts) are available from `inferencesh`; import `ToolCallType` and `ToolParamType` from `inferencesh.types` when you need the enums.
+
+### integration and instance enums
+
+Workspace API responses use generated enums in `inferencesh.types`:
+
+```python
+from inferencesh.types import (
+    IntegrationProvider,
+    IntegrationAuthType,
+    IntegrationStatus,
+    InstanceStatus,
+)
+
+IntegrationProvider.SLACK       # "slack"
+IntegrationAuthType.O_AUTH      # "oauth"
+IntegrationStatus.CONNECTED     # "connected"
+
+InstanceStatus.CREATING         # "creating"
+InstanceStatus.PENDING_PROVIDER # "pending_provider"
+InstanceStatus.ACTIVE           # "active"
+InstanceStatus.ERROR            # "error"
+```
+
+`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
+
 ### requirements errors (HTTP 412)
 
 When an app is missing secrets, integrations, or scopes, `client.tasks.run()` raises `RequirementsNotMetError`:
