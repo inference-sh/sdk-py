@@ -386,7 +386,7 @@ app lifecycle has three main methods:
 - [documentation](https://inference.sh/docs) — getting started guides and api reference
 - [blog](https://inference.sh/blog) — tutorials on ai agents, image generation, and more
 - [app store](https://app.inference.sh) — browse 250+ ai models
-- [discord](https://discord.gg/RM77SWSbyT) — community support
+- [discord](https://discord.gg/inference) — community support
 - [github](https://github.com/inference-sh) — open source projects
 
 ## license
