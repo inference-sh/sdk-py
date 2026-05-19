@@ -49,3 +49,6 @@ dmypy.json
 dist/
 build/
 uv.lock
+
+# Local clone used by documentation automation (separate repo)
+skills-docs/
