@@ -31,3 +31,15 @@
 - `tests/test_sessions.py`: `SessionHandle` context manager, ended-session guard, `SessionsAPI` CRUD, async sessions namespace.
 - `tests/test_streamable.py`: `stream_post` / `stream_get` httpx-style helpers.
 - `tests/test_agent.py`: `client.agents.create()` delegates to agent run flow.
+
+## 2026-05-19 (run 4)
+
+**Recent changes reviewed:** `f664780`/`72ea615` (v0.7.6, Makefile `test-int-dev`/`test-int-local`), `8cb6eaf` (namespace API + Pydantic v2). Open PR #29 (`cursor/test-coverage-automation-42f4`) covers `models/base` and extended `render_message` — not duplicated here.
+
+**Gaps filled:**
+- `tests/test_factory.py`: `inference()` / `async_inference()` factory helpers and `base_url` wiring.
+- `tests/test_client.py`: `tasks.stream`, async `tasks.stream`/`wait_for_completion`, `agents.create`, `files.upload` namespace delegation.
+- `tests/test_utils_download.py`: `download()` cache/hash paths, `StorageDir.path`, download failure.
+- `tests/test_streamable.py`: `streamable_raw` / `iter_ndjson` bytes, blank lines, invalid JSON, heartbeats.
+- `tests/test_errors.py`: explicit `__repr__` for requirements/session errors.
+- `tests/test_imports.py`: status helpers and factory names in public import smoke list.

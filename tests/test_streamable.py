@@ -255,3 +255,48 @@ class TestChunkingEdgeCases:
         assert results[1] == 123
         assert results[2] == [1, 2, 3]
         assert results[3] == {"id": 1}
+
+
+class TestStreamableRawEdgeCases:
+    """Cover streamable_raw paths shared with iter_ndjson (bytes, blanks, bad JSON)."""
+
+    def test_streamable_raw_skips_empty_and_invalid_json(self):
+        response = MockResponse([
+            "",
+            "not-json",
+            b'{"data":{"x":1}}',
+        ])
+        results = list(streamable_raw(response))
+        assert len(results) == 1
+        assert results[0].data == {"x": 1}
+
+    def test_streamable_raw_skips_heartbeats(self):
+        response = MockResponse([
+            '{"type":"heartbeat"}',
+            '{"data":{"id":2}}',
+        ])
+        results = list(streamable_raw(response))
+        assert len(results) == 1
+        assert results[0].data == {"id": 2}
+
+    def test_streamable_raw_yields_non_dict_json(self):
+        response = MockResponse(['"plain"'])
+        results = list(streamable_raw(response))
+        assert results[0].data == "plain"
+        assert results[0].event is None
+
+
+class TestIterNdjsonEdgeCases:
+    def test_iter_ndjson_handles_bytes_and_blank_lines(self):
+        response = MockResponse([
+            b'{"id":1}',
+            "",
+            '{"id":2}',
+        ])
+        results = list(iter_ndjson(response))
+        assert results == [{"id": 1}, {"id": 2}]
+
+    def test_iter_ndjson_skips_invalid_json(self):
+        response = MockResponse(['{"ok":true}', '{bad'])
+        results = list(iter_ndjson(response))
+        assert results == [{"ok": True}]

@@ -64,6 +64,11 @@ class TestRequirementsNotMetError:
         exc = RequirementsNotMetError([], status_code=412)
         assert str(exc) == "requirements not met"
 
+    def test_repr_includes_errors(self):
+        err = RequirementError(type="secret", key="K", message="m")
+        exc = RequirementsNotMetError([err])
+        assert repr(exc) == f"RequirementsNotMetError(errors={exc.errors!r})"
+
 
 class TestSessionErrors:
     def test_session_not_found_repr(self):
@@ -75,14 +80,17 @@ class TestSessionErrors:
     def test_session_expired_repr(self):
         err = SessionExpiredError("sess_y")
         assert err.status_code == 410
+        assert repr(err) == "SessionExpiredError(session_id='sess_y')"
 
     def test_session_ended_repr(self):
         err = SessionEndedError("sess_z")
         assert err.status_code == 410
+        assert repr(err) == "SessionEndedError(session_id='sess_z')"
 
     def test_worker_lost_repr(self):
         err = WorkerLostError("sess_w")
         assert err.status_code == 500
+        assert repr(err) == "WorkerLostError(session_id='sess_w')"
 
 
 def test_api_error_repr():

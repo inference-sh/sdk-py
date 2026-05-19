@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -797,6 +797,22 @@ def test_tasks_wait_for_completion(tmp_path):
     assert result["output"] == {"ok": True}
 
 
+def test_tasks_stream_via_namespace():
+    """tasks.stream() should delegate to client.stream_task with reconnect options."""
+    client = Inference(api_key="test")
+
+    stream = client.tasks.stream(
+        "task_123",
+        auto_reconnect=False,
+        max_reconnects=2,
+        reconnect_delay_ms=500,
+    )
+
+    updates = list(stream)
+    assert len(updates) >= 1
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+
+
 def test_run_wait_false_strips_internal_fields(monkeypatch, patch_requests):
     """run(wait=False) must not leak internal task fields to callers."""
     import inferencesh.client as client_mod
@@ -900,3 +916,52 @@ async def test_async_tasks_cancel_via_namespace(patch_aiohttp):
 
     # Should not raise
     await client.tasks.cancel("task_async_123")
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_stream_via_namespace(patch_aiohttp):
+    """tasks.stream() on async client should return a streaming task handle."""
+    client = AsyncInference(api_key="test")
+
+    stream = client.tasks.stream("task_async_123", max_reconnects=1)
+    updates = []
+    async for update in stream:
+        updates.append(update)
+
+    assert updates
+    assert updates[-1]["output"] == {"async_ok": True}
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_wait_for_completion(patch_aiohttp):
+    """Async tasks.wait_for_completion() should return the final task state."""
+    client = AsyncInference(api_key="test")
+
+    result = await client.tasks.wait_for_completion("task_async_123")
+
+    assert result["id"] == "task_async_123"
+    assert result["status"] == TaskStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_async_agents_create_via_namespace(patch_aiohttp):
+    """client.agents.create() should delegate to client.agent()."""
+    client = AsyncInference(api_key="test")
+    sentinel = object()
+
+    with patch.object(client, "agent", return_value=sentinel) as mock_agent:
+        result = client.agents.create("okaris/assistant@abc123")
+
+    mock_agent.assert_called_once_with("okaris/assistant@abc123")
+    assert result is sentinel
+
+
+@pytest.mark.asyncio
+async def test_async_files_upload_via_namespace(patch_aiohttp):
+    """client.files.upload() should delegate to upload_file."""
+    client = AsyncInference(api_key="test")
+
+    file_obj = await client.files.upload(b"PNGDATA")
+
+    assert file_obj["id"] == "file_async_1"
+    assert file_obj["uri"].startswith("https://cloud.inference.sh/")

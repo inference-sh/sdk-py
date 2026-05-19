@@ -49,7 +49,8 @@ def test_all_exports_resolvable():
     # Base app types
     "BaseApp", "BaseAppInput", "BaseAppOutput", "BaseAppSetup", "File",
     # Client
-    "Inference", "AsyncInference",
+    "Inference", "AsyncInference", "inference", "async_inference",
+    "parse_status", "is_terminal_status", "is_message_ready",
     # Namespaced APIs
     "TasksAPI", "AsyncTasksAPI",
     "FilesAPI", "AsyncFilesAPI",
