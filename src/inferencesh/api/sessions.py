@@ -46,7 +46,9 @@ class SessionHandle:
             **kwargs: Additional parameters for run()
 
         Returns:
-            The task result
+            Task result dict when ``wait=True`` (default), task info when
+            ``wait=False``, or a stream iterator when ``stream=True`` (same as
+            ``client.run()``).
         """
         if self._ended:
             raise RuntimeError("Session has been ended")
@@ -118,7 +120,9 @@ class AsyncSessionHandle:
             **kwargs: Additional parameters for run()
 
         Returns:
-            The task result
+            Task result dict when ``wait=True`` (default), task info when
+            ``wait=False``, or an async stream when ``stream=True`` (same as
+            ``client.run()``).
         """
         if self._ended:
             raise RuntimeError("Session has been ended")
