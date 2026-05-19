@@ -7,6 +7,9 @@ from inferencesh.tools import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     number,
@@ -17,6 +20,7 @@ from inferencesh.tools import (
     array,
     optional,
 )
+from inferencesh.types import ToolType
 
 
 class TestSchemaHelpers:
@@ -297,6 +301,72 @@ class TestAgentToolBuilder:
 
         assert t["display_name"] == "Code Assistant"
         assert t["require_approval"] is True
+
+
+class TestMCPToolBuilder:
+    """Tests for MCP connector tool builder."""
+
+    def test_creates_mcp_tool(self):
+        t = (
+            mcp_tool("search", "integ-abc", "web_search")
+            .describe("Search via MCP")
+            .build()
+        )
+
+        assert t["type"] == ToolType.MCP.value
+        assert t["mcp"] == {"integration_id": "integ-abc", "tool_name": "web_search"}
+        assert t["description"] == "Search via MCP"
+
+    def test_mcp_tool_with_display_and_approval(self):
+        t = (
+            mcp_tool("query", "integ-xyz", "run_query")
+            .display("Run Query")
+            .require_approval()
+            .build()
+        )
+
+        assert t["display_name"] == "Run Query"
+        assert t["require_approval"] is True
+
+
+class TestHTTPToolBuilder:
+    """Tests for HTTP tool builder (credential injection)."""
+
+    def test_creates_http_tool(self):
+        t = (
+            http_tool("fetch", "https://api.example.com/data")
+            .describe("Fetch remote data")
+            .build()
+        )
+
+        assert t["type"] == ToolType.HTTP.value
+        assert t["http"]["url"] == "https://api.example.com/data"
+        assert t["http"]["method"] is None  # POST is default, omitted from payload
+        assert t["description"] == "Fetch remote data"
+
+    def test_http_tool_with_method_and_auth(self):
+        t = (
+            http_tool("list", "https://api.example.com/items")
+            .method("GET")
+            .auth(integration="github", integration_id="gh-1")
+            .header("Accept", "application/json")
+            .param("page", optional(integer("Page number")))
+            .build()
+        )
+
+        assert t["http"]["method"] == "GET"
+        assert t["http"]["auth"] == {
+            "type": "integration",
+            "provider": "github",
+            "integration_id": "gh-1",
+        }
+        assert t["http"]["headers"] == {"Accept": "application/json"}
+        assert t["http"]["input_schema"]["required"] == []
+
+    def test_call_tool_is_http_tool_alias(self):
+        t = call_tool("ping", "https://api.example.com/ping").build()
+        assert t["type"] == ToolType.HTTP.value
+        assert t["http"]["url"] == "https://api.example.com/ping"
 
 
 class TestWebhookToolBuilder:
