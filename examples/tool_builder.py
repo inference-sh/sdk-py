@@ -17,6 +17,9 @@ from inferencesh import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     integer,
@@ -130,6 +133,41 @@ send_slack = (
 print("\nsend_slack (webhook tool):")
 print(json.dumps(send_slack, indent=2, default=str))
 
+# HTTP / call tool — authenticated requests (call_tool is the preferred alias)
+notify = (
+    call_tool("notify", "https://api.example.com/notify")
+    .method("POST")
+    .auth(api_key="MY_API_KEY")
+    .header("X-Tenant", "{{context.tenant_id}}")
+    .param("message", string("Notification body"))
+    .describe("Send a notification")
+    .build()
+)
+
+print("\nnotify (call tool):")
+print(json.dumps(notify, indent=2, default=str))
+
+# http_tool is an alias for call_tool
+status_check = (
+    http_tool("check_status", "https://api.example.com/status")
+    .method("GET")
+    .auth(bearer="API_TOKEN")
+    .build()
+)
+
+print("\nstatus_check (http tool):")
+print(json.dumps(status_check, indent=2, default=str))
+
+# MCP connector tool (integration must be connected in workspace)
+web_search = (
+    mcp_tool("web_search", "int-abc123", "search")
+    .describe("Search via connected MCP server")
+    .build()
+)
+
+print("\nweb_search (mcp tool):")
+print(json.dumps(web_search, indent=2, default=str))
+
 # =============================================================================
 # Internal Tools Configuration
 # =============================================================================
@@ -159,7 +197,7 @@ print("No internal tools:", json.dumps(no_internal, indent=2))
 
 # Example of what you'd pass to Agent()
 agent_config = {
-    "core_app": "infsh/claude-sonnet-4@latest",
+    "core_app": {"ref": "infsh/claude-sonnet-4@latest"},
     "name": "Form Assistant",
     "system_prompt": "You are a helpful assistant that can interact with forms.",
     "tools": [scan_ui, fill_field, interact, generate_image],
