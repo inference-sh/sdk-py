@@ -147,9 +147,26 @@ class TestClientToolBuilder:
         assert t["client"]["input_schema"]["required"] == ["query"]
         assert "limit" in t["client"]["input_schema"]["properties"]
 
+    def test_tool_require_approval_defaults_false(self):
+        t = tool("safe").build()
+        assert t["require_approval"] is False
+
     def test_tool_with_require_approval(self):
         t = tool("dangerous").require_approval().build()
         assert t["require_approval"] is True
+
+    def test_display_name_method(self):
+        t = tool("my_tool").display_name("My Tool").build()
+        assert t["display_name"] == "My Tool"
+
+    def test_handler_returns_schema_and_callable(self):
+        def handle(args):
+            return f"ok:{args['x']}"
+
+        client_tool = tool("echo").param("x", string()).handler(handle)
+        assert client_tool["schema"]["name"] == "echo"
+        assert client_tool["handler"] is handle
+        assert client_tool["handler"]({"x": "1"}) == "ok:1"
 
     def test_nested_object_parameters(self):
         t = (

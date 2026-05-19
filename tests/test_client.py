@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from inferencesh import Inference, AsyncInference, TaskStatus
+from inferencesh.models.errors import RequirementsNotMetError
 
 
 class DummyResponse:
@@ -127,6 +128,37 @@ def patch_requests(monkeypatch):
     monkeypatch.setattr(client_mod, "_require_requests", require_requests)
 
     yield fake_requests
+
+
+def test_run_raises_requirements_not_met_on_412(monkeypatch, patch_requests):
+    """412 with errors array must raise RequirementsNotMetError (not APIError)."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(
+                    status_code=412,
+                    json_data={
+                        "errors": [
+                            {
+                                "type": "secret",
+                                "key": "API_KEY",
+                                "message": "Missing API_KEY",
+                            },
+                        ],
+                    },
+                )
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(RequirementsNotMetError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.status_code == 412
+    assert exc_info.value.errors[0].key == "API_KEY"
 
 
 def test_run_wait_false(tmp_path):
