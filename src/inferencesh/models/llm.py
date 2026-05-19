@@ -287,7 +287,7 @@ def build_openai_messages(
         return s.startswith("http://") or s.startswith("https://")
 
     def render_message(msg: ContextMessage, allow_multipart: bool) -> str | List[dict]:
-        parts = []
+        parts: List[Dict[str, Any]] = []
         text = transform_user_message(msg.text) if transform_user_message and msg.role == ContextMessageRole.USER else msg.text
 
 
@@ -336,7 +336,7 @@ def build_openai_messages(
 
         raise ValueError("Invalid message content")
 
-    messages = [{"role": "system", "content": input_data.system_prompt}] if input_data.system_prompt is not None and input_data.system_prompt != "" else []
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": input_data.system_prompt}] if input_data.system_prompt is not None and input_data.system_prompt != "" else []
 
     def merge_messages(messages: List[ContextMessage]) -> ContextMessage:
         text = "\n\n".join(msg.text for msg in messages if msg.text)
@@ -376,7 +376,10 @@ def build_openai_messages(
         user_input_reasoning = input_data.reasoning
         
     # Check if ANY message (including current user input) has images/files/reasoning
-    multipart = any(m.images or m.files or m.reasoning for m in input_data.context) or user_input_images or user_input_files or user_input_reasoning
+    multipart: bool = bool(
+        any(m.images or m.files or m.reasoning for m in input_data.context)
+        or user_input_images or user_input_files or user_input_reasoning
+    )
 
     input_role = input_data.role if hasattr(input_data, "role") else ContextMessageRole.USER
     input_tool_call_id = input_data.tool_call_id if hasattr(input_data, "tool_call_id") else None
@@ -395,7 +398,7 @@ def build_openai_messages(
         else:
             # Convert role enum to string for OpenAI API compatibility
             role_str = current_role.value if hasattr(current_role, "value") else current_role
-            msg_dict = {
+            msg_dict: Dict[str, Any] = {
                 "role": role_str,
                 "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
             }
@@ -433,9 +436,10 @@ def build_openai_messages(
             current_role = msg.role
     
     if len(current_messages) > 0:
+        assert current_role is not None  # set whenever current_messages is non-empty
         # Convert role enum to string for OpenAI API compatibility
         role_str = current_role.value if hasattr(current_role, "value") else current_role
-        msg_dict = {
+        msg_dict = {  # type already annotated above in the loop
             "role": role_str,
             "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
         }
@@ -765,11 +769,11 @@ class ResponseTransformer:
         self.handle_function_calls(cleaned)
         self.handle_tool_calls(cleaned)
     
-    def build_output(self) -> tuple[str, LLMOutput, dict]:
+    def build_output(self) -> tuple[str, BaseLLMOutput, dict]:
         """Build the final output tuple.
-        
+
         Returns:
-            Tuple of (buffer, LLMOutput, state_changes)
+            Tuple of (buffer, output_instance, state_changes)
         """
         # Build base output with required fields
         output_data = {
@@ -794,7 +798,7 @@ class ResponseTransformer:
             self.state.state_changes
         )
     
-    def __call__(self, piece: str, buffer: str, usage: Optional[LLMUsage] = None) -> tuple[str, LLMOutput, dict]:
+    def __call__(self, piece: str, buffer: str, usage: Optional[LLMUsage] = None) -> tuple[str, BaseLLMOutput, dict]:
         """Transform a piece of text and return the result.
         
         Args:
@@ -828,9 +832,9 @@ def stream_generate(
     """Stream generate from LLaMA.cpp model with timing and usage tracking."""
         
     # Create queues for communication between threads
-    response_queue = Queue()
-    error_queue = Queue()
-    keep_alive_queue = Queue()
+    response_queue: Queue[Any] = Queue()
+    error_queue: Queue[Any] = Queue()
+    keep_alive_queue: Queue[Any] = Queue()
     
     # Set the output class for the transformer
     transformer.output_cls = output_cls
