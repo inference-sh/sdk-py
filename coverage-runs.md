@@ -1,5 +1,13 @@
 # Coverage automation runs
 
+## 2026-05-19 (documentation)
+
+**Trigger:** sdk-py `2c2f455` — agent context API (`client.agent` vs `agents.create`), `call_tool` / `http_tool` / `mcp_tool` examples.
+
+**Public docs updated:** `inference-sh/skills` python-sdk + javascript-sdk references (tool-builder, agent-patterns, SKILL.md). sdk-py `AgentsAPI.create` docstrings.
+
+**Still needs sync (private docs repo):** [inference.sh/docs/api/agent-tools](https://inference.sh/docs/api/agent-tools) — add Call/HTTP and MCP sections; agent API page for per-chat `context`.
+
 ## 2026-05-19
 
 **Recent changes reviewed:** `f404999` (ToolType.MCP + gotypegen acronym enums), `bf4cd7d` (call_tool/mcp_tool builders).

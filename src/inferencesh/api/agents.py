@@ -42,6 +42,10 @@ class AgentsAPI:
 
         Returns:
             An Agent instance for chat operations
+
+        Note:
+            Per-chat context variables (for ``{{context.KEY}}`` in call tool URLs) are only
+            available via ``client.agent(config, context={...})``, not this method.
         """
         return self._client.agent(config)
 
@@ -72,5 +76,9 @@ class AsyncAgentsAPI:
 
         Returns:
             An AsyncAgent instance for chat operations
+
+        Note:
+            Per-chat context variables (for ``{{context.KEY}}`` in call tool URLs) are only
+            available via ``client.agent(config, context={...})``, not this method.
         """
         return self._client.agent(config)
