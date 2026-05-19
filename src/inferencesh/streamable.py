@@ -8,7 +8,7 @@ avoiding browser connection limits when used in environments that support it.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Iterator, Optional, Generator, Union, Callable
+from typing import Any, Dict, Optional, Generator, Callable
 from dataclasses import dataclass
 
 
