@@ -11,6 +11,16 @@
 
 **Not covered (lower priority this run):** Agent `context` parameter wiring (needs HTTP mock).
 
+## 2026-05-19 (run 5)
+
+**Recent changes reviewed:** `eff538d` (ToolParamType const split, integration enums, InstanceStatus lifecycle).
+
+**Open PRs checked:** #42 covers `3df5ec8` session/agent streams — no overlap. #37/#39/#41/#44 are docs-only.
+
+**Gaps filled:**
+- `tests/test_types.py`: `ToolParamType` vs `ToolCallType` split, integration enums, `InstanceStatus` lifecycle.
+- `tests/test_imports.py`: typegen exports for new enums.
+
 ## 2026-05-19 (run 2)
 
 **Recent changes reviewed:** `bf4cd7d` (agent context), `1eb100c` (require_approval bool + TypedDict casts), client 412 handling.
