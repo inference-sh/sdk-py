@@ -2,8 +2,16 @@
 Tool Builder - Fluent API for defining agent tools
 """
 
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union
-from .types import AgentTool, InternalToolsConfig, ToolAuthConfig, ToolType
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union, cast
+from .types import (
+    AgentTool,
+    AppToolConfig,
+    HookToolConfig,
+    HTTPToolConfig,
+    InternalToolsConfig,
+    ToolAuthConfig,
+    ToolType,
+)
 
 
 # =============================================================================
@@ -159,7 +167,7 @@ class ClientToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.CLIENT,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "client": {"input_schema": _to_json_schema(self._params)},
         }
 
@@ -220,8 +228,8 @@ class AppToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.APP,
-            "require_approval": self._require_approval or None,
-            "app": app_config,
+            "require_approval": self._require_approval,
+            "app": cast(AppToolConfig, app_config),
         }
 
 
@@ -238,7 +246,7 @@ class AgentToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.AGENT,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "agent": {"ref": self._agent_ref},
         }
 
@@ -262,12 +270,12 @@ class WebhookToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.HOOK,
-            "require_approval": self._require_approval or None,
-            "hook": {
+            "require_approval": self._require_approval,
+            "hook": cast(HookToolConfig, {
                 "url": self._url,
                 "secret": self._secret,
                 "input_schema": _to_json_schema(self._params),
-            },
+            }),
         }
 
 
@@ -311,14 +319,14 @@ class HTTPToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.HTTP,
-            "require_approval": self._require_approval or None,
-            "http": {
+            "require_approval": self._require_approval,
+            "http": cast(HTTPToolConfig, {
                 "url": self._url,
                 "method": self._method if self._method != "POST" else None,
                 "auth": self._auth,
                 "headers": self._headers or None,
                 "input_schema": _to_json_schema(self._params),
-            },
+            }),
         }
         return result
 
@@ -371,7 +379,7 @@ class MCPToolBuilder(_ToolBuilder):
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.MCP,
-            "require_approval": self._require_approval or None,
+            "require_approval": self._require_approval,
             "mcp": {"integration_id": self._integration_id, "tool_name": self._tool_name},
         }
 
