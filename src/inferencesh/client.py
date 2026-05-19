@@ -1017,6 +1017,7 @@ class Inference:
             "function": kwargs.get("function", "run"),
             "session": "new",
         })
+        assert isinstance(result, dict)
         session_id = result.get("session_id")
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")
@@ -1533,6 +1534,7 @@ class AsyncInference:
             "function": kwargs.get("function", "run"),
             "session": "new",
         })
+        assert isinstance(result, dict)
         session_id = result.get("session_id")
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")

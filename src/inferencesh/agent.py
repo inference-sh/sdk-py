@@ -7,7 +7,7 @@ Chat with AI agents without UI dependencies.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Callable, Iterator, AsyncIterator, TYPE_CHECKING
+from typing import Any, Dict, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .types import (
@@ -109,6 +109,7 @@ class Agent:
 
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
         input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
+        body: Dict[str, Any]
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
         else:
@@ -592,6 +593,7 @@ class AsyncAgent:
         """Send a message to the agent."""
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
         input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
+        body: Dict[str, Any]
         if isinstance(self._options, str):
             body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
         else:
@@ -646,16 +648,16 @@ class AsyncAgent:
         
         async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chat_messages":
-                yield data
-    
+                yield cast(ChatMessageDTO, data)
+
     async def stream_chat(self) -> AsyncIterator[ChatDTO]:
         """Stream chat updates from the unified stream endpoint with TypedEvents."""
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
-        
+
         async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chats":
-                yield data
+                yield cast(ChatDTO, data)
     
     async def run(self, text: str, **kwargs: Any) -> Any:
         """
