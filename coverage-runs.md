@@ -21,6 +21,15 @@
 - `tests/test_types.py`: `ToolParamType` vs `ToolCallType` split, integration enums, `InstanceStatus` lifecycle.
 - `tests/test_imports.py`: typegen exports for new enums.
 
+## 2026-05-19 (docs run — c7c332b)
+
+**Recent changes reviewed:** `c7c332b` (enum regression tests for ToolParamType split, integration enums, InstanceStatus).
+
+**Open PRs checked:** #44 already documents ToolParamType/ToolCallType split and workspace enums on `dev`. #37/#39/#41 cover namespaced client, agent context, and sessions.
+
+**Docs updated:**
+- `README.md`: acronym enum naming note, full `InstanceStatus`/`IntegrationStatus` value lists, `IntegrationDTO` typing, 412 handler example with `IntegrationProvider`.
+
 ## 2026-05-19 (run 2)
 
 **Recent changes reviewed:** `bf4cd7d` (agent context), `1eb100c` (require_approval bool + TypedDict casts), client 412 handling.

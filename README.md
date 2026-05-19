@@ -438,7 +438,9 @@ InstanceStatus.ACTIVE           # "active"
 InstanceStatus.ERROR            # "error"
 ```
 
-`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
+Enum members use readable acronym names from typegen (for example `IntegrationProvider.GIT_HUB` with value `"github"`, not `G_I_T_H_U_B`). `IntegrationDTO` responses type `provider`, `type`, `auth`, and `status` with these enums.
+
+`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `IntegrationStatus` values are `connected`, `disconnected`, `expired`, and `error`. `InstanceStatus` covers the full lifecycle: `creating`, `pending_provider`, `pending`, `active`, `error`, `deleting`, and `deleted`.
 
 ### requirements errors (HTTP 412)
 
@@ -446,12 +448,17 @@ When an app is missing secrets, integrations, or scopes, `client.tasks.run()` ra
 
 ```python
 from inferencesh import RequirementsNotMetError
+from inferencesh.types import IntegrationProvider
 
 try:
     result = client.tasks.run({"app": "my-app", "input": {...}})
 except RequirementsNotMetError as e:
     for err in e.errors:
         print(f"{err.type}: {err.key} — {err.message}")
+        if err.action and err.action.provider:
+            # action.provider is a wire string (e.g. "github"); compare with IntegrationProvider
+            provider = IntegrationProvider(err.action.provider)
+            print(f"Connect integration: {provider.name}")
 ```
 
 ### agent methods
