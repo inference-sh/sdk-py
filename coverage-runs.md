@@ -61,5 +61,11 @@
 
 **Gaps filled:**
 - `tests/test_sessions.py`: `session.call()` wait/stream parity with `client.run()`; missing `session_id` error; async session context manager.
+
+## 2026-05-19 — namespaced client API (sdk-py #37)
+
+- `README.md`: Client API overview table (`tasks`, `files`, `agents`, `sessions`); legacy `client.run()` / `client.upload_file()` aliases documented.
+- `examples/run.py`: Examples use `client.tasks.run()`, `client.tasks.get()`, `client.tasks.stream()`.
+- `inference-sh/skills` `sdk/python-sdk/`: Aligned agent skill docs with namespaced API (see skills PR).
 - `tests/test_agent.py`: `AsyncAgent.stream_messages()` / `stream_chat()` event filtering; guard when no active chat.
 - `tests/test_models_base.py`: nested `OrderedSchemaModel` field-order fallback path.
