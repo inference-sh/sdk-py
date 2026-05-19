@@ -58,4 +58,3 @@ class VideoResolution(str, Enum):
     VIDEO_RES1080_P = "1080p"
     VIDEO_RES1440_P = "1440p"
     VIDEO_RES4_K = "4k"
-

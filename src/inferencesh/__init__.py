@@ -120,7 +120,7 @@ from .types import (
 
 def inference(*, api_key: str, base_url: str | None = None) -> Inference:
     """Factory function for creating an Inference client (lowercase for branding).
-    
+
     Example:
         ```python
         client = inference(api_key="your-api-key")
@@ -131,7 +131,7 @@ def inference(*, api_key: str, base_url: str | None = None) -> Inference:
 
 def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInference:
     """Factory function for creating an AsyncInference client (lowercase for branding).
-    
+
     Example:
         ```python
         client = async_inference(api_key="your-api-key")

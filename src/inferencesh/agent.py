@@ -39,9 +39,9 @@ class ToolCallInfo:
 class Agent:
     """
     Headless agent client for chat interactions.
-    
+
     Created via `client.agent()` - do not instantiate directly.
-    
+
     Example:
         ```python
         client = Inference(api_key="your-key")
@@ -55,7 +55,7 @@ class Agent:
             print(message)
         ```
     """
-    
+
     def __init__(self, client: "Inference", options: AgentOptions, context: Optional[Dict[str, str]] = None):
         """Internal constructor - use client.agent() instead."""
         self._client = client
@@ -63,22 +63,22 @@ class Agent:
         self._context = context
         self._chat_id: Optional[str] = None
         self._dispatched_tools: set[str] = set()  # tool invocation ids we've already processed
-    
+
     @property
     def _api_key(self) -> str:
         """Delegate to client's API key."""
         return self._client._api_key
-    
+
     @property
     def _base_url(self) -> str:
         """Delegate to client's base URL."""
         return self._client._base_url
-    
+
     @property
     def chat_id(self) -> Optional[str]:
         """Current chat ID."""
         return self._chat_id
-    
+
     def send_message(
         self,
         text: str,
@@ -88,13 +88,13 @@ class Agent:
     ) -> ChatMessageDTO:
         """
         Send a message to the agent.
-        
+
         Args:
             text: Message text
             files: File attachments (bytes or base64/data URI strings)
             on_message: Callback for streaming message updates
             on_tool_call: Callback when a client tool needs execution
-            
+
         Returns:
             The assistant's response message
         """
@@ -120,48 +120,48 @@ class Agent:
         response = self._request("post", "/agents/run", data=body)
         if not response:
             raise RuntimeError("Empty response from /agents/run")
-        
+
         # Update chat ID
         assistant_msg = response.get("assistant_message", {})
         if not self._chat_id and assistant_msg.get("chat_id"):
             self._chat_id = assistant_msg["chat_id"]
-        
+
         # Start streaming if callbacks provided
         if on_message or on_tool_call:
             self._start_streaming(on_message, on_tool_call)
-        
+
         return assistant_msg
-    
+
     def get_chat(self, chat_id: Optional[str] = None) -> Optional[ChatDTO]:
         """Get chat by ID."""
         cid = chat_id or self._chat_id
         if not cid:
             return None
         return self._request("get", f"/chats/{cid}")
-    
+
     def stop_chat(self) -> None:
         """Stop the current chat generation."""
         if self._chat_id:
             self._request("post", f"/chats/{self._chat_id}/stop")
-    
+
     def submit_tool_result(
-        self, 
-        tool_invocation_id: str, 
+        self,
+        tool_invocation_id: str,
         result_or_action: str | dict[str, Any]
     ) -> None:
         """
         Submit a tool result.
-        
+
         Args:
             tool_invocation_id: The tool invocation ID
             result_or_action: Either a raw result string, or a dict with:
                 - action: { "type": str, "payload"?: dict } (for widget actions)
                 - form_data?: dict (optional form data for widgets)
                 Dict values are JSON-serialized automatically.
-        
+
         Example (raw result):
             agent.submit_tool_result("tool123", '{"success": true}')
-        
+
         Example (widget action):
             agent.submit_tool_result("tool123", {
                 "action": {"type": "confirm"},
@@ -174,7 +174,7 @@ class Agent:
         else:
             result = json.dumps(result_or_action)
         self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
-    
+
     def stream_messages(
         self,
         auto_reconnect: bool = True,
@@ -184,33 +184,33 @@ class Agent:
         """
         Stream messages from the current chat with auto-reconnect.
         Uses the unified stream endpoint with TypedEvents.
-        
+
         Args:
             auto_reconnect: Whether to automatically reconnect on connection loss
             max_reconnects: Maximum number of reconnection attempts
             reconnect_delay_ms: Delay between reconnection attempts in milliseconds
-        
+
         Yields:
             ChatMessageDTO: Message updates
         """
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
-        
+
         from queue import Queue
         import threading
-        
+
         message_queue: Queue[ChatMessageDTO | Exception | None] = Queue()
-        
+
         def create_event_source():
             # Use unified stream with TypedEvents
             return self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream")
-        
+
         def handle_event(event_tuple):
             event_type, data = event_tuple
             # Only yield chat_messages events
             if event_type == "chat_messages":
                 message_queue.put(data)
-        
+
         manager = StreamManager(
             create_event_source=create_event_source,
             auto_reconnect=auto_reconnect,
@@ -220,11 +220,11 @@ class Agent:
             on_error=lambda err: message_queue.put(err),
             on_stop=lambda: message_queue.put(None),
         )
-        
+
         # Run in background thread
         thread = threading.Thread(target=manager.connect, daemon=True)
         thread.start()
-        
+
         try:
             while True:
                 item = message_queue.get()
@@ -235,7 +235,7 @@ class Agent:
                 yield item
         finally:
             manager.stop()
-    
+
     def stream_chat(
         self,
         auto_reconnect: bool = True,
@@ -245,33 +245,33 @@ class Agent:
         """
         Stream chat updates with auto-reconnect.
         Uses the unified stream endpoint with TypedEvents.
-        
+
         Args:
             auto_reconnect: Whether to automatically reconnect on connection loss
             max_reconnects: Maximum number of reconnection attempts
             reconnect_delay_ms: Delay between reconnection attempts in milliseconds
-        
+
         Yields:
             ChatDTO: Chat updates
         """
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
-        
+
         from queue import Queue
         import threading
-        
+
         chat_queue: Queue[ChatDTO | Exception | None] = Queue()
-        
+
         def create_event_source():
             # Use unified stream with TypedEvents
             return self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream")
-        
+
         def handle_event(event_tuple):
             event_type, data = event_tuple
             # Only yield chats events
             if event_type == "chats":
                 chat_queue.put(data)
-        
+
         manager = StreamManager(
             create_event_source=create_event_source,
             auto_reconnect=auto_reconnect,
@@ -281,10 +281,10 @@ class Agent:
             on_error=lambda err: chat_queue.put(err),
             on_stop=lambda: chat_queue.put(None),
         )
-        
+
         thread = threading.Thread(target=manager.connect, daemon=True)
         thread.start()
-        
+
         try:
             while True:
                 item = chat_queue.get()
@@ -295,7 +295,7 @@ class Agent:
                 yield item
         finally:
             manager.stop()
-    
+
     def stream_all(
         self,
         on_chat: Optional[Callable[[ChatDTO], None]] = None,
@@ -305,9 +305,9 @@ class Agent:
         """
         Stream all events (Chat and ChatMessage) from the unified stream endpoint.
         Uses TypedEvents - single SSE connection for both event types.
-        
+
         Automatically stops when the chat becomes idle (agent finished responding).
-        
+
         Args:
             on_chat: Callback for Chat object updates (status changes)
             on_message: Callback for ChatMessage updates
@@ -315,7 +315,7 @@ class Agent:
         """
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
-        
+
         for event_type, data in self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream"):
             if event_type == "chats":
                 if on_chat:
@@ -323,11 +323,11 @@ class Agent:
                 # Stop streaming when chat becomes idle (agent finished)
                 if data.get("status") in ("idle", "completed"):
                     break
-                    
+
             elif event_type == "chat_messages":
                 if on_message:
                     on_message(data)
-                
+
                 # Check for client tool invocations awaiting input
                 # (ID tracking handles duplicates, status field indicates message readiness)
                 if on_tool_call:
@@ -342,7 +342,7 @@ class Agent:
                                 name=inv.get("function", {}).get("name", ""),
                                 args=inv.get("function", {}).get("arguments", {}),
                             ))
-    
+
     def run(self, text: str, **kwargs: Any) -> Any:
         """
         Run the agent and return structured output.
@@ -359,7 +359,7 @@ class Agent:
         """Reset the agent (start fresh chat)."""
         self._chat_id = None
         self._dispatched_tools.clear()
-    
+
     def upload_file(self, data: bytes | str, filename: Optional[str] = None) -> FileRef:
         """
         Upload a file and return a FileRef.
@@ -414,11 +414,11 @@ class Agent:
             "content_type": file_obj.get("content_type", content_type),
             "size": len(raw_bytes),
         }
-    
+
     # =========================================================================
     # Private Methods
     # =========================================================================
-    
+
     def _create_ndjson_generator(self, endpoint: str):
         """Create an NDJSON generator for StreamManager."""
         requests = _require_requests()
@@ -452,7 +452,7 @@ class Agent:
                     yield parsed
 
         return generator()
-    
+
     def _create_typed_ndjson_generator(self, endpoint: str):
         """Create an NDJSON generator that yields (event_type, data) tuples for TypedEvents."""
         requests = _require_requests()
@@ -488,28 +488,28 @@ class Agent:
                     yield ("message", parsed)
 
         return generator()
-    
+
     def _start_streaming(
         self,
         on_message: Optional[Callable[[ChatMessageDTO], None]],
         on_tool_call: Optional[Callable[[ToolCallInfo], None]],
     ) -> None:
         """Start streaming and wait for completion.
-        
+
         Uses unified stream with TypedEvents. Blocks until the chat is complete.
         Tool call callbacks run in a separate thread, allowing submit_tool_result
         to be called from within the callback.
         """
         if not self._chat_id:
             return
-        
+
         # Run synchronously - stream_all blocks until the chat completes
         # Callbacks are invoked inline as events arrive
         self.stream_all(
             on_message=on_message,
             on_tool_call=on_tool_call,
         )
-    
+
     def _request(
         self,
         method: str,
@@ -518,13 +518,13 @@ class Agent:
     ) -> Any:
         """Make an API request."""
         requests = _require_requests()
-        
+
         url = f"{self._base_url}{endpoint}"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
-        
+
         resp = requests.request(
             method=method.upper(),
             url=url,
@@ -532,7 +532,7 @@ class Agent:
             data=json.dumps(data) if data else None,
             timeout=30,
         )
-        
+
         # Try to parse JSON response
         payload = {}
         if resp.text:
@@ -544,17 +544,17 @@ class Agent:
                 if resp.ok:
                     return None
                 raise RuntimeError(f"Invalid response: {resp.text[:200]}")
-        
+
         if not resp.ok:
             error = payload.get("error", {})
             msg = error.get("message") if isinstance(error, dict) else str(error)
             raise RuntimeError(msg or f"Request failed: {resp.status_code}")
-        
+
         if not payload.get("success"):
             error = payload.get("error", {})
             msg = error.get("message") if isinstance(error, dict) else str(error)
             raise RuntimeError(msg or "Request failed")
-        
+
         return payload.get("data")
 
 
@@ -564,31 +564,31 @@ class Agent:
 
 class AsyncAgent:
     """Async version of the Agent client.
-    
+
     Created via `client.agent()` - do not instantiate directly.
     """
-    
+
     def __init__(self, client: "AsyncInference", options: AgentOptions, context: Optional[Dict[str, str]] = None):
         """Internal constructor - use client.agent() instead."""
         self._client = client
         self._options = options
         self._context = context
         self._chat_id: Optional[str] = None
-    
+
     @property
     def _api_key(self) -> str:
         """Delegate to client's API key."""
         return self._client._api_key
-    
+
     @property
     def _base_url(self) -> str:
         """Delegate to client's base URL."""
         return self._client._base_url
-    
+
     @property
     def chat_id(self) -> Optional[str]:
         return self._chat_id
-    
+
     async def send_message(self, text: str, attachments: Optional[list[FileRef]] = None) -> ChatMessageDTO:
         """Send a message to the agent."""
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
@@ -602,31 +602,31 @@ class AsyncAgent:
             body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
 
         response = await self._request("post", "/agents/run", data=body)
-        
+
         assistant_msg = response.get("assistant_message", {})
         if not self._chat_id and assistant_msg.get("chat_id"):
             self._chat_id = assistant_msg["chat_id"]
-        
+
         return assistant_msg
-    
+
     async def get_chat(self, chat_id: Optional[str] = None) -> Optional[ChatDTO]:
         cid = chat_id or self._chat_id
         if not cid:
             return None
         return await self._request("get", f"/chats/{cid}")
-    
+
     async def stop_chat(self) -> None:
         if self._chat_id:
             await self._request("post", f"/chats/{self._chat_id}/stop")
-    
+
     async def submit_tool_result(
-        self, 
-        tool_invocation_id: str, 
+        self,
+        tool_invocation_id: str,
         result_or_action: str | dict[str, Any]
     ) -> None:
         """
         Submit a tool result.
-        
+
         Args:
             tool_invocation_id: The tool invocation ID
             result_or_action: Either a raw result string, or a dict with:
@@ -640,12 +640,12 @@ class AsyncAgent:
         else:
             result = json.dumps(result_or_action)
         await self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
-    
+
     async def stream_messages(self) -> AsyncIterator[ChatMessageDTO]:
         """Stream messages from the unified stream endpoint with TypedEvents."""
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
-        
+
         async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chat_messages":
                 yield cast(ChatMessageDTO, data)
@@ -658,7 +658,7 @@ class AsyncAgent:
         async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
             if event_type == "chats":
                 yield cast(ChatDTO, data)
-    
+
     async def run(self, text: str, **kwargs: Any) -> Any:
         """
         Run the agent and return structured output.
@@ -676,24 +676,24 @@ class AsyncAgent:
 
     async def _request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
         aiohttp = await _require_aiohttp()
-        
+
         url = f"{self._base_url}{endpoint}"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
         }
-        
+
         async with aiohttp.ClientSession() as session:
             async with session.request(method.upper(), url, headers=headers, json=data) as resp:
                 payload = await resp.json() if resp.content_type == "application/json" else {}
-                
+
                 if not resp.ok or not payload.get("success"):
                     error = payload.get("error", {})
                     msg = error.get("message") if isinstance(error, dict) else str(error)
                     raise RuntimeError(msg or "Request failed")
-                
+
                 return payload.get("data")
-    
+
     async def _stream_ndjson(self, endpoint: str) -> AsyncIterator[Dict[str, Any]]:
         """Stream NDJSON events (yields raw data without event type)."""
         aiohttp = await _require_aiohttp()
@@ -722,7 +722,7 @@ class AsyncAgent:
                         yield parsed["data"]
                     else:
                         yield parsed
-    
+
     async def _stream_typed_ndjson(self, endpoint: str) -> AsyncIterator[tuple[str, Dict[str, Any]]]:
         """Stream NDJSON events with TypedEvents (yields event_type, data tuples)."""
         aiohttp = await _require_aiohttp()
@@ -773,4 +773,3 @@ async def _require_aiohttp():
         return aiohttp
     except ImportError as exc:
         raise RuntimeError("Install aiohttp: pip install aiohttp") from exc
-

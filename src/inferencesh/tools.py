@@ -238,11 +238,11 @@ class AppToolBuilder(_ToolBuilder):
 
 class AgentToolBuilder(_ToolBuilder):
     """Builder for agent tools (sub-agents)."""
-    
+
     def __init__(self, name: str, agent_ref: str):
         super().__init__(name)
         self._agent_ref = agent_ref
-    
+
     def build(self) -> AgentTool:
         return {
             "name": self._name,
@@ -256,17 +256,17 @@ class AgentToolBuilder(_ToolBuilder):
 
 class WebhookToolBuilder(_ToolBuilder):
     """Builder for webhook tools."""
-    
+
     def __init__(self, name: str, url: str):
         super().__init__(name)
         self._url = url
         self._secret: Optional[str] = None
-    
+
     def secret(self, key: str) -> "WebhookToolBuilder":
         """Set webhook secret."""
         self._secret = key
         return self
-    
+
     def build(self) -> AgentTool:
         return {
             "name": self._name,
@@ -398,30 +398,30 @@ def mcp_tool(name: str, integration_id: str, tool_name: str) -> MCPToolBuilder:
 
 class InternalToolsBuilder:
     """Builder for internal tools configuration."""
-    
+
     def __init__(self):
         self._config: InternalToolsConfig = {}
-    
+
     def plan(self, enabled: bool = True) -> "InternalToolsBuilder":
         """Enable plan tools (Create, Update, Load)."""
         self._config["plan"] = enabled
         return self
-    
+
     def memory(self, enabled: bool = True) -> "InternalToolsBuilder":
         """Enable memory tools (Set, Get, GetAll)."""
         self._config["memory"] = enabled
         return self
-    
+
     def widget(self, enabled: bool = True) -> "InternalToolsBuilder":
         """Enable widget tools (UI, HTML) - top-level only."""
         self._config["widget"] = enabled
         return self
-    
+
     def finish(self, enabled: bool = True) -> "InternalToolsBuilder":
         """Enable finish tool - sub-agents only."""
         self._config["finish"] = enabled
         return self
-    
+
     def all(self) -> "InternalToolsBuilder":
         """Enable all internal tools."""
         self._config["plan"] = True
@@ -429,7 +429,7 @@ class InternalToolsBuilder:
         self._config["widget"] = True
         self._config["finish"] = True
         return self
-    
+
     def none(self) -> "InternalToolsBuilder":
         """Disable all internal tools."""
         self._config["plan"] = False
@@ -437,7 +437,7 @@ class InternalToolsBuilder:
         self._config["widget"] = False
         self._config["finish"] = False
         return self
-    
+
     def build(self) -> InternalToolsConfig:
         return self._config
 
@@ -445,4 +445,3 @@ class InternalToolsBuilder:
 def internal_tools() -> InternalToolsBuilder:
     """Create internal tools configuration."""
     return InternalToolsBuilder()
-

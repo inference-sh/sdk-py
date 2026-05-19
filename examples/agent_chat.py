@@ -49,7 +49,7 @@ weather_tool = (
     .build()
 )
 
-# File search tool (simulated)  
+# File search tool (simulated)
 search_tool = (
     tool("search_files")
     .describe("Searches for files matching a pattern")
@@ -68,7 +68,7 @@ def handle_calculator(args: dict) -> str:
     a = float(args.get("a", 0))
     b = float(args.get("b", 0))
     op = args.get("operation", "add")
-    
+
     if op == "add":
         result = a + b
     elif op == "subtract":
@@ -79,7 +79,7 @@ def handle_calculator(args: dict) -> str:
         result = a / b if b != 0 else float("nan")
     else:
         return json.dumps({"error": f"Unknown operation: {op}"})
-    
+
     return json.dumps({
         "result": result,
         "expression": f"{a} {op} {b} = {result}"
@@ -89,10 +89,10 @@ def handle_calculator(args: dict) -> str:
 def handle_weather(args: dict) -> str:
     location = args.get("location", "Unknown")
     units = args.get("units", "celsius")
-    
+
     # Simulated weather data
     temp = 22 if units == "celsius" else 72
-    
+
     return json.dumps({
         "location": location,
         "temperature": temp,
@@ -105,7 +105,7 @@ def handle_weather(args: dict) -> str:
 def handle_search_files(args: dict) -> str:
     pattern = args.get("pattern", "*")
     recursive = args.get("recursive", False)
-    
+
     # Simulated file search
     return json.dumps({
         "pattern": pattern,
@@ -133,7 +133,7 @@ def main():
     if not api_key:
         print("Set INFERENCE_API_KEY environment variable")
         sys.exit(1)
-    
+
     # Create client and agent with ad-hoc config
     client = inference(api_key=api_key, base_url="https://api-dev.inference.sh")
     agent = client.agent({
@@ -149,19 +149,19 @@ Use tools when appropriate to help the user.""",
         "tools": [calculator_tool, weather_tool, search_tool],
         "internal_tools": internal_tools().memory().build(),
     })
-    
+
     print("Agent ready. Sending message...\n")
-    
+
     # Callback for message updates
     def on_message(msg):
         for c in msg.get("content", []):
             if c.get("type") == "text" and c.get("text"):
                 print(c["text"])
-    
+
     # Callback for tool calls
     def on_tool_call(call: ToolCallInfo):
         print(f"\n[Tool Call] {call.name}: {call.args}")
-        
+
         handler = TOOL_HANDLERS.get(call.name)
         if handler:
             try:
@@ -173,28 +173,28 @@ Use tools when appropriate to help the user.""",
                 agent.submit_tool_result(call.id, error)
         else:
             agent.submit_tool_result(
-                call.id, 
+                call.id,
                 json.dumps({"error": f"Unknown tool: {call.name}"})
             )
-    
+
     # Send first message
     agent.send_message(
         "What is 42 * 17? Also, what's the weather in Paris?",
         on_message=on_message,
         on_tool_call=on_tool_call,
     )
-    
+
     print(f"\n\nChat ID: {agent.chat_id}")
-    
+
     # Continue conversation
     print("\n--- Second message ---\n")
-    
+
     agent.send_message(
         "Now convert that temperature to Fahrenheit",
         on_message=on_message,
         on_tool_call=on_tool_call,
     )
-    
+
     print("\n\nDone!")
 
 
@@ -204,7 +204,7 @@ def main_streaming():
     if not api_key:
         print("Set INFERENCE_API_KEY environment variable")
         sys.exit(1)
-    
+
     # Create client and agent
     client = inference(api_key=api_key, base_url="https://api-dev.inference.sh")
     agent = client.agent({
@@ -212,12 +212,12 @@ def main_streaming():
         "name": "Simple Assistant",
         "system_prompt": "You are a helpful assistant.",
     })
-    
+
     # Send message (no callbacks - we'll stream manually)
     agent.send_message("Tell me a short joke")
-    
+
     print("Streaming messages...\n")
-    
+
     # Manual streaming with auto-reconnect
     for message in agent.stream_messages(
         auto_reconnect=True,
@@ -228,11 +228,11 @@ def main_streaming():
         for c in content:
             if c.get("type") == "text" and c.get("text"):
                 print(c["text"], end="", flush=True)
-        
+
         # Check if complete
         if is_message_ready(message.get("status")):
             break
-    
+
     print("\n\nDone!")
 
 
@@ -241,9 +241,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--streaming", action="store_true", help="Use manual streaming example")
     args = parser.parse_args()
-    
+
     if args.streaming:
         main_streaming()
     else:
         main()
-

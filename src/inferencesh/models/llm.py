@@ -13,7 +13,7 @@ from .file import File
 
 class ContextMessageRole(str, Enum):
     USER = "user"
-    ASSISTANT = "assistant" 
+    ASSISTANT = "assistant"
     SYSTEM = "system"
     TOOL = "tool"
 
@@ -90,14 +90,14 @@ class ImageCapabilityMixin(BaseModel):
         description="the images to use for the model",
         default=None,
     )
-    
+
 class FileCapabilityMixin(BaseModel):
     """Mixin for models that support file inputs."""
     files: Optional[List[File]] = Field(
         description="the files to use for the model",
         default=None,
     )
-    
+
 class ReasoningEffortEnum(str, Enum):
     """Enum for reasoning effort."""
     LOW = "low"
@@ -173,7 +173,7 @@ class ToolCallsMixin(BaseModel):
         description="tool calls for function calling",
         default=None
     )
-    
+
 class ImagesMixin(BaseModel):
     """Mixin for models that support image outputs."""
     images: Optional[List[File]] = Field(
@@ -200,23 +200,23 @@ def timing_context():
             self.total_reasoning_time = 0.0
             self.reasoning_tokens = 0
             self.in_reasoning = False
-        
+
         def mark_first_token(self):
             if self.first_token_time is None:
                 self.first_token_time = time.time()
-        
+
         def start_reasoning(self):
             if not self.in_reasoning:
                 self.reasoning_start_time = time.time()
                 self.in_reasoning = True
-        
+
         def end_reasoning(self, token_count: int = 0):
             if self.in_reasoning and self.reasoning_start_time:
                 self.total_reasoning_time += time.time() - self.reasoning_start_time
                 self.reasoning_tokens += token_count
                 self.reasoning_start_time = None
                 self.in_reasoning = False
-        
+
         @property
         def stats(self):
             current_time = time.time()
@@ -227,17 +227,17 @@ def timing_context():
                     "reasoning_time": self.total_reasoning_time,
                     "reasoning_tokens": self.reasoning_tokens
                 }
-            
+
             time_to_first = self.first_token_time - self.start_time
             generation_time = current_time - self.first_token_time
-            
+
             return {
                 "time_to_first_token": time_to_first,
                 "generation_time": generation_time,
                 "reasoning_time": self.total_reasoning_time,
                 "reasoning_tokens": self.reasoning_tokens
             }
-    
+
     timing = TimingInfo()
     try:
         yield timing
@@ -248,7 +248,7 @@ def image_to_base64_data_uri(file_path):
     with open(file_path, "rb") as img_file:
         base64_data = base64.b64encode(img_file.read()).decode('utf-8')
         file_extension = file_path.split(".")[-1]
-        content_type = "png" 
+        content_type = "png"
         if file_extension == "png":
             content_type = "png"
         elif file_extension == "jpg":
@@ -316,10 +316,10 @@ def build_openai_messages(
                     parts.append({"type": "file", "file": {"filename": filename, "file_data": file_data_uri}})
                 elif file.uri:
                     parts.append({"type": "file", "file": {"filename": filename, "file_data": file.uri}})
-                
+
         if msg.reasoning:
             parts.append({"type": "reasoning", "reasoning": msg.reasoning})
-                    
+
         # If the message only has a single text part, return as plain string
         # even in multipart mode — avoids sending [{"type":"text","text":""}]
         # for assistant/tool messages which some providers reject
@@ -344,14 +344,14 @@ def build_openai_messages(
         files = []
         for msg in messages:
             if msg.images:
-                images.extend(msg.images)         
+                images.extend(msg.images)
             if msg.files:
                 files.extend(msg.files)
 
         images_list = images if len(images) >= 1 else None
         files_list = files if len(files) >= 1 else None
         return ContextMessage(role=messages[0].role, text=text, images=images_list, files=files_list)
-    
+
     def merge_tool_calls(messages: List[ContextMessage]) -> List[Dict[str, Any]]:
         tool_calls = []
         for msg in messages:
@@ -362,7 +362,7 @@ def build_openai_messages(
     user_input_text = ""
     if hasattr(input_data, "text"):
         user_input_text = transform_user_message(input_data.text) if transform_user_message else input_data.text
-        
+
     user_input_images = None
     if hasattr(input_data, "images"):
         user_input_images = input_data.images
@@ -374,7 +374,7 @@ def build_openai_messages(
     user_input_reasoning = None
     if hasattr(input_data, "reasoning"):
         user_input_reasoning = input_data.reasoning
-        
+
     # Check if ANY message (including current user input) has images/files/reasoning
     multipart: bool = bool(
         any(m.images or m.files or m.reasoning for m in input_data.context)
@@ -389,7 +389,7 @@ def build_openai_messages(
 
     current_role = None
     current_messages = []
-    
+
     reasoning_index = 0
     for msg in input_data.context:
         if msg.role == current_role or current_role is None:
@@ -402,7 +402,7 @@ def build_openai_messages(
                 "role": role_str,
                 "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
             }
-            
+
             # Only add tool_calls if not empty
             tool_calls = merge_tool_calls(current_messages)
             if tool_calls:
@@ -412,7 +412,7 @@ def build_openai_messages(
                         if isinstance(tc["function"]["arguments"], dict):
                             tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
                 msg_dict["tool_calls"] = tool_calls
-            
+
             # Add tool_call_id for tool role messages (required by OpenAI API)
             if role_str == "tool":
                 if current_messages and current_messages[0].tool_call_id:
@@ -420,7 +420,7 @@ def build_openai_messages(
                 else:
                     # If not provided, use empty string to satisfy schema
                     msg_dict["tool_call_id"] = ""
-                    
+
             if msg.reasoning and include_reasoning:
                 msg_dict["reasoning"] = msg.reasoning
                 msg_dict["reasoning_details"] = {
@@ -430,11 +430,11 @@ def build_openai_messages(
                     "index": reasoning_index
                 }
                 reasoning_index += 1
-            
+
             messages.append(msg_dict)
             current_messages = [msg]
             current_role = msg.role
-    
+
     if len(current_messages) > 0:
         assert current_role is not None  # set whenever current_messages is non-empty
         # Convert role enum to string for OpenAI API compatibility
@@ -443,7 +443,7 @@ def build_openai_messages(
             "role": role_str,
             "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
         }
-        
+
         # Only add tool_calls if not empty
         tool_calls = merge_tool_calls(current_messages)
         if tool_calls:
@@ -453,7 +453,7 @@ def build_openai_messages(
                     if isinstance(tc["function"]["arguments"], dict):
                         tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
             msg_dict["tool_calls"] = tool_calls
-        
+
         # Add tool_call_id for tool role messages (required by OpenAI API)
         if role_str == "tool":
             if current_messages and current_messages[0].tool_call_id:
@@ -461,7 +461,7 @@ def build_openai_messages(
             else:
                 # If not provided, use empty string to satisfy schema
                 msg_dict["tool_call_id"] = ""
-        
+
         messages.append(msg_dict)
 
     return messages
@@ -473,14 +473,14 @@ build_messages = build_openai_messages
 
 def build_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
     """Build tools in OpenAI API format.
-    
+
     Ensures tools are properly formatted:
     - Wrapped in {"type": "function", "function": {...}}
     - Parameters is never None (OpenAI API requirement)
     """
     if not tools:
         return None
-    
+
     result = []
     for tool in tools:
         # Extract function definition
@@ -488,7 +488,7 @@ def build_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str
             func_def = tool["function"].copy()
         else:
             func_def = tool.copy()
-        
+
         # Ensure parameters is not None (OpenAI API requirement)
         if func_def.get("parameters") is None:
             func_def["parameters"] = {"type": "object", "properties": {}}
@@ -502,10 +502,10 @@ def build_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str
                 func_def["parameters"]["properties"] = {
                     k: v for k, v in properties.items() if v is not None
                 }
-        
+
         # Wrap in OpenAI format
         result.append({"type": "function", "function": func_def})
-    
+
     return result
 
 
@@ -541,10 +541,10 @@ class StreamResponse:
                     "completion_tokens": usage.get("completion_tokens", self.usage_stats["completion_tokens"]),
                     "total_tokens": usage.get("total_tokens", self.usage_stats["total_tokens"])
                 })
-        
+
         # Get the delta from the chunk
         delta = chunk.get("choices", [{}])[0]
-        
+
         # Extract content and tool calls from either message or delta
         if "message" in delta:
             message = delta["message"]
@@ -562,35 +562,35 @@ class StreamResponse:
             self.finish_reason = delta.get("finish_reason")
             if self.finish_reason:
                 self.usage_stats["stop_reason"] = self.finish_reason
-        
+
         # Update timing stats
         timing_stats = timing.stats
         if self.timing_stats["time_to_first_token"] is None:
             self.timing_stats["time_to_first_token"] = timing_stats["time_to_first_token"]
-        
+
         self.timing_stats.update({
             "generation_time": timing_stats["generation_time"],
             "reasoning_time": timing_stats["reasoning_time"],
             "reasoning_tokens": timing_stats["reasoning_tokens"]
         })
-        
+
         # Calculate tokens per second only if we have valid completion tokens and generation time
         if self.usage_stats["completion_tokens"] > 0 and timing_stats["generation_time"] > 0:
             self.timing_stats["tokens_per_second"] = (
                 self.usage_stats["completion_tokens"] / timing_stats["generation_time"]
             )
-        
-    
+
+
     def _update_tool_calls(self, new_tool_calls: List[Dict[str, Any]]) -> None:
         """Update tool calls, handling both full and partial updates."""
         if self.tool_calls is None:
             self.tool_calls = []
-            
+
         for tool_delta in new_tool_calls:
             tool_id = tool_delta.get("id")
             if not tool_id:
                 continue
-                
+
             # Find or create tool call
             current_tool = next((t for t in self.tool_calls if t["id"] == tool_id), None)
             if not current_tool:
@@ -600,7 +600,7 @@ class StreamResponse:
                     "function": {"name": "", "arguments": ""}
                 }
                 self.tool_calls.append(current_tool)
-            
+
             # Update tool call
             if "function" in tool_delta:
                 func_delta = tool_delta["function"]
@@ -608,18 +608,18 @@ class StreamResponse:
                     current_tool["function"]["name"] = func_delta["name"]
                 if "arguments" in func_delta:
                     current_tool["function"]["arguments"] += func_delta["arguments"]
-    
+
     def has_updates(self) -> bool:
         """Check if this response has any content, tool call, or usage updates."""
         has_content = bool(self.content)
         has_tool_calls = bool(self.tool_calls)
         has_usage = self.usage_stats["prompt_tokens"] > 0 or self.usage_stats["completion_tokens"] > 0
         has_finish = bool(self.finish_reason)
-        
+
         return has_content or has_tool_calls or has_usage or has_finish
-    
+
     def to_output(self, buffer: str, transformer: Any) -> tuple[BaseLLMOutput, str]:
-        """Convert current state to LLMOutput."""        
+        """Convert current state to LLMOutput."""
         # Create usage object if we have stats
         usage = None
         if any(self.usage_stats.values()):
@@ -633,13 +633,13 @@ class StreamResponse:
                 reasoning_time=self.timing_stats["reasoning_time"],
                 reasoning_tokens=self.timing_stats["reasoning_tokens"]
             )
-        
+
         buffer, output, _ = transformer(self.content, buffer, usage)
-        
+
         # Add tool calls if present and supported
         if self.tool_calls and hasattr(output, 'tool_calls'):
             output.tool_calls = self.tool_calls
-            
+
         return output, buffer
 
 class ResponseState:
@@ -667,19 +667,19 @@ class ResponseTransformer:
         self.state = ResponseState()
         self.output_cls = output_cls
         self.timing = None  # Will be set by stream_generate
-    
+
     def clean_text(self, text: str) -> str:
         """Clean common tokens from the text and apply model-specific cleaning.
-        
+
         Args:
             text: Raw text to clean
-            
+
         Returns:
             Cleaned text with common and model-specific tokens removed
         """
         if text is None:
             return ""
-        
+
         # Common token cleaning across most models
         cleaned = (text.replace("<|im_end|>", "")
                       .replace("<|im_start|>", "")
@@ -687,21 +687,21 @@ class ResponseTransformer:
                       .replace("<end_of_turn>", "")
                       .replace("<eos>", ""))
         return self.additional_cleaning(cleaned)
-    
+
     def additional_cleaning(self, text: str) -> str:
         """Apply model-specific token cleaning.
-        
+
         Args:
             text: Text that has had common tokens removed
-            
+
         Returns:
             Text with model-specific tokens removed
         """
         return text
-    
+
     def handle_reasoning(self, text: str) -> None:
         """Handle reasoning/thinking detection and extraction.
-        
+
         Args:
             text: Cleaned text to process for reasoning
         """
@@ -711,7 +711,7 @@ class ResponseTransformer:
             self.state.state_changes["reasoning_started"] = True
             if self.timing:
                 self.timing.start_reasoning()
-        
+
         # Extract content and handle end of reasoning
         parts = self.state.buffer.split("<think>", 1)
         if len(parts) > 1:
@@ -719,7 +719,7 @@ class ResponseTransformer:
             end_parts = reasoning_text.split("</think>", 1)
             self.state.reasoning = end_parts[0].strip()
             self.state.response = end_parts[1].strip() if len(end_parts) > 1 else ""
-            
+
             # Check for end tag in complete buffer
             if "</think>" in self.state.buffer and not self.state.state_changes["reasoning_ended"]:
                 self.state.state_changes["reasoning_ended"] = True
@@ -729,46 +729,46 @@ class ResponseTransformer:
                     self.timing.end_reasoning(token_count)
         else:
             self.state.response = self.state.buffer
-    
+
     def handle_function_calls(self, text: str) -> None:
         """Handle function call detection and extraction.
-        
+
         Args:
             text: Cleaned text to process for function calls
         """
         # Default no-op implementation
         # Models can override this to implement function call handling
         pass
-    
+
     def handle_tool_calls(self, text: str) -> None:
         """Handle tool call detection and extraction.
-        
+
         Args:
             text: Cleaned text to process for tool calls
         """
         # Default no-op implementation
         # Models can override this to implement tool call handling
         pass
-    
+
     def transform_chunk(self, chunk: str) -> None:
         """Transform a single chunk of model output.
-        
+
         This method orchestrates the transformation process by:
         1. Cleaning the text
         2. Updating the buffer
         3. Processing various capabilities (reasoning, function calls, etc)
-        
+
         Args:
             chunk: Raw text chunk from the model
         """
         cleaned = self.clean_text(chunk)
         self.state.buffer += cleaned
-        
+
         # Process different capabilities
         self.handle_reasoning(cleaned)
         self.handle_function_calls(cleaned)
         self.handle_tool_calls(cleaned)
-    
+
     def build_output(self) -> tuple[str, BaseLLMOutput, dict]:
         """Build the final output tuple.
 
@@ -779,7 +779,7 @@ class ResponseTransformer:
         output_data = {
             "response": self.state.response.strip(),
         }
-        
+
         # Add optional fields if they exist
         if self.state.usage is not None:
             output_data["usage"] = self.state.usage
@@ -789,23 +789,23 @@ class ResponseTransformer:
             output_data["function_calls"] = self.state.function_calls
         if self.state.tool_calls:
             output_data["tool_calls"] = self.state.tool_calls
-            
+
         output = self.output_cls(**output_data)
-            
+
         return (
             self.state.buffer,
             output,
             self.state.state_changes
         )
-    
+
     def __call__(self, piece: str, buffer: str, usage: Optional[LLMUsage] = None) -> tuple[str, BaseLLMOutput, dict]:
         """Transform a piece of text and return the result.
-        
+
         Args:
             piece: New piece of text to transform
             buffer: Existing buffer content
             usage: Optional usage statistics
-            
+
         Returns:
             Tuple of (new_buffer, output, state_changes)
         """
@@ -830,15 +830,15 @@ def stream_generate(
     kwargs: Optional[Dict[str, Any]] = None,
 ) -> Generator[BaseLLMOutput, None, None]:
     """Stream generate from LLaMA.cpp model with timing and usage tracking."""
-        
+
     # Create queues for communication between threads
     response_queue: Queue[Any] = Queue()
     error_queue: Queue[Any] = Queue()
     keep_alive_queue: Queue[Any] = Queue()
-    
+
     # Set the output class for the transformer
     transformer.output_cls = output_cls
-    
+
     def _generate_worker():
         """Worker thread to run the model generation."""
         try:
@@ -856,43 +856,43 @@ def stream_generate(
                 completion_kwargs["tools"] = tools
             if tool_choice is not None:
                 completion_kwargs["tool_choice"] = tool_choice
-            
+
             # Signal that we're starting
             keep_alive_queue.put(("init", time.time()))
-            
+
             completion = model.create_chat_completion(**completion_kwargs)
-            
+
             for chunk in completion:
                 response_queue.put(("chunk", chunk))
                 # Update keep-alive timestamp
                 keep_alive_queue.put(("alive", time.time()))
-                
+
             # Signal completion
             response_queue.put(("done", None))
-            
+
         except Exception as e:
             # Preserve the full exception with traceback
             import sys
             error_queue.put((e, sys.exc_info()[2]))
             response_queue.put(("error", str(e)))
-    
+
     with timing_context() as timing:
         transformer.timing = timing
-        
+
         # Start generation thread
         generation_thread = Thread(target=_generate_worker, daemon=True)
         generation_thread.start()
-        
+
         # Initialize response state
         response = StreamResponse()
         buffer = ""
-        
+
         # Keep-alive tracking
         last_activity = time.time()
         init_timeout = 30.0  # 30 seconds for initial response
         chunk_timeout = 10.0  # 10 seconds between chunks
         chunks_begun = False
-        
+
         try:
             # Wait for initial setup
             try:
@@ -902,7 +902,7 @@ def stream_generate(
                 last_activity = timestamp
             except Empty:
                 raise RuntimeError(f"Model failed to initialize within {init_timeout} seconds")
-            
+
             while True:
                 # Check for errors - now with proper exception chaining
                 if not error_queue.empty():
@@ -911,7 +911,7 @@ def stream_generate(
                         raise exc.with_traceback(tb)
                     else:
                         raise RuntimeError(f"Unknown error in worker thread: {exc}")
-                
+
                 # Check keep-alive
                 try:
                     while not keep_alive_queue.empty():
@@ -920,54 +920,54 @@ def stream_generate(
                 except Empty:
                     # Ignore empty queue - this is expected
                     pass
-                
+
                 # Check for timeout
                 if chunks_begun and time.time() - last_activity > chunk_timeout:
                     raise RuntimeError(f"No response from model for {chunk_timeout} seconds")
-                
+
                 # Get next chunk
                 try:
                     msg_type, data = response_queue.get(timeout=0.1)
                 except Empty:
                     continue
-                
+
                 if msg_type == "error":
                     # If we get an error message but no exception in error_queue,
                     # create a new error
                     raise RuntimeError(f"Generation error: {data}")
                 elif msg_type == "done":
                     break
-                
+
                 chunk = data
-                
+
                 if verbose:
                     print(chunk)
-                
+
                 # Mark first token time
                 if not timing.first_token_time:
                     timing.mark_first_token()
-                
+
                 chunks_begun = True
-                
+
                 # Update response state from chunk
                 response.update_from_chunk(chunk, timing)
-                
+
                 # Yield output if we have updates
                 if response.has_updates():
                     output, buffer = response.to_output(buffer, transformer)
                     yield output
-                
+
                 # Break if we're done
                 if response.finish_reason:
                     break
-            
+
             # Wait for generation thread to finish
             if generation_thread.is_alive():
                 generation_thread.join(timeout=5.0)  # Increased timeout to 5 seconds
                 if generation_thread.is_alive():
                     # Thread didn't finish - this shouldn't happen normally
                     raise RuntimeError("Generation thread failed to finish")
-                    
+
         except Exception as e:
             # Check if there's a thread error we should chain with
             if not error_queue.empty():
@@ -975,4 +975,4 @@ def stream_generate(
                 if isinstance(thread_exc, Exception):
                     raise e from thread_exc
             # If no thread error, raise the original exception
-            raise 
+            raise

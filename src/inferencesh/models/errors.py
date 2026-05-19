@@ -2,7 +2,7 @@
 
 These mirror the Go types in the API:
 - RequirementsNotMetError
-- RequirementError  
+- RequirementError
 - SetupAction
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class SetupAction:
     """Actionable info for resolving a missing requirement.
-    
+
     Mirrors Go struct:
         type SetupAction struct {
             Type     string   `json:"type"`               // "add_secret" | "connect" | "add_scopes"
@@ -25,7 +25,7 @@ class SetupAction:
     type: str  # "add_secret" | "connect" | "add_scopes"
     provider: Optional[str] = None  # For integration actions
     scopes: Optional[List[str]] = None  # Scopes to request
-    
+
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional['SetupAction']:
         if not data:
@@ -40,7 +40,7 @@ class SetupAction:
 @dataclass
 class RequirementError:
     """A single missing requirement with actionable info.
-    
+
     Mirrors Go struct:
         type RequirementError struct {
             Type    string       `json:"type"`    // "secret" | "integration" | "scope"
@@ -53,7 +53,7 @@ class RequirementError:
     key: str  # The requirement key that's missing
     message: str  # Human-readable error message
     action: Optional[SetupAction] = None
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'RequirementError':
         return cls(
@@ -66,18 +66,18 @@ class RequirementError:
 
 class RequirementsNotMetError(Exception):
     """Error raised when app requirements (secrets, integrations, scopes) are not met.
-    
+
     This is raised for HTTP 412 responses that contain structured requirement errors.
-    
+
     Mirrors Go struct:
         type RequirementsNotMetError struct {
             Errors []RequirementError
         }
-    
+
     Attributes:
         errors: List of RequirementError objects describing what's missing
         status_code: HTTP status code (412)
-        
+
     Example:
         ```python
         try:
@@ -94,14 +94,14 @@ class RequirementsNotMetError(Exception):
         self.status_code = status_code
         message = errors[0].message if errors else "requirements not met"
         super().__init__(message)
-    
+
     @classmethod
     def from_response(cls, data: Dict[str, Any], status_code: int = 412) -> 'RequirementsNotMetError':
         """Create from API response data."""
         errors_data = data.get("errors", [])
         errors = [RequirementError.from_dict(e) for e in errors_data]
         return cls(errors, status_code)
-    
+
     def __repr__(self) -> str:
         return f"RequirementsNotMetError(errors={self.errors!r})"
 
@@ -212,4 +212,3 @@ class WorkerLostError(SessionError):
 
     def __repr__(self) -> str:
         return f"WorkerLostError(session_id={self.session_id!r})"
-

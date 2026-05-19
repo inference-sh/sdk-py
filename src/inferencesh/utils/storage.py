@@ -13,4 +13,4 @@ class StorageDir(str, Enum):
         """Get the Path object for this storage directory, ensuring it exists."""
         path = Path(self.value)
         path.mkdir(parents=True, exist_ok=True)
-        return path 
+        return path
