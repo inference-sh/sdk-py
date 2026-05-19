@@ -188,7 +188,9 @@ with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as sess
     print(session.session_id)
 ```
 
-`session.call()` forwards to `client.run()` with the session ID pinned, so it accepts the same keyword arguments: `wait`, `stream`, `auto_reconnect`, and related streaming options.
+`session.call()` forwards to `client.run()` with the session ID pinned, so it accepts the same keyword arguments: `wait`, `stream`, `auto_reconnect`, and related streaming options. With the default `wait=True`, it returns the completed task dict; with `wait=False`, task info; with `stream=True`, an iterator of status updates (same as `client.run()`).
+
+On the handle itself you can also call `session.info()`, `session.keepalive()`, and `session.end()` without going through `client.sessions`.
 
 #### session management
 
@@ -514,8 +516,8 @@ async def main():
         async for update in stream:
             print(f"Update: {update}")
 
-    # Stateful session (async)
-    async with client.session("my-app@abc123", input={"start": True}) as session:
+    # Stateful session (async) — session() is async, so await before the context manager
+    async with await client.session("my-app@abc123", input={"start": True}) as session:
         await session.call("step", {"x": 1})
         async for update in await session.call("run", {"prompt": "..."}, stream=True):
             print(update.get("status"))
