@@ -2,7 +2,7 @@
 Tool Builder - Fluent API for defining agent tools
 """
 
-from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, Union, cast
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypedDict, TypeVar, Union, cast
 from .types import (
     AgentTool,
     AppToolConfig,
@@ -121,37 +121,40 @@ def _to_json_schema(params: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
 # Tool Builders
 # =============================================================================
 
+_TB = TypeVar("_TB", bound="_ToolBuilder")
+
+
 class _ToolBuilder:
     """Base tool builder."""
-    
+
     def __init__(self, name: str):
         self._name = name
         self._description = ""
         self._display_name: Optional[str] = None
         self._params: Dict[str, Dict[str, Any]] = {}
         self._require_approval = False
-    
-    def describe(self, description: str) -> "_ToolBuilder":
+
+    def describe(self: _TB, description: str) -> _TB:
         """Set description."""
         self._description = description
         return self
-    
-    def display(self, name: str) -> "_ToolBuilder":
+
+    def display(self: _TB, name: str) -> _TB:
         """Set display name (deprecated, use display_name instead)."""
         self._display_name = name
         return self
 
-    def display_name(self, name: str) -> "_ToolBuilder":
+    def display_name(self: _TB, name: str) -> _TB:
         """Set display name."""
         self._display_name = name
         return self
-    
-    def param(self, name: str, schema: Dict[str, Any]) -> "_ToolBuilder":
+
+    def param(self: _TB, name: str, schema: Dict[str, Any]) -> _TB:
         """Add a parameter."""
         self._params[name] = schema
         return self
-    
-    def require_approval(self) -> "_ToolBuilder":
+
+    def require_approval(self: _TB) -> _TB:
         """Require human approval (HIL)."""
         self._require_approval = True
         return self
