@@ -687,6 +687,49 @@ def test_tasks_cancel_via_namespace(tmp_path):
     client.tasks.cancel("task_123")
 
 
+def test_tasks_wait_for_completion(tmp_path):
+    """tasks.wait_for_completion() should return the completed task payload."""
+    client = Inference(api_key="test")
+
+    result = client.tasks.wait_for_completion("task_123")
+
+    assert result["id"] == "task_123"
+    assert result["status"] == TaskStatus.COMPLETED
+    assert result["output"] == {"ok": True}
+
+
+def test_run_wait_false_strips_internal_fields(monkeypatch, patch_requests):
+    """run(wait=False) must not leak internal task fields to callers."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(json_data={
+                    "success": True,
+                    "data": {
+                        "id": "task_123",
+                        "status": 1,
+                        "input": {"text": "hello"},
+                        "worker_id": "internal-worker",
+                        "trace_id": "trace-secret",
+                    },
+                })
+            return DummyResponse()
+
+        def put(self, url, data=None, headers=None):
+            return DummyResponse(status_code=200)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    task = client.run({"app": "some/app", "input": {"text": "hello"}}, wait=False)
+
+    assert task["id"] == "task_123"
+    assert "worker_id" not in task
+    assert "trace_id" not in task
+
+
 def test_files_upload_via_namespace(tmp_path, patch_requests):
     """Test client.files.upload() works like client.upload_file()."""
     client = Inference(api_key="test")

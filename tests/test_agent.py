@@ -45,6 +45,9 @@ def patch_agent_requests(monkeypatch):
                 },
             })
 
+        if "/tools/" in url and method.upper() == "POST":
+            return DummyResponse(json_data={"success": True, "data": None})
+
         return DummyResponse(status_code=404, json_data={"success": False, "error": {"message": "not found"}})
 
     class FakeRequestsModule:
@@ -98,3 +101,71 @@ def test_agent_without_context_sends_none(patch_agent_requests):
 
     body = patch_agent_requests[0]["data"]
     assert body["context"] is None
+
+
+def test_agents_create_delegates_to_agent(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agents.create("okaris/assistant@abc123")
+
+    agent.send_message("Hi")
+
+    assert patch_agent_requests[0]["data"]["agent"] == "okaris/assistant@abc123"
+
+
+def test_submit_tool_result_string_payload(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    agent.submit_tool_result("inv_1", '{"ok": true}')
+
+    tool_call = patch_agent_requests[-1]
+    assert tool_call["method"] == "POST"
+    assert tool_call["url"].endswith("/tools/inv_1")
+    assert tool_call["data"] == {"result": '{"ok": true}'}
+
+
+def test_submit_tool_result_widget_action_json(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    payload = {"action": {"type": "confirm"}, "form_data": {"name": "Ada"}}
+    agent.submit_tool_result("inv_2", payload)
+
+    assert patch_agent_requests[-1]["data"] == {
+        "result": json.dumps(payload),
+    }
+
+
+def test_stream_all_dispatches_client_tool_once(monkeypatch, patch_agent_requests):
+    from inferencesh.types import ToolInvocationStatus, ToolType
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+    assert agent.chat_id == "chat_1"
+
+    inv = {
+        "id": "inv_dup",
+        "type": ToolType.CLIENT,
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "function": {"name": "ask_user", "arguments": {"q": "name?"}},
+    }
+
+    events = [
+        ("chat_messages", {"tool_invocations": [inv]}),
+        ("chat_messages", {"tool_invocations": [inv]}),
+        ("chats", {"status": "idle"}),
+    ]
+
+    def fake_typed_stream(endpoint):
+        assert endpoint == "/chats/chat_1/stream"
+        return iter(events)
+
+    monkeypatch.setattr(agent, "_create_typed_ndjson_generator", fake_typed_stream)
+
+    seen = []
+    agent.stream_all(on_tool_call=lambda info: seen.append(info.id))
+
+    assert seen == ["inv_dup"]

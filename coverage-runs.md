@@ -20,3 +20,15 @@
 - `tests/test_errors.py`: `RequirementsNotMetError`, `RequirementError`, session error types.
 - `tests/test_client.py`: 412 → `RequirementsNotMetError` on `client.run()`.
 - `tests/test_tools.py`: `require_approval` defaults to `False`, `display_name()`, `.handler()`.
+
+## 2026-05-19 (run 3 — automation 41a5)
+
+**Recent changes reviewed:** `f2d86ad` (workflow-only, base-branch dev). Open PR #13 covers status/sessions/upload — not duplicated.
+
+**Gaps filled:**
+- `tests/test_client_helpers.py`: `_strip_task`, `_looks_like_base64`, `_process_stream_event`.
+- `tests/test_client.py`: `tasks.wait_for_completion`, `run(wait=False)` strips internal fields.
+- `tests/test_agent.py`: `agents.create`, `submit_tool_result` (string vs JSON widget action), client-tool dedup in `stream_all`.
+- `tests/test_file.py`: data-URI URL-encoding, invalid URI, init validation.
+
+**Validation:** 241 passed, 22 skipped.
