@@ -82,9 +82,14 @@ test-cov: check-venv
 test-int: check-venv check-key
 	INFERENCE_API_KEY=$(API_KEY) INFERENCE_BASE_URL=$(BASE_URL) $(PYTEST) tests/test_integration.py -v
 
-# Integration tests against dev API
-test-int-dev: check-venv check-key
-	INFERENCE_API_KEY=$(API_KEY) INFERENCE_BASE_URL=https://api-dev.inference.sh $(PYTEST) tests/test_integration.py -v
+# Integration tests against dev API (uses dev seed key by default)
+DEV_API_KEY ?= 1nfsh-dev-0000000000000000000
+test-int-dev: check-venv
+	INFERENCE_API_KEY=$(DEV_API_KEY) INFERENCE_BASE_URL=https://api-dev.inference.sh $(PYTEST) tests/test_integration.py -v
+
+# Integration tests against local dev API
+test-int-local: check-venv
+	INFERENCE_API_KEY=$(DEV_API_KEY) INFERENCE_BASE_URL=http://localhost:3021 $(PYTEST) tests/test_integration.py -v
 
 # Run a specific test file
 test-file: check-venv
