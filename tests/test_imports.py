@@ -59,7 +59,7 @@ def test_all_exports_resolvable():
     # Agent SDK
     "Agent", "AsyncAgent",
     # Tools
-    "tool", "app_tool", "agent_tool",
+    "tool", "app_tool", "agent_tool", "http_tool", "call_tool", "mcp_tool",
     # Errors
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable
@@ -118,3 +118,30 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+# ── Enum acronym regression (gotypegen UPPER_SNAKE_CASE) ─────────────────────
+
+@pytest.mark.parametrize(
+    "enum_name, member, value, broken_member",
+    [
+        ("ToolType", "HTTP", "http", "H_T_T_P"),
+        ("ToolType", "MCP", "mcp", "M_C_P"),
+        ("GPUType", "AMD", "amd", "A_M_D"),
+        ("AppCategory", "_3D", "3d", "_3_D"),
+        ("InstanceCloudProvider", "CLOUD_AWS", "aws", "CLOUD_A_W_S"),
+        ("InstanceTypeDeploymentType", "VM", "vm", "V_M"),
+        ("EntitlementResource", "RESOURCE_API_KEYS", "api_keys", "RESOURCE_A_P_I_KEYS"),
+        ("EntitlementResource", "RESOURCE_FEATURE_BYOK", "feature:byok", "RESOURCE_FEATURE_B_Y_O_K"),
+    ],
+)
+def test_enum_acronym_members(enum_name, member, value, broken_member):
+    """Regenerated enums must use readable acronym members, not per-letter splits."""
+    from inferencesh import types
+
+    enum_cls = getattr(types, enum_name)
+    assert hasattr(enum_cls, member), f"{enum_name}.{member} missing"
+    assert not hasattr(enum_cls, broken_member), (
+        f"{enum_name}.{broken_member} should not exist after gotypegen fix"
+    )
+    assert getattr(enum_cls, member).value == value

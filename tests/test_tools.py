@@ -7,6 +7,9 @@ from inferencesh.tools import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     number,
@@ -17,6 +20,7 @@ from inferencesh.tools import (
     array,
     optional,
 )
+from inferencesh.types import ToolType
 
 
 class TestSchemaHelpers:
@@ -338,6 +342,122 @@ class TestWebhookToolBuilder:
             },
             "required": ["message"],
         }
+
+
+class TestHTTPToolBuilder:
+    """Tests for HTTP/call tool builder (credential injection, methods)."""
+
+    def test_minimal_http_tool(self):
+        t = http_tool("api_call", "https://api.example.com").build()
+
+        assert t["type"] == ToolType.HTTP
+        assert t["http"]["url"] == "https://api.example.com"
+        assert t["http"]["method"] is None
+        assert t["http"]["auth"] is None
+        assert t["http"]["headers"] is None
+
+    def test_non_post_method_is_included(self):
+        t = http_tool("fetch", "https://api.example.com").method("GET").build()
+        assert t["http"]["method"] == "GET"
+
+    def test_integration_auth(self):
+        t = (
+            http_tool("gh", "https://api.github.com/user")
+            .auth(integration="github", integration_id="int-42")
+            .build()
+        )
+        assert t["http"]["auth"] == {
+            "type": "integration",
+            "provider": "github",
+            "integration_id": "int-42",
+        }
+
+    def test_api_key_auth(self):
+        t = (
+            http_tool("svc", "https://api.example.com")
+            .auth(api_key="MY_API_KEY", header="X-Custom-Key")
+            .build()
+        )
+        assert t["http"]["auth"] == {
+            "type": "api_key",
+            "secret": "MY_API_KEY",
+            "header": "X-Custom-Key",
+        }
+
+    def test_bearer_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(bearer="TOKEN").build()
+        assert t["http"]["auth"] == {"type": "bearer", "secret": "TOKEN"}
+
+    def test_static_headers(self):
+        t = (
+            http_tool("svc", "https://api.example.com")
+            .header("X-Request-Id", "abc")
+            .build()
+        )
+        assert t["http"]["headers"] == {"X-Request-Id": "abc"}
+
+    def test_http_tool_with_parameters(self):
+        t = (
+            http_tool("search", "https://api.example.com/search")
+            .param("q", string("Query"))
+            .build()
+        )
+        assert t["http"]["input_schema"] == {
+            "type": "object",
+            "properties": {"q": {"type": "string", "description": "Query"}},
+            "required": ["q"],
+        }
+
+    def test_call_tool_is_http_builder_alias(self):
+        t = call_tool("alias", "https://api.example.com").method("PATCH").build()
+        assert t["type"] == ToolType.HTTP
+        assert t["http"]["method"] == "PATCH"
+
+
+class TestMCPToolBuilder:
+    """Tests for MCP connector tool builder (ToolType.MCP enum regression target)."""
+
+    def test_creates_mcp_tool(self):
+        t = (
+            mcp_tool("github_search", "int-123", "search_code")
+            .describe("Search GitHub code")
+            .build()
+        )
+
+        assert t["type"] == ToolType.MCP
+        assert t["type"] == "mcp"
+        assert t["mcp"] == {"integration_id": "int-123", "tool_name": "search_code"}
+        assert t["description"] == "Search GitHub code"
+
+    def test_mcp_tool_display_and_approval(self):
+        t = (
+            mcp_tool("list_repos", "int-99", "list_repositories")
+            .display("List Repositories")
+            .require_approval()
+            .build()
+        )
+
+        assert t["display_name"] == "List Repositories"
+        assert t["require_approval"] is True
+
+
+class TestClientToolHandler:
+    """Tests for client tool .handler() bundling schema + callable."""
+
+    def test_handler_bundles_schema_and_callable(self):
+        def my_handler(args):
+            return f"hello {args['name']}"
+
+        ct = (
+            tool("greet")
+            .param("name", string("Name"))
+            .handler(my_handler)
+        )
+
+        assert ct["handler"] is my_handler
+        assert ct["schema"]["name"] == "greet"
+        assert ct["schema"]["type"] == ToolType.CLIENT
+        assert ct["schema"]["client"]["input_schema"]["required"] == ["name"]
 
 
 class TestInternalToolsBuilder:
