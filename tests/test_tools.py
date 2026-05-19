@@ -7,6 +7,9 @@ from inferencesh.tools import (
     app_tool,
     agent_tool,
     webhook_tool,
+    http_tool,
+    call_tool,
+    mcp_tool,
     internal_tools,
     string,
     number,
@@ -17,6 +20,7 @@ from inferencesh.tools import (
     array,
     optional,
 )
+from inferencesh.types import ToolType
 
 
 class TestSchemaHelpers:
@@ -297,6 +301,114 @@ class TestAgentToolBuilder:
 
         assert t["display_name"] == "Code Assistant"
         assert t["require_approval"] is True
+
+
+class TestHTTPToolBuilder:
+    """Tests for HTTP / call tool builders."""
+
+    def test_creates_http_tool_with_defaults(self):
+        t = http_tool("fetch", "https://api.example.com/data").build()
+
+        assert t["type"] == ToolType.HTTP
+        assert t["type"] == "http"
+        assert t["http"]["url"] == "https://api.example.com/data"
+        assert t["http"]["method"] is None
+        assert t["http"]["auth"] is None
+        assert t["http"]["headers"] is None
+        assert t["http"]["input_schema"] == {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+    def test_call_tool_is_alias_for_http_tool(self):
+        t = call_tool("ping", "https://api.example.com/ping").describe("Ping").build()
+
+        assert t["type"] == ToolType.HTTP
+        assert t["description"] == "Ping"
+        assert t["http"]["url"] == "https://api.example.com/ping"
+
+    def test_http_tool_with_method_and_headers(self):
+        t = (
+            http_tool("list", "https://api.example.com/items")
+            .method("GET")
+            .header("X-Custom", "value")
+            .param("page", optional(integer("Page number")))
+            .build()
+        )
+
+        assert t["http"]["method"] == "GET"
+        assert t["http"]["headers"] == {"X-Custom": "value"}
+        assert t["http"]["input_schema"]["required"] == []
+
+    def test_http_tool_integration_auth(self):
+        t = (
+            http_tool("github", "https://api.github.com/user")
+            .auth(integration="github", integration_id="int_123")
+            .build()
+        )
+
+        assert t["http"]["auth"] == {
+            "type": "integration",
+            "provider": "github",
+            "integration_id": "int_123",
+        }
+
+    def test_http_tool_api_key_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(
+            api_key="MY_KEY", header="Authorization"
+        ).build()
+
+        assert t["http"]["auth"] == {
+            "type": "api_key",
+            "secret": "MY_KEY",
+            "header": "Authorization",
+        }
+
+    def test_http_tool_bearer_auth(self):
+        t = http_tool("svc", "https://api.example.com").auth(bearer="TOKEN").build()
+
+        assert t["http"]["auth"] == {"type": "bearer", "secret": "TOKEN"}
+
+
+class TestMCPToolBuilder:
+    """Tests for MCP connector tool builder."""
+
+    def test_creates_mcp_tool(self):
+        t = (
+            mcp_tool("search_docs", "int_slack_abc", "search")
+            .describe("Search connected docs")
+            .build()
+        )
+
+        assert t["type"] == ToolType.MCP
+        assert t["type"] == "mcp"
+        assert t["mcp"] == {"integration_id": "int_slack_abc", "tool_name": "search"}
+        assert t["description"] == "Search connected docs"
+
+    def test_mcp_tool_with_display_and_approval(self):
+        t = (
+            mcp_tool("run_query", "int_db", "execute_sql")
+            .display_name("Run SQL")
+            .require_approval()
+            .build()
+        )
+
+        assert t["display_name"] == "Run SQL"
+        assert t["require_approval"] is True
+
+
+class TestToolTypeEnum:
+    """Regression tests for acronym enum members from typegen."""
+
+    @pytest.mark.parametrize("member,value", [
+        ("HTTP", "http"),
+        ("MCP", "mcp"),
+        ("CLIENT", "client"),
+        ("APP", "app"),
+    ])
+    def test_acronym_enum_members(self, member, value):
+        assert getattr(ToolType, member).value == value
 
 
 class TestWebhookToolBuilder:
