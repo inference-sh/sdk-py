@@ -171,7 +171,7 @@ class TaskStream(AbstractContextManager['TaskStream']):
                         if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                             self._final_task = update
                         yield update
-                except (ConnectionError, OSError) as exc:
+                except (ConnectionError, OSError):
                     if not self.auto_reconnect or reconnects >= self.max_reconnects:
                         raise
                     reconnects += 1
@@ -268,7 +268,7 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
                         if parse_status(update.get("status")) == TaskStatus.COMPLETED:
                             self._final_task = update
                         yield update
-                except (ConnectionError, OSError) as exc:
+                except (ConnectionError, OSError):
                     if not self.auto_reconnect or reconnects >= self.max_reconnects:
                         raise
                     reconnects += 1
@@ -505,25 +505,21 @@ class Inference:
     @property
     def tasks(self) -> "TasksAPI":
         """Tasks API namespace."""
-        from .api import TasksAPI
         return self._tasks
 
     @property
     def files(self) -> "FilesAPI":
         """Files API namespace."""
-        from .api import FilesAPI
         return self._files
 
     @property
     def agents(self) -> "AgentsAPI":
         """Agents API namespace."""
-        from .api import AgentsAPI
         return self._agents
 
     @property
     def sessions(self) -> "SessionsAPI":
         """Sessions API namespace."""
-        from .api import SessionsAPI
         return self._sessions
 
     # --------------- HTTP helpers ---------------
@@ -691,11 +687,9 @@ class Inference:
                 reconnect_delay_ms=reconnect_delay_ms,
             )
             return task_stream
-            
+
         # Otherwise wait for completion
         return self.wait_for_completion(task["id"])
-
-
 
     def cancel(self, task_id: str) -> None:
         self._request("post", f"/tasks/{task_id}/cancel")
@@ -1062,25 +1056,21 @@ class AsyncInference:
     @property
     def tasks(self) -> "AsyncTasksAPI":
         """Tasks API namespace."""
-        from .api import AsyncTasksAPI
         return self._tasks
 
     @property
     def files(self) -> "AsyncFilesAPI":
         """Files API namespace."""
-        from .api import AsyncFilesAPI
         return self._files
 
     @property
     def agents(self) -> "AsyncAgentsAPI":
         """Agents API namespace."""
-        from .api import AsyncAgentsAPI
         return self._agents
 
     @property
     def sessions(self) -> "AsyncSessionsAPI":
         """Sessions API namespace."""
-        from .api import AsyncSessionsAPI
         return self._sessions
 
     # --------------- HTTP helpers ---------------
@@ -1601,6 +1591,7 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     if task.get("session_id"):
         result["session_id"] = task["session_id"]
     return result
+
 
 def _process_stream_event(
     data: Dict[str, Any], *, task: Dict[str, Any], stopper: Optional[Callable[[], None]] = None
