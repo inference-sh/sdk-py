@@ -15,7 +15,6 @@ import json
 
 from inferencesh import (
     inference,
-    AgentRuntimeConfig,
     ToolCallInfo,
     is_message_ready,
     # Tool builders
