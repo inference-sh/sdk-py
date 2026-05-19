@@ -52,3 +52,14 @@
 - `tests/test_models_base.py`: `Metadata` extra fields + `update()`, media mixin `contentMediaType` in JSON schema (Pydantic v2 `json_schema_extra` migration), `OrderedSchemaModel` field order.
 - `tests/test_llm.py`: assistant plain-string content, file attachments, local image base64 encoding, data URI helpers, real `list.any()` regression via multipart image messages, `build_messages` alias.
 - `tests/test_imports.py`: `parse_status`, `is_terminal_status`, `is_message_ready` in public API smoke list.
+
+## 2026-05-19 (run 5)
+
+**Recent changes reviewed:** `3df5ec8` on main (mypy fixes — SessionHandle.call return types, session creation guards, AsyncAgent stream casts, OrderedSchemaModel AST narrowing).
+
+**Open PRs checked:** #37, #39, #41 are documentation-only — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_sessions.py`: `session.call()` wait/stream parity with `client.run()`; missing `session_id` error; async session context manager.
+- `tests/test_agent.py`: `AsyncAgent.stream_messages()` / `stream_chat()` event filtering; guard when no active chat.
+- `tests/test_models_base.py`: nested `OrderedSchemaModel` field-order fallback path.

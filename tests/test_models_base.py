@@ -59,3 +59,14 @@ class TestOrderedSchemaModel:
 
         props = OrderedInput.model_json_schema()["properties"]
         assert list(props.keys()) == ["alpha", "beta", "gamma"]
+
+    def test_nested_class_field_order_via_indentation_fallback(self):
+        """Nested models exercise the IndentationError fallback in _get_field_order."""
+
+        class _Wrapper:
+            class NestedInput(OrderedSchemaModel):
+                first: str
+                second: str
+
+        props = _Wrapper.NestedInput.model_json_schema()["properties"]
+        assert list(props.keys()) == ["first", "second"]
