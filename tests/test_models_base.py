@@ -1,0 +1,61 @@
+"""Tests for Pydantic v2 base models and schema mixins (regression guards)."""
+
+from pydantic import BaseModel
+
+from inferencesh import File
+from inferencesh.models.base import (
+    Metadata,
+    OptionalImageFieldMixin,
+    OptionalVideoFieldMixin,
+    OrderedSchemaModel,
+)
+
+
+class TestMetadata:
+    def test_extra_fields_allowed(self):
+        meta = Metadata(app_id="app_1", custom_key="value")
+        assert meta.app_id == "app_1"
+        assert meta.custom_key == "value"
+
+    def test_update_from_dict(self):
+        meta = Metadata()
+        meta.update({"worker_id": "w-1", "region": "us-east"})
+        assert meta.worker_id == "w-1"
+        assert meta.region == "us-east"
+
+    def test_update_from_base_model(self):
+        class Other(BaseModel):
+            app_variant: str = "prod"
+
+        meta = Metadata()
+        meta.update(Other())
+        assert meta.app_variant == "prod"
+
+
+class TestMediaFieldMixins:
+    """Guard Pydantic v2 json_schema_extra for contentMediaType."""
+
+    def test_image_mixin_schema_has_content_media_type(self):
+        class Model(OptionalImageFieldMixin):
+            pass
+
+        image_schema = Model.model_json_schema()["properties"]["image"]
+        assert image_schema["contentMediaType"] == "image/*"
+
+    def test_video_mixin_schema_has_content_media_type(self):
+        class Model(OptionalVideoFieldMixin):
+            pass
+
+        video_schema = Model.model_json_schema()["properties"]["video"]
+        assert video_schema["contentMediaType"] == "video/*"
+
+
+class TestOrderedSchemaModel:
+    def test_json_schema_preserves_field_definition_order(self):
+        class OrderedInput(OrderedSchemaModel):
+            alpha: str
+            beta: str
+            gamma: str
+
+        props = OrderedInput.model_json_schema()["properties"]
+        assert list(props.keys()) == ["alpha", "beta", "gamma"]

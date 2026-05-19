@@ -48,6 +48,8 @@ def test_all_exports_resolvable():
 @pytest.mark.parametrize("name", [
     # Base app types
     "BaseApp", "BaseAppInput", "BaseAppOutput", "BaseAppSetup", "File",
+    # Client helpers (exported in 8cb6eaf)
+    "parse_status", "is_terminal_status", "is_message_ready",
     # Client
     "Inference", "AsyncInference",
     # Namespaced APIs
