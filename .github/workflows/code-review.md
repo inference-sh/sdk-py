@@ -2,7 +2,7 @@
 description: "AI code review on push to main - lint/test fixes and pattern/antipattern detection"
 on:
   push:
-    branches: [main]
+    branches: [dev]
 
 permissions:
   contents: read
