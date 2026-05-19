@@ -25,7 +25,7 @@ class AgentTool(TypedDict, total=False):
     display_name: str
     description: str
     type: ToolType
-    require_approval: bool
+    require_approval: Optional[bool]
     app: Optional[AppToolConfig]
     agent: Optional[AgentToolConfig]
     hook: Optional[HookToolConfig]
@@ -63,7 +63,7 @@ class AgentToolDTO(TypedDict, total=False):
     display_name: str
     description: str
     type: ToolType
-    require_approval: bool
+    require_approval: Optional[bool]
     app: Optional[AppToolConfigDTO]
     agent: Optional[AgentToolConfigDTO]
     hook: Optional[HookToolConfigDTO]
@@ -1200,6 +1200,9 @@ class FileRef(TypedDict, total=False):
     filename: str
     content_type: str
     size: int
+
+# ToolParamType is the JSON Schema primitive type string for a tool parameter.
+ToolParamType = str
 
 # Tool represents a tool definition for LLM function calling
 class Tool(TypedDict, total=False):
