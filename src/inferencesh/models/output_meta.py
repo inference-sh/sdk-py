@@ -8,7 +8,7 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 # Import generated enums from Go source of truth
-from inferencesh.output_meta_gen import MetaItemType, VideoResolution
+from inferencesh.output_meta_gen import MetaItemType
 
 
 class MetaItem(BaseModel):

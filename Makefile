@@ -156,7 +156,7 @@ format: check-venv
 	$(PYTHON) -m black src/inferencesh tests examples
 
 check: check-venv
-	$(PYTHON) -c "from inferencesh import inference, AgentRuntimeConfig, is_terminal_status; print('All imports OK')"
+	$(PYTHON) -c "from inferencesh import inference, AgentConfig, is_terminal_status; print('All imports OK')"
 
 # =============================================================================
 # Helpers
