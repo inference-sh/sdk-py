@@ -21,6 +21,17 @@
 - `tests/test_types.py`: `ToolParamType` vs `ToolCallType` split, integration enums, `InstanceStatus` lifecycle.
 - `tests/test_imports.py`: typegen exports for new enums.
 
+## 2026-05-19 (docs run — f3bbb54)
+
+**Recent changes reviewed:** `f3bbb54` (ToolParamType/ToolCallType split, integration and instance enums on `dev`).
+
+**Open PRs checked:** #44 merged on `dev`. Draft #46/#47 overlap — consolidated incremental README gaps here.
+
+**Docs updated:**
+- `README.md`: integration enum acronym naming, full status value lists, 412 handler with `IntegrationProvider`, session error cases, async `stream_messages` / `stream_chat`.
+
+**Not editable here:** `inference-sh/docs` (private) — inference.sh pages still lack ToolParamType / integration enum sections and the Sessions guide uses an outdated `session.call({...})` signature.
+
 ## 2026-05-19 (run 2)
 
 **Recent changes reviewed:** `bf4cd7d` (agent context), `1eb100c` (require_approval bool + TypedDict casts), client 412 handling.

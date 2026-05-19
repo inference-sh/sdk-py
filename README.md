@@ -190,6 +190,10 @@ with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as sess
 
 `session.call()` forwards to `client.run()` with the session ID pinned, so it accepts the same keyword arguments: `wait`, `stream`, `auto_reconnect`, and related streaming options.
 
+Async sessions use `async with await client.session(...)` (see [async client](#async-client)).
+
+If the initial run does not return a `session_id`, `client.session()` raises `RuntimeError`. Calling `session.call()` after the handle has ended raises `RuntimeError("Session has been ended")`.
+
 #### session management
 
 ```python
@@ -438,7 +442,9 @@ InstanceStatus.ACTIVE           # "active"
 InstanceStatus.ERROR            # "error"
 ```
 
-`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
+Enum members use readable acronym names from typegen (for example `IntegrationProvider.GIT_HUB` with value `"github"`, not `G_I_T_H_U_B`). `IntegrationDTO` responses type `provider`, `type`, `auth`, and `status` with these enums.
+
+`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `IntegrationStatus` values are `connected`, `disconnected`, `expired`, and `error`. `InstanceStatus` covers the full lifecycle: `creating`, `pending_provider`, `pending`, `active`, `error`, `deleting`, and `deleted`.
 
 ### requirements errors (HTTP 412)
 
@@ -446,12 +452,17 @@ When an app is missing secrets, integrations, or scopes, `client.tasks.run()` ra
 
 ```python
 from inferencesh import RequirementsNotMetError
+from inferencesh.types import IntegrationProvider
 
 try:
     result = client.tasks.run({"app": "my-app", "input": {...}})
 except RequirementsNotMetError as e:
     for err in e.errors:
         print(f"{err.type}: {err.key} — {err.message}")
+        if err.action and err.action.provider:
+            # action.provider is a wire string (e.g. "github"); compare with IntegrationProvider
+            provider = IntegrationProvider(err.action.provider)
+            print(f"Connect integration: {provider.name}")
 ```
 
 ### agent methods
@@ -469,13 +480,25 @@ except RequirementsNotMetError as e:
 ### async agent
 
 ```python
-from inferencesh import async_inference
+from inferencesh import async_inference, is_message_ready
 
 client = async_inference(api_key="your-api-key")
-agent = client.agents.create("my-org/assistant@abc123")
+agent = client.agent("my-org/assistant@abc123")
 
 response = await agent.send_message("Hello!")
+
+# Stream message updates (requires an active chat — send a message first)
+async for message in agent.stream_messages():
+    print(message.get("text", ""))
+    if is_message_ready(message.get("status")):
+        break
+
+# Stream chat-level status updates
+async for chat in agent.stream_chat():
+    print(chat.get("status"))
 ```
+
+`stream_messages()` and `stream_chat()` raise `RuntimeError("No active chat - send a message first")` if called before `send_message()`.
 
 ## async client
 
