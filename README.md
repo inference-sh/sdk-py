@@ -172,8 +172,7 @@ with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as sess
     # Stream updates for a session call
     for update in session.call("run", {"prompt": "..."}, stream=True):
         print(update.get("status"))
-
-print(session.session_id)  # available on the handle
+    print(session.session_id)
 ```
 
 `session.call()` forwards to `client.run()` with the session ID pinned, so it accepts the same keyword arguments: `wait`, `stream`, `auto_reconnect`, and related streaming options.
