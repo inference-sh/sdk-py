@@ -27,7 +27,7 @@ class OrderedSchemaModel(BaseModel):
     """A base model that ensures the JSON schema properties and required fields are in the order of field definition."""
 
     @classmethod
-    def model_json_schema(cls, by_alias: bool = True, **kwargs: Any) -> Dict[str, Any]:
+    def model_json_schema(cls, by_alias: bool = True, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
         schema = super().model_json_schema(by_alias=by_alias, **kwargs)
 
         field_order = cls._get_field_order()
@@ -71,7 +71,10 @@ class OrderedSchemaModel(BaseModel):
             module = ast.parse(source)
             # Adjust to look at the first class def inside DummyModule
             # noinspection PyUnresolvedReferences
-            class_def = module.body[0].body[0]
+            outer = module.body[0]
+            assert isinstance(outer, ast.ClassDef)
+            class_def = outer.body[0]
+            assert isinstance(class_def, ast.ClassDef)
         else:
             # Find the class definition
             class_def = next(

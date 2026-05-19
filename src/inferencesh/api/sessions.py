@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Iterator, List, Optional, Union, TYPE_CHECKING
 
 from ..types import AppSessionDTO as AppSession
 
 if TYPE_CHECKING:
-    from ..client import Inference, AsyncInference
+    from ..client import Inference, AsyncInference, TaskStream, AsyncTaskStream
 
 
 class SessionHandle:
@@ -37,7 +37,7 @@ class SessionHandle:
         function: str = "run",
         input: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> "Union[Dict[str, Any], TaskStream, Iterator[Dict[str, Any]]]":
         """Make a call within this session.
 
         Args:
@@ -109,7 +109,7 @@ class AsyncSessionHandle:
         function: str = "run",
         input: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> "Union[Dict[str, Any], AsyncTaskStream]":
         """Make a call within this session.
 
         Args:
