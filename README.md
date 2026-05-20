@@ -325,6 +325,37 @@ response = agent.send_message(
 )
 ```
 
+### file attachments
+
+Attach files to a message with the `files` argument (bytes or base64/data URI strings). Each item is uploaded via `agent.upload_file()` before the message is sent:
+
+```python
+# Raw bytes
+agent.send_message("Summarize this", files=[b"file contents"])
+
+# Data URI (content type parsed from the URI)
+agent.send_message("Analyze image", files=["data:image/png;base64,iVBORw0KGgo="])
+```
+
+Upload separately when you need the `FileRef` (for example, to reuse the same file across messages):
+
+```python
+ref = agent.upload_file(b"notes", filename="notes.txt")
+# ref["uri"], ref["filename"], ref["content_type"], ref["size"]
+```
+
+`agent.upload_file()` accepts bytes, base64 strings, or `data:<mime>;base64,...` URIs. It is separate from `client.files.upload()`, which also accepts local file paths.
+
+### structured output with `run()`
+
+When the agent uses a finish tool, `agent.run(text)` sends a message, waits for completion, and returns the parsed `chat.output`. Returns `None` if the agent finished without calling the finish tool:
+
+```python
+result = agent.run("Extract entities from the text above")
+if result is not None:
+    print(result)
+```
+
 ### per-chat context variables
 
 Pass context when creating an agent with `client.agent()` (the `context` argument is not available on `client.agents.create()`). Values are available in HTTP/call tool URL templates as `{{context.KEY}}`:
@@ -461,7 +492,9 @@ except RequirementsNotMetError as e:
 
 | Method | Description |
 |--------|-------------|
-| `send_message(text, ...)` | Send a message to the agent |
+| `send_message(text, files=None, ...)` | Send a message; optional `files` list (bytes or base64/data URI strings) |
+| `run(text, ...)` | Send a message and return `chat.output` from the finish tool (or `None`) |
+| `upload_file(data, filename=None)` | Upload bytes, base64, or a data URI; returns a `FileRef` |
 | `get_chat(chat_id=None)` | Get chat history |
 | `stop_chat(chat_id=None)` | Stop current generation |
 | `submit_tool_result(tool_id, result_or_action)` | Submit result for a client tool (string or {action, form_data}) |
@@ -478,6 +511,9 @@ client = async_inference(api_key="your-api-key")
 agent = client.agents.create("my-org/assistant@abc123")
 
 response = await agent.send_message("Hello!")
+
+# Same helpers as sync: files on send_message, upload_file, run() for finish-tool output
+output = await agent.run("Return structured data")
 ```
 
 ## async client
