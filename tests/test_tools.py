@@ -511,4 +511,3 @@ class TestFluentAPIChaining:
         assert t["description"] == "A complex tool with many params"
         assert t["require_approval"] is True
         assert t["client"]["input_schema"]["required"] == ["name", "count"]
-

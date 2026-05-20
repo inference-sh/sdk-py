@@ -115,9 +115,9 @@ class BaseApp(BaseModel):
         raise NotImplementedError("run method must be implemented")
 
     async def unload(self):
-        pass 
-    
-    
+        pass
+
+
 # Mixins
 
 class OptionalImageFieldMixin(BaseModel):
@@ -158,24 +158,24 @@ class RequiredAudioFieldMixin(BaseModel):
         description="the audio to use for the model",
         json_schema_extra={"contentMediaType": "audio/*"},
     )
-    
+
 class OptionalTextFieldMixin(BaseModel):
     text: Optional[str] = Field(
         description="the text to use for the model",
         default=None,
     )
-    
+
 class RequiredTextFieldMixin(BaseModel):
     text: str = Field(
         description="the text to use for the model",
     )
-    
+
 class OptionalFileFieldMixin(BaseModel):
     file: Optional[File] = Field(
         description="the file to use for the model",
         default=None,
     )
-    
+
 class RequiredFileFieldMixin(BaseModel):
     file: Optional[File] = Field(
         description="the file to use for the model",

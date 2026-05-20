@@ -8,13 +8,13 @@ def test_file_creation():
     # Create a temporary file
     with open("test.txt", "w") as f:
         f.write("test")
-    
+
     file = File(path="test.txt")
     assert file.exists()
     assert file.size > 0
     assert file.content_type is not None
     assert file.filename == "test.txt"
-    
+
     os.remove("test.txt")
 
 def test_base_app():
@@ -35,7 +35,7 @@ def test_file_from_local_path():
     with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
         f.write(b"test content")
         path = f.name
-    
+
     try:
         # Test creating File from path
         file = File(uri=path)
@@ -52,7 +52,7 @@ def test_file_from_relative_path():
     # Create a file in current directory
     with open("test_relative.txt", "w") as f:
         f.write("relative test")
-    
+
     try:
         file = File(uri="test_relative.txt")
         assert file.exists()
@@ -65,16 +65,16 @@ def test_file_validation():
     # Test empty initialization
     with pytest.raises(ValueError, match="Either 'uri' or 'path' must be provided"):
         File()
-    
+
     # Test invalid input type
     with pytest.raises(ValueError, match="Invalid input for File"):
         File(123)
-    
+
     # Test string input (should work)
     with tempfile.NamedTemporaryFile(suffix='.txt', delete=False) as f:
         f.write(b"test content")
         path = f.name
-        
+
     try:
         file = File(path)
         assert isinstance(file, File)
@@ -97,14 +97,14 @@ def test_file_from_url(monkeypatch):
                 return b"mocked content"
 
         return MockResponse()
-    
+
     monkeypatch.setattr(urllib.request, 'urlopen', mock_urlopen)
-    
+
     # Use a unique URL to avoid caching issues
     import time
     url = f"https://example.com/test_{int(time.time() * 1000)}.pdf"
     file = File(uri=url)
-    
+
     try:
         assert file._is_url(url)
         assert file.exists()
@@ -122,16 +122,16 @@ def test_file_metadata_refresh():
         initial_content = b'{"test": "data"}'
         f.write(initial_content)
         path = f.name
-    
+
     try:
         file = File(uri=path)
         initial_size = file.size
-        
+
         # Modify file with significantly more data
         with open(path, 'ab') as f:  # Open in append binary mode
             additional_data = b'\n{"more": "data"}\n' * 10  # Add multiple lines of data
             f.write(additional_data)
-        
+
         # Refresh metadata
         file.refresh_metadata()
         assert file.size > initial_size, f"New size {file.size} should be larger than initial size {initial_size}"
@@ -152,18 +152,18 @@ def test_file_cleanup(monkeypatch):
                 return b"mocked content"
 
         return MockResponse()
-    
+
     monkeypatch.setattr(urllib.request, 'urlopen', mock_urlopen)
-    
+
     url = "https://example.com/test.txt"
     file = File(uri=url)
-    
+
     if file._tmp_path:
         tmp_path = file._tmp_path
         assert os.path.exists(tmp_path)
         del file
-        assert not os.path.exists(tmp_path) 
-        
+        assert not os.path.exists(tmp_path)
+
 def test_file_schema():
     """File fields should appear as {"type": "string", "format": "file"} inline, no $defs."""
     from typing import Optional, List
