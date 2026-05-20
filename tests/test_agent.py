@@ -72,6 +72,9 @@ def patch_agent_requests(monkeypatch):
                 },
             })
 
+        if "/chats/" in url and url.endswith("/stop") and method.upper() == "POST":
+            return DummyResponse(json_data={"success": True, "data": None})
+
         return DummyResponse(status_code=404, json_data={"success": False, "error": {"message": "not found"}})
 
     class FakeRequestsModule:
@@ -363,3 +366,139 @@ def test_async_agents_create_returns_async_agent():
 
     assert isinstance(agent, AsyncAgent)
     assert agent._options == "okaris/assistant@abc123"
+
+
+class _ImmediateStreamManager:
+    """Run StreamManager callbacks synchronously (avoids reconnect sleeps in unit tests)."""
+
+    def __init__(self, *, create_event_source, on_data=None, on_error=None, on_stop=None, **kwargs):
+        self._events = list(create_event_source())
+        self._on_data = on_data
+        self._on_stop = on_stop
+
+    def connect(self):
+        for event in self._events:
+            if self._on_data:
+                self._on_data(event)
+        if self._on_stop:
+            self._on_stop()
+
+    def stop(self):
+        if self._on_stop:
+            self._on_stop()
+
+
+def test_agent_stream_messages_yields_chat_message_events(monkeypatch, patch_agent_requests):
+    import inferencesh.agent as agent_mod
+
+    monkeypatch.setattr(agent_mod, "StreamManager", _ImmediateStreamManager)
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+    assert agent.chat_id == "chat_1"
+
+    events = [
+        ("chat_messages", {"id": "msg_2", "text": "Update", "role": "assistant"}),
+        ("chats", {"id": "chat_1", "status": "idle"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    messages = list(agent.stream_messages())
+
+    assert len(messages) == 1
+    assert messages[0]["text"] == "Update"
+
+
+def test_agent_stream_chat_yields_chat_events(monkeypatch, patch_agent_requests):
+    import inferencesh.agent as agent_mod
+
+    monkeypatch.setattr(agent_mod, "StreamManager", _ImmediateStreamManager)
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("chat_messages", {"id": "msg_1", "text": "Hi", "role": "assistant"}),
+        ("chats", {"id": "chat_1", "status": "busy"}),
+        ("chats", {"id": "chat_1", "status": "idle"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    chats = list(agent.stream_chat())
+
+    assert len(chats) == 2
+    assert chats[0]["status"] == "busy"
+    assert chats[1]["status"] == "idle"
+
+
+def test_agent_stream_requires_active_chat():
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    with pytest.raises(RuntimeError, match="No active chat"):
+        list(agent.stream_messages())
+
+
+def test_agent_stop_chat_posts_to_endpoint(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    agent.stop_chat()
+
+    stop_call = patch_agent_requests[-1]
+    assert stop_call["method"] == "POST"
+    assert stop_call["url"].endswith("/chats/chat_1/stop")
+
+
+def test_agent_get_chat_without_chat_id_returns_none(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    assert agent.get_chat() is None
+
+
+def test_agent_get_chat_fetches_by_id(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    chat = agent.get_chat()
+
+    assert chat["id"] == "chat_1"
+    assert chat["output"] == {"result": "done"}
+    get_call = patch_agent_requests[-1]
+    assert get_call["method"] == "GET"
+    assert get_call["url"].endswith("/chats/chat_1")
+
+
+def test_agent_send_message_invokes_streaming_callbacks(monkeypatch, patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    streamed = {"called": False}
+
+    def fake_stream_all(**kwargs):
+        streamed["called"] = True
+        streamed["on_message"] = kwargs.get("on_message") is not None
+        streamed["on_tool_call"] = kwargs.get("on_tool_call") is not None
+
+    monkeypatch.setattr(agent, "stream_all", fake_stream_all)
+
+    agent.send_message("Hi", on_message=lambda msg: None, on_tool_call=lambda info: None)
+
+    assert streamed["called"] is True
+    assert streamed["on_message"] is True
+    assert streamed["on_tool_call"] is True

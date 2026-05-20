@@ -1,9 +1,12 @@
 """Tests for Pydantic v2 base models and schema mixins (regression guards)."""
 
+import pytest
 from pydantic import BaseModel
 
 from inferencesh import File
 from inferencesh.models.base import (
+    BaseApp,
+    BaseAppInput,
     Metadata,
     OptionalImageFieldMixin,
     OptionalVideoFieldMixin,
@@ -70,3 +73,18 @@ class TestOrderedSchemaModel:
 
         props = _Wrapper.NestedInput.model_json_schema()["properties"]
         assert list(props.keys()) == ["first", "second"]
+
+
+class TestBaseApp:
+    @pytest.mark.asyncio
+    async def test_run_raises_not_implemented(self):
+        app = BaseApp()
+
+        with pytest.raises(NotImplementedError, match="run method must be implemented"):
+            await app.run(BaseAppInput())
+
+    @pytest.mark.asyncio
+    async def test_setup_and_unload_are_no_ops(self):
+        app = BaseApp()
+        await app.setup()
+        await app.unload()

@@ -73,3 +73,17 @@
 **Gaps filled:**
 - `tests/test_agent.py`: `agent.run()` finish output, `reset()`, `upload_file()` (bytes/data URI/invalid URI), `send_message(files=...)`, `AsyncAgentsAPI.create()`.
 - `tests/test_sessions.py`: `SessionHandle.info()` / `keepalive()` delegation.
+
+## 2026-05-20
+
+**Recent changes reviewed:** `df3473b` on main (merge of PR #54 — agent run/upload_file and session handle tests).
+
+**Open PRs checked:** #55 and #56 are documentation drafts — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_agent.py`: sync `stream_messages()` / `stream_chat()`, `stop_chat()`, `get_chat()`, `send_message` streaming callbacks.
+- `tests/test_sessions.py`: `AsyncSessionHandle.info()` / `keepalive()`, ended-session guard on async `call()`.
+- `tests/test_download.py`: `download()` cache layout, query-string hashing, cache hit skip, failure path.
+- `tests/test_models_base.py`: `BaseApp` default `setup`/`unload` and `run()` NotImplemented guard.
+- `tests/test_client.py`: `tasks.stream()` namespace delegation.
+- `tests/test_errors.py`: `RequirementsNotMetError.__repr__`.

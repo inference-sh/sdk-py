@@ -797,6 +797,17 @@ def test_tasks_wait_for_completion(tmp_path):
     assert result["output"] == {"ok": True}
 
 
+def test_tasks_stream_via_namespace(tmp_path):
+    """tasks.stream() delegates to client.stream_task()."""
+    client = Inference(api_key="test")
+
+    with client.tasks.stream("task_123") as stream:
+        updates = list(stream)
+
+    assert len(updates) >= 1
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+
+
 def test_run_wait_false_strips_internal_fields(monkeypatch, patch_requests):
     """run(wait=False) must not leak internal task fields to callers."""
     import inferencesh.client as client_mod

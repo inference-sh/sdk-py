@@ -385,3 +385,87 @@ async def test_async_session_context_manager(monkeypatch):
     assert run_calls[0]["json"]["session"] == "new"
     assert run_calls[1]["json"]["session"] == "sess_async"
     assert any(c["method"] == "DELETE" for c in calls)
+
+
+@pytest.mark.asyncio
+async def test_async_session_handle_info_and_keepalive(monkeypatch):
+    """AsyncSessionHandle.info/keepalive delegate to the async sessions namespace."""
+    calls = []
+
+    class MockAsyncResponse:
+        def __init__(self, json_data=None, status=200):
+            self._json_data = json_data or {"success": True, "data": {}}
+            self.status = status
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return self.status < 400
+
+        async def text(self):
+            return json.dumps(self._json_data)
+
+        async def json(self):
+            return self._json_data
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class MockClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            calls.append({"method": method.upper(), "url": url})
+            if url.endswith("/keepalive"):
+                return MockAsyncResponse({
+                    "success": True,
+                    "data": {"id": "sess_async", "expires_at": "2099-06-01"},
+                })
+            return MockAsyncResponse({
+                "success": True,
+                "data": {"id": "sess_async", "status": "active"},
+            })
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: MockClientSession()
+
+    import inferencesh.client as client_mod
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    from inferencesh.api.sessions import AsyncSessionHandle
+
+    client = AsyncInference(api_key="test")
+    handle = AsyncSessionHandle(client, "my-app@v1", "sess_async")
+
+    info = await handle.info()
+    assert info["id"] == "sess_async"
+
+    kept = await handle.keepalive()
+    assert kept["expires_at"] == "2099-06-01"
+
+    assert any(c["url"].endswith("/sessions/sess_async") and c["method"] == "GET" for c in calls)
+    assert any(c["url"].endswith("/keepalive") for c in calls)
+
+
+@pytest.mark.asyncio
+async def test_async_session_call_after_end_raises():
+    client = AsyncInference(api_key="test")
+    from inferencesh.api.sessions import AsyncSessionHandle
+
+    handle = AsyncSessionHandle(client, "my-app@v1", "sess_async")
+    handle._ended = True
+
+    with pytest.raises(RuntimeError, match="Session has been ended"):
+        await handle.call("step")
