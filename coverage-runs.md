@@ -87,3 +87,16 @@
 - `tests/test_models_base.py`: `BaseApp` default `setup`/`unload` and `run()` NotImplemented guard.
 - `tests/test_client.py`: `tasks.stream()` namespace delegation.
 - `tests/test_errors.py`: `RequirementsNotMetError.__repr__`.
+
+## 2026-05-20 (run 2)
+
+**Recent changes reviewed:** `9d0ad07` on main (docs merge for agent attachments, `download()` cache, streaming APIs). Production paths from PR #54 still had gaps in TEMP cache bypass, agent upload failures, and task wait error handling.
+
+**Open PRs checked:** #59 is documentation-only (`cursor/public-documentation-maintenance-3cb9`) — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_download.py`: default filename for pathless URLs, `StorageDir.TEMP` cache bypass, `StorageDir.path` mkdir.
+- `tests/test_agent.py`: base64 upload path, missing upload URL / failed PUT, sync NDJSON unwrap, `AsyncAgent.run()` and widget `submit_tool_result`.
+- `tests/test_client.py`: `tasks.wait_for_completion()` failed and cancelled task errors.
+- `tests/test_streamable.py`: `streamable_raw()` empty lines, bytes, heartbeat toggle, non-dict JSON.
+- `tests/test_errors.py`: `SessionExpiredError`, `SessionEndedError`, `WorkerLostError` `__repr__`.

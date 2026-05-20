@@ -797,6 +797,50 @@ def test_tasks_wait_for_completion(tmp_path):
     assert result["output"] == {"ok": True}
 
 
+def test_tasks_wait_for_completion_raises_on_failed_task(monkeypatch):
+    client = Inference(api_key="test")
+
+    def fake_stream_task(task_id, **kwargs):
+        class FailedStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def __iter__(self):
+                yield {"id": task_id, "status": TaskStatus.FAILED, "error": "boom"}
+
+        return FailedStream()
+
+    monkeypatch.setattr(client, "stream_task", fake_stream_task)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        client.tasks.wait_for_completion("task_123")
+
+
+def test_tasks_wait_for_completion_raises_on_cancelled_task(monkeypatch):
+    client = Inference(api_key="test")
+
+    def fake_stream_task(task_id, **kwargs):
+        class CancelledStream:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def __iter__(self):
+                yield {"id": task_id, "status": TaskStatus.CANCELLED}
+
+        return CancelledStream()
+
+    monkeypatch.setattr(client, "stream_task", fake_stream_task)
+
+    with pytest.raises(RuntimeError, match="Task cancelled"):
+        client.tasks.wait_for_completion("task_123")
+
+
 def test_tasks_stream_via_namespace(tmp_path):
     """tasks.stream() delegates to client.stream_task()."""
     client = Inference(api_key="test")

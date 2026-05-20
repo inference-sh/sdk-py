@@ -85,3 +85,69 @@ def test_download_cache_hit_skips_file_when_not_temp(tmp_path):
     assert path == str(cached)
     mock_file_cls.assert_not_called()
     assert StorageDir.TEMP != tmp_path
+
+
+def test_download_uses_default_filename_when_url_has_no_basename(tmp_path):
+    """URLs ending with / get a stable 'download' filename in the hash directory."""
+    url = "https://cdn.example.com/assets/"
+    src = tmp_path / "source.bin"
+    src.write_bytes(b"payload")
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+
+        path = download(url, tmp_path)
+
+    expected = tmp_path / _url_hash(url) / "download"
+    assert Path(path) == expected
+    assert expected.read_bytes() == b"payload"
+
+
+def test_download_temp_dir_redownloads_even_when_cached(tmp_path, monkeypatch):
+    """TEMP storage must not short-circuit on cache hits (always refresh)."""
+    import importlib
+
+    url = "https://cdn.example.com/temp.bin"
+    temp_root = tmp_path / "tmp"
+    temp_root.mkdir()
+    hash_dir = temp_root / _url_hash(url)
+    hash_dir.mkdir(parents=True, exist_ok=True)
+    stale = hash_dir / "temp.bin"
+    stale.write_bytes(b"stale")
+
+    src = tmp_path / "fresh.bin"
+    src.write_bytes(b"fresh")
+
+    class _StorageDir:
+        TEMP = str(temp_root)
+
+    download_mod = importlib.import_module("inferencesh.utils.download")
+    monkeypatch.setattr(download_mod, "StorageDir", _StorageDir)
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+
+        path = download(url, str(temp_root))
+
+    assert Path(path).read_bytes() == b"fresh"
+    mock_file_cls.assert_called_once_with(url)
+
+
+def test_storage_dir_path_creates_directory(tmp_path, monkeypatch):
+    """StorageDir.path ensures the backing directory exists."""
+    cache_root = tmp_path / "cache"
+
+    def path_factory(value):
+        assert value == StorageDir.CACHE.value
+        return cache_root
+
+    monkeypatch.setattr("inferencesh.utils.storage.Path", path_factory)
+
+    result = StorageDir.CACHE.path
+
+    assert result == cache_root
+    assert cache_root.is_dir()

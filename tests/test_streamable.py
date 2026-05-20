@@ -138,6 +138,38 @@ class TestStreamableRaw:
         assert results[0].event is None
         assert results[0].fields is None
 
+    def test_skip_heartbeats_and_empty_lines(self):
+        response = MockResponse([
+            '{"id":1}',
+            "",
+            '{"type":"heartbeat"}',
+            b'{"id":2}',
+        ])
+
+        results = list(streamable_raw(response))
+
+        assert [m.data for m in results] == [{"id": 1}, {"id": 2}]
+
+    def test_include_heartbeats_when_disabled(self):
+        response = MockResponse([
+            '{"type":"heartbeat"}',
+            '{"id":1}',
+        ])
+
+        results = list(streamable_raw(response, skip_heartbeats=False))
+
+        assert len(results) == 2
+        assert results[0].data == {"type": "heartbeat"}
+
+    def test_non_dict_json_yields_message_wrapper(self):
+        response = MockResponse(['"plain"'])
+
+        results = list(streamable_raw(response))
+
+        assert len(results) == 1
+        assert results[0].data == "plain"
+        assert results[0].event is None
+
 
 class TestIterNdjson:
     """Tests for iter_ndjson() function."""

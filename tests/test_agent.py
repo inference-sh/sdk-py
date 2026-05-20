@@ -297,6 +297,46 @@ def test_agent_run_returns_none_when_chat_has_no_output(monkeypatch, patch_agent
     assert agent.run("query") is None
 
 
+@pytest.mark.asyncio
+async def test_async_agent_run_returns_chat_output(monkeypatch, patch_agent_requests):
+    from inferencesh import AsyncInference
+
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    async def fake_send(text, **kwargs):
+        return {"chat_id": "chat_1"}
+
+    async def fake_get(chat_id=None):
+        return {"output": {"answer": 99}}
+
+    monkeypatch.setattr(agent, "send_message", fake_send)
+    monkeypatch.setattr(agent, "get_chat", fake_get)
+
+    assert await agent.run("finish") == {"answer": 99}
+
+
+@pytest.mark.asyncio
+async def test_async_agent_submit_tool_result_serializes_widget_action(monkeypatch, patch_agent_requests):
+    from inferencesh import AsyncInference
+
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    posted = []
+
+    async def fake_request(method, endpoint, data=None):
+        posted.append({"method": method, "endpoint": endpoint, "data": data})
+
+    monkeypatch.setattr(agent, "_request", fake_request)
+
+    payload = {"action": {"type": "confirm"}, "form_data": {"ok": True}}
+    await agent.submit_tool_result("inv_async", payload)
+
+    assert posted[-1]["endpoint"] == "/tools/inv_async"
+    assert posted[-1]["data"] == {"result": json.dumps(payload)}
+
+
 def test_agent_reset_clears_chat_and_dispatched_tools(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
@@ -339,6 +379,64 @@ def test_agent_upload_file_rejects_invalid_data_uri(patch_agent_requests):
 
     with pytest.raises(ValueError, match="Invalid data URI"):
         agent.upload_file("data:not-valid")
+
+
+def test_agent_upload_file_from_base64_string(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    payload = base64.b64encode(b"raw-base64").decode()
+
+    agent.upload_file(payload)
+
+    assert patch_agent_requests.put_calls[0]["size"] == len(b"raw-base64")
+
+
+def test_agent_upload_file_raises_when_no_upload_url(monkeypatch, patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    monkeypatch.setattr(agent, "_request", lambda *args, **kwargs: [{"id": "f1", "uri": "https://x/f1"}])
+
+    with pytest.raises(RuntimeError, match="No upload URL"):
+        agent.upload_file(b"bytes")
+
+
+def test_agent_upload_file_raises_when_put_fails(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    def failing_put(url, data=None, headers=None):
+        return DummyResponse(status_code=500)
+
+    patch_agent_requests.put = failing_put
+
+    with pytest.raises(RuntimeError, match="Upload failed"):
+        agent.upload_file(b"bytes")
+
+
+def test_agent_ndjson_generator_skips_heartbeats_and_unwraps_data(monkeypatch, patch_agent_requests):
+    import inferencesh.agent as agent_mod
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    class StreamResponse:
+        def iter_lines(self, decode_unicode=True):
+            yield '{"type":"heartbeat"}'
+            yield "not-json"
+            yield '{"data":{"id":1}}'
+            yield '{"id":2}'
+
+    class FakeRequests:
+        def get(self, url, headers=None, stream=False, timeout=None):
+            assert url.endswith("/chats/chat_1/stream")
+            return StreamResponse()
+
+    monkeypatch.setattr(agent_mod, "_require_requests", lambda: FakeRequests())
+
+    events = list(agent._create_ndjson_generator("/chats/chat_1/stream"))
+
+    assert events == [{"id": 1}, {"id": 2}]
 
 
 def test_agent_send_message_uploads_file_attachments(patch_agent_requests):
