@@ -316,7 +316,7 @@ agent.stream_all(
 )
 ```
 
-`stream_messages()` and `stream_chat()` accept `auto_reconnect`, `max_reconnects`, and `reconnect_delay_ms` (same semantics as task streaming). Async agents expose the same methods as async iterators after `await agent.send_message(...)`.
+On the sync `Agent`, `stream_messages()` and `stream_chat()` accept `auto_reconnect`, `max_reconnects`, and `reconnect_delay_ms` (same semantics as task streaming). `AsyncAgent` exposes `stream_messages()` and `stream_chat()` as async iterators (no reconnect kwargs) after `await agent.send_message(...)`.
 
 ### creating an ad-hoc agent
 
@@ -548,7 +548,7 @@ Session API errors (`SessionNotFoundError`, `SessionExpiredError`, `SessionEnded
 ### async agent
 
 ```python
-from inferencesh import async_inference
+from inferencesh import async_inference, is_message_ready
 
 client = async_inference(api_key="your-api-key")
 agent = client.agents.create("my-org/assistant@abc123")
@@ -557,6 +557,11 @@ response = await agent.send_message("Hello!")
 
 # Same helpers as sync: files on send_message, upload_file, run() for finish-tool output
 output = await agent.run("Return structured data")
+
+# Stream after send_message (async iterators; no auto_reconnect kwargs)
+async for message in agent.stream_messages():
+    if is_message_ready(message.get("status")):
+        break
 ```
 
 ## async client
