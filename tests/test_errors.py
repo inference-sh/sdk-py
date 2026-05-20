@@ -64,6 +64,16 @@ class TestRequirementsNotMetError:
         exc = RequirementsNotMetError([], status_code=412)
         assert str(exc) == "requirements not met"
 
+    def test_repr_includes_errors(self):
+        err = RequirementError.from_dict({
+            "type": "secret",
+            "key": "KEY",
+            "message": "missing",
+        })
+        exc = RequirementsNotMetError([err])
+        assert "RequirementsNotMetError" in repr(exc)
+        assert "KEY" in repr(exc)
+
 
 class TestSessionErrors:
     def test_session_not_found_repr(self):
