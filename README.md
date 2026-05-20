@@ -257,6 +257,8 @@ file_obj = client.files.upload(
 
 Note: Files in task input are automatically uploaded. You only need `files.upload()` for manual uploads.
 
+Task and session `input` values are scanned recursively. Local file paths, long base64 strings, and `data:<mime>;base64,...` URIs are uploaded and replaced with cloud URIs before the run is sent (plain short strings are left unchanged).
+
 ## agent chat
 
 Chat with AI agents using `client.agents.create()` or `client.agent()`. Both return the same `Agent` instance; use `client.agent()` when you need per-chat **context** variables (see below).
@@ -288,7 +290,33 @@ for message in agent.stream_messages():
     on_message(message)
     if is_message_ready(message.get("status")):
         break
+
+# Poll chat state or stop generation
+chat = agent.get_chat()  # None if no message sent yet
+agent.stop_chat()        # POST /chats/{id}/stop for the active chat
 ```
+
+`send_message()` can also drive streaming via callbacks (`on_message`, `on_tool_call`), which internally uses `stream_all()`. For manual control, use the iterators below (requires an active chat — call `send_message()` first):
+
+```python
+# Message-level updates (chat_messages events)
+for message in agent.stream_messages():
+    ...
+
+# Chat-level status updates (chats events, e.g. busy → idle)
+for chat in agent.stream_chat():
+    if chat.get("status") == "idle":
+        break
+
+# Unified stream with callbacks; stops when chat becomes idle
+agent.stream_all(
+    on_message=on_message,
+    on_tool_call=on_tool_call,
+    on_chat=lambda chat: print(chat.get("status")),
+)
+```
+
+`stream_messages()` and `stream_chat()` accept `auto_reconnect`, `max_reconnects`, and `reconnect_delay_ms` (same semantics as task streaming). Async agents expose the same methods as async iterators after `await agent.send_message(...)`.
 
 ### creating an ad-hoc agent
 
@@ -486,21 +514,36 @@ try:
 except RequirementsNotMetError as e:
     for err in e.errors:
         print(f"{err.type}: {err.key} — {err.message}")
+    if e.errors[0].action:
+        print(e.errors[0].action.type)  # e.g. connect integration
 ```
+
+Widget and form results for client tools use a dict payload (serialized to JSON on the wire):
+
+```python
+agent.submit_tool_result("inv_1", '{"ok": true}')
+agent.submit_tool_result("inv_2", {
+    "action": {"type": "confirm"},
+    "form_data": {"name": "Ada"},
+})
+```
+
+Session API errors (`SessionNotFoundError`, `SessionExpiredError`, `SessionEndedError`, `WorkerLostError`) are raised when a session is missing, expired, ended, or the worker is lost.
 
 ### agent methods
 
 | Method | Description |
 |--------|-------------|
-| `send_message(text, files=None, ...)` | Send a message; optional `files` list (bytes or base64/data URI strings) |
+| `send_message(text, files=None, on_message=..., on_tool_call=...)` | Send a message; optional `files`; callbacks use `stream_all()` |
 | `run(text, ...)` | Send a message and return `chat.output` from the finish tool (or `None`) |
 | `upload_file(data, filename=None)` | Upload bytes, base64, or a data URI; returns a `FileRef` |
-| `get_chat(chat_id=None)` | Get chat history |
-| `stop_chat(chat_id=None)` | Stop current generation |
-| `submit_tool_result(tool_id, result_or_action)` | Submit result for a client tool (string or {action, form_data}) |
-| `stream_messages(chat_id=None, ...)` | Stream message updates |
-| `stream_chat(chat_id=None, ...)` | Stream chat updates |
-| `reset()` | Start a new conversation |
+| `get_chat(chat_id=None)` | Fetch chat by ID (defaults to active chat; `None` if none) |
+| `stop_chat()` | Stop generation on the active chat |
+| `submit_tool_result(tool_id, result_or_action)` | Submit result for a client tool (string or widget action dict) |
+| `stream_messages(...)` | Iterator of `chat_messages` events (active chat required) |
+| `stream_chat(...)` | Iterator of `chats` events (active chat required) |
+| `stream_all(on_chat=..., on_message=..., on_tool_call=...)` | Callback-driven unified stream until idle |
+| `reset()` | Clear active chat and dispatched tool state |
 
 ### async agent
 
@@ -598,6 +641,23 @@ the `File` class automatically handles:
 - file size calculation
 - filename extraction from path
 - file existence checking
+
+### downloading remote files
+
+`download()` fetches a URL into a directory and returns the local path. Paths are cached under a short hash of the URL (host, path, and query string); repeated downloads of the same URL reuse the file unless the directory is `StorageDir.TEMP`:
+
+```python
+from inferencesh import download, StorageDir
+
+path = download("https://cdn.example.com/model.bin", StorageDir.CACHE)
+# e.g. /app/cache/<hash>/model.bin
+
+# Query strings produce distinct cache entries
+download("https://cdn.example.com/asset.png?v=1", "/tmp/assets")
+download("https://cdn.example.com/asset.png?v=2", "/tmp/assets")  # separate hash dir
+```
+
+`StorageDir` provides standard app paths (`DATA`, `TEMP`, `CACHE`) and ensures the directory exists via `.path`.
 
 ## creating an app
 
