@@ -762,7 +762,7 @@ class CheckRequirementsResponse(TypedDict, total=False):
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
 # in the generated SDK output (TypeScript, Python, Go).
-#
+# 
 # To expose a type to SDK consumers: reference it in this struct.
 class SDKTypes(TypedDict, total=False):
     pass
@@ -1846,6 +1846,7 @@ class GraphEdgeType(str, Enum):
     PARENT = "parent"
     ANCESTOR = "ancestor"
     DUPLICATE = "duplicate"
+    REFERENCES = "references"
 
 class EntitlementSource(str, Enum):
     TIER = "tier"
@@ -2116,3 +2117,4 @@ class Role(str, Enum):
     USER = "user"
     ADMIN = "admin"
     SYSTEM = "system"
+
