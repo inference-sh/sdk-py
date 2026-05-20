@@ -153,7 +153,7 @@ class SessionNotFoundError(SessionError):
 class SessionExpiredError(SessionError):
     """Raised when a session has expired (410 SESSION_EXPIRED).
 
-    Sessions expire after an idle timeout (default: 5 minutes).
+    Sessions expire after an idle timeout (default: 60 seconds).
 
     Example:
         ```python

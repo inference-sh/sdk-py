@@ -32,8 +32,9 @@ The `Inference` client exposes namespaced APIs:
 ```python
 from inferencesh import inference, TaskStatus
 
-# Create client
+# Create client (optional base_url for staging/dev APIs)
 client = inference(api_key="your-api-key")
+# client = inference(api_key="your-api-key", base_url="https://api-dev.inference.sh")
 
 # Simple synchronous usage - waits for completion by default
 result = client.tasks.run({
@@ -46,6 +47,8 @@ result = client.tasks.run({
 print(f"Task ID: {result.get('id')}")
 print(f"Output: {result.get('output')}")
 ```
+
+App references use `namespace/name@shortid` (pinned version). You can append `:function` to target a specific entry point, for example `my-org/my-app@abc123:generate`.
 
 ### with setup parameters
 
@@ -149,6 +152,17 @@ if is_message_ready(message.get("status")):  # ready, failed, or cancelled
 
 `is_terminal_status()` is for **task** statuses. For **chat message** statuses, use `is_message_ready()` instead.
 
+Chat message statuses (`ChatMessageStatus`):
+
+```python
+from inferencesh import ChatMessageStatus
+
+ChatMessageStatus.PENDING    # "pending" — still streaming
+ChatMessageStatus.READY      # "ready" — complete
+ChatMessageStatus.FAILED     # "failed"
+ChatMessageStatus.CANCELLED  # "cancelled"
+```
+
 ### sessions (stateful execution)
 
 Sessions allow you to maintain state across multiple task invocations. The worker stays warm between calls, preserving loaded models and in-memory state.
@@ -177,7 +191,9 @@ result2 = client.tasks.run({
 For multi-step workflows, use `client.session()` to create a session and call app functions by name. The session ends automatically when the context exits.
 
 ```python
-# Optional kwargs for the initial run: input, function (default "run")
+# Optional kwargs for the initial run: input, function (default "run").
+# session_timeout and other run params are not passed through here — use
+# client.tasks.run(..., session="new", session_timeout=...) when you need them.
 with client.session("my-stateful-app@abc123", input={"prompt": "hello"}) as session:
     # First argument is the app function name; second is input data
     session.call("process", {"step": 1})
@@ -225,6 +241,33 @@ result = client.tasks.run({
 - Each successful call resets the idle timer
 
 For complete session documentation including error handling, best practices, and advanced patterns, see the [Sessions Developer Guide](https://inference.sh/docs/extend/sessions).
+
+#### session errors
+
+Session-related API calls raise typed exceptions (subclasses of `SessionError`):
+
+```python
+from inferencesh import (
+    SessionNotFoundError,
+    SessionExpiredError,
+    SessionEndedError,
+    WorkerLostError,
+)
+
+try:
+    client.sessions.keepalive(session_id)
+except SessionExpiredError:
+    # Idle timeout elapsed — start a new session
+    ...
+except SessionEndedError:
+    # Session was explicitly ended
+    ...
+except SessionNotFoundError:
+    ...
+except WorkerLostError:
+    # Worker crashed or was reassigned
+    ...
+```
 
 ### file upload
 
@@ -307,11 +350,15 @@ weather_tool = (
     .handler(lambda args: '{"temp": 72, "conditions": "sunny"}')
 )
 
+# Optional built-in tools (memory, etc.)
+from inferencesh import internal_tools
+
 # Create ad-hoc agent (AgentConfig dict; export: from inferencesh import AgentConfig)
 agent = client.agents.create({
     "core_app": {"ref": "infsh/claude-sonnet-4@abc123"},
     "system_prompt": "You are a helpful assistant.",
     "tools": [weather_tool],
+    "internal_tools": internal_tools().memory().build(),
 })
 
 def on_tool_call(call):
@@ -462,10 +509,12 @@ except RequirementsNotMetError as e:
 | Method | Description |
 |--------|-------------|
 | `send_message(text, ...)` | Send a message to the agent |
+| `run(text, ...)` | Send a message, wait for completion, return `chat.output` (finish tool result) |
 | `get_chat(chat_id=None)` | Get chat history |
 | `stop_chat(chat_id=None)` | Stop current generation |
 | `submit_tool_result(tool_id, result_or_action)` | Submit result for a client tool (string or {action, form_data}) |
-| `stream_messages(chat_id=None, ...)` | Stream message updates |
+| `upload_file(data, filename=None)` | Upload bytes/base64 for use in chat attachments |
+| `stream_messages(chat_id=None, ...)` | Stream message updates (`auto_reconnect`, `max_reconnects`, `reconnect_delay_ms`) |
 | `stream_chat(chat_id=None, ...)` | Stream chat updates |
 | `reset()` | Start a new conversation |
 
