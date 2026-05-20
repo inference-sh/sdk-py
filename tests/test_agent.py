@@ -1,10 +1,11 @@
 """Tests for headless Agent client (context wiring, /agents/run payloads)."""
 
+import base64
 import json
 
 import pytest
 
-from inferencesh import Inference
+from inferencesh import Inference, AsyncInference
 
 
 class DummyResponse:
@@ -48,19 +49,56 @@ def patch_agent_requests(monkeypatch):
         if "/tools/" in url and method.upper() == "POST":
             return DummyResponse(json_data={"success": True, "data": None})
 
+        if url.endswith("/files") and method.upper() == "POST":
+            return DummyResponse(json_data={
+                "success": True,
+                "data": [{
+                    "id": "file_agent_1",
+                    "uri": "https://cloud.inference.sh/u/user/file_agent_1.bin",
+                    "upload_url": "https://upload.example.com/agent-file",
+                    "filename": "attach.bin",
+                    "content_type": "application/octet-stream",
+                }],
+            })
+
+        if "/chats/" in url and method.upper() == "GET":
+            chat_id = url.rstrip("/").split("/")[-1]
+            return DummyResponse(json_data={
+                "success": True,
+                "data": {
+                    "id": chat_id,
+                    "status": "idle",
+                    "output": {"result": "done"},
+                },
+            })
+
         return DummyResponse(status_code=404, json_data={"success": False, "error": {"message": "not found"}})
 
     class FakeRequestsModule:
+        def __init__(self, call_log):
+            self.calls = call_log
+            self.put_calls = []
+
+        def __getitem__(self, index):
+            return self.calls[index]
+
+        def __len__(self):
+            return len(self.calls)
+
         def request(self, *args, **kwargs):
             return fake_request(*args, **kwargs)
 
-    fake_requests = FakeRequestsModule()
+        def put(self, url, data=None, headers=None):
+            self.put_calls.append({"url": url, "size": len(data or b""), "headers": headers})
+            return DummyResponse(status_code=200)
+
+    fake_requests = FakeRequestsModule(calls)
 
     import inferencesh.agent as agent_mod
 
     monkeypatch.setattr(agent_mod, "_require_requests", lambda: fake_requests)
 
-    yield calls
+    yield fake_requests
 
 
 def test_agent_template_ref_includes_context(patch_agent_requests):
@@ -227,11 +265,101 @@ async def test_async_agent_stream_chat_yields_chat_events(monkeypatch, patch_age
 
 @pytest.mark.asyncio
 async def test_async_agent_stream_requires_active_chat(monkeypatch):
-    from inferencesh import AsyncInference
-
     client = AsyncInference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
 
     with pytest.raises(RuntimeError, match="No active chat"):
         async for _ in agent.stream_messages():
             pass
+
+
+def test_agent_run_returns_chat_output(monkeypatch, patch_agent_requests):
+    """agent.run() returns parsed finish-tool output from the active chat."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    monkeypatch.setattr(agent, "send_message", lambda text, **kwargs: {"chat_id": "chat_1"})
+    monkeypatch.setattr(agent, "get_chat", lambda chat_id=None: {"output": {"answer": 42}})
+
+    assert agent.run("finish task") == {"answer": 42}
+
+
+def test_agent_run_returns_none_when_chat_has_no_output(monkeypatch, patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    monkeypatch.setattr(agent, "send_message", lambda text, **kwargs: None)
+    monkeypatch.setattr(agent, "get_chat", lambda chat_id=None: {"status": "idle"})
+
+    assert agent.run("query") is None
+
+
+def test_agent_reset_clears_chat_and_dispatched_tools(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+    agent._dispatched_tools.add("inv_old")
+
+    agent.reset()
+
+    assert agent.chat_id is None
+    assert agent._dispatched_tools == set()
+
+
+def test_agent_upload_file_from_bytes(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    ref = agent.upload_file(b"attach-bytes", filename="note.txt")
+
+    assert ref["uri"] == "https://cloud.inference.sh/u/user/file_agent_1.bin"
+    assert ref["filename"] == "attach.bin"
+    assert len(patch_agent_requests.put_calls) == 1
+    assert patch_agent_requests.put_calls[0]["size"] == len(b"attach-bytes")
+
+
+def test_agent_upload_file_from_data_uri(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    payload = base64.b64encode(b"hello").decode()
+    data_uri = f"data:text/plain;base64,{payload}"
+
+    agent.upload_file(data_uri)
+
+    assert patch_agent_requests.put_calls[0]["size"] == len(b"hello")
+    assert patch_agent_requests.put_calls[0]["headers"]["Content-Type"] == "text/plain"
+
+
+def test_agent_upload_file_rejects_invalid_data_uri(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    with pytest.raises(ValueError, match="Invalid data URI"):
+        agent.upload_file("data:not-valid")
+
+
+def test_agent_send_message_uploads_file_attachments(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("See file", files=[b"raw-bytes"])
+
+    file_posts = [c for c in patch_agent_requests.calls if c["url"].endswith("/files")]
+    assert len(file_posts) == 1
+    assert len(patch_agent_requests.put_calls) == 1
+
+    run_body = next(c["data"] for c in patch_agent_requests.calls if c["url"].endswith("/agents/run"))
+    attachments = run_body["input"]["attachments"]
+    assert len(attachments) == 1
+    assert attachments[0]["uri"] == "https://cloud.inference.sh/u/user/file_agent_1.bin"
+
+
+def test_async_agents_create_returns_async_agent():
+    """AsyncInference.agents.create() delegates to client.agent()."""
+    from inferencesh.agent import AsyncAgent
+
+    client = AsyncInference(api_key="test")
+    agent = client.agents.create("okaris/assistant@abc123")
+
+    assert isinstance(agent, AsyncAgent)
+    assert agent._options == "okaris/assistant@abc123"
