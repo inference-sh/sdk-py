@@ -861,6 +861,7 @@ def test_async_tasks_namespace():
     assert hasattr(client.tasks, 'get')
     assert hasattr(client.tasks, 'cancel')
     assert hasattr(client.tasks, 'stream')
+    assert hasattr(client.tasks, 'wait_for_completion')
 
 
 def test_async_files_namespace():
@@ -911,3 +912,40 @@ async def test_async_tasks_cancel_via_namespace(patch_aiohttp):
 
     # Should not raise
     await client.tasks.cancel("task_async_123")
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_wait_for_completion(patch_aiohttp):
+    """Async tasks.wait_for_completion() should return the completed task payload."""
+    client = AsyncInference(api_key="test")
+
+    result = await client.tasks.wait_for_completion("task_async_123")
+
+    assert result["id"] == "task_async_123"
+    assert result["status"] == TaskStatus.COMPLETED
+    assert result["output"] == {"async_ok": True}
+
+
+@pytest.mark.asyncio
+async def test_async_tasks_stream_via_namespace(patch_aiohttp):
+    """Async tasks.stream() delegates to client.stream_task()."""
+    client = AsyncInference(api_key="test")
+
+    async with client.tasks.stream("task_async_123") as stream:
+        updates = []
+        async for update in stream:
+            updates.append(update)
+
+    assert len(updates) >= 1
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+
+
+@pytest.mark.asyncio
+async def test_async_files_upload_via_namespace(patch_aiohttp):
+    """Async client.files.upload() works like client.upload_file()."""
+    client = AsyncInference(api_key="test")
+
+    file_obj = await client.files.upload(b"PNGDATA")
+
+    assert file_obj["id"] == "file_async_1"
+    assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_async_1.png"

@@ -71,6 +71,40 @@ def test_download_raises_when_file_has_no_path(tmp_path):
             download(url, tmp_path)
 
 
+def test_download_uses_default_filename_when_url_has_no_path(tmp_path):
+    """URLs without a path segment must still produce a stable cache file name."""
+    url = "https://cdn.example.com/"
+    src = tmp_path / "source.bin"
+    src.write_bytes(b"root")
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+
+        path = download(url, tmp_path)
+
+    expected = tmp_path / _url_hash(url) / "download"
+    assert Path(path) == expected
+    assert expected.read_bytes() == b"root"
+
+
+def test_storage_dir_path_creates_directory(tmp_path, monkeypatch):
+    """StorageDir.path must mkdir the backing directory and return a Path."""
+    from inferencesh.utils import storage as storage_mod
+
+    target = tmp_path / "data"
+
+    def fake_path(value):
+        return target if value == StorageDir.DATA.value else Path(value)
+
+    monkeypatch.setattr(storage_mod, "Path", fake_path)
+    path = StorageDir.DATA.path
+    assert path == target
+    assert path.exists()
+    assert path.is_dir()
+
+
 def test_download_cache_hit_skips_file_when_not_temp(tmp_path):
     """Non-TEMP directories reuse an existing file without constructing File again."""
     url = "https://cdn.example.com/cached.bin"
