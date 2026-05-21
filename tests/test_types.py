@@ -3,6 +3,7 @@
 import pytest
 
 from inferencesh.types import (
+    DeviceAuthStatus,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -13,6 +14,17 @@ from inferencesh.types import (
     IntegrationAuthType,
     IntegrationProvider,
     IntegrationStatus,
+    IntegrationType,
+    MCPServerAuthType,
+    NotificationChannel,
+    NotificationPriority,
+    NotificationStatus,
+    NotificationType,
+    RefRouteType,
+    ResourceType,
+    SecretScope,
+    SubscriptionInterval,
+    SubscriptionStatus,
     ToolCallType,
     ToolParamType,
     ToolType,
@@ -157,3 +169,197 @@ def test_graph_edge_type_values(member, value):
     """Graph edge kinds must include REFERENCES from latest typegen regen."""
     assert hasattr(GraphEdgeType, member)
     assert getattr(GraphEdgeType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TRIALING", "trialing"),
+        ("ACTIVE", "active"),
+        ("PAST_DUE", "past_due"),
+        ("CANCELED", "canceled"),
+        ("PAUSED", "paused"),
+    ],
+)
+def test_subscription_status_billing_lifecycle(member, value):
+    """Stripe subscription states must stay stable for billing API payloads."""
+    assert hasattr(SubscriptionStatus, member)
+    assert getattr(SubscriptionStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("MONTHLY", "monthly"),
+        ("YEARLY", "yearly"),
+    ],
+)
+def test_subscription_interval_values(member, value):
+    assert hasattr(SubscriptionInterval, member)
+    assert getattr(SubscriptionInterval, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SLACK", "slack"),
+        ("DISCORD", "discord"),
+        ("TEAMS", "teams"),
+        ("TELEGRAM", "telegram"),
+    ],
+)
+def test_integration_type_chat_platform_values(member, value):
+    """Chat integration kinds for IntegrationContext must match backend."""
+    assert hasattr(IntegrationType, member)
+    assert getattr(IntegrationType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("KNOWLEDGE", "knowledge"),
+        ("APP", "app"),
+        ("AGENT", "agent"),
+    ],
+)
+def test_resource_type_values(member, value):
+    """ResourceRef.type must distinguish knowledge, app, and agent resources."""
+    assert hasattr(ResourceType, member)
+    assert getattr(ResourceType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEAM", "team"),
+        ("INTERNAL", "internal"),
+        ("SYSTEM", "system"),
+    ],
+)
+def test_secret_scope_visibility_values(member, value):
+    """Secret list filtering depends on stable scope enum values."""
+    assert hasattr(SecretScope, member)
+    assert getattr(SecretScope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "enum_cls,member,value",
+    [
+        (MCPServerAuthType, "MCP_SERVER_AUTH_O_AUTH", "oauth"),
+        (MCPServerAuthType, "MCP_SERVER_AUTH_API_KEY", "api_key"),
+        (MCPServerAuthType, "MCP_SERVER_AUTH_NONE", "none"),
+    ],
+)
+def test_mcp_server_auth_type_acronym_names(enum_cls, member, value):
+    """MCP server auth enums must keep readable O_AUTH name from typegen."""
+    assert hasattr(enum_cls, member), f"{enum_cls.__name__}.{member} missing"
+    assert getattr(enum_cls, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("APP", "app"),
+        ("AGENT", "agent"),
+        ("SKILL", "skill"),
+    ],
+)
+def test_ref_route_type_values(member, value):
+    assert hasattr(RefRouteType, member)
+    assert getattr(RefRouteType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("APPROVED", "approved"),
+        ("EXPIRED", "expired"),
+        ("DENIED", "denied"),
+        ("VALID", "valid"),
+        ("INVALID", "invalid"),
+        ("LOADING", "loading"),
+    ],
+)
+def test_device_auth_status_values(member, value):
+    """Device code login polling must recognize all backend status strings."""
+    assert hasattr(DeviceAuthStatus, member)
+    assert getattr(DeviceAuthStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("EMAIL", "email"),
+        ("SMS", "sms"),
+        ("PUSH", "push"),
+        ("SLACK", "slack"),
+    ],
+)
+def test_notification_channel_values(member, value):
+    assert hasattr(NotificationChannel, member)
+    assert getattr(NotificationChannel, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("LOW", "low"),
+        ("NORMAL", "normal"),
+        ("HIGH", "high"),
+        ("CRITICAL", "critical"),
+    ],
+)
+def test_notification_priority_values(member, value):
+    assert hasattr(NotificationPriority, member)
+    assert getattr(NotificationPriority, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("LOW_BALANCE", "low_balance"),
+        ("AUTO_RECHARGE", "auto_recharge"),
+        ("PAYMENT_SUCCESS", "payment_success"),
+        ("PAYMENT_FAILED", "payment_failed"),
+        ("USAGE_SUMMARY", "usage_summary"),
+        ("SPENDING_LIMIT", "spending_limit"),
+        ("INVOICE", "invoice"),
+        ("WELCOME", "welcome"),
+        ("WELCOME_AGENTS", "welcome_agents"),
+        ("WELCOME_APPS", "welcome_apps"),
+        ("WELCOME_FLOWS", "welcome_flows"),
+        ("WELCOME_SDK", "welcome_sdk"),
+        ("PASSWORD_RESET", "password_reset"),
+        ("EMAIL_VERIFY", "email_verify"),
+        ("SECURITY_ALERT", "security_alert"),
+        ("TASK_COMPLETE", "task_complete"),
+        ("TASK_FAILED", "task_failed"),
+        ("SYSTEM_ALERT", "system_alert"),
+        ("MAINTENANCE", "maintenance"),
+        ("TOS_UPDATE", "tos_update"),
+        ("SERVICE_NOTICE", "service_notice"),
+        ("TEAM_INVITE", "team_invite"),
+    ],
+)
+def test_notification_type_values(member, value):
+    """Billing/account/task notification kinds must not drift from backend."""
+    assert hasattr(NotificationType, member)
+    assert getattr(NotificationType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("PROCESSING", "processing"),
+        ("SENT", "sent"),
+        ("DELIVERED", "delivered"),
+        ("FAILED", "failed"),
+        ("BOUNCED", "bounced"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_notification_status_lifecycle_values(member, value):
+    assert hasattr(NotificationStatus, member)
+    assert getattr(NotificationStatus, member).value == value

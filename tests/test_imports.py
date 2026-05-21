@@ -120,6 +120,13 @@ def test_submodule_importable(module):
     "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
+    # Billing, knowledge, oauth, notifications (0c6e23a regen)
+    "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
+    "ResourceType", "SecretScope", "DeviceAuthStatus",
+    "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",
+    "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
+    "NotificationType", "NotificationChannel", "NotificationStatus",
+    "MCPServerAuthType", "RefRouteType", "IntegrationType",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
