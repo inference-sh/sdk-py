@@ -242,6 +242,23 @@ class ApiAgentRunRequest(TypedDict, total=False):
     context: Dict[str, str]
     stream: bool
 
+# CreateAgentMessageRequest is the request for creating agent messages.
+class CreateAgentMessageRequest(TypedDict, total=False):
+    chat_id: Optional[str]
+    agent_id: Optional[str]
+    agent_version_id: Optional[str]
+    agent: Optional[str]
+    tool_call_id: Optional[str]
+    input: ChatTaskInput
+    integration_context: Optional[IntegrationContext]
+    agent_config: Optional[AgentConfigInput]
+    agent_name: Optional[str]
+    context: Dict[str, str]
+
+class CreateAgentMessageResponse(TypedDict, total=False):
+    user_message: Optional[ChatMessageDTO]
+    assistant_message: Optional[ChatMessageDTO]
+
 # ToolResultRequest represents a tool result submission
 class ToolResultRequest(TypedDict, total=False):
     result: str
@@ -253,6 +270,38 @@ class PartialFile(TypedDict, total=False):
     content_type: Optional[str]
     size: Optional[int]
     filename: Optional[str]
+
+class FileCreateRequest(TypedDict, total=False):
+    category: str
+    files: List[PartialFile]
+
+# AppVersionInput is the API input shape for app version config (no gorm tags).
+class AppVersionInput(TypedDict, total=False):
+    metadata: Dict[str, Any]
+    repository: str
+    setup_schema: Any
+    input_schema: Any
+    output_schema: Any
+    functions: Dict[str, AppFunction]
+    default_function: str
+    variants: Dict[str, AppVariant]
+    env: Dict[str, str]
+    kernel: str
+    required_secrets: List[SecretRequirement]
+    required_integrations: List[IntegrationRequirement]
+    resources: AppResources
+
+# CreateAppRequest is the request body for POST /apps
+class CreateAppRequest(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    description: str
+    agent_description: str
+    category: AppCategory
+    images: AppImages
+    version: Optional[AppVersionInput]
+    preserve_current_version: bool
 
 class SkillPublishRequest(TypedDict, total=False):
     namespace: str
@@ -274,12 +323,30 @@ class SkillPublishRequest(TypedDict, total=False):
     user_invocable: Optional[bool]
     context: str
 
+class CheckoutCreateRequest(TypedDict, total=False):
+    amount: int
+    success_url: str
+    cancel_url: str
+
 class AuthResponse(TypedDict, total=False):
     user: Optional[UserDTO]
     session_id: str
     otp_required: bool
     redirect_to: str
     provider: str
+
+class DeviceAuthResponse(TypedDict, total=False):
+    user_code: str
+    device_code: str
+    poll_url: str
+    approve_url: str
+    expires_in: int
+    interval: int
+
+class DeviceAuthPollResponse(TypedDict, total=False):
+    status: DeviceAuthStatus
+    api_key: str
+    team_id: str
 
 class TeamCreateRequest(TypedDict, total=False):
     name: str
@@ -296,12 +363,59 @@ class TeamMemberAddRequest(TypedDict, total=False):
 class TeamMemberUpdateRoleRequest(TypedDict, total=False):
     role: TeamRole
 
+class SecretCreateRequest(TypedDict, total=False):
+    key: str
+    value: str
+    description: str
+
+class SecretUpdateRequest(TypedDict, total=False):
+    value: str
+    description: Optional[str]
+
+class IntegrationConnectRequest(TypedDict, total=False):
+    provider: str
+    type: str
+    scopes: List[str]
+    api_key: str
+    metadata: Dict[str, Any]
+
 class IntegrationCompleteOAuthRequest(TypedDict, total=False):
     provider: str
     type: str
     code: str
     state: str
     code_verifier: str
+
+class IntegrationConnectResponse(TypedDict, total=False):
+    integration: Optional[IntegrationDTO]
+    auth_url: str
+    state: str
+    code_verifier: str
+    instructions: str
+    requires_confirmation: bool
+    confirmation_type: str
+    message: str
+
+class ProjectCreateRequest(TypedDict, total=False):
+    name: str
+    type: ProjectType
+
+class ProjectUpdateRequest(TypedDict, total=False):
+    name: str
+
+class MoveAgentToProjectRequest(TypedDict, total=False):
+    agent_id: str
+    project_id: str
+
+# CancelTaskRequest is the optional request body for task cancellation.
+class CancelTaskRequest(TypedDict, total=False):
+    force: bool
+    timeout: int
+
+class CreateApiKeyRequest(TypedDict, total=False):
+    name: str
+    expires_at: Optional[str]
+    scopes: List[str]
 
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
@@ -417,6 +531,22 @@ class PublicAppStoreDTO(TypedDict, total=False):
     rank: int
     has_approved_version: bool
     page_id: Optional[str]
+
+# AuthSessionDTO is a safe representation of AuthSession for API responses.
+class AuthSessionDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    expires_at: str
+    ip: str
+    city: str
+    country: str
+    country_code: str
+    region: str
+    os: str
+    browser: str
+    browser_version: str
+    auth_method: str
+    current: bool
 
 # BaseModelDTO is the contract-layer base embed — same fields, no gorm tags.
 # All DTOs should embed this instead of BaseModel.
@@ -646,6 +776,21 @@ class KnowledgeFile(TypedDict, total=False):
     hash: str
     content: str
 
+# ResourceRef is a compact reference to any resource (knowledge, app, agent).
+class ResourceRef(TypedDict, total=False):
+    id: str
+    namespace: str
+    name: str
+    type: ResourceType
+    resource_kind: str
+    description: str
+
+# ReferencesResponse is returned by the references endpoint.
+class ReferencesResponse(TypedDict, total=False):
+    resource: ResourceRef
+    references: List[ResourceRef]
+    referenced_by: List[ResourceRef]
+
 # SkillLineageResponse is returned by the lineage endpoint.
 class SkillLineageResponse(TypedDict, total=False):
     skill: SkillLineageSkillRef
@@ -692,6 +837,19 @@ class SkillStoreListingDTO(TypedDict, total=False):
 # StringSlice is a custom type for storing string slices
 StringSlice = List[str]
 
+# MCPServerDTO is the API response shape for the resource.
+class MCPServerDTO(TypedDict, total=False):
+    id: str
+    slug: str
+    name: str
+    description: str
+    icon_url: str
+    server_url: str
+    auth_type: MCPServerAuthType
+    oauth_client_id: str
+    default_scopes: StringSlice
+    documentation_url: str
+
 # UpdateNotificationPreferencesRequest is the request to update preferences
 class UpdateNotificationPreferencesRequest(TypedDict, total=False):
     email_enabled: Optional[bool]
@@ -731,10 +889,111 @@ class MenuItem(TypedDict, total=False):
     expanded: bool
     children: List[MenuItem]
 
+# PlanLimit defines a single resource limit or feature gate within a plan.
+class PlanLimit(TypedDict, total=False):
+    type: EntitlementType
+    enabled: bool
+    unlimited: bool
+    limit: int
+    enforcement: EnforcementMode
+
+# PlanLimits maps entitlement resources to their limits
+PlanLimits = Dict["EntitlementResource", "PlanLimit"]
+
 # ProjectModelDTO provides optional project association for DTOs
 class ProjectModelDTO(TypedDict, total=False):
     project_id: Optional[str]
     project: Optional[ProjectDTO]
+
+# KnowledgeCreateRequest is the request body for POST /knowledge.
+class KnowledgeCreateRequest(TypedDict, total=False):
+    name: str
+    description: str
+    # Knowledge type: concept, skill, observation, preference, reference, person, project, agent-config
+    type: str
+    # Lifecycle: permanent (no decay) or decay (confidence decreases over time)
+    lifecycle: str
+    # Version content (inline — creates first version)
+    version: Optional[KnowledgeVersionInput]
+
+# KnowledgeVersionInput is the input shape for creating/updating a knowledge version.
+class KnowledgeVersionInput(TypedDict, total=False):
+    description: str
+    content: Optional[KnowledgeFile]
+    files: List[KnowledgeFile]
+    tags: List[str]
+    metadata: Dict[str, str]
+    source_url: str
+    mutation_type: str
+    version_notes: str
+
+# KnowledgeUpdateRequest is the request body for PUT /knowledge/{id}.
+class KnowledgeUpdateRequest(TypedDict, total=False):
+    description: str
+    version: Optional[KnowledgeVersionInput]
+
+# CreateSubscriptionRequest is the request body for POST /subscriptions.
+class CreateSubscriptionRequest(TypedDict, total=False):
+    plan_id: str
+    interval: str
+    success_url: str
+    cancel_url: str
+
+# ChangePlanRequest is the request body for POST /subscriptions/change.
+class ChangePlanRequest(TypedDict, total=False):
+    plan_id: str
+
+# CancelSubscriptionRequest is the request body for POST /subscriptions/cancel.
+class CancelSubscriptionRequest(TypedDict, total=False):
+    at_period_end: Optional[bool]
+
+# OAuthAuthorizeInfoResponse is returned by GET /oauth/authorize/info.
+class OAuthAuthorizeInfoResponse(TypedDict, total=False):
+    client_name: str
+    client_type: str
+    origin: str
+    verified: bool
+    scopes: List[Scope]
+    redirect_host: str
+
+# OAuthApproveRequest is the request body for POST /oauth/authorize/approve.
+class OAuthApproveRequest(TypedDict, total=False):
+    client_id: str
+    redirect_uri: str
+    code_challenge: str
+    state: str
+    scope: str
+
+# OAuthRedirectResponse wraps a redirect URI.
+class OAuthRedirectResponse(TypedDict, total=False):
+    redirect_uri: str
+
+# OAuthConnectedApp represents an authorized OAuth client.
+class OAuthConnectedApp(TypedDict, total=False):
+    client_id: str
+    client_name: str
+    client_type: str
+    origin: str
+    verified: bool
+    scopes: str
+    authorized_at: str
+
+# ChargeAmountRequest is the request for charging a saved payment method.
+class ChargeAmountRequest(TypedDict, total=False):
+    amount: int
+
+# CompletePaymentRequest finishes a checkout or payment session.
+class CompletePaymentRequest(TypedDict, total=False):
+    session_id: str
+    payment_id: str
+
+# UpdateIntegrationScopesRequest updates integration scopes.
+class UpdateIntegrationScopesRequest(TypedDict, total=False):
+    scopes: List[str]
+
+# UpdateTaskVisibilityRequest sets task visibility.
+class UpdateTaskVisibilityRequest(TypedDict, total=False):
+    visibility: str
 
 # RequirementError represents a single missing requirement with actionable info
 class RequirementError(TypedDict, total=False):
@@ -884,6 +1143,51 @@ class TaskLog(TypedDict, total=False):
     task_id: str
     log_type: TaskLogType
     content: bytes
+
+# TaskResultDTO is a slim response for task run/result endpoints.
+class TaskResultDTO(TypedDict, total=False):
+    id: str
+    short_id: str
+    status: TaskStatus
+    status_text: str
+    output: Any
+    error: Optional[str]
+    session_id: Optional[str]
+    created_at: str
+    updated_at: str
+    run_at: Optional[str]
+
+# TaskLogsDTO is a lightweight response for task logs endpoint.
+class TaskLogsDTO(TypedDict, total=False):
+    task_id: str
+    status: TaskStatus
+    events: List[TaskEvent]
+    logs: List[TaskLog]
+
+# TaskTimingGroup represents a high-level phase of task execution with its duration.
+class TaskTimingGroup(TypedDict, total=False):
+    label: str
+    start_at: str
+    end_at: str
+    duration: str
+    duration_ms: int
+
+# TaskTimingEvent represents a single status transition with the time spent before the next transition.
+class TaskTimingEvent(TypedDict, total=False):
+    status: str
+    timestamp: str
+    duration: str
+    duration_ms: int
+    next_status: str
+
+# TaskTimingsDTO is the response for the task timings endpoint.
+class TaskTimingsDTO(TypedDict, total=False):
+    task_id: str
+    status: TaskStatus
+    total_duration: str
+    total_duration_ms: int
+    groups: List[TaskTimingGroup]
+    events: List[TaskTimingEvent]
 
 # TeamMemberDTO is the API response for a team member.
 class TeamMemberDTO(TypedDict, total=False):
@@ -1083,6 +1387,11 @@ class ChatMessageContent(TypedDict, total=False):
     image: Optional[str]
     file: Optional[str]
     tool_calls: Optional[List[ToolCall]]
+
+# IntegrationContext holds integration-specific metadata for a chat
+class IntegrationContext(TypedDict, total=False):
+    integration_type: Optional[IntegrationType]
+    integration_metadata: Any
 
 # ChatTaskInput is the input envelope for a chat LLM task
 class ChatTaskInput(TypedDict, total=False):
@@ -1332,6 +1641,56 @@ class SkillVersionDTO(BaseModelDTO, TypedDict, total=False):
     context: str
     metadata: Dict[str, str]
 
+class KnowledgeVersionDTO(BaseModelDTO, TypedDict, total=False):
+    knowledge_id: str
+    content: KnowledgeFile
+    files: List[KnowledgeFile]
+    content_hash: str
+    description: str
+    tags: List[str]
+    metadata: Dict[str, str]
+    source_url: str
+    mutation_type: str
+    version_notes: str
+    last_confirmed_at: Optional[str]
+
+# PlanDTO for API responses
+class PlanDTO(BaseModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    display_order: int
+    active: bool
+    self_serve: Optional[bool]
+    price_monthly: Optional[int]
+    price_yearly: Optional[int]
+    credits_monthly: int
+    provider_price_id_monthly: str
+    provider_price_id_yearly: str
+    limits: PlanLimits
+
+# RefRouteDTO for API responses
+class RefRouteDTO(BaseModelDTO, TypedDict, total=False):
+    type: RefRouteType
+    alias_ref: str
+    target_ref: str
+    primary: bool
+    description: str
+    enabled: bool
+
+# SubscriptionDTO for API responses
+class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
+    team_id: str
+    stripe_subscription_id: str
+    plan_id: str
+    plan: Optional[PlanDTO]
+    interval: SubscriptionInterval
+    status: SubscriptionStatus
+    current_period_start: str
+    current_period_end: str
+    trial_end: Optional[str]
+    cancel_at_period_end: bool
+    credits_per_period: int
+
 # UserDTO is the API response for a full user.
 class UserDTO(BaseModelDTO, TypedDict, total=False):
     default_team_id: str
@@ -1547,6 +1906,34 @@ class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     version_id: str
     version: Optional[SkillVersionDTO]
 
+# KnowledgeDTO — generic DTO for /knowledge endpoints (all types)
+class KnowledgeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    description: str
+    type: str
+    lifecycle: str
+    version_id: str
+    version: Optional[KnowledgeVersionDTO]
+
+# NotificationDTO is the data transfer object
+class NotificationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    type: NotificationType
+    channel: NotificationChannel
+    priority: NotificationPriority
+    status: NotificationStatus
+    recipient_email: str
+    subject: str
+    body: str
+    scheduled_at: Optional[str]
+    sent_at: Optional[str]
+    delivered_at: Optional[str]
+    failed_at: Optional[str]
+    error_message: str
+    retry_count: int
+    reference_type: str
+    reference_id: str
+
 # NotificationPreferencesDTO is the data transfer object
 class NotificationPreferencesDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     email_enabled: bool
@@ -1590,6 +1977,13 @@ class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     parent_id: Optional[str]
     parent: Optional[ProjectDTO]
     children: List[Optional[ProjectDTO]]
+
+# SecretDTO for API responses - VALUE IS NEVER EXPOSED
+class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    key: str
+    masked_value: str
+    description: str
+    scope: SecretScope
 
 # TaskDTO is the full API response for a task.
 class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -1766,6 +2160,17 @@ class Visibility(str, Enum):
     PUBLIC = "public"
     UNLISTED = "unlisted"
 
+class SubscriptionStatus(str, Enum):
+    TRIALING = "trialing"
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    PAUSED = "paused"
+
+class SubscriptionInterval(str, Enum):
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
 class ChatStatus(str, Enum):
     BUSY = "busy"
     IDLE = "idle"
@@ -1796,6 +2201,12 @@ class ChatMessageContentType(str, Enum):
     IMAGE = "image"
     FILE = "file"
     TOOL = "tool"
+
+class IntegrationType(str, Enum):
+    SLACK = "slack"
+    DISCORD = "discord"
+    TEAMS = "teams"
+    TELEGRAM = "telegram"
 
 class EngineStatus(str, Enum):
     RUNNING = "running"
@@ -1838,6 +2249,11 @@ class GraphNodeStatus(str, Enum):
     SKIPPED = "skipped"
     BLOCKED = "blocked"
 
+class ResourceType(str, Enum):
+    KNOWLEDGE = "knowledge"
+    APP = "app"
+    AGENT = "agent"
+
 class GraphEdgeType(str, Enum):
     DEPENDENCY = "dependency"
     FLOW = "flow"
@@ -1847,6 +2263,14 @@ class GraphEdgeType(str, Enum):
     ANCESTOR = "ancestor"
     DUPLICATE = "duplicate"
     REFERENCES = "references"
+
+class SecretScope(str, Enum):
+    # SecretScopeTeam is a normal user secret, visible in team secret lists
+    TEAM = "team"
+    # SecretScopeInternal is an integration-managed secret, hidden from user lists
+    INTERNAL = "internal"
+    # SecretScopeSystem is a global system setting, owned by system team, admin-only
+    SYSTEM = "system"
 
 class EntitlementSource(str, Enum):
     TIER = "tier"
@@ -1950,12 +2374,22 @@ class VideoResolution(str, Enum):
     VIDEO_RES1440P = "1440p"
     VIDEO_RES4K = "4k"
 
+class MCPServerAuthType(str, Enum):
+    MCP_SERVER_AUTH_O_AUTH = "oauth"
+    MCP_SERVER_AUTH_API_KEY = "api_key"
+    MCP_SERVER_AUTH_NONE = "none"
+
 class TeamInviteStatus(str, Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
     EXPIRED = "expired"
     REVOKED = "revoked"
+
+class RefRouteType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    SKILL = "skill"
 
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
@@ -1974,6 +2408,15 @@ class FilterOperator(str, Enum):
     OP_IS_NOT_NULL = "is_not_null"
     OP_IS_EMPTY = "is_empty"
     OP_IS_NOT_EMPTY = "is_not_empty"
+
+class DeviceAuthStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    EXPIRED = "expired"
+    DENIED = "denied"
+    VALID = "valid"
+    INVALID = "invalid"
+    LOADING = "loading"
 
 class EntitlementResource(str, Enum):
     RESOURCE_API_KEYS = "api_keys"
@@ -2055,6 +2498,56 @@ class WidgetNodeType(str, Enum):
     PLAN_LIST = "plan-list"
     KEY_VALUE = "key-value"
     STATUS_BADGE = "status-badge"
+
+class NotificationChannel(str, Enum):
+    EMAIL = "email"
+    SMS = "sms"
+    PUSH = "push"
+    SLACK = "slack"
+
+class NotificationPriority(str, Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class NotificationType(str, Enum):
+    # Billing notifications
+    LOW_BALANCE = "low_balance"
+    AUTO_RECHARGE = "auto_recharge"
+    PAYMENT_SUCCESS = "payment_success"
+    PAYMENT_FAILED = "payment_failed"
+    USAGE_SUMMARY = "usage_summary"
+    SPENDING_LIMIT = "spending_limit"
+    INVOICE = "invoice"
+    # Account notifications
+    WELCOME = "welcome"
+    WELCOME_AGENTS = "welcome_agents"
+    WELCOME_APPS = "welcome_apps"
+    WELCOME_FLOWS = "welcome_flows"
+    WELCOME_SDK = "welcome_sdk"
+    PASSWORD_RESET = "password_reset"
+    EMAIL_VERIFY = "email_verify"
+    SECURITY_ALERT = "security_alert"
+    # Task notifications
+    TASK_COMPLETE = "task_complete"
+    TASK_FAILED = "task_failed"
+    # System notifications
+    SYSTEM_ALERT = "system_alert"
+    MAINTENANCE = "maintenance"
+    TOS_UPDATE = "tos_update"
+    SERVICE_NOTICE = "service_notice"
+    # Team notifications
+    TEAM_INVITE = "team_invite"
+
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SENT = "sent"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    BOUNCED = "bounced"
+    CANCELLED = "cancelled"
 
 class TaskStatus(IntEnum):
     UNKNOWN = 0
