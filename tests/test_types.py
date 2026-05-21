@@ -4,6 +4,9 @@ import pytest
 
 from inferencesh.types import (
     GPUType,
+    GraphEdgeType,
+    GraphNodeStatus,
+    GraphNodeType,
     InstanceCloudProvider,
     InstanceStatus,
     InstanceTypeDeploymentType,
@@ -97,3 +100,60 @@ def test_instance_status_lifecycle_values(member, value):
     """Instance provisioning lifecycle enums must include provider/error states."""
     assert hasattr(InstanceStatus, member)
     assert getattr(InstanceStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("UNKNOWN", "unknown"),
+        ("JOIN", "join"),
+        ("SPLIT", "split"),
+        ("EXECUTION", "execution"),
+        ("RESOURCE", "resource"),
+        ("APPROVAL", "approval"),
+        ("CONDITIONAL", "conditional"),
+        ("FLOW_NODE", "flow_node"),
+    ],
+)
+def test_graph_node_type_workflow_values(member, value):
+    """Graph workflow node kinds from typegen must stay stable for API payloads."""
+    assert hasattr(GraphNodeType, member)
+    assert getattr(GraphNodeType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("READY", "ready"),
+        ("RUNNING", "running"),
+        ("COMPLETED", "completed"),
+        ("FAILED", "failed"),
+        ("CANCELLED", "cancelled"),
+        ("SKIPPED", "skipped"),
+        ("BLOCKED", "blocked"),
+    ],
+)
+def test_graph_node_status_lifecycle_values(member, value):
+    """Graph node execution states must match backend workflow semantics."""
+    assert hasattr(GraphNodeStatus, member)
+    assert getattr(GraphNodeStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("DEPENDENCY", "dependency"),
+        ("FLOW", "flow"),
+        ("CONDITIONAL", "conditional"),
+        ("EXECUTION", "execution"),
+        ("PARENT", "parent"),
+        ("ANCESTOR", "ancestor"),
+        ("DUPLICATE", "duplicate"),
+        ("REFERENCES", "references"),
+    ],
+)
+def test_graph_edge_type_values(member, value):
+    """Graph edge kinds must include REFERENCES from latest typegen regen."""
+    assert hasattr(GraphEdgeType, member)
+    assert getattr(GraphEdgeType, member).value == value

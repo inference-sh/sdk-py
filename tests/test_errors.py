@@ -85,14 +85,17 @@ class TestSessionErrors:
     def test_session_expired_repr(self):
         err = SessionExpiredError("sess_y")
         assert err.status_code == 410
+        assert repr(err) == "SessionExpiredError(session_id='sess_y')"
 
     def test_session_ended_repr(self):
         err = SessionEndedError("sess_z")
         assert err.status_code == 410
+        assert repr(err) == "SessionEndedError(session_id='sess_z')"
 
     def test_worker_lost_repr(self):
         err = WorkerLostError("sess_w")
         assert err.status_code == 500
+        assert repr(err) == "WorkerLostError(session_id='sess_w')"
 
 
 def test_api_error_repr():

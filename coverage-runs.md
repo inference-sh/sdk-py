@@ -87,3 +87,17 @@
 - `tests/test_models_base.py`: `BaseApp` default `setup`/`unload` and `run()` NotImplemented guard.
 - `tests/test_client.py`: `tasks.stream()` namespace delegation.
 - `tests/test_errors.py`: `RequirementsNotMetError.__repr__`.
+
+## 2026-05-20 (run 2)
+
+**Recent changes reviewed:** `f5a5eb5` on main (typegen regen: `GraphEdgeType.REFERENCES`), merges of lint/async-test-support PRs (no production logic).
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_types.py`: `GraphEdgeType` (including `REFERENCES`), `GraphNodeType`, `GraphNodeStatus` enum stability.
+- `tests/test_imports.py`: typegen exports for graph workflow enums.
+- `tests/test_client.py`: async `tasks.wait_for_completion()` / `tasks.stream()`, `files.upload()` namespace delegation.
+- `tests/test_errors.py`: `SessionExpiredError`, `SessionEndedError`, `WorkerLostError` `__repr__` paths.
+- `tests/test_download.py`: default filename when URL has no path; `StorageDir.path` mkdir behavior.
+- `tests/test_streamable.py`: `streamable_raw()` scalar/array JSON wrapping.

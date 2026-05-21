@@ -138,6 +138,19 @@ class TestStreamableRaw:
         assert results[0].event is None
         assert results[0].fields is None
 
+    def test_handle_non_dict_json(self):
+        """streamable_raw must wrap scalar/array JSON in StreamableMessage.data."""
+        response = MockResponse([
+            '"ping"',
+            '[1,2]',
+        ])
+
+        results = list(streamable_raw(response))
+
+        assert len(results) == 2
+        assert results[0].data == "ping"
+        assert results[1].data == [1, 2]
+
 
 class TestIterNdjson:
     """Tests for iter_ndjson() function."""

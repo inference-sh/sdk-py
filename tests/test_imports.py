@@ -119,6 +119,7 @@ def test_submodule_importable(module):
     # Integrations
     "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
     "InstanceStatus",
+    "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
