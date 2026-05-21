@@ -133,6 +133,13 @@ def test_models_llm_export_exists(name):
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
+    # Billing, knowledge, oauth, notifications (0c6e23a regen)
+    "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
+    "ResourceType", "SecretScope", "DeviceAuthStatus",
+    "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",
+    "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
+    "NotificationType", "NotificationChannel", "NotificationStatus",
+    "MCPServerAuthType", "RefRouteType", "IntegrationType",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
