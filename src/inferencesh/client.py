@@ -147,6 +147,23 @@ class TaskStream(AbstractContextManager['TaskStream']):
         """The error that occurred during streaming, if any."""
         return self._error
 
+    def _get_reconcile(self) -> Optional[Dict[str, Any]]:
+        """GET-poll the task and return it if terminal, else None.
+
+        This is the escape hatch for the stream-hang scenario: when the
+        stream stays open (heartbeats flowing) but never delivers a
+        terminal event, we reconcile against the REST task record which
+        is the source of truth.
+        """
+        try:
+            task = self.client.get_task(self.task_id)
+            status = parse_status(task.get("status"))
+            if status in TERMINAL_STATUSES:
+                return task
+        except Exception:
+            pass  # best-effort — fall through to reconnect
+        return None
+
     def stream(self) -> Iterator[Dict[str, Any]]:
         """Stream updates for this task.
 
@@ -180,7 +197,21 @@ class TaskStream(AbstractContextManager['TaskStream']):
                 # Stream ended normally — check if we got a terminal event
                 if self._final_task is not None or self._error is not None:
                     break
-                # Stream ended without terminal event — reconnect
+                # Stream ended without terminal event — reconcile via GET
+                # before deciding whether to reconnect. This catches the
+                # case where the task completed server-side but the stream
+                # never delivered the terminal event.
+                reconciled = self._get_reconcile()
+                if reconciled is not None:
+                    status = parse_status(reconciled.get("status"))
+                    if status == TaskStatus.COMPLETED:
+                        self._final_task = reconciled
+                        yield reconciled
+                    elif status == TaskStatus.FAILED:
+                        raise RuntimeError(reconciled.get("error") or "Task failed")
+                    elif status == TaskStatus.CANCELLED:
+                        raise RuntimeError("Task cancelled")
+                    break
                 if not self.auto_reconnect or reconnects >= self.max_reconnects:
                     break
                 reconnects += 1
@@ -244,6 +275,17 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
         """The error that occurred during streaming, if any."""
         return self._error
 
+    async def _get_reconcile(self) -> Optional[Dict[str, Any]]:
+        """GET-poll the task and return it if terminal, else None."""
+        try:
+            task = await self.client.get_task(self.task_id)
+            status = parse_status(task.get("status"))
+            if status in TERMINAL_STATUSES:
+                return task
+        except Exception:
+            pass
+        return None
+
     async def stream(self) -> AsyncIterator[Dict[str, Any]]:
         """Stream updates for this task.
 
@@ -277,7 +319,18 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
                 # Stream ended normally — check if we got a terminal event
                 if self._final_task is not None or self._error is not None:
                     break
-                # Stream ended without terminal event — reconnect
+                # Stream ended without terminal event — reconcile via GET
+                reconciled = await self._get_reconcile()
+                if reconciled is not None:
+                    status = parse_status(reconciled.get("status"))
+                    if status == TaskStatus.COMPLETED:
+                        self._final_task = reconciled
+                        yield reconciled
+                    elif status == TaskStatus.FAILED:
+                        raise RuntimeError(reconciled.get("error") or "Task failed")
+                    elif status == TaskStatus.CANCELLED:
+                        raise RuntimeError("Task cancelled")
+                    break
                 if not self.auto_reconnect or reconnects >= self.max_reconnects:
                     break
                 reconnects += 1
@@ -558,62 +611,30 @@ class Inference:
         if stream:
             return resp
 
-        # Get response text
         response_text = resp.text
-
-        # Try to parse as JSON
         payload = None
         try:
             payload = json.loads(response_text) if response_text else None
         except Exception:
             pass
 
-        # Check for HTTP errors first
+        # HTTP errors → RFC 9457 problem+json
         if not resp.ok:
-            # Check for RequirementsNotMetError (412 with errors array)
             if resp.status_code == 412 and payload and isinstance(payload, dict) and "errors" in payload:
                 raise RequirementsNotMetError.from_response(payload, resp.status_code)
 
-            # Error handling: v2 (RFC 9457 problem+json) or v1 envelope
             error_detail = None
             if payload and isinstance(payload, dict):
-                if "detail" in payload:
-                    # RFC 9457 problem+json
-                    error_detail = payload.get("detail") or payload.get("title")
-                elif payload.get("error"):
-                    err = payload["error"]
-                    if isinstance(err, dict):
-                        error_detail = err.get("message") or json.dumps(err)
-                    else:
-                        error_detail = str(err)
-                elif payload.get("message"):
-                    error_detail = payload["message"]
-                else:
-                    error_detail = json.dumps(payload)
+                error_detail = payload.get("detail") or payload.get("title") or payload.get("message") or json.dumps(payload)
             elif response_text:
                 error_detail = response_text[:500]
 
             raise APIError(resp.status_code, error_detail or "Request failed", response_text)
 
-        # Handle 204 No Content responses (e.g., DELETE operations)
         if resp.status_code == 204:
             return None
 
-        # v2: bare DTO response (no envelope)
-        if isinstance(payload, dict) and "success" not in payload:
-            return payload
-
-        # v1: unwrap envelope
-        if not isinstance(payload, dict) or not payload.get("success", False):
-            message = None
-            if isinstance(payload, dict) and payload.get("error"):
-                err = payload["error"]
-                if isinstance(err, dict):
-                    message = err.get("message")
-                else:
-                    message = str(err)
-            raise APIError(200, message or "Request failed", response_text)
-        return payload.get("data")
+        return payload
 
     # --------------- Public API ---------------
     def run(
@@ -713,21 +734,27 @@ class Inference:
         """
         return self._request("get", f"/tasks/{task_id}")
 
-    def wait_for_completion(self, task_id: str) -> Dict[str, Any]:
+    def wait_for_completion(self, task_id: str, *, timeout: Optional[float] = None) -> Dict[str, Any]:
         """Wait for a task to complete and return its final state.
 
-        This method polls the task status until it reaches a terminal state
-        (completed, failed, or cancelled).
+        This method streams the task status until it reaches a terminal state
+        (completed, failed, or cancelled).  If the stream hangs, periodic GET
+        reconciliation ensures the call still returns.
 
         Args:
             task_id: The ID of the task to wait for
+            timeout: Maximum seconds to wait. On expiry a final GET poll is
+                attempted; if the task is terminal its state is returned,
+                otherwise ``TimeoutError`` is raised.
 
         Returns:
             Dict[str, Any]: The final task state
 
         Raises:
             RuntimeError: If the task fails or is cancelled
+            TimeoutError: If *timeout* expires and the task is not terminal
         """
+        deadline = (time.monotonic() + timeout) if timeout is not None else None
         with self.stream_task(task_id) as stream:
             for update in stream:
                 status = parse_status(update.get("status"))
@@ -737,6 +764,19 @@ class Inference:
                     raise RuntimeError(update.get("error") or "Task failed")
                 if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
+                if deadline is not None and time.monotonic() >= deadline:
+                    break
+        # Stream ended — final GET reconciliation
+        task = self.get_task(task_id)
+        status = parse_status(task.get("status"))
+        if status == TaskStatus.COMPLETED:
+            return task
+        if status == TaskStatus.FAILED:
+            raise RuntimeError(task.get("error") or "Task failed")
+        if status == TaskStatus.CANCELLED:
+            raise RuntimeError("Task cancelled")
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout}s (status: {task.get('status')})")
         raise RuntimeError("Stream ended without completion")
 
     # --------------- File upload ---------------
@@ -895,8 +935,18 @@ class Inference:
             except Exception:
                 raise
 
-    def _iter_ndjson(self, resp: Any, stream_manager: Optional[Any] = None) -> Generator[Dict[str, Any], None, None]:
-        """Iterate JSON objects from an NDJSON response."""
+    def _iter_ndjson(self, resp: Any, stream_manager: Optional[Any] = None, idle_timeout: float = 30.0) -> Generator[Dict[str, Any], None, None]:
+        """Iterate JSON objects from an NDJSON response.
+
+        Args:
+            resp: The HTTP response object to iterate over.
+            stream_manager: Optional stream manager with a ``_stopped`` flag.
+            idle_timeout: Seconds of receiving only heartbeats (no real events)
+                before breaking out of the loop so the caller can reconcile
+                via a GET poll.  Prevents hanging when the stream stays open
+                but never delivers a terminal event.
+        """
+        last_real_event = time.monotonic()
         for line in resp.iter_lines(decode_unicode=True, chunk_size=8192):
             # Check if we've been asked to stop
             try:
@@ -917,9 +967,13 @@ class Inference:
             except json.JSONDecodeError:
                 continue
 
-            # Skip heartbeats
+            # Skip heartbeats but track idle time
             if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                if time.monotonic() - last_real_event > idle_timeout:
+                    break  # idle too long — let caller reconcile via GET
                 continue
+
+            last_real_event = time.monotonic()
 
             # Unwrap data if present (partial update format)
             if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
@@ -1125,24 +1179,14 @@ class AsyncInference:
                 except Exception:
                     pass
 
+                # HTTP errors → RFC 9457 problem+json
                 if not resp.ok:
                     if resp.status == 412 and payload and isinstance(payload, dict) and "errors" in payload:
                         raise RequirementsNotMetError.from_response(payload, resp.status)
 
                     error_detail = None
                     if payload and isinstance(payload, dict):
-                        if "detail" in payload:
-                            error_detail = payload.get("detail") or payload.get("title")
-                        elif payload.get("error"):
-                            err = payload["error"]
-                            if isinstance(err, dict):
-                                error_detail = err.get("message") or json.dumps(err)
-                            else:
-                                error_detail = str(err)
-                        elif payload.get("message"):
-                            error_detail = payload["message"]
-                        else:
-                            error_detail = json.dumps(payload)
+                        error_detail = payload.get("detail") or payload.get("title") or payload.get("message") or json.dumps(payload)
                     elif response_text:
                         error_detail = response_text[:500]
 
@@ -1151,21 +1195,7 @@ class AsyncInference:
                 if resp.status == 204:
                     return None
 
-                # v2: bare DTO response (no envelope)
-                if isinstance(payload, dict) and "success" not in payload:
-                    return payload
-
-                # v1: unwrap envelope
-                if not isinstance(payload, dict) or not payload.get("success", False):
-                    message = None
-                    if isinstance(payload, dict) and payload.get("error"):
-                        err = payload["error"]
-                        if isinstance(err, dict):
-                            message = err.get("message")
-                        else:
-                            message = str(err)
-                    raise APIError(resp.status, message or "Request failed", response_text)
-                return payload.get("data")
+                return payload
 
     # --------------- Public API ---------------
     async def run(
@@ -1263,21 +1293,27 @@ class AsyncInference:
         """
         return await self._request("get", f"/tasks/{task_id}")
 
-    async def wait_for_completion(self, task_id: str) -> Dict[str, Any]:
+    async def wait_for_completion(self, task_id: str, *, timeout: Optional[float] = None) -> Dict[str, Any]:
         """Wait for a task to complete and return its final state.
 
         This method streams the task status until it reaches a terminal state
-        (completed, failed, or cancelled).
+        (completed, failed, or cancelled).  If the stream hangs, periodic GET
+        reconciliation ensures the call still returns.
 
         Args:
             task_id: The ID of the task to wait for
+            timeout: Maximum seconds to wait. On expiry a final GET poll is
+                attempted; if the task is terminal its state is returned,
+                otherwise ``TimeoutError`` is raised.
 
         Returns:
             Dict[str, Any]: The final task state
 
         Raises:
             RuntimeError: If the task fails or is cancelled
+            TimeoutError: If *timeout* expires and the task is not terminal
         """
+        deadline = (time.monotonic() + timeout) if timeout is not None else None
         async with self.stream_task(task_id) as stream:
             async for update in stream:
                 status = parse_status(update.get("status"))
@@ -1287,6 +1323,19 @@ class AsyncInference:
                     raise RuntimeError(update.get("error") or "Task failed")
                 if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
+                if deadline is not None and time.monotonic() >= deadline:
+                    break
+        # Stream ended — final GET reconciliation
+        task = await self.get_task(task_id)
+        status = parse_status(task.get("status"))
+        if status == TaskStatus.COMPLETED:
+            return task
+        if status == TaskStatus.FAILED:
+            raise RuntimeError(task.get("error") or "Task failed")
+        if status == TaskStatus.CANCELLED:
+            raise RuntimeError("Task cancelled")
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout}s (status: {task.get('status')})")
         raise RuntimeError("Stream ended without completion")
 
     def stream_task(
@@ -1467,8 +1516,14 @@ class AsyncInference:
                         yield exc
                         raise
 
-    async def _aiter_ndjson(self, resp: Any) -> AsyncIterator[Dict[str, Any]]:
-        """Iterate JSON objects from an NDJSON response asynchronously."""
+    async def _aiter_ndjson(self, resp: Any, idle_timeout: float = 30.0) -> AsyncIterator[Dict[str, Any]]:
+        """Iterate JSON objects from an NDJSON response asynchronously.
+
+        Args:
+            resp: The aiohttp response object.
+            idle_timeout: Seconds of only heartbeats before breaking out.
+        """
+        last_real_event = time.monotonic()
         async for raw_line in resp.content:  # type: ignore[attr-defined]
             try:
                 line = raw_line.decode().strip()
@@ -1482,9 +1537,13 @@ class AsyncInference:
             except json.JSONDecodeError:
                 continue
 
-            # Skip heartbeats
+            # Skip heartbeats but track idle time
             if isinstance(parsed, dict) and parsed.get("type") == "heartbeat":
+                if time.monotonic() - last_real_event > idle_timeout:
+                    break
                 continue
+
+            last_real_event = time.monotonic()
 
             # Unwrap data if present (partial update format)
             if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
