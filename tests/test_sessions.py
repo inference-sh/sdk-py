@@ -24,24 +24,18 @@ def patch_sessions_requests(monkeypatch):
         if url.endswith("/apps/run") and method.upper() == "POST":
             body = calls[-1]["data"]
             return _dummy_response(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_sess",
-                    "status": 1,
-                    "session_id": "sess_new",
-                    "input": body.get("input"),
-                },
+                "id": "task_sess",
+                "status": 1,
+                "session_id": "sess_new",
+                "input": body.get("input"),
             })
 
         if "/tasks/task_sess" in url and method.upper() == "GET" and not url.endswith("/stream"):
             return _dummy_response(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_sess",
-                    "status": 10,
-                    "session_id": "sess_new",
-                    "output": {"ok": True},
-                },
+                "id": "task_sess",
+                "status": 10,
+                "session_id": "sess_new",
+                "output": {"ok": True},
             })
 
         if url.endswith("/tasks/task_sess/stream") and stream:
@@ -54,27 +48,18 @@ def patch_sessions_requests(monkeypatch):
             return _StreamResponse(lines=[event])
 
         if url.endswith("/sessions/sess_new") and method.upper() == "GET":
-            return _dummy_response(json_data={
-                "success": True,
-                "data": {"id": "sess_new", "status": "active"},
-            })
+            return _dummy_response(json_data={"id": "sess_new", "status": "active"})
 
         if url.endswith("/sessions/sess_new/keepalive") and method.upper() == "POST":
-            return _dummy_response(json_data={
-                "success": True,
-                "data": {"id": "sess_new", "status": "active", "expires_at": "2099-01-01"},
-            })
+            return _dummy_response(json_data={"id": "sess_new", "status": "active", "expires_at": "2099-01-01"})
 
         if url.endswith("/sessions/sess_new") and method.upper() == "DELETE":
             return _dummy_response(status_code=204, json_data=None)
 
         if url.endswith("/sessions") and method.upper() == "GET":
-            return _dummy_response(json_data={
-                "success": True,
-                "data": [{"id": "sess_new", "status": "active"}],
-            })
+            return _dummy_response(json_data=[{"id": "sess_new", "status": "active"}])
 
-        return _dummy_response(status_code=404, json_data={"success": False, "error": {"message": "not found"}})
+        return _dummy_response(status_code=404, json_data={"detail": "not found"})
 
     class FakeRequestsModule:
         def request(self, *args, **kwargs):
@@ -90,7 +75,7 @@ def patch_sessions_requests(monkeypatch):
 class _dummy_response:
     def __init__(self, status_code=200, json_data=None):
         self.status_code = status_code
-        self._json_data = json_data if json_data is not None else {"success": True, "data": {}}
+        self._json_data = json_data if json_data is not None else {}
         self.text = json.dumps(self._json_data) if self._json_data is not None else ""
 
     @property
@@ -223,7 +208,7 @@ async def test_async_sessions_api(monkeypatch):
 
     class MockAsyncResponse:
         def __init__(self, json_data=None, status=200):
-            self._json_data = json_data or {"success": True, "data": {"id": "sess_a"}}
+            self._json_data = json_data if json_data is not None else {"id": "sess_a"}
             self.status = status
             self.content_type = "application/json"
 
@@ -253,10 +238,10 @@ async def test_async_sessions_api(monkeypatch):
         def request(self, method, url, **kwargs):
             calls.append({"method": method.upper(), "url": url})
             if url.endswith("/sessions") and method.upper() == "GET":
-                return MockAsyncResponse({"success": True, "data": [{"id": "sess_a"}]})
+                return MockAsyncResponse([{"id": "sess_a"}])
             if method.upper() == "DELETE":
                 return MockAsyncResponse(status=204)
-            return MockAsyncResponse({"success": True, "data": {"id": "sess_a"}})
+            return MockAsyncResponse({"id": "sess_a"})
 
     mock_aiohttp = MagicMock()
     mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
@@ -300,7 +285,7 @@ async def test_async_session_context_manager(monkeypatch):
 
     class MockAsyncResponse:
         def __init__(self, json_data=None, status=200, lines=None):
-            self._json_data = json_data or {"success": True, "data": {}}
+            self._json_data = json_data if json_data is not None else {}
             self.status = status
             self.content_type = "application/json"
             self._lines = lines or []
@@ -343,13 +328,10 @@ async def test_async_session_context_manager(monkeypatch):
             if url.endswith("/apps/run") and method.upper() == "POST":
                 body = kwargs.get("json") or {}
                 return MockAsyncResponse(json_data={
-                    "success": True,
-                    "data": {
-                        "id": "task_async_sess",
-                        "status": 1,
-                        "session_id": "sess_async",
-                        "input": body.get("input"),
-                    },
+                    "id": "task_async_sess",
+                    "status": 1,
+                    "session_id": "sess_async",
+                    "input": body.get("input"),
                 })
             if url.endswith("/tasks/task_async_sess/stream"):
                 event_payload = json.dumps({
@@ -361,7 +343,7 @@ async def test_async_session_context_manager(monkeypatch):
                 return MockAsyncResponse(status=200, lines=[f"{event_payload}\n".encode()])
             if method.upper() == "DELETE":
                 return MockAsyncResponse(status=204)
-            return MockAsyncResponse(json_data={"success": True, "data": {"id": "sess_async"}})
+            return MockAsyncResponse(json_data={"id": "sess_async"})
 
     mock_aiohttp = MagicMock()
     mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
@@ -394,7 +376,7 @@ async def test_async_session_handle_info_and_keepalive(monkeypatch):
 
     class MockAsyncResponse:
         def __init__(self, json_data=None, status=200):
-            self._json_data = json_data or {"success": True, "data": {}}
+            self._json_data = json_data if json_data is not None else {}
             self.status = status
             self.content_type = "application/json"
 
@@ -424,14 +406,8 @@ async def test_async_session_handle_info_and_keepalive(monkeypatch):
         def request(self, method, url, **kwargs):
             calls.append({"method": method.upper(), "url": url})
             if url.endswith("/keepalive"):
-                return MockAsyncResponse({
-                    "success": True,
-                    "data": {"id": "sess_async", "expires_at": "2099-06-01"},
-                })
-            return MockAsyncResponse({
-                "success": True,
-                "data": {"id": "sess_async", "status": "active"},
-            })
+                return MockAsyncResponse({"id": "sess_async", "expires_at": "2099-06-01"})
+            return MockAsyncResponse({"id": "sess_async", "status": "active"})
 
     mock_aiohttp = MagicMock()
     mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
