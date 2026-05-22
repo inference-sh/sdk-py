@@ -10,7 +10,7 @@ from inferencesh.models.errors import RequirementsNotMetError
 class DummyResponse:
     def __init__(self, status_code=200, json_data=None, text=None, lines=None):
         self.status_code = status_code
-        self._json_data = json_data if json_data is not None else {"success": True, "data": {}}
+        self._json_data = json_data if json_data is not None else {}
         # Auto-generate text from json_data if not provided
         self.text = text if text is not None else json.dumps(self._json_data)
         self._lines = lines or []
@@ -54,23 +54,17 @@ def patch_requests(monkeypatch):
         if url.endswith("/apps/run") and method.upper() == "POST":
             body = json.loads(data)
             return DummyResponse(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_123",
-                    "status": 1,
-                    "input": body.get("input"),
-                },
+                "id": "task_123",
+                "status": 1,
+                "input": body.get("input"),
             })
 
         # Get task
         if "/tasks/task_123" in url and method.upper() == "GET" and not url.endswith("/stream"):
             return DummyResponse(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_123",
-                    "status": 7,  # RUNNING
-                    "input": {"text": "hello"},
-                },
+                "id": "task_123",
+                "status": 7,  # RUNNING
+                "input": {"text": "hello"},
             })
 
         # NDJSON stream
@@ -89,21 +83,18 @@ def patch_requests(monkeypatch):
 
         # Cancel
         if url.endswith("/tasks/task_123/cancel") and method.upper() == "POST":
-            return DummyResponse(json_data={"success": True, "data": None})
+            return DummyResponse(status_code=204, json_data=None)
 
         # Files create
         if url.endswith("/files") and method.upper() == "POST":
             upload_url = "https://upload.example.com/file"
-            return DummyResponse(json_data={
-                "success": True,
-                "data": [
-                    {
-                        "id": "file_1",
-                        "uri": "https://cloud.inference.sh/u/user/file_1.png",
-                        "upload_url": upload_url,
-                    }
-                ],
-            })
+            return DummyResponse(json_data=[
+                {
+                    "id": "file_1",
+                    "uri": "https://cloud.inference.sh/u/user/file_1.png",
+                    "upload_url": upload_url,
+                }
+            ])
 
         return DummyResponse()
 
@@ -439,7 +430,7 @@ def test_task_status_enum():
 class MockAsyncResponse:
     """Mock aiohttp response for async tests."""
     def __init__(self, json_data=None, status=200, lines=None):
-        self._json_data = json_data or {"success": True, "data": {}}
+        self._json_data = json_data if json_data is not None else {}
         self.status = status
         self._lines = lines or []
         self.content_type = "application/json"
@@ -509,23 +500,17 @@ class MockClientSession:
         if url.endswith("/apps/run") and method.upper() == "POST":
             data = kwargs.get("json", {})
             return MockAsyncResponse(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_async_123",
-                    "status": 1,
-                    "input": data.get("input"),
-                },
+                "id": "task_async_123",
+                "status": 1,
+                "input": data.get("input"),
             })
 
         # Get task
         if "/tasks/task_async_123" in url and method.upper() == "GET" and not url.endswith("/stream"):
             return MockAsyncResponse(json_data={
-                "success": True,
-                "data": {
-                    "id": "task_async_123",
-                    "status": 7,  # RUNNING
-                    "input": {"text": "hello"},
-                },
+                "id": "task_async_123",
+                "status": 7,  # RUNNING
+                "input": {"text": "hello"},
             })
 
         # NDJSON stream
@@ -543,20 +528,17 @@ class MockClientSession:
 
         # Cancel
         if url.endswith("/tasks/task_async_123/cancel") and method.upper() == "POST":
-            return MockAsyncResponse(json_data={"success": True, "data": None})
+            return MockAsyncResponse(json_data=None, status=204)
 
         # Files create
         if url.endswith("/files") and method.upper() == "POST":
-            return MockAsyncResponse(json_data={
-                "success": True,
-                "data": [
-                    {
-                        "id": "file_async_1",
-                        "uri": "https://cloud.inference.sh/u/user/file_async_1.png",
-                        "upload_url": "https://upload.example.com/async_file",
-                    }
-                ],
-            })
+            return MockAsyncResponse(json_data=[
+                {
+                    "id": "file_async_1",
+                    "uri": "https://cloud.inference.sh/u/user/file_async_1.png",
+                    "upload_url": "https://upload.example.com/async_file",
+                }
+            ])
 
         # File upload PUT
         if method.upper() == "PUT":
@@ -816,14 +798,11 @@ def test_run_wait_false_strips_internal_fields(monkeypatch, patch_requests):
         def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
             if url.endswith("/apps/run") and method.upper() == "POST":
                 return DummyResponse(json_data={
-                    "success": True,
-                    "data": {
-                        "id": "task_123",
-                        "status": 1,
-                        "input": {"text": "hello"},
-                        "worker_id": "internal-worker",
-                        "trace_id": "trace-secret",
-                    },
+                    "id": "task_123",
+                    "status": 1,
+                    "input": {"text": "hello"},
+                    "worker_id": "internal-worker",
+                    "trace_id": "trace-secret",
                 })
             return DummyResponse()
 
