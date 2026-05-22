@@ -996,6 +996,26 @@ class CompletePaymentRequest(TypedDict, total=False):
 class UpdateIntegrationScopesRequest(TypedDict, total=False):
     scopes: List[str]
 
+# SuggestRequest is the input for the suggest endpoint.
+class SuggestRequest(TypedDict, total=False):
+    query: str
+    limit: int
+    category: str
+    agent: bool
+
+# SuggestResponse is the output of the suggest endpoint.
+class SuggestResponse(TypedDict, total=False):
+    query: str
+    results: List[SuggestResult]
+
+# SuggestResult is a single result item from the suggest endpoint.
+class SuggestResult(TypedDict, total=False):
+    type: str
+    name: str
+    description: str
+    command: str
+    score: float
+
 # RequirementError represents a single missing requirement with actionable info
 class RequirementError(TypedDict, total=False):
     type: str
@@ -2320,18 +2340,32 @@ class ToolType(str, Enum):
 
 class InstanceCloudProvider(str, Enum):
     CLOUD_AWS = "aws"
+    CLOUD_AMAYA = "amaya"
     CLOUD_AZURE = "azure"
-    CLOUD_LAMBDA_LABS = "lambdalabs"
-    CLOUD_TENSOR_DOCK = "tensordock"
-    CLOUD_RUN_POD = "runpod"
-    CLOUD_LATITUDE = "latitude"
+    CLOUD_BOOSTRUN = "boostrun"
+    CLOUD_CRUSOE = "crusoe"
+    CLOUD_DATACRUNCH = "datacrunch"
+    CLOUD_DENVR = "denvr"
+    CLOUD_DIGITAL_OCEAN = "digitalocean"
+    CLOUD_EXCESS_SUPPLY = "excesssupply"
+    CLOUD_HORIZON = "horizon"
+    CLOUD_HYPERSTACK = "hyperstack"
+    CLOUD_IMWT = "imwt"
     CLOUD_JARVIS_LABS = "jarvislabs"
+    CLOUD_LAMBDA_LABS = "lambdalabs"
+    CLOUD_LATITUDE = "latitude"
+    CLOUD_MASSED_COMPUTE = "massedcompute"
+    CLOUD_NEBIUS = "nebius"
     CLOUD_OBLIVUS = "oblivus"
     CLOUD_PAPERSPACE = "paperspace"
-    CLOUD_DATACRUNCH = "datacrunch"
-    CLOUD_MASSED_COMPUTE = "massedcompute"
-    CLOUD_VULTR = "vultr"
+    CLOUD_PHYNTEC = "phyntec"
+    CLOUD_RUN_POD = "runpod"
+    CLOUD_SCALEWAY = "scaleway"
     CLOUD_SHADE = "shade"
+    CLOUD_TENSOR_DOCK = "tensordock"
+    CLOUD_VERDA = "verda"
+    CLOUD_VOLTAGE_PARK = "voltagepark"
+    CLOUD_VULTR = "vultr"
 
 class InstanceStatus(str, Enum):
     CREATING = "creating"
