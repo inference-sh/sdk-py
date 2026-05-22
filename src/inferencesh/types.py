@@ -909,10 +909,9 @@ class ProjectModelDTO(TypedDict, total=False):
 class KnowledgeCreateRequest(TypedDict, total=False):
     name: str
     description: str
-    # Knowledge type: concept, skill, observation, preference, reference, person, project, agent-config
-    type: str
-    # Lifecycle: permanent (no decay) or decay (confidence decreases over time)
-    lifecycle: str
+    repo_url: str
+    type: KnowledgeType
+    lifecycle: KnowledgeLifecycle
     # Version content (inline — creates first version)
     version: Optional[KnowledgeVersionInput]
 
@@ -978,6 +977,10 @@ class OAuthConnectedApp(TypedDict, total=False):
     scopes: str
     authorized_at: str
 
+# SetVisibilityRequest is used by admin endpoints to set visibility.
+class SetVisibilityRequest(TypedDict, total=False):
+    visibility: str
+
 # ChargeAmountRequest is the request for charging a saved payment method.
 class ChargeAmountRequest(TypedDict, total=False):
     amount: int
@@ -990,10 +993,6 @@ class CompletePaymentRequest(TypedDict, total=False):
 # UpdateIntegrationScopesRequest updates integration scopes.
 class UpdateIntegrationScopesRequest(TypedDict, total=False):
     scopes: List[str]
-
-# UpdateTaskVisibilityRequest sets task visibility.
-class UpdateTaskVisibilityRequest(TypedDict, total=False):
-    visibility: str
 
 # RequirementError represents a single missing requirement with actionable info
 class RequirementError(TypedDict, total=False):
@@ -1911,8 +1910,8 @@ class KnowledgeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
     description: str
-    type: str
-    lifecycle: str
+    type: KnowledgeType
+    lifecycle: KnowledgeLifecycle
     version_id: str
     version: Optional[KnowledgeVersionDTO]
 
@@ -2390,6 +2389,20 @@ class RefRouteType(str, Enum):
     APP = "app"
     AGENT = "agent"
     SKILL = "skill"
+
+class KnowledgeType(str, Enum):
+    CONCEPT = "concept"
+    SKILL = "skill"
+    OBSERVATION = "observation"
+    PREFERENCE = "preference"
+    REFERENCE = "reference"
+    PERSON = "person"
+    PROJECT = "project"
+    AGENT_CONFIG = "agent-config"
+
+class KnowledgeLifecycle(str, Enum):
+    PERMANENT = "permanent"
+    DECAY = "decay"
 
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
