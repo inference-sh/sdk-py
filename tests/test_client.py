@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from inferencesh import Inference, AsyncInference, TaskStatus
-from inferencesh.models.errors import RequirementsNotMetError
+from inferencesh.models.errors import APIError, RequirementsNotMetError
 
 
 class DummyResponse:
@@ -162,6 +162,76 @@ def test_short_strings_are_not_treated_as_base64(monkeypatch, patch_requests):
 
     assert task["input"]["label"] == "hello"
     assert patch_requests.put_calls == []
+
+
+def test_headers_include_api_version_2():
+    """v2 API requires X-API-Version: 2 on every request."""
+    client = Inference(api_key="test")
+    assert client._headers()["X-API-Version"] == "2"
+
+
+def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):
+    """HTTP errors use RFC 9457 problem+json detail field."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(
+                    status_code=500,
+                    json_data={"detail": "model overloaded", "title": "Server Error"},
+                )
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.message == "model overloaded"
+
+
+def test_run_api_error_prefers_detail_over_title(monkeypatch):
+    """detail takes precedence over title in problem+json payloads."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(
+                    status_code=403,
+                    json_data={"title": "Forbidden", "detail": "quota exceeded"},
+                )
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "quota exceeded"
+
+
+def test_run_api_error_falls_back_to_title_without_detail(monkeypatch):
+    """title is used when detail is absent (RFC 9457 minimum)."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(status_code=404, json_data={"title": "Not Found"})
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "Not Found"
 
 
 def test_run_raises_requirements_not_met_on_412(monkeypatch, patch_requests):
