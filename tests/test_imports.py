@@ -102,6 +102,17 @@ def test_submodule_importable(module):
     importlib.import_module(module)
 
 
+@pytest.mark.parametrize("name", [
+    "ChatInput",
+    "ModelSettings",
+    "ModelSettingsCapabilityMixin",
+])
+def test_models_llm_export_exists(name):
+    """New LLM input types from v0.7.9 must be exported from models."""
+    from inferencesh import models
+    assert hasattr(models, name), f"inferencesh.models.{name} not found"
+
+
 # ── Generated types (from typegen) ───────────────────────────────────────────
 
 @pytest.mark.parametrize("name", [
@@ -120,6 +131,8 @@ def test_submodule_importable(module):
     "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
+    # Suggest endpoint (0637e77)
+    "SuggestRequest", "SuggestResponse", "SuggestResult",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

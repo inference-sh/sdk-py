@@ -7,10 +7,14 @@ from unittest.mock import patch
 import pytest
 
 from inferencesh import File
+from pydantic import ValidationError
+
 from inferencesh.models.llm import (
+    ChatInput,
     ContextMessage,
     ContextMessageRole,
     LLMInput,
+    ModelSettings,
     build_messages,
     build_openai_messages,
     build_tools,
@@ -277,6 +281,63 @@ class TestBuildTools:
             [{"name": "fn", "parameters": {"type": "object", "properties": None}}]
         )
         assert tools[0]["function"]["parameters"]["properties"] == {}
+
+
+class TestChatInputAndModelSettings:
+    """ChatInput nests sampling params in model_settings (v0.7.9)."""
+
+    def test_chat_input_default_model_settings_none(self):
+        inp = ChatInput(text="hello")
+        assert inp.model_settings is None
+        assert inp.text == "hello"
+
+    def test_model_settings_all_fields_optional(self):
+        ms = ModelSettings()
+        assert ms.temperature is None
+        assert ms.top_k is None
+        assert ms.stop is None
+
+    def test_model_settings_accepts_sampling_params(self):
+        ms = ModelSettings(
+            temperature=0.5,
+            top_p=0.9,
+            top_k=40,
+            max_tokens=512,
+            stop=["END"],
+            seed=42,
+        )
+        assert ms.temperature == 0.5
+        assert ms.top_p == 0.9
+        assert ms.top_k == 40
+        assert ms.max_tokens == 512
+        assert ms.stop == ["END"]
+        assert ms.seed == 42
+
+    def test_chat_input_nested_model_settings(self):
+        inp = ChatInput(
+            text="prompt",
+            model_settings=ModelSettings(temperature=0.3, presence_penalty=0.5),
+        )
+        assert inp.model_settings.temperature == 0.3
+        assert inp.model_settings.presence_penalty == 0.5
+
+    def test_chat_input_schema_nests_model_settings_not_flat_sampling(self):
+        props = ChatInput.model_json_schema()["properties"]
+        assert "model_settings" in props
+        assert "temperature" not in props
+        llm_props = LLMInput.model_json_schema()["properties"]
+        assert "temperature" in llm_props
+
+    def test_model_settings_rejects_out_of_range_temperature(self):
+        with pytest.raises(ValidationError):
+            ModelSettings(temperature=3.0)
+
+    def test_build_openai_messages_accepts_chat_input(self):
+        messages = build_openai_messages(
+            ChatInput(text="hi", context=[], system_prompt="Be brief."),
+        )
+        assert messages[0] == {"role": "system", "content": "Be brief."}
+        assert messages[-1] == {"role": "user", "content": "hi"}
 
 
 class TestImagePartDetectionRegression:
