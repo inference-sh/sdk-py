@@ -726,9 +726,11 @@ class ChatTraceDTO(TypedDict, total=False):
 
 class InstanceTypeConfiguration(TypedDict, total=False):
     gpu_type: str
+    gpu_manufacturer: str
     interconnect: str
     memory_in_gb: int
     num_gpus: int
+    nvlink: bool
     os_options: List[str]
     storage_in_gb: int
     vcpus: int
