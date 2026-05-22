@@ -529,6 +529,7 @@ class Inference:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
             "User-Agent": f"inference-sdk-py/{__version__}",
+            "X-API-Version": "2",
         }
 
     def _request(
@@ -573,10 +574,13 @@ class Inference:
             if resp.status_code == 412 and payload and isinstance(payload, dict) and "errors" in payload:
                 raise RequirementsNotMetError.from_response(payload, resp.status_code)
 
-            # General error handling
+            # Error handling: v2 (RFC 9457 problem+json) or v1 envelope
             error_detail = None
             if payload and isinstance(payload, dict):
-                if payload.get("error"):
+                if "detail" in payload:
+                    # RFC 9457 problem+json
+                    error_detail = payload.get("detail") or payload.get("title")
+                elif payload.get("error"):
                     err = payload["error"]
                     if isinstance(err, dict):
                         error_detail = err.get("message") or json.dumps(err)
@@ -585,7 +589,6 @@ class Inference:
                 elif payload.get("message"):
                     error_detail = payload["message"]
                 else:
-                    # Include full payload if no standard error field
                     error_detail = json.dumps(payload)
             elif response_text:
                 error_detail = response_text[:500]
@@ -596,6 +599,11 @@ class Inference:
         if resp.status_code == 204:
             return None
 
+        # v2: bare DTO response (no envelope)
+        if isinstance(payload, dict) and "success" not in payload:
+            return payload
+
+        # v1: unwrap envelope
         if not isinstance(payload, dict) or not payload.get("success", False):
             message = None
             if isinstance(payload, dict) and payload.get("error"):
@@ -1081,6 +1089,7 @@ class AsyncInference:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
             "User-Agent": f"inference-sdk-py/{__version__}",
+            "X-API-Version": "2",
         }
 
     async def _request(
@@ -1108,26 +1117,23 @@ class AsyncInference:
             ) as resp:
                 if expect_stream:
                     return resp
-                # Read response body as text first (can only read once)
                 response_text = await resp.text()
 
-                # Try to parse as JSON
                 payload = None
                 try:
                     payload = json.loads(response_text) if response_text else None
                 except Exception:
                     pass
 
-                # Check for HTTP errors first
                 if not resp.ok:
-                    # Check for RequirementsNotMetError (412 with errors array)
                     if resp.status == 412 and payload and isinstance(payload, dict) and "errors" in payload:
                         raise RequirementsNotMetError.from_response(payload, resp.status)
 
-                    # General error handling
                     error_detail = None
                     if payload and isinstance(payload, dict):
-                        if payload.get("error"):
+                        if "detail" in payload:
+                            error_detail = payload.get("detail") or payload.get("title")
+                        elif payload.get("error"):
                             err = payload["error"]
                             if isinstance(err, dict):
                                 error_detail = err.get("message") or json.dumps(err)
@@ -1136,17 +1142,20 @@ class AsyncInference:
                         elif payload.get("message"):
                             error_detail = payload["message"]
                         else:
-                            # Include full payload if no standard error field
                             error_detail = json.dumps(payload)
                     elif response_text:
                         error_detail = response_text[:500]
 
                     raise APIError(resp.status, error_detail or "Request failed", response_text)
 
-                # Handle 204 No Content responses (e.g., DELETE operations)
                 if resp.status == 204:
                     return None
 
+                # v2: bare DTO response (no envelope)
+                if isinstance(payload, dict) and "success" not in payload:
+                    return payload
+
+                # v1: unwrap envelope
                 if not isinstance(payload, dict) or not payload.get("success", False):
                     message = None
                     if isinstance(payload, dict) and payload.get("error"):
