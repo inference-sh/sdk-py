@@ -1872,6 +1872,7 @@ class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 # InstanceTypeDTO is the API representation of a cloud instance type.
 class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     cloud: InstanceCloudProvider
+    cloud_logo_url: str
     region: str
     shade_instance_type: str
     cloud_instance_type: str
