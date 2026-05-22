@@ -84,6 +84,74 @@ class BaseLLMInput(BaseAppInput):
     context_size: int = Field(default=4096)
     max_tokens: int = Field(default=64000)
 
+class ChatInput(BaseAppInput):
+    """Chat input with settings in a nested ModelSettings object.
+
+    Use this instead of BaseLLMInput for new apps. Sampling params live
+    in model_settings rather than as flat top-level fields.
+    """
+    system_prompt: str = Field(
+        description="the system prompt to use for the model",
+        default="you are a helpful assistant that can answer questions and help with tasks.",
+        examples=[
+            "you are a helpful assistant that can answer questions and help with tasks.",
+        ]
+    )
+    context: List[ContextMessage] = Field(
+        description="the context to use for the model",
+        default=[],
+        examples=[
+            [
+                {"role": "user", "content": [{"type": "text", "text": "What is the capital of France?"}]},
+                {"role": "assistant", "content": [{"type": "text", "text": "The capital of France is Paris."}]}
+            ]
+        ]
+    )
+    role: ContextMessageRole = Field(
+        description="the role of the input text",
+        default=ContextMessageRole.USER
+    )
+    text: str = Field(
+        description="the input text to use for the model",
+        examples=[
+            "write a haiku about artificial general intelligence"
+        ]
+    )
+    context_size: int = Field(default=4096)
+    model_settings: Optional["ModelSettings"] = Field(
+        default=None,
+        description="sampling and generation settings. fields left null use the app's defaults."
+    )
+
+
+class ModelSettings(BaseModel):
+    """Sampling and generation settings for LLM inference.
+
+    Group all provider-agnostic knobs in one object so they collapse in
+    the input schema and can be passed around / overridden as a unit.
+    All fields are optional — omitted fields are not sent to the provider,
+    which lets each model app set its own defaults.
+    """
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="sampling temperature.")
+    top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="nucleus sampling probability mass.")
+    top_k: Optional[int] = Field(default=None, ge=-1, description="top-k sampling. limits to k most likely tokens. -1 to disable.")
+    min_p: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="min-p sampling. tokens below this probability are dropped.")
+    frequency_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0, description="penalize tokens by how often they appear in the output so far.")
+    presence_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0, description="penalize tokens that have appeared at all in the output so far.")
+    repetition_penalty: Optional[float] = Field(default=None, ge=0.0, description="multiplicative penalty for repeated tokens (1.0 = no penalty). vLLM/HuggingFace style.")
+    seed: Optional[int] = Field(default=None, description="random seed for reproducible generation.")
+    stop: Optional[List[str]] = Field(default=None, description="stop sequences. generation stops when any of these strings is produced.")
+    max_tokens: Optional[int] = Field(default=None, ge=1, description="maximum tokens to generate.")
+
+
+class ModelSettingsCapabilityMixin(BaseModel):
+    """Mixin that adds a nested model_settings object to an LLM input."""
+    model_settings: Optional[ModelSettings] = Field(
+        default=None,
+        description="sampling and generation settings. fields left null use the app's defaults."
+    )
+
+
 class ImageCapabilityMixin(BaseModel):
     """Mixin for models that support image inputs."""
     images: Optional[List[File]] = Field(
