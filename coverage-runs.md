@@ -114,3 +114,13 @@
 - `tests/test_errors.py`: `SessionExpiredError`, `SessionEndedError`, `WorkerLostError` `__repr__` paths.
 - `tests/test_download.py`: default filename when URL has no path; `StorageDir.path` mkdir behavior.
 - `tests/test_streamable.py`: `streamable_raw()` scalar/array JSON wrapping.
+
+## 2026-05-21
+
+**Recent changes reviewed:** `0c6e23a` on main (typegen regen: knowledge/oauth/subscription/billing request types and 12 new enums).
+
+**Open PRs checked:** none open — PR #64 (graph/async gaps) already merged; no overlapping test work.
+
+**Gaps filled:**
+- `tests/test_types.py`: subscription, resource, secret scope, device auth, MCP server auth (O_AUTH acronym), ref routes, integration chat types, notification enums.
+- `tests/test_imports.py`: typegen exports for billing/knowledge/oauth/subscription DTOs and enums.
