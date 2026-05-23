@@ -15,6 +15,8 @@ from inferencesh.types import (
     IntegrationProvider,
     IntegrationStatus,
     IntegrationType,
+    KnowledgeLifecycle,
+    KnowledgeType,
     MCPServerAuthType,
     NotificationChannel,
     NotificationPriority,
@@ -363,3 +365,35 @@ def test_notification_type_values(member, value):
 def test_notification_status_lifecycle_values(member, value):
     assert hasattr(NotificationStatus, member)
     assert getattr(NotificationStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("CONCEPT", "concept"),
+        ("SKILL", "skill"),
+        ("OBSERVATION", "observation"),
+        ("PREFERENCE", "preference"),
+        ("REFERENCE", "reference"),
+        ("PERSON", "person"),
+        ("PROJECT", "project"),
+        ("AGENT_CONFIG", "agent-config"),
+    ],
+)
+def test_knowledge_type_values(member, value):
+    """Knowledge graph node kinds must stay stable for create/list payloads."""
+    assert hasattr(KnowledgeType, member)
+    assert getattr(KnowledgeType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PERMANENT", "permanent"),
+        ("DECAY", "decay"),
+    ],
+)
+def test_knowledge_lifecycle_values(member, value):
+    """Knowledge retention policy enums must match backend lifecycle strings."""
+    assert hasattr(KnowledgeLifecycle, member)
+    assert getattr(KnowledgeLifecycle, member).value == value
