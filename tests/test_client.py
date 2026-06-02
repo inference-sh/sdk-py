@@ -170,6 +170,12 @@ def test_headers_include_api_version_2():
     assert client._headers()["X-API-Version"] == "2"
 
 
+def test_async_headers_include_api_version_2():
+    """Async client must send the same v2 API version header as sync."""
+    client = AsyncInference(api_key="test")
+    assert client._headers()["X-API-Version"] == "2"
+
+
 def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):
     """HTTP errors use RFC 9457 problem+json detail field."""
     import inferencesh.client as client_mod
@@ -232,6 +238,25 @@ def test_run_api_error_falls_back_to_title_without_detail(monkeypatch):
         client.run({"app": "some/app", "input": {}}, wait=False)
 
     assert exc_info.value.message == "Not Found"
+
+
+def test_run_api_error_falls_back_to_message_without_detail_or_title(monkeypatch):
+    """Legacy error bodies may expose only message when detail/title are absent."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(status_code=400, json_data={"message": "invalid app ref"})
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "invalid app ref"
 
 
 def test_run_raises_requirements_not_met_on_412(monkeypatch, patch_requests):
@@ -631,6 +656,92 @@ def patch_aiohttp(monkeypatch):
     monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
 
     return mock_aiohttp
+
+
+def _async_failing_run_response(status, json_data):
+    """Build a mock aiohttp response for /apps/run failures."""
+
+    class FailingResponse:
+        def __init__(self):
+            self.status = status
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return False
+
+        async def text(self):
+            return json.dumps(json_data)
+
+        async def json(self):
+            return json.loads(await self.text())
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class FailingClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            if url.endswith("/apps/run"):
+                return FailingResponse()
+            return MockAsyncResponse()
+
+    return FailingClientSession
+
+
+@pytest.mark.asyncio
+async def test_async_run_raises_api_error_with_rfc9457_detail(monkeypatch):
+    """Async HTTP errors must parse RFC 9457 problem+json detail like sync."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        500, {"detail": "model overloaded", "title": "Server Error"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.message == "model overloaded"
+
+
+@pytest.mark.asyncio
+async def test_async_run_api_error_falls_back_to_title_without_detail(monkeypatch):
+    """Async client uses title when detail is absent (RFC 9457 minimum)."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        404, {"title": "Not Found"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "Not Found"
 
 
 @pytest.mark.asyncio
