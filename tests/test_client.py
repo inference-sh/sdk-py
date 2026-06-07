@@ -722,6 +722,29 @@ async def test_async_run_raises_api_error_with_rfc9457_detail(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_async_run_api_error_prefers_detail_over_title(monkeypatch):
+    """Async client must prefer detail over title like sync (RFC 9457)."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        403, {"title": "Forbidden", "detail": "quota exceeded"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "quota exceeded"
+
+
+@pytest.mark.asyncio
 async def test_async_run_api_error_falls_back_to_title_without_detail(monkeypatch):
     """Async client uses title when detail is absent (RFC 9457 minimum)."""
     import inferencesh.client as client_mod
@@ -742,6 +765,29 @@ async def test_async_run_api_error_falls_back_to_title_without_detail(monkeypatc
         await client.run({"app": "some/app", "input": {}}, wait=False)
 
     assert exc_info.value.message == "Not Found"
+
+
+@pytest.mark.asyncio
+async def test_async_run_api_error_falls_back_to_message_without_detail_or_title(monkeypatch):
+    """Async client must fall back to message when detail/title are absent."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        400, {"message": "invalid app ref"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "invalid app ref"
 
 
 @pytest.mark.asyncio

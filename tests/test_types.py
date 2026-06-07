@@ -1,5 +1,7 @@
 """Tests for generated enum constants (gotypegen acronym preservation)."""
 
+from typing import get_type_hints
+
 import pytest
 
 from inferencesh.types import (
@@ -10,7 +12,9 @@ from inferencesh.types import (
     GraphNodeType,
     InstanceCloudProvider,
     InstanceStatus,
+    InstanceTypeConfiguration,
     InstanceTypeDeploymentType,
+    InstanceTypeDTO,
     IntegrationAuthType,
     IntegrationProvider,
     IntegrationStatus,
@@ -25,6 +29,9 @@ from inferencesh.types import (
     RefRouteType,
     ResourceType,
     SecretScope,
+    SuggestRequest,
+    SuggestResponse,
+    SuggestResult,
     SubscriptionInterval,
     SubscriptionStatus,
     ToolCallType,
@@ -397,3 +404,73 @@ def test_knowledge_lifecycle_values(member, value):
     """Knowledge retention policy enums must match backend lifecycle strings."""
     assert hasattr(KnowledgeLifecycle, member)
     assert getattr(KnowledgeLifecycle, member).value == value
+
+
+def test_instance_type_configuration_gpu_fields():
+    """GPU hardware metadata from typegen must include manufacturer and nvlink."""
+    hints = get_type_hints(InstanceTypeConfiguration)
+    assert hints["gpu_manufacturer"] is str
+    assert hints["nvlink"] is bool
+    assert hints["gpu_type"] is str
+    assert hints["num_gpus"] is int
+
+
+def test_instance_type_dto_cloud_logo_url_field():
+    """Instance catalog responses must expose cloud_logo_url for UI branding."""
+    hints = get_type_hints(InstanceTypeDTO)
+    assert "cloud_logo_url" in hints
+    assert hints["cloud_logo_url"] is str
+    assert "configuration" in hints
+
+
+@pytest.mark.parametrize(
+    "typedict_cls,field,expected_type",
+    [
+        (SuggestRequest, "query", str),
+        (SuggestRequest, "limit", int),
+        (SuggestRequest, "category", str),
+        (SuggestRequest, "agent", bool),
+        (SuggestResult, "type", str),
+        (SuggestResult, "name", str),
+        (SuggestResult, "description", str),
+        (SuggestResult, "command", str),
+        (SuggestResult, "score", float),
+        (SuggestResponse, "query", str),
+    ],
+)
+def test_suggest_typedict_field_annotations(typedict_cls, field, expected_type):
+    """Suggest endpoint TypedDicts must keep stable field names and types."""
+    hints = get_type_hints(typedict_cls)
+    assert field in hints, f"{typedict_cls.__name__}.{field} missing"
+    assert hints[field] is expected_type
+
+
+def test_suggest_response_results_list_annotation():
+    """SuggestResponse.results must be a list of SuggestResult items."""
+    hints = get_type_hints(SuggestResponse)
+    results_hint = hints["results"]
+    assert results_hint.__origin__ is list
+    assert results_hint.__args__[0] is SuggestResult
+
+
+def test_suggest_payload_roundtrip():
+    """Representative suggest API payload must satisfy TypedDict field names."""
+    result: SuggestResult = {
+        "type": "app",
+        "name": "okaris/flux",
+        "description": "Image generation",
+        "command": "inference run okaris/flux@abc1",
+        "score": 0.92,
+    }
+    response: SuggestResponse = {
+        "query": "image generation",
+        "results": [result],
+    }
+    request: SuggestRequest = {
+        "query": "image generation",
+        "limit": 5,
+        "category": "apps",
+        "agent": False,
+    }
+    assert response["results"][0]["score"] == 0.92
+    assert request["limit"] == 5

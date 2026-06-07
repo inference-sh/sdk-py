@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-06-07 (push main @ 84a4517, promote dev to main)
+
+**Recent changes reviewed:** `84a4517` (merge PR #81 — dev to main), `09d0396`/`98086a5` (KnowledgeType + async RFC 9457 tests already merged in PR #80), production commits `f083332`/`4e3dc6f`/`0637e77` (instance catalog + suggest types).
+
+**Open PRs checked:** none open — PR #80 and #81 already merged; no overlapping test work.
+
+**Gaps filled this run:**
+
+- `InstanceTypeConfiguration.gpu_manufacturer` / `nvlink` field stability (commit `4e3dc6f`)
+- `InstanceTypeDTO.cloud_logo_url` for instance catalog UI (commit `f083332`)
+- `SuggestRequest` / `SuggestResponse` / `SuggestResult` TypedDict field annotations and payload roundtrip (commit `0637e77`)
+- Async client RFC 9457 parity: `detail` over `title`, and `message` fallback when both absent
+
+**Files:** `tests/test_types.py`, `tests/test_client.py`, `tests/test_imports.py`
+
 ## 2026-05-23 (push main @ c071c14, merge suggest + billing tests)
 
 **Recent changes reviewed:** `c071c14` (merge conflict: suggest + billing type imports), `7ed8d78`/`2965cbc` (tests already merged for ChatInput, RFC 9457, billing enums).
