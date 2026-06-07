@@ -137,6 +137,7 @@ def test_models_llm_export_exists(name):
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus",
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",
+    "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "IntegrationType",

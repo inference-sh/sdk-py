@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-05-23 (push main @ c071c14, merge suggest + billing tests)
+
+**Recent changes reviewed:** `c071c14` (merge conflict: suggest + billing type imports), `7ed8d78`/`2965cbc` (tests already merged for ChatInput, RFC 9457, billing enums).
+
+**Open PRs checked:** none open — PRs #66 and #77 already merged; no overlapping test work.
+
+**Gaps filled this run:**
+
+- `KnowledgeType` / `KnowledgeLifecycle` enum stability (commit `510d3d9`)
+- Async client RFC 9457 `detail` / `title` error parsing parity with sync (commit `bedb60e`)
+- Sync `message` fallback when `detail` and `title` are absent
+- `AsyncInference._headers()` sends `X-API-Version: 2`
+
+**Files:** `tests/test_types.py`, `tests/test_client.py`, `tests/test_imports.py`
+
 ## 2026-05-22 (push main @ 76f33e6, v0.7.9)
 
 **Skipped (open PR #66):** billing/knowledge/oauth/notification enum tests from `0c6e23a` — draft PR `cursor/test-coverage-automation-4901` already covers those.
