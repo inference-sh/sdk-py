@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from inferencesh import Inference, AsyncInference, TaskStatus
+from inferencesh.client import StreamManager
 from inferencesh.models.errors import APIError, RequirementsNotMetError
 
 
@@ -520,6 +521,152 @@ def test_stream_reconcile_raises_on_cancelled_task(monkeypatch):
             list(stream)
 
 
+def test_wait_for_completion_reconciles_via_get_when_stream_ends_without_terminal(monkeypatch):
+    """wait_for_completion GET-reconciles when the stream ends without a terminal event."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {
+            "id": tid,
+            "status": TaskStatus.COMPLETED,
+            "output": {"reconciled": True},
+        },
+    )
+
+    result = client.wait_for_completion("task_123")
+
+    assert result["status"] == TaskStatus.COMPLETED
+    assert result["output"] == {"reconciled": True}
+
+
+def test_wait_for_completion_raises_timeout_when_task_stays_non_terminal(monkeypatch):
+    """wait_for_completion raises TimeoutError when GET still shows a non-terminal task."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {"id": tid, "status": TaskStatus.RUNNING},
+    )
+
+    with pytest.raises(TimeoutError, match="did not complete within"):
+        client.wait_for_completion("task_123", timeout=0)
+
+
+def test_wait_for_completion_timeout_still_returns_completed_task_from_get(monkeypatch):
+    """On timeout expiry, a terminal GET result is returned instead of TimeoutError."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {
+            "id": tid,
+            "status": TaskStatus.COMPLETED,
+            "output": {"late": True},
+        },
+    )
+
+    result = client.wait_for_completion("task_123", timeout=0)
+
+    assert result["output"] == {"late": True}
+
+
+def test_wait_for_completion_raises_on_failed_stream_event(monkeypatch):
+    """wait_for_completion must surface FAILED stream events immediately."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": TaskStatus.FAILED, "error": "GPU OOM"}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with pytest.raises(RuntimeError, match="GPU OOM"):
+        client.wait_for_completion("task_123")
+
+
+def test_wait_for_completion_raises_on_cancelled_stream_event(monkeypatch):
+    """wait_for_completion must surface CANCELLED stream events immediately."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": TaskStatus.CANCELLED}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with pytest.raises(RuntimeError, match="Task cancelled"):
+        client.wait_for_completion("task_123")
+
+
+def test_wait_for_completion_get_reconcile_raises_on_failed_task(monkeypatch):
+    """GET reconciliation after stream end must raise on FAILED tasks."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {"id": tid, "status": TaskStatus.FAILED, "error": "worker crashed"},
+    )
+
+    with pytest.raises(RuntimeError, match="worker crashed"):
+        client.wait_for_completion("task_123")
+
+
+def test_stream_manager_routes_partial_data_to_on_partial_data():
+    """StreamManager dispatches {data, fields} envelopes to on_partial_data."""
+    partial_calls = []
+    data_calls = []
+
+    def create_source():
+        return [
+            {"data": {"x": 1}, "fields": ["x"]},
+            {"plain": True},
+        ]
+
+    mgr = StreamManager(
+        create_event_source=create_source,
+        auto_reconnect=False,
+        on_partial_data=lambda data, fields: partial_calls.append((data, fields)),
+        on_data=lambda data: data_calls.append(data),
+    )
+    mgr.connect()
+
+    assert partial_calls == [({"x": 1}, ["x"])]
+    assert data_calls == [{"plain": True}]
+
+
+def test_stream_manager_partial_envelope_falls_back_to_on_data():
+    """Without on_partial_data, StreamManager passes unwrapped data to on_data."""
+    data_calls = []
+
+    mgr = StreamManager(
+        create_event_source=lambda: [{"data": {"x": 1}, "fields": ["x"]}],
+        auto_reconnect=False,
+        on_data=lambda data: data_calls.append(data),
+    )
+    mgr.connect()
+
+    assert data_calls == [{"x": 1}]
+
+
 def test_iter_ndjson_unwraps_partial_data_envelope():
     """NDJSON partial updates with data/fields envelope are unwrapped before yielding."""
     client = Inference(api_key="test")
@@ -1017,6 +1164,110 @@ async def test_async_stream_reconciles_via_get_when_no_terminal_event(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_async_stream_reconcile_raises_on_failed_task(monkeypatch, patch_aiohttp):
+    """AsyncTaskStream GET reconciliation must surface FAILED tasks as RuntimeError."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return {"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    with pytest.raises(RuntimeError, match="GPU OOM"):
+        async with await client.run(
+            {"app": "some/app", "input": {}}, stream=True, auto_reconnect=False,
+        ) as stream:
+            async for _ in stream:
+                pass
+
+
+@pytest.mark.asyncio
+async def test_async_stream_reconcile_raises_on_cancelled_task(monkeypatch, patch_aiohttp):
+    """AsyncTaskStream GET reconciliation must surface CANCELLED tasks as RuntimeError."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return {"id": tid, "status": TaskStatus.CANCELLED}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    with pytest.raises(RuntimeError, match="Task cancelled"):
+        async with await client.run(
+            {"app": "some/app", "input": {}}, stream=True, auto_reconnect=False,
+        ) as stream:
+            async for _ in stream:
+                pass
+
+
+@pytest.mark.asyncio
+async def test_async_wait_for_completion_reconciles_via_get_when_stream_ends_without_terminal(
+    monkeypatch, patch_aiohttp,
+):
+    """Async wait_for_completion GET-reconciles when the stream ends without a terminal event."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return {
+            "id": tid,
+            "status": TaskStatus.COMPLETED,
+            "output": {"reconciled": True},
+        }
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    result = await client.wait_for_completion("task_async_123")
+
+    assert result["status"] == TaskStatus.COMPLETED
+    assert result["output"] == {"reconciled": True}
+
+
+@pytest.mark.asyncio
+async def test_async_wait_for_completion_raises_timeout_when_task_stays_non_terminal(
+    monkeypatch, patch_aiohttp,
+):
+    """Async wait_for_completion raises TimeoutError when GET still shows a non-terminal task."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return {"id": tid, "status": TaskStatus.RUNNING}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    with pytest.raises(TimeoutError, match="did not complete within"):
+        await client.wait_for_completion("task_async_123", timeout=0)
+
+
+@pytest.mark.asyncio
+async def test_async_wait_for_completion_raises_on_failed_stream_event(monkeypatch, patch_aiohttp):
+    """Async wait_for_completion must surface FAILED stream events immediately."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": TaskStatus.FAILED, "error": "GPU OOM"}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with pytest.raises(RuntimeError, match="GPU OOM"):
+        await client.wait_for_completion("task_async_123")
+
+
+@pytest.mark.asyncio
 async def test_async_stream_task(patch_aiohttp):
     """Test async stream_task() returns AsyncTaskStream."""
     client = AsyncInference(api_key="test")
@@ -1252,6 +1503,19 @@ async def test_async_files_upload_via_namespace(patch_aiohttp):
     client = AsyncInference(api_key="test")
 
     file_obj = await client.files.upload(b"PNGDATA")
+
+    assert file_obj["id"] == "file_async_1"
+    assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_async_1.png"
+
+
+@pytest.mark.asyncio
+async def test_async_upload_file_from_path(tmp_path, patch_aiohttp):
+    """Async upload_file() reads bytes from an existing filesystem path."""
+    file_path = tmp_path / "test.txt"
+    file_path.write_bytes(b"hello world")
+
+    client = AsyncInference(api_key="test")
+    file_obj = await client.upload_file(str(file_path))
 
     assert file_obj["id"] == "file_async_1"
     assert file_obj["uri"] == "https://cloud.inference.sh/u/user/file_async_1.png"

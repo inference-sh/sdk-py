@@ -1402,7 +1402,7 @@ class AsyncInference:
                 path = data
                 guessed = mimetypes.guess_type(path)[0]
                 content_type = content_type or guessed or "application/octet-stream"
-                async with await _aio_open_file(path, "rb") as f:
+                async with _aio_open_file(path, "rb") as f:
                     raw_bytes = await f.read()  # type: ignore[attr-defined]
                 if not options.filename:
                     options.filename = os.path.basename(path)
@@ -1622,10 +1622,10 @@ def _b64_to_bytes(b64: str) -> bytes:
     return base64.b64decode(b64)
 
 
-async def _aio_open_file(path: str, mode: str):
+def _aio_open_file(path: str, mode: str):
     import aiofiles  # type: ignore
 
-    return await aiofiles.open(path, mode)
+    return aiofiles.open(path, mode)
 
 
 def _looks_like_base64(value: str) -> bool:
