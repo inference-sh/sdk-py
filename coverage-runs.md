@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-06-14 (push main @ 300c884, stream reconcile + typegen field gaps)
+
+**Recent changes reviewed:** `300c884` (KnowledgeType/async RFC 9457 — already covered), `28cd082`/`eff7d5e` (InstanceTypeDTO fields), `fb56d97` (Suggest types), `caa2b79` (v2 stream reconcile escape hatch).
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `TaskStream` / `AsyncTaskStream` GET-reconcile when NDJSON stream ends without terminal event (COMPLETED/FAILED/CANCELLED)
+- `_iter_ndjson` unwraps `{data, fields}` partial update envelope
+- Async RFC 9457 parity: `detail` over `title`, `message` fallback
+- `InstanceTypeConfiguration.gpu_manufacturer` / `nvlink`, `InstanceTypeDTO.cloud_logo_url`
+- `SuggestRequest` / `SuggestResponse` / `SuggestResult` TypedDict shape
+
+**Files:** `tests/test_client.py`, `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-05-23 (push main @ c071c14, merge suggest + billing tests)
 
 **Recent changes reviewed:** `c071c14` (merge conflict: suggest + billing type imports), `7ed8d78`/`2965cbc` (tests already merged for ChatInput, RFC 9457, billing enums).

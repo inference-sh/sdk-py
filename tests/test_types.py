@@ -397,3 +397,47 @@ def test_knowledge_lifecycle_values(member, value):
     """Knowledge retention policy enums must match backend lifecycle strings."""
     assert hasattr(KnowledgeLifecycle, member)
     assert getattr(KnowledgeLifecycle, member).value == value
+
+
+def test_instance_type_configuration_gpu_fields():
+    """gpu_manufacturer and nvlink support hardware-aware instance selection."""
+    from inferencesh.types import InstanceTypeConfiguration
+
+    config: InstanceTypeConfiguration = {
+        "gpu_type": "A100",
+        "gpu_manufacturer": "nvidia",
+        "nvlink": True,
+        "num_gpus": 8,
+    }
+    assert config["gpu_manufacturer"] == "nvidia"
+    assert config["nvlink"] is True
+
+
+def test_instance_type_dto_cloud_logo_url():
+    """cloud_logo_url enables provider branding in instance picker UIs."""
+    from inferencesh.types import InstanceCloudProvider, InstanceTypeDTO
+
+    dto: InstanceTypeDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_AWS,
+        "cloud_logo_url": "https://cdn.example.com/aws.svg",
+        "region": "us-east-1",
+        "shade_instance_type": "gpu.a100.8x",
+    }
+    assert dto["cloud_logo_url"].endswith("aws.svg")
+
+
+def test_suggest_types_shape():
+    """Suggest endpoint TypedDicts must accept the documented request/response shape."""
+    from inferencesh.types import SuggestRequest, SuggestResponse, SuggestResult
+
+    req: SuggestRequest = {"query": "flux image", "limit": 5, "agent": True}
+    result: SuggestResult = {
+        "type": "app",
+        "name": "flux",
+        "description": "Image generation",
+        "score": 0.92,
+    }
+    resp: SuggestResponse = {"query": req["query"], "results": [result]}
+
+    assert resp["results"][0]["name"] == "flux"
+    assert resp["results"][0]["score"] == 0.92

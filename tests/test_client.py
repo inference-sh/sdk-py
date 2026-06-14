@@ -456,6 +456,80 @@ def test_stream_reconnects_on_connection_error(monkeypatch, tmp_path):
     assert stream.result["output"] == {"ok": True}
 
 
+def test_stream_reconciles_via_get_when_no_terminal_event(monkeypatch):
+    """TaskStream GET-reconciles when the NDJSON stream ends without a terminal event."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7, "output": None}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {
+            "id": tid,
+            "status": TaskStatus.COMPLETED,
+            "output": {"reconciled": True},
+        },
+    )
+
+    with client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
+        updates = list(stream)
+
+    assert stream.result is not None
+    assert stream.result["output"] == {"reconciled": True}
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+
+
+def test_stream_reconcile_raises_on_failed_task(monkeypatch):
+    """GET reconciliation must surface FAILED tasks as RuntimeError."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"},
+    )
+
+    with pytest.raises(RuntimeError, match="GPU OOM"):
+        with client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
+            list(stream)
+
+
+def test_stream_reconcile_raises_on_cancelled_task(monkeypatch):
+    """GET reconciliation must surface CANCELLED tasks as RuntimeError."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: {"id": tid, "status": TaskStatus.CANCELLED},
+    )
+
+    with pytest.raises(RuntimeError, match="Task cancelled"):
+        with client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
+            list(stream)
+
+
+def test_iter_ndjson_unwraps_partial_data_envelope():
+    """NDJSON partial updates with data/fields envelope are unwrapped before yielding."""
+    client = Inference(api_key="test")
+    inner = {"id": "task_123", "status": 7, "output": {"partial": True}}
+    line = json.dumps({"data": inner, "fields": ["output"]})
+    resp = DummyResponse(status_code=200, lines=[line])
+
+    assert list(client._iter_ndjson(resp)) == [inner]
+
+
 def test_upload_and_recursive_input(monkeypatch, tmp_path, patch_requests):
     """Test that local file paths in input are uploaded and replaced with URIs."""
     # Create a small file
@@ -745,6 +819,52 @@ async def test_async_run_api_error_falls_back_to_title_without_detail(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_async_run_api_error_prefers_detail_over_title(monkeypatch):
+    """Async client must prefer detail over title, matching sync RFC 9457 parsing."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        403, {"title": "Forbidden", "detail": "quota exceeded"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "quota exceeded"
+
+
+@pytest.mark.asyncio
+async def test_async_run_api_error_falls_back_to_message_without_detail_or_title(monkeypatch):
+    """Async client must fall back to message when detail/title are absent."""
+    import inferencesh.client as client_mod
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: _async_failing_run_response(
+        400, {"message": "invalid app ref"},
+    )()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(APIError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    assert exc_info.value.message == "invalid app ref"
+
+
+@pytest.mark.asyncio
 async def test_async_run_raises_requirements_not_met_on_412(monkeypatch):
     """Async 412 with errors array must raise RequirementsNotMetError."""
     import inferencesh.client as client_mod
@@ -868,6 +988,32 @@ async def test_async_cancel(patch_aiohttp):
 
     # Should not raise
     await client.cancel("task_async_123")
+
+
+@pytest.mark.asyncio
+async def test_async_stream_reconciles_via_get_when_no_terminal_event(monkeypatch, patch_aiohttp):
+    """AsyncTaskStream GET-reconciles when the NDJSON stream ends without a terminal event."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7, "output": None}
+
+    async def fake_get_task(tid):
+        return {
+            "id": tid,
+            "status": TaskStatus.COMPLETED,
+            "output": {"reconciled": True},
+        }
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    async with await client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
+        updates = [update async for update in stream]
+
+    assert stream.result is not None
+    assert stream.result["output"] == {"reconciled": True}
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
 
 
 @pytest.mark.asyncio
