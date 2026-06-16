@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-06-14 (push main @ 9b57a33, wait_for_completion + StreamManager gaps)
+
+**Recent changes reviewed:** `9b57a33` (stream GET-reconcile, partial NDJSON, instance/suggest types — already covered), `caa2b79` (v2 wait_for_completion timeout + GET reconciliation escape hatch).
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `wait_for_completion` / async: GET-reconcile when stream ends without terminal event; `TimeoutError` when task stays non-terminal; immediate FAILED/CANCELLED from stream; GET-reconcile FAILED after stream end
+- `AsyncTaskStream` GET-reconcile FAILED/CANCELLED parity with sync
+- `StreamManager` routes `{data, fields}` partial envelopes to `on_partial_data` (falls back to `on_data`)
+- `AsyncInference.upload_file()` from filesystem path (also fixed broken `aiofiles.open` usage)
+
+**Files:** `tests/test_client.py`, `src/inferencesh/client.py` (aiofiles bugfix)
+
 ## 2026-06-14 (push main @ 300c884, stream reconcile + typegen field gaps)
 
 **Recent changes reviewed:** `300c884` (KnowledgeType/async RFC 9457 — already covered), `28cd082`/`eff7d5e` (InstanceTypeDTO fields), `fb56d97` (Suggest types), `caa2b79` (v2 stream reconcile escape hatch).
