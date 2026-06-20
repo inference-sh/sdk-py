@@ -894,6 +894,8 @@ class MenuItem(TypedDict, total=False):
 # PlanLimit defines a single resource limit or feature gate within a plan.
 class PlanLimit(TypedDict, total=False):
     type: EntitlementType
+    label: str
+    unit: str
     enabled: bool
     unlimited: bool
     limit: int
@@ -1904,6 +1906,7 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 
 # IntegrationDTO for API responses (never exposes tokens)
 class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    scope: IntegrationScope
     provider: IntegrationProvider
     type: IntegrationAuthType
     auth: IntegrationAuthType
@@ -2469,18 +2472,24 @@ class DeviceAuthStatus(str, Enum):
     LOADING = "loading"
 
 class EntitlementResource(str, Enum):
+    # Capacity limits — scale with tier
     RESOURCE_API_KEYS = "api_keys"
     RESOURCE_CONNECTORS = "connectors"
     RESOURCE_KNOWLEDGE_BASES = "knowledge_bases"
-    RESOURCE_PRIVATE_APPS = "private_apps"
     RESOURCE_STORAGE_MB = "storage_mb"
     RESOURCE_CONCURRENCY = "concurrency"
     RESOURCE_RATE_PER_MIN = "rate_per_min"
     RESOURCE_SEATS = "seats"
+    RESOURCE_TRIGGERS = "triggers"
+    RESOURCE_RETENTION_DAYS = "retention_days"
+    # Legacy — kept for DB compatibility, no longer in plan seeds
+    RESOURCE_PRIVATE_APPS = "private_apps"
     RESOURCE_TASK_EXECUTIONS = "task_executions"
+    # Feature gates — only what has real cost/complexity
+    RESOURCE_FEATURE_BYOK = "feature:byok"
+    # Legacy feature gates — kept for DB compatibility, no longer gated
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
     RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
-    RESOURCE_FEATURE_BYOK = "feature:byok"
     RESOURCE_FEATURE_TEAM_BILLING = "feature:team_billing"
     RESOURCE_FEATURE_AUTO_RECHARGE = "feature:auto_recharge"
     RESOURCE_FEATURE_INVOICES = "feature:invoices"
@@ -2520,6 +2529,12 @@ class IntegrationStatus(str, Enum):
     DISCONNECTED = "disconnected"
     EXPIRED = "expired"
     ERROR = "error"
+
+class IntegrationScope(str, Enum):
+    # IntegrationScopeTeam is owned by a user/team (BYOK credentials, user connections)
+    TEAM = "team"
+    # IntegrationScopePlatform is owned by the platform (managed credentials, admin-configured)
+    PLATFORM = "platform"
 
 class WidgetNodeType(str, Enum):
     TEXT = "text"
@@ -2570,6 +2585,10 @@ class NotificationType(str, Enum):
     USAGE_SUMMARY = "usage_summary"
     SPENDING_LIMIT = "spending_limit"
     INVOICE = "invoice"
+    SUBSCRIPTION_CREATED = "subscription_created"
+    SUBSCRIPTION_CREDIT = "subscription_credit"
+    SUBSCRIPTION_CANCELED = "subscription_canceled"
+    SUBSCRIPTION_TRIAL_ENDING = "subscription_trial_ending"
     # Account notifications
     WELCOME = "welcome"
     WELCOME_AGENTS = "welcome_agents"
