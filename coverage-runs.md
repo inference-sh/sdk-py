@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-06-23 (push dev @ 9c89152, typegen regen: integrations, billing, workflows)
+
+**Recent changes reviewed:** `9c89152` / `a792932` (IntegrationScope enum, IntegrationRequirement secrets/scopes, PlanLimit label/unit, GraphNodeType.TRIGGER, EntitlementResource triggers/retention_days, NotificationType subscription events, IntegrationDTO.scope).
+
+**Open PRs checked:** none open — stale `cursor/missing-test-coverage-*` and `cursor/test-coverage-automation-*` branches are behind dev; no overlapping test work.
+
+**Gaps filled this run:**
+
+- `IntegrationScope` team vs platform ownership enum
+- `GraphNodeType.TRIGGER` workflow node kind
+- `NotificationType` subscription lifecycle events (created, credit, canceled, trial_ending)
+- `EntitlementResource` new capacity limits (`triggers`, `retention_days`) and feature gate stability
+- `IntegrationRequirement.secrets` / `.scopes` TypedDict fields for app manifests
+- `PlanLimit.label` / `.unit` for billing UI display
+- `IntegrationDTO.scope` field wiring
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-06-14 (push main @ 9b57a33, wait_for_completion + StreamManager gaps)
 
 **Recent changes reviewed:** `9b57a33` (stream GET-reconcile, partial NDJSON, instance/suggest types — already covered), `caa2b79` (v2 wait_for_completion timeout + GET reconciliation escape hatch).
