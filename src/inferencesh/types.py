@@ -494,11 +494,16 @@ class SecretRequirement(TypedDict, total=False):
     description: str
     optional: bool
 
-# IntegrationRequirement defines an integration capability that an app requires.
+# IntegrationRequirement defines an integration that an app requires.
+# Key is the provider slug (e.g. "bytedance", "google").
+# Secrets lists the specific env var names to inject from this integration.
+# Scopes lists OAuth scopes needed (for OAuth integrations).
 class IntegrationRequirement(TypedDict, total=False):
     key: str
     description: str
     optional: bool
+    secrets: List[str]
+    scopes: List[str]
 
 # AppStoreListingDTO for API responses
 class AppStoreListingDTO(TypedDict, total=False):
@@ -2263,6 +2268,7 @@ class GraphNodeType(str, Enum):
     APPROVAL = "approval"
     CONDITIONAL = "conditional"
     FLOW_NODE = "flow_node"
+    TRIGGER = "trigger"
 
 class GraphNodeStatus(str, Enum):
     PENDING = "pending"
