@@ -1,7 +1,5 @@
 """Tests for structured API error types."""
 
-import pytest
-
 from inferencesh.models.errors import (
     APIError,
     RequirementError,

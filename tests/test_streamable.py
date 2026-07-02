@@ -1,9 +1,6 @@
 """Tests for streamable HTTP module."""
 
-import json
-import pytest
-from unittest.mock import MagicMock, patch
-from inferencesh.streamable import streamable, streamable_raw, iter_ndjson, StreamableMessage
+from inferencesh.streamable import streamable, streamable_raw, iter_ndjson
 
 
 class MockResponse:

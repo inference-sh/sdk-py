@@ -1,7 +1,5 @@
 """Tests for the tool builder fluent API."""
 
-import pytest
-
 from inferencesh.tools import (
     tool,
     app_tool,

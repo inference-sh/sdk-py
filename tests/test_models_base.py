@@ -3,7 +3,6 @@
 import pytest
 from pydantic import BaseModel
 
-from inferencesh import File
 from inferencesh.models.base import (
     BaseApp,
     BaseAppInput,

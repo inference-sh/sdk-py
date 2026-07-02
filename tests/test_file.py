@@ -1,10 +1,9 @@
 """Tests for File class lazy loading and JSON schema generation."""
 
 import os
-import json
 import tempfile
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pydantic import BaseModel, Field
 
 from inferencesh import File
