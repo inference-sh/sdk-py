@@ -23,6 +23,7 @@ from inferencesh.types import (
     NotificationStatus,
     NotificationType,
     RefRouteType,
+    RequirementType,
     ResourceType,
     SecretScope,
     SubscriptionInterval,
@@ -81,6 +82,7 @@ def test_tool_call_type_only_function_kind():
     "enum_cls,member,value",
     [
         (IntegrationProvider, "GIT_HUB", "github"),
+        (IntegrationProvider, "GOOGLE_SA", "google-sa"),
         (IntegrationProvider, "GCP", "gcp"),
         (IntegrationProvider, "MCP", "mcp"),
         (IntegrationAuthType, "O_AUTH", "oauth"),
@@ -441,3 +443,46 @@ def test_suggest_types_shape():
 
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["score"] == 0.92
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SECRET", "secret"),
+        ("INTEGRATION", "integration"),
+        ("SCOPE", "scope"),
+    ],
+)
+def test_requirement_type_values(member, value):
+    """412 requirement errors must distinguish secrets, integrations, and OAuth scopes."""
+    assert hasattr(RequirementType, member)
+    assert getattr(RequirementType, member).value == value
+
+
+def test_integration_config_dto_slug():
+    """Integration catalog entries are keyed by provider slug (e.g. google-sa)."""
+    from inferencesh.types import IntegrationConfigDTO
+
+    config: IntegrationConfigDTO = {
+        "slug": "google-sa",
+        "provider": IntegrationProvider.GOOGLE_SA,
+        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "name": "Google Service Account",
+        "available": True,
+    }
+    assert config["slug"] == "google-sa"
+    assert config["provider"] == IntegrationProvider.GOOGLE_SA
+
+
+def test_check_requirements_response_uses_requirement_type():
+    """CheckRequirementsResponse errors use RequirementType for structured 412 payloads."""
+    from inferencesh.types import CheckRequirementsResponse, RequirementError
+
+    err: RequirementError = {
+        "type": RequirementType.SCOPE,
+        "key": "drive.readonly",
+        "message": "Grant Google Drive read scope",
+    }
+    resp: CheckRequirementsResponse = {"satisfied": False, "errors": [err]}
+
+    assert resp["errors"][0]["type"] == RequirementType.SCOPE

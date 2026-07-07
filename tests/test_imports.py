@@ -129,6 +129,7 @@ def test_models_llm_export_exists(name):
     "ToolCallType", "ToolParamType",
     # Integrations
     "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
+    "IntegrationConfigDTO", "RequirementType",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)

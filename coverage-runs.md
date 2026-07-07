@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-07-07 (push dev @ f1a3cbe, google-sa provider + RequirementType enum)
+
+**Recent changes reviewed:** `f1a3cbe` (IntegrationProvider.GOOGLE_SA, RequirementType enum, IntegrationConfigDTO.slug, RequirementError.type typed as RequirementType).
+
+**Open PRs checked:** #92 (draft) covers IntegrationScope/entitlement limits from `9c89152`/`a792932` — no overlap. #93 is lint-only.
+
+**Gaps filled this run:**
+
+- `IntegrationProvider.GOOGLE_SA` (`google-sa`) service-account provider slug
+- `RequirementType` enum (`secret`, `integration`, `scope`) for structured 412 errors
+- `IntegrationConfigDTO.slug` catalog key field
+- `CheckRequirementsResponse` / `RequirementError` TypedDict shape with `RequirementType.SCOPE`
+- `RequirementError.from_dict` scope requirement parsing
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`
+
 ## 2026-06-14 (push main @ 9b57a33, wait_for_completion + StreamManager gaps)
 
 **Recent changes reviewed:** `9b57a33` (stream GET-reconcile, partial NDJSON, instance/suggest types — already covered), `caa2b79` (v2 wait_for_completion timeout + GET reconciliation escape hatch).

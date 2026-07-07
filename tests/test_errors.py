@@ -43,6 +43,15 @@ class TestRequirementError:
         assert err.action is not None
         assert err.action.provider == "github"
 
+    def test_from_dict_scope_requirement(self):
+        err = RequirementError.from_dict({
+            "type": "scope",
+            "key": "drive.readonly",
+            "message": "Grant Google Drive read scope",
+        })
+        assert err.type == "scope"
+        assert err.key == "drive.readonly"
+
 
 class TestRequirementsNotMetError:
     def test_from_response_builds_errors(self):
