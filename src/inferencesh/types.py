@@ -752,6 +752,7 @@ class InstanceTypeBootTime(TypedDict, total=False):
 
 # IntegrationConfigDTO is the API response for integration configuration
 class IntegrationConfigDTO(TypedDict, total=False):
+    slug: str
     provider: str
     type: str
     auth: str
@@ -1025,7 +1026,7 @@ class SuggestResult(TypedDict, total=False):
 
 # RequirementError represents a single missing requirement with actionable info
 class RequirementError(TypedDict, total=False):
-    type: str
+    type: RequirementType
     key: str
     message: str
     action: Optional[SetupAction]
@@ -2167,6 +2168,12 @@ class ScopeGroup(str, Enum):
     USER = "user"
     SETTINGS = "settings"
 
+# Requirement error types
+class RequirementType(str, Enum):
+    SECRET = "secret"
+    INTEGRATION = "integration"
+    SCOPE = "scope"
+
 class AppCategory(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
@@ -2512,6 +2519,7 @@ class ContentRating(str, Enum):
 
 class IntegrationProvider(str, Enum):
     GOOGLE = "google"
+    GOOGLE_SA = "google-sa"
     SLACK = "slack"
     NOTION = "notion"
     GIT_HUB = "github"
