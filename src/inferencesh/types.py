@@ -335,6 +335,12 @@ class AuthResponse(TypedDict, total=False):
     redirect_to: str
     provider: str
 
+# DeviceAuthInitRequest is the optional body for initiating device auth.
+# TokenKind selects the credential minted on approval; empty means
+# DeviceTokenKindAPIKey (legacy CLIs send no body).
+class DeviceAuthInitRequest(TypedDict, total=False):
+    token_kind: DeviceTokenKind
+
 class DeviceAuthResponse(TypedDict, total=False):
     user_code: str
     device_code: str
@@ -345,7 +351,11 @@ class DeviceAuthResponse(TypedDict, total=False):
 
 class DeviceAuthPollResponse(TypedDict, total=False):
     status: DeviceAuthStatus
+    # ApiKey is set for legacy device-auth API key logins.
+    # TODO: remove once CLIs older than the session-token release are retired.
     api_key: str
+    # SessionToken is set when the flow was initiated with token_kind=session.
+    session_token: str
     team_id: str
 
 class TeamCreateRequest(TypedDict, total=False):
@@ -2483,6 +2493,14 @@ class DeviceAuthStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
     LOADING = "loading"
+
+class DeviceTokenKind(str, Enum):
+    # DeviceTokenKindSession mints a revocable CLI session (acts as the user,
+    # supports team switching via X-Team-ID).
+    SESSION = "session"
+    # DeviceTokenKindAPIKey mints a device-scoped API key.
+    # TODO: retire once CLIs older than the session-token release are gone.
+    API_KEY = "api_key"
 
 class EntitlementResource(str, Enum):
     # Capacity limits — scale with tier
