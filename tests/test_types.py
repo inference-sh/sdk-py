@@ -4,6 +4,7 @@ import pytest
 
 from inferencesh.types import (
     DeviceAuthStatus,
+    DeviceTokenKind,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -287,6 +288,48 @@ def test_device_auth_status_values(member, value):
     """Device code login polling must recognize all backend status strings."""
     assert hasattr(DeviceAuthStatus, member)
     assert getattr(DeviceAuthStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SESSION", "session"),
+        ("API_KEY", "api_key"),
+    ],
+)
+def test_device_token_kind_values(member, value):
+    """Device auth init must distinguish session tokens from legacy API keys."""
+    assert hasattr(DeviceTokenKind, member)
+    assert getattr(DeviceTokenKind, member).value == value
+
+
+def test_device_auth_init_request_token_kind():
+    """CLIs can request a revocable session token instead of a device API key."""
+    from inferencesh.types import DeviceAuthInitRequest
+
+    req: DeviceAuthInitRequest = {"token_kind": DeviceTokenKind.SESSION}
+    assert req["token_kind"] == DeviceTokenKind.SESSION
+
+
+def test_device_auth_poll_response_session_and_api_key():
+    """Poll responses return session_token or api_key depending on init token_kind."""
+    from inferencesh.types import DeviceAuthPollResponse
+
+    session_resp: DeviceAuthPollResponse = {
+        "status": DeviceAuthStatus.VALID,
+        "session_token": "sess_cli_abc",
+        "team_id": "team_123",
+    }
+    api_key_resp: DeviceAuthPollResponse = {
+        "status": DeviceAuthStatus.VALID,
+        "api_key": "inf_key_legacy",
+        "team_id": "team_123",
+    }
+
+    assert session_resp["session_token"] == "sess_cli_abc"
+    assert "api_key" not in session_resp
+    assert api_key_resp["api_key"] == "inf_key_legacy"
+    assert "session_token" not in api_key_resp
 
 
 @pytest.mark.parametrize(
