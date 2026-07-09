@@ -1,5 +1,19 @@
 # Coverage automation runs
 
+## 2026-07-08 (push dev @ 11edeb4, device auth session token types)
+
+**Recent changes reviewed:** `11edeb4` (DeviceTokenKind enum, DeviceAuthInitRequest.token_kind, DeviceAuthPollResponse.session_token).
+
+**Open PRs checked:** #94 (draft) covers `f1a3cbe` GOOGLE_SA/RequirementType — no overlap. #92 (draft) covers IntegrationScope/entitlement limits from `9c89152` — no overlap. #93 is lint-only.
+
+**Gaps filled this run:**
+
+- `DeviceTokenKind` enum (`session`, `api_key`) for CLI credential selection
+- `DeviceAuthInitRequest` TypedDict with optional `token_kind`
+- `DeviceAuthPollResponse` session-token vs legacy API-key credential paths
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-06-14 (push main @ 9b57a33, wait_for_completion + StreamManager gaps)
 
 **Recent changes reviewed:** `9b57a33` (stream GET-reconcile, partial NDJSON, instance/suggest types — already covered), `caa2b79` (v2 wait_for_completion timeout + GET reconciliation escape hatch).
