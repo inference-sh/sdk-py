@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-07-09 (push dev @ e8716c2, lint-only import cleanup)
+
+**Recent changes reviewed:** `e8716c2` (F401 unused-import cleanup only — no behavior change). Prior commits `11edeb4`/`00b289b` (device auth session tokens — already covered in #95), `f1a3cbe` (GOOGLE_SA/RequirementType — open PR #94).
+
+**Open PRs checked:** #94 covers GOOGLE_SA/RequirementType/IntegrationConfigDTO — no overlap. #92 (draft) covers IntegrationScope/entitlement/TRIGGER — no overlap.
+
+**Gaps filled this run:**
+
+- `DeviceAuthResponse` init payload shape (user_code, device_code, poll/approve URLs, timing)
+- `UpdateIntegrationScopesRequest` TypedDict for OAuth scope expansion
+- `IntegrationDTO.service_account_email` with `IntegrationProvider.GOOGLE_SA` / `SERVICE_ACCOUNT` auth
+- `IntegrationAuthType.SERVICE_ACCOUNT` enum stability
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-08 (push dev @ 11edeb4, device auth session token types)
 
 **Recent changes reviewed:** `11edeb4` (DeviceTokenKind enum, DeviceAuthInitRequest.token_kind, DeviceAuthPollResponse.session_token).
