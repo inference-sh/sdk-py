@@ -1511,6 +1511,7 @@ async def test_async_files_upload_via_namespace(patch_aiohttp):
 @pytest.mark.asyncio
 async def test_async_upload_file_from_path(tmp_path, patch_aiohttp):
     """Async upload_file() reads bytes from an existing filesystem path."""
+    pytest.importorskip("aiofiles")
     file_path = tmp_path / "test.txt"
     file_path.write_bytes(b"hello world")
 

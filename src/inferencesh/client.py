@@ -1623,8 +1623,12 @@ def _b64_to_bytes(b64: str) -> bytes:
 
 
 def _aio_open_file(path: str, mode: str):
-    import aiofiles  # type: ignore
-
+    try:
+        import aiofiles  # type: ignore
+    except Exception as exc:  # pragma: no cover - dependency hint
+        raise RuntimeError(
+            "The 'aiofiles' package is required for async file I/O. Install with: pip install aiofiles"
+        ) from exc
     return aiofiles.open(path, mode)
 
 
