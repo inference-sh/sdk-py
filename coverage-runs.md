@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-07-09 (push dev @ 73cdf23, aiofiles missing error fix)
+
+**Recent changes reviewed:** `73cdf23` (RuntimeError when aiofiles absent; importorskip on async path upload test). Remaining gaps from `9c89152` typegen: `IntegrationScope`, `EntitlementResource`/`RESOURCE_TRIGGERS`, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER` (closed PRs #92/#99 never merged).
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `_aio_open_file()` raises `RuntimeError` with `pip install aiofiles` hint when dependency missing (regression guard for `73cdf23`)
+- `GraphNodeType.TRIGGER` workflow node kind
+- `IntegrationScope` enum (`team`, `platform`) on `IntegrationDTO`
+- `EntitlementResource` plan limit keys including `RESOURCE_TRIGGERS`
+- `IntegrationRequirement` TypedDict `secrets`/`scopes` fields for app manifests
+- `PlanDTO.limits` `PlanLimits` mapping with `PlanLimit` entries
+
+**Files:** `tests/test_client_helpers.py`, `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
 **Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).
