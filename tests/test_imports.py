@@ -128,9 +128,11 @@ def test_models_llm_export_exists(name):
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallType", "ToolParamType",
     # Integrations
-    "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
+    "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus", "IntegrationScope",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
+    # Billing entitlements (a792932 regen)
+    "EntitlementResource", "EntitlementType", "PlanLimit",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
     # Instance types (eff7d5e, 28cd082)

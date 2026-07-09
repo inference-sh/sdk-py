@@ -5,6 +5,7 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
+    EntitlementResource,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -14,6 +15,7 @@ from inferencesh.types import (
     InstanceTypeDeploymentType,
     IntegrationAuthType,
     IntegrationProvider,
+    IntegrationScope,
     IntegrationStatus,
     IntegrationType,
     RequirementType,
@@ -131,6 +133,7 @@ def test_instance_status_lifecycle_values(member, value):
         ("APPROVAL", "approval"),
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
+        ("TRIGGER", "trigger"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -373,6 +376,10 @@ def test_notification_priority_values(member, value):
         ("USAGE_SUMMARY", "usage_summary"),
         ("SPENDING_LIMIT", "spending_limit"),
         ("INVOICE", "invoice"),
+        ("SUBSCRIPTION_CREATED", "subscription_created"),
+        ("SUBSCRIPTION_CREDIT", "subscription_credit"),
+        ("SUBSCRIPTION_CANCELED", "subscription_canceled"),
+        ("SUBSCRIPTION_TRIAL_ENDING", "subscription_trial_ending"),
         ("WELCOME", "welcome"),
         ("WELCOME_AGENTS", "welcome_agents"),
         ("WELCOME_APPS", "welcome_apps"),
@@ -585,3 +592,77 @@ def test_check_requirements_response_uses_requirement_type():
     resp: CheckRequirementsResponse = {"satisfied": False, "errors": [err]}
 
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEAM", "team"),
+        ("PLATFORM", "platform"),
+    ],
+)
+def test_integration_scope_values(member, value):
+    """IntegrationDTO.scope distinguishes team-owned vs platform-managed credentials."""
+    assert hasattr(IntegrationScope, member)
+    assert getattr(IntegrationScope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RESOURCE_TRIGGERS", "triggers"),
+        ("RESOURCE_RETENTION_DAYS", "retention_days"),
+        ("RESOURCE_API_KEYS", "api_keys"),
+        ("RESOURCE_FEATURE_BYOK", "feature:byok"),
+        ("RESOURCE_PRIVATE_APPS", "private_apps"),
+    ],
+)
+def test_entitlement_resource_billing_values(member, value):
+    """Plan entitlement keys must include new capacity limits and legacy compat values."""
+    assert hasattr(EntitlementResource, member)
+    assert getattr(EntitlementResource, member).value == value
+
+
+def test_integration_requirement_secrets_and_scopes():
+    """App manifests can declare per-integration env vars and OAuth scopes."""
+    from inferencesh.types import IntegrationRequirement
+
+    req: IntegrationRequirement = {
+        "key": "google",
+        "description": "Google OAuth",
+        "optional": False,
+        "secrets": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+    }
+    assert req["secrets"][0] == "GOOGLE_CLIENT_ID"
+    assert req["scopes"][0].endswith("drive.readonly")
+
+
+def test_plan_limit_label_and_unit():
+    """PlanLimit label/unit support human-readable quota display in billing UIs."""
+    from inferencesh.types import EntitlementType, PlanLimit
+
+    limit: PlanLimit = {
+        "type": EntitlementType.LIMIT,
+        "label": "API rate",
+        "unit": "requests/min",
+        "enabled": True,
+        "unlimited": False,
+        "limit": 100,
+    }
+    assert limit["label"] == "API rate"
+    assert limit["unit"] == "requests/min"
+
+
+def test_integration_dto_scope_field():
+    """Integration list responses expose team vs platform ownership via scope."""
+    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationProvider
+
+    dto: IntegrationDTO = {
+        "scope": IntegrationScope.TEAM,
+        "provider": IntegrationProvider.GOOGLE,
+        "type": IntegrationAuthType.O_AUTH,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "Google Workspace",
+    }
+    assert dto["scope"] == IntegrationScope.TEAM

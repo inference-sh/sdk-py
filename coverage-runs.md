@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-07-09 (push dev @ ce23d19, RequirementType tests merged)
+
+**Recent changes reviewed:** `ce23d19` (RequirementType, IntegrationConfigDTO.slug — already merged). Remaining gaps from `a792932`/`9c89152`: `IntegrationScope`, `EntitlementResource` capacity limits, `PlanLimit` label/unit, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER`, subscription notification types. PR #92 was closed without merge.
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `IntegrationScope` enum (`team`, `platform`) for BYOK vs platform-managed integrations
+- `EntitlementResource` new limits (`triggers`, `retention_days`) and legacy compat keys
+- `IntegrationRequirement` `secrets`/`scopes` fields for app manifest declarations
+- `PlanLimit` `label`/`unit` for billing quota display
+- `IntegrationDTO.scope` ownership field
+- `GraphNodeType.TRIGGER` workflow node kind
+- `NotificationType` subscription lifecycle events
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
 **Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).
