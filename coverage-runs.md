@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
+
+**Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).
+
+**Open PRs checked:** #92 (draft) covers IntegrationScope/entitlement/TRIGGER/IntegrationRequirement secrets — no overlap.
+
+**Gaps filled this run:**
+
+- `RequirementType` enum (`secret`, `integration`, `scope`) for 412 requirement errors
+- `IntegrationConfigDTO.slug` provider catalog key (e.g. `google-sa`)
+- `CheckRequirementsResponse` errors typed with `RequirementType`
+- `IntegrationProvider.GOOGLE_SA` enum stability in integration parametrize
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-09 (push dev @ e8716c2, lint-only import cleanup)
 
 **Recent changes reviewed:** `e8716c2` (F401 unused-import cleanup only — no behavior change). Prior commits `11edeb4`/`00b289b` (device auth session tokens — already covered in #95), `f1a3cbe` (GOOGLE_SA/RequirementType — open PR #94).

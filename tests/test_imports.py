@@ -140,6 +140,8 @@ def test_models_llm_export_exists(name):
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
     "UpdateIntegrationScopesRequest",
+    "RequirementType", "IntegrationConfigDTO",
+    "CheckRequirementsRequest", "CheckRequirementsResponse",
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
