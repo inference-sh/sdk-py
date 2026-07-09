@@ -86,6 +86,7 @@ def test_tool_call_type_only_function_kind():
         (IntegrationProvider, "MCP", "mcp"),
         (IntegrationAuthType, "O_AUTH", "oauth"),
         (IntegrationAuthType, "API_KEY", "api_key"),
+        (IntegrationAuthType, "SERVICE_ACCOUNT", "service_account"),
         (IntegrationAuthType, "WIF", "wif"),
         (IntegrationStatus, "CONNECTED", "connected"),
         (IntegrationStatus, "DISCONNECTED", "disconnected"),
@@ -484,3 +485,58 @@ def test_suggest_types_shape():
 
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["score"] == 0.92
+
+
+def test_device_auth_response_init_shape():
+    """Device auth init returns codes and polling URLs for CLI login flows."""
+    from inferencesh.types import DeviceAuthResponse
+
+    resp: DeviceAuthResponse = {
+        "user_code": "ABCD-1234",
+        "device_code": "dev_secret_xyz",
+        "poll_url": "https://api.inference.sh/v1/auth/device/poll",
+        "approve_url": "https://inference.sh/device?code=ABCD-1234",
+        "expires_in": 900,
+        "interval": 5,
+    }
+
+    assert resp["user_code"] == "ABCD-1234"
+    assert resp["expires_in"] == 900
+    assert resp["poll_url"].endswith("/poll")
+
+
+def test_update_integration_scopes_request():
+    """OAuth integrations can request additional scopes after initial connect."""
+    from inferencesh.types import UpdateIntegrationScopesRequest
+
+    req: UpdateIntegrationScopesRequest = {
+        "scopes": [
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/calendar.readonly",
+        ],
+    }
+
+    assert len(req["scopes"]) == 2
+    assert req["scopes"][0].endswith("drive.readonly")
+
+
+def test_integration_dto_google_sa_service_account():
+    """Google service-account integrations expose the bound SA email on IntegrationDTO."""
+    from inferencesh.types import (
+        IntegrationAuthType,
+        IntegrationDTO,
+        IntegrationProvider,
+        IntegrationStatus,
+    )
+
+    dto: IntegrationDTO = {
+        "provider": IntegrationProvider.GOOGLE_SA,
+        "type": IntegrationAuthType.SERVICE_ACCOUNT,
+        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "GCP Production",
+        "service_account_email": "sdk-runner@my-project.iam.gserviceaccount.com",
+    }
+
+    assert dto["provider"] == IntegrationProvider.GOOGLE_SA
+    assert dto["service_account_email"].endswith(".gserviceaccount.com")
