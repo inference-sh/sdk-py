@@ -6,7 +6,7 @@
 
 official python sdk for [inference.sh](https://inference.sh) — the ai agent runtime for serverless ai inference.
 
-run ai models, build ai agents, and deploy generative ai applications. access 250+ models including flux, stable diffusion, llms (claude, gpt, gemini), video generation (veo, seedance), and more.
+run ai models, build ai agents, and deploy generative ai applications. access models including flux, stable diffusion, llms (claude, gpt, gemini), video generation (veo, seedance), and more.
 
 ## installation
 

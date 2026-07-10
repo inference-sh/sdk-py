@@ -2258,6 +2258,7 @@ class EngineStatus(str, Enum):
     RUNNING = "running"
     PENDING = "pending"
     DRAINING = "draining"
+    DISCONNECTED = "disconnected"
     STOPPING = "stopping"
     STOPPED = "stopped"
 
@@ -2285,6 +2286,7 @@ class GraphNodeType(str, Enum):
     CONDITIONAL = "conditional"
     FLOW_NODE = "flow_node"
     TRIGGER = "trigger"
+    INTEGRATION_REQUIREMENT = "integration_requirement"
 
 class GraphNodeStatus(str, Enum):
     PENDING = "pending"
@@ -2556,6 +2558,7 @@ class IntegrationAuthType(str, Enum):
     MCP = "mcp"
 
 class IntegrationStatus(str, Enum):
+    PENDING = "pending"
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     EXPIRED = "expired"
