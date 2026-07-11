@@ -11,6 +11,45 @@ from pydantic import BaseModel, Field
 from inferencesh.output_meta_gen import MetaItemType
 
 
+def probe_video(path: str) -> dict:
+    """Probe a video file for width, height, fps, frame count, and duration.
+
+    Uses ffprobe (requires ffmpeg installed — add 'ffmpeg' to packages.txt).
+    Returns dict with keys: width, height, fps, nb_frames, seconds.
+    Returns empty dict on failure.
+
+    The seconds value is derived from nb_frames / fps for frame-accurate
+    duration, which matches how upstream APIs (e.g. BytePlus) calculate
+    token consumption.
+    """
+    import subprocess
+    import json
+
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_streams", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            data = json.loads(result.stdout)
+            for s in data.get("streams", []):
+                if s.get("codec_type") == "video":
+                    fps_str = s.get("r_frame_rate", "0/1")
+                    num, den = fps_str.split("/")
+                    fps = int(num) / int(den) if int(den) > 0 else 0.0
+                    nb_frames = int(s.get("nb_frames", 0))
+                    return {
+                        "width": int(s.get("width", 0)),
+                        "height": int(s.get("height", 0)),
+                        "fps": fps,
+                        "nb_frames": nb_frames,
+                        "seconds": nb_frames / fps if fps > 0 else 0.0,
+                    }
+    except Exception:
+        pass
+    return {}
+
+
 class MetaItem(BaseModel):
     """Base class for input/output metadata items."""
     type: str  # "text", "image", "video", "audio", "raw"
@@ -57,6 +96,24 @@ class VideoMeta(MetaItem):
     )
     seconds: float = Field(default=0, description="Duration in seconds")
     fps: int = Field(default=0, description="Frames per second")
+
+    @classmethod
+    def from_file(cls, path: str, **kwargs) -> "VideoMeta":
+        """Create VideoMeta by probing a video file with ffprobe.
+
+        Populates width, height, fps, and seconds from the actual file.
+        Additional fields (resolution, extra, etc.) can be passed as kwargs.
+
+        Requires ffmpeg/ffprobe to be installed (add 'ffmpeg' to packages.txt).
+        """
+        info = probe_video(path)
+        return cls(
+            width=info.get("width", 0),
+            height=info.get("height", 0),
+            fps=int(info.get("fps", 0)),
+            seconds=info.get("seconds", 0.0),
+            **kwargs,
+        )
 
 
 class AudioMeta(MetaItem):

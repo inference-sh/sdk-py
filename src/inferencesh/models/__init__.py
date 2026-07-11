@@ -23,6 +23,7 @@ from .output_meta import (
     AudioMeta,
     RawMeta,
     OutputMeta,
+    probe_video,
 )
 from inferencesh.output_meta_gen import MetaItemType, VideoResolution
 from .errors import (
@@ -61,6 +62,7 @@ __all__ = [
     "AudioMeta",
     "RawMeta",
     "OutputMeta",
+    "probe_video",
     # Error types
     "APIError",
     "RequirementsNotMetError",

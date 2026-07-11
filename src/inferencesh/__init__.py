@@ -29,6 +29,7 @@ from .models import (
     AudioMeta,
     RawMeta,
     OutputMeta,
+    probe_video,
 )
 
 from .utils import StorageDir, download
