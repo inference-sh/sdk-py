@@ -639,4 +639,4 @@ def test_setup_action_typed_dict_shape():
 
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
-    assert "drive.readonly" in action["scope_descriptions"]
+    assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
