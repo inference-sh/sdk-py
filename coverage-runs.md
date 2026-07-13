@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ cc2685a, entitlement source tests merged)
+
+**Recent changes reviewed:** `cc2685a` (AppStoreListingDTO/UserMetadataDTO restore, EntitlementSource/WorkerStatus — merged). Ping-pong between coverage commits dropped Scope/ScopeGroup/AuthSessionDTO, SetupActionType/EngineStatus, IntegrationStatus.PENDING, and GraphNodeType.INTEGRATION_REQUIREMENT tests that were added in `8a4dc1a`/`8ca6d5a`.
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `Scope` / `ScopeGroup` API key permission enums and `ScopesResponse` catalog shape
+- `AuthSessionDTO.scopes` for session listing with granted permissions
+- `SetupActionType` enum and `SetupAction` TypedDict (412 requirement remediation)
+- `EngineStatus` lifecycle (`running`, `pending`, `draining`, `disconnected`, `stopping`, `stopped`)
+- `IntegrationStatus.PENDING` for OAuth-in-progress connections
+- `GraphNodeType.INTEGRATION_REQUIREMENT` workflow node kind
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-13 (push dev @ 893a4cf, aiofiles + entitlement tests merged)
 
 **Recent changes reviewed:** `893a4cf` (aiofiles RuntimeError, entitlement/IntegrationScope gaps — merged). `a71ad24` AppStoreListingDTO/UserMetadataDTO tests were accidentally dropped when `893a4cf` replaced them with entitlement coverage. `6fd3aac` production: `min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at`/`terms_version` on `UserMetadataDTO`.
