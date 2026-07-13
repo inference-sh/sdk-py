@@ -147,6 +147,8 @@ def test_models_llm_export_exists(name):
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "IntegrationType",
+    # API key scopes + session listing (0f41d5e typegen regen)
+    "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ 1f973e7, v0.7.10 + AuthSessionDTO scopes typegen)
+
+**Recent changes reviewed:** `1f973e7` (version bump), `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`), `0f41d5e` (`AuthSessionDTO.scopes`, `SetupAction` provider/scope fields). Skipped: `898f677` (dependabot), README copy.
+
+**Open PRs checked:** #106 (AppStoreListingDTO/UserMetadataDTO), #103 (probe_video/SetupActionType/typegen enums), #101 (aiofiles/entitlement) — no overlap with API key scope types.
+
+**Gaps filled this run:**
+
+- `Scope` enum stability for API key permission strings (resource + action-level)
+- `ScopeGroup` enum for scope catalog grouping
+- `AuthSessionDTO.scopes` field for active-session permission listing
+- `ScopesResponse` / `ScopeDefinition` catalog TypedDict shape
+- `SetupAction.from_dict()` parses `provider_name` and `scope_descriptions` from 412 payloads
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`, `src/inferencesh/models/errors.py`
+
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
 **Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).

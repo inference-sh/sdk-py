@@ -5,6 +5,8 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
+    Scope,
+    ScopeGroup,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -585,3 +587,92 @@ def test_check_requirements_response_uses_requirement_type():
     resp: CheckRequirementsResponse = {"satisfied": False, "errors": [err]}
 
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALL", "*"),
+        ("AGENTS", "agents"),
+        ("APPS", "apps"),
+        ("FLOWS_EXECUTE", "flows:execute"),
+        ("SECRETS_READ", "secrets:read"),
+        ("API_KEYS_WRITE", "apikeys:write"),
+        ("SETTINGS_READ", "settings:read"),
+    ],
+)
+def test_scope_permission_values(member, value):
+    """API key scopes must stay stable for permission checks and session listings."""
+    assert hasattr(Scope, member)
+    assert getattr(Scope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("AGENTS", "agents"),
+        ("SECRETS", "secrets"),
+        ("INTEGRATIONS", "integrations"),
+        ("ENGINES", "engines"),
+        ("API_KEYS", "apikeys"),
+        ("SETTINGS", "settings"),
+    ],
+)
+def test_scope_group_values(member, value):
+    """Scope catalog groups must match ScopeDefinition.group values."""
+    assert hasattr(ScopeGroup, member)
+    assert getattr(ScopeGroup, member).value == value
+
+
+def test_auth_session_dto_lists_granted_scopes():
+    """Auth session listings expose which API key scopes are active on each session."""
+    from inferencesh.types import AuthSessionDTO
+
+    session: AuthSessionDTO = {
+        "id": "sess_abc",
+        "created_at": "2026-07-13T10:00:00Z",
+        "expires_at": "2026-08-13T10:00:00Z",
+        "ip": "203.0.113.10",
+        "browser": "Chrome",
+        "auth_method": "api_key",
+        "scopes": [Scope.AGENTS_READ, Scope.FILES_WRITE],
+        "current": True,
+    }
+
+    assert session["scopes"] == [Scope.AGENTS_READ, Scope.FILES_WRITE]
+    assert session["current"] is True
+
+
+def test_scopes_response_catalog_shape():
+    """GET /scopes returns grouped scope definitions and preset bundles."""
+    from inferencesh.types import ScopeDefinition, ScopeGroupDefinition, ScopePreset, ScopesResponse
+
+    resp: ScopesResponse = {
+        "scopes": [
+            ScopeDefinition(
+                value=Scope.AGENTS_EXECUTE,
+                label="Run agents",
+                description="Execute agent workflows",
+                group=ScopeGroup.AGENTS,
+            ),
+        ],
+        "groups": [
+            ScopeGroupDefinition(
+                id=ScopeGroup.AGENTS,
+                label="Agents",
+                description="Agent permissions",
+            ),
+        ],
+        "presets": [
+            ScopePreset(
+                id="read_run",
+                label="Read & run",
+                description="Read resources and execute apps/agents",
+                scopes=[Scope.APPS_READ, Scope.APPS_EXECUTE],
+            ),
+        ],
+    }
+
+    assert resp["scopes"][0]["value"] == Scope.AGENTS_EXECUTE
+    assert resp["groups"][0]["id"] == ScopeGroup.AGENTS
+    assert Scope.APPS_EXECUTE in resp["presets"][0]["scopes"]
