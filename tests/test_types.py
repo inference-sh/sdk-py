@@ -585,3 +585,37 @@ def test_check_requirements_response_uses_requirement_type():
     resp: CheckRequirementsResponse = {"satisfied": False, "errors": [err]}
 
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
+
+
+def test_app_store_listing_dto_concurrency_fields():
+    """App store listings expose min/max concurrency limits for worker scaling."""
+    from inferencesh.types import AppStoreListingDTO
+
+    listing: AppStoreListingDTO = {
+        "id": "listing_flux",
+        "allows_private_workers": True,
+        "allows_cloud_workers": True,
+        "min_concurrency": 1,
+        "max_concurrency": 10,
+        "max_concurrency_per_team": 5,
+        "tags": ["image", "generation"],
+    }
+
+    assert listing["min_concurrency"] == 1
+    assert listing["max_concurrency"] == 10
+    assert listing["max_concurrency_per_team"] == 5
+
+
+def test_user_metadata_dto_terms_acceptance():
+    """User metadata tracks which terms version was accepted and when."""
+    from inferencesh.types import UserMetadataDTO
+
+    metadata: UserMetadataDTO = {
+        "user_id": "user_abc",
+        "completed_onboarding": True,
+        "terms_accepted_at": "2026-07-13T12:00:00Z",
+        "terms_version": "2026-07-01",
+    }
+
+    assert metadata["terms_version"] == "2026-07-01"
+    assert metadata["terms_accepted_at"].endswith("Z")

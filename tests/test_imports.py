@@ -147,6 +147,8 @@ def test_models_llm_export_exists(name):
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "IntegrationType",
+    # App store + user metadata (6fd3aac typegen regen)
+    "AppStoreListingDTO", "UserMetadataDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
