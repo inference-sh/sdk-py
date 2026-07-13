@@ -5,6 +5,7 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
+    EngineStatus,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -17,6 +18,7 @@ from inferencesh.types import (
     IntegrationStatus,
     IntegrationType,
     RequirementType,
+    SetupActionType,
     KnowledgeLifecycle,
     KnowledgeType,
     MCPServerAuthType,
@@ -90,6 +92,7 @@ def test_tool_call_type_only_function_kind():
         (IntegrationAuthType, "API_KEY", "api_key"),
         (IntegrationAuthType, "SERVICE_ACCOUNT", "service_account"),
         (IntegrationAuthType, "WIF", "wif"),
+        (IntegrationStatus, "PENDING", "pending"),
         (IntegrationStatus, "CONNECTED", "connected"),
         (IntegrationStatus, "DISCONNECTED", "disconnected"),
         (IntegrationStatus, "EXPIRED", "expired"),
@@ -131,6 +134,8 @@ def test_instance_status_lifecycle_values(member, value):
         ("APPROVAL", "approval"),
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
+        ("TRIGGER", "trigger"),
+        ("INTEGRATION_REQUIREMENT", "integration_requirement"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -585,3 +590,53 @@ def test_check_requirements_response_uses_requirement_type():
     resp: CheckRequirementsResponse = {"satisfied": False, "errors": [err]}
 
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SETUP_ACTION_ADD_SECRET", "add_secret"),
+        ("SETUP_ACTION_CONNECT", "connect"),
+        ("SETUP_ACTION_ADD_SCOPES", "add_scopes"),
+    ],
+)
+def test_setup_action_type_values(member, value):
+    """412 setup actions must distinguish secrets, connect, and scope expansion."""
+    assert hasattr(SetupActionType, member)
+    assert getattr(SetupActionType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RUNNING", "running"),
+        ("PENDING", "pending"),
+        ("DRAINING", "draining"),
+        ("DISCONNECTED", "disconnected"),
+        ("STOPPING", "stopping"),
+        ("STOPPED", "stopped"),
+    ],
+)
+def test_engine_status_lifecycle_values(member, value):
+    """Engine worker lifecycle must include disconnected state for health checks."""
+    assert hasattr(EngineStatus, member)
+    assert getattr(EngineStatus, member).value == value
+
+
+def test_setup_action_typed_dict_shape():
+    """SetupAction TypedDict carries provider labels and scope descriptions for UIs."""
+    from inferencesh.types import SetupAction
+
+    action: SetupAction = {
+        "type": SetupActionType.SETUP_ACTION_ADD_SCOPES,
+        "provider": "google",
+        "provider_name": "Google Workspace",
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+        "scope_descriptions": {
+            "https://www.googleapis.com/auth/drive.readonly": "Read files in Google Drive",
+        },
+    }
+
+    assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
+    assert action["provider_name"] == "Google Workspace"
+    assert "drive.readonly" in action["scope_descriptions"]

@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ 0f41d5e, probe_video + typegen regen)
+
+**Recent changes reviewed:** `4299e1b` (`probe_video()`, `VideoMeta.from_file()` — new pricing metadata path), `0f41d5e`/`32721d5` (typegen: `SetupActionType`, `EngineStatus.DISCONNECTED`, `GraphNodeType.INTEGRATION_REQUIREMENT`, `IntegrationStatus.PENDING`, `SetupAction` provider/scope fields). Skipped: `898f677` (dependabot config), README copy edit.
+
+**Open PRs checked:** #101 (draft) covers aiofiles + entitlement/TRIGGER gaps from earlier regen — no overlap with probe_video or latest typegen enums.
+
+**Gaps filled this run:**
+
+- `probe_video()` ffprobe parsing, frame-accurate `seconds = nb_frames/fps`, and failure paths (missing ffprobe, no video stream)
+- `VideoMeta.from_file()` populates dimensions/duration from probe and passes through pricing kwargs
+- `SetupActionType` enum for 412 setup actions (`add_secret`, `connect`, `add_scopes`)
+- `EngineStatus.DISCONNECTED` engine lifecycle state
+- `GraphNodeType.TRIGGER` and `INTEGRATION_REQUIREMENT` workflow node kinds
+- `IntegrationStatus.PENDING` for in-progress OAuth connects
+- `SetupAction` TypedDict `provider_name` / `scope_descriptions` fields
+
+**Files:** `tests/test_output_meta.py`, `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
 **Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).
