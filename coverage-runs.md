@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ 6fd3aac, AppStoreListingDTO + UserMetadataDTO typegen)
+
+**Recent changes reviewed:** `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at` / `terms_version` on `UserMetadataDTO`).
+
+**Open PRs checked:** #103 (probe_video/VideoMeta/typegen enums), #101 (aiofiles/entitlement) — no overlap.
+
+**Gaps filled this run:**
+
+- `AppStoreListingDTO` concurrency fields (`min_concurrency`, `max_concurrency`, `max_concurrency_per_team`)
+- `UserMetadataDTO` terms acceptance fields (`terms_accepted_at`, `terms_version`)
+- Import smoke for both DTOs in `test_imports.py`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**PR:** #106
+
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
 **Recent changes reviewed:** `1f8ad37` (DeviceAuthResponse, scope updates, GOOGLE_SA DTO — already merged). Remaining gap from `f1a3cbe`: `RequirementType` enum, `IntegrationConfigDTO.slug`, typed `RequirementError`/`CheckRequirementsResponse` (closed PR #94 never merged).
