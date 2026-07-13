@@ -698,3 +698,93 @@ def test_plan_dto_limits_use_entitlement_resources():
 
     assert plan["limits"][EntitlementResource.RESOURCE_TRIGGERS]["limit"] == 10
     assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
+
+
+def test_app_store_listing_dto_concurrency_fields():
+    """App store listings expose min/max concurrency limits for worker scaling."""
+    from inferencesh.types import AppStoreListingDTO
+
+    listing: AppStoreListingDTO = {
+        "id": "listing_flux",
+        "allows_private_workers": True,
+        "allows_cloud_workers": True,
+        "min_concurrency": 1,
+        "max_concurrency": 10,
+        "max_concurrency_per_team": 5,
+        "tags": ["image", "generation"],
+    }
+
+    assert listing["min_concurrency"] == 1
+    assert listing["max_concurrency"] == 10
+    assert listing["max_concurrency_per_team"] == 5
+
+
+def test_user_metadata_dto_terms_acceptance():
+    """User metadata tracks which terms version was accepted and when."""
+    from inferencesh.types import UserMetadataDTO
+
+    metadata: UserMetadataDTO = {
+        "user_id": "user_abc",
+        "completed_onboarding": True,
+        "terms_accepted_at": "2026-07-13T12:00:00Z",
+        "terms_version": "2026-07-01",
+    }
+
+    assert metadata["terms_version"] == "2026-07-01"
+    assert metadata["terms_accepted_at"].endswith("Z")
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TIER", "tier"),
+        ("OVERRIDE", "override"),
+        ("WHITELIST", "whitelist"),
+        ("TRIAL", "trial"),
+    ],
+)
+def test_entitlement_source_values(member, value):
+    """Entitlement source must distinguish plan tier vs override vs trial grants."""
+    from inferencesh.types import EntitlementSource
+
+    assert hasattr(EntitlementSource, member)
+    assert getattr(EntitlementSource, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RESERVED", "reserved"),
+        ("BUSY", "busy"),
+        ("IDLE", "idle"),
+        ("INACTIVE", "inactive"),
+    ],
+)
+def test_worker_status_lifecycle_values(member, value):
+    """Worker status on EngineDTO/WorkerDTO must stay stable for capacity UIs."""
+    from inferencesh.types import WorkerStatus
+
+    assert hasattr(WorkerStatus, member)
+    assert getattr(WorkerStatus, member).value == value
+
+
+def test_entitlement_dto_carries_source_and_enforcement():
+    """EntitlementDTO ties resource limits to source (tier/override) and enforcement."""
+    from inferencesh.types import (
+        EntitlementDTO,
+        EntitlementSource,
+        EntitlementType,
+        EnforcementMode,
+    )
+
+    ent: EntitlementDTO = {
+        "team_id": "team_abc",
+        "resource": EntitlementResource.RESOURCE_CONCURRENCY,
+        "type": EntitlementType.LIMIT,
+        "limit": 5,
+        "source": EntitlementSource.TRIAL,
+        "enforcement": EnforcementMode.ENFORCEMENT_WARN,
+    }
+
+    assert ent["source"] == EntitlementSource.TRIAL
+    assert ent["enforcement"] == EnforcementMode.ENFORCEMENT_WARN

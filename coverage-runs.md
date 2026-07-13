@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ 893a4cf, aiofiles + entitlement tests merged)
+
+**Recent changes reviewed:** `893a4cf` (aiofiles RuntimeError, entitlement/IntegrationScope gaps — merged). `a71ad24` AppStoreListingDTO/UserMetadataDTO tests were accidentally dropped when `893a4cf` replaced them with entitlement coverage. `6fd3aac` production: `min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at`/`terms_version` on `UserMetadataDTO`.
+
+**Open PRs checked:** #109 (SetupActionType/EngineStatus/graph TRIGGER restore), #107 (Scope/AuthSessionDTO/setup-action parsing) — no overlap.
+
+**Gaps filled this run:**
+
+- `AppStoreListingDTO` `min_concurrency` / `max_concurrency` / `max_concurrency_per_team` worker scaling fields (restored)
+- `UserMetadataDTO` `terms_accepted_at` / `terms_version` terms acceptance tracking (restored)
+- `EntitlementSource` enum (`tier`, `override`, `whitelist`, `trial`) on `EntitlementDTO`
+- `WorkerStatus` lifecycle (`reserved`, `busy`, `idle`, `inactive`) on `WorkerDTO`/`WorkerSummary`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-09 (push dev @ 73cdf23, aiofiles missing error fix)
 
 **Recent changes reviewed:** `73cdf23` (RuntimeError when aiofiles absent; importorskip on async path upload test). Remaining gaps from `9c89152` typegen: `IntegrationScope`, `EntitlementResource`/`RESOURCE_TRIGGERS`, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER` (closed PRs #92/#99 never merged).
