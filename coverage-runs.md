@@ -1,20 +1,21 @@
 # Coverage automation runs
 
-## 2026-07-13 (push dev @ 6fd3aac, AppStoreListingDTO + UserMetadataDTO typegen)
+## 2026-07-09 (push dev @ 73cdf23, aiofiles missing error fix)
 
-**Recent changes reviewed:** `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at` / `terms_version` on `UserMetadataDTO`).
+**Recent changes reviewed:** `73cdf23` (RuntimeError when aiofiles absent; importorskip on async path upload test). Remaining gaps from `9c89152` typegen: `IntegrationScope`, `EntitlementResource`/`RESOURCE_TRIGGERS`, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER` (closed PRs #92/#99 never merged).
 
-**Open PRs checked:** #103 (probe_video/VideoMeta/typegen enums), #101 (aiofiles/entitlement) — no overlap.
+**Open PRs checked:** none open — no overlapping test work.
 
 **Gaps filled this run:**
 
-- `AppStoreListingDTO` concurrency fields (`min_concurrency`, `max_concurrency`, `max_concurrency_per_team`)
-- `UserMetadataDTO` terms acceptance fields (`terms_accepted_at`, `terms_version`)
-- Import smoke for both DTOs in `test_imports.py`
+- `_aio_open_file()` raises `RuntimeError` with `pip install aiofiles` hint when dependency missing (regression guard for `73cdf23`)
+- `GraphNodeType.TRIGGER` workflow node kind
+- `IntegrationScope` enum (`team`, `platform`) on `IntegrationDTO`
+- `EntitlementResource` plan limit keys including `RESOURCE_TRIGGERS`
+- `IntegrationRequirement` TypedDict `secrets`/`scopes` fields for app manifests
+- `PlanDTO.limits` `PlanLimits` mapping with `PlanLimit` entries
 
-**Files:** `tests/test_types.py`, `tests/test_imports.py`
-
-**PR:** #106
+**Files:** `tests/test_client_helpers.py`, `tests/test_types.py`, `tests/test_imports.py`
 
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 

@@ -1,9 +1,12 @@
 """Unit tests for client task/stream helpers (high blast-radius, no I/O)."""
 
+import builtins
+
 import pytest
 
 from inferencesh import TaskStatus
 from inferencesh.client import (
+    _aio_open_file,
     _looks_like_base64,
     _process_stream_event,
     _strip_task,
@@ -107,3 +110,19 @@ class TestProcessStreamEvent:
             {"status": TaskStatus.RUNNING, "id": "t1"},
             task={},
         ) is None
+
+
+class TestAioOpenFile:
+    def test_raises_clear_error_when_aiofiles_missing(self, monkeypatch):
+        """Async path uploads must fail with an install hint, not a raw ImportError."""
+        real_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "aiofiles":
+                raise ModuleNotFoundError("No module named 'aiofiles'")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+
+        with pytest.raises(RuntimeError, match="pip install aiofiles"):
+            _aio_open_file("/tmp/test.txt", "rb")

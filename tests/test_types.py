@@ -5,6 +5,7 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
+    EntitlementResource,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -14,6 +15,7 @@ from inferencesh.types import (
     InstanceTypeDeploymentType,
     IntegrationAuthType,
     IntegrationProvider,
+    IntegrationScope,
     IntegrationStatus,
     IntegrationType,
     RequirementType,
@@ -131,6 +133,7 @@ def test_instance_status_lifecycle_values(member, value):
         ("APPROVAL", "approval"),
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
+        ("TRIGGER", "trigger"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -587,35 +590,111 @@ def test_check_requirements_response_uses_requirement_type():
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
 
 
-def test_app_store_listing_dto_concurrency_fields():
-    """App store listings expose min/max concurrency limits for worker scaling."""
-    from inferencesh.types import AppStoreListingDTO
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEAM", "team"),
+        ("PLATFORM", "platform"),
+    ],
+)
+def test_integration_scope_values(member, value):
+    """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
+    assert hasattr(IntegrationScope, member)
+    assert getattr(IntegrationScope, member).value == value
 
-    listing: AppStoreListingDTO = {
-        "id": "listing_flux",
-        "allows_private_workers": True,
-        "allows_cloud_workers": True,
-        "min_concurrency": 1,
-        "max_concurrency": 10,
-        "max_concurrency_per_team": 5,
-        "tags": ["image", "generation"],
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RESOURCE_API_KEYS", "api_keys"),
+        ("RESOURCE_CONNECTORS", "connectors"),
+        ("RESOURCE_KNOWLEDGE_BASES", "knowledge_bases"),
+        ("RESOURCE_STORAGE_MB", "storage_mb"),
+        ("RESOURCE_CONCURRENCY", "concurrency"),
+        ("RESOURCE_RATE_PER_MIN", "rate_per_min"),
+        ("RESOURCE_SEATS", "seats"),
+        ("RESOURCE_TRIGGERS", "triggers"),
+        ("RESOURCE_RETENTION_DAYS", "retention_days"),
+        ("RESOURCE_FEATURE_BYOK", "feature:byok"),
+    ],
+)
+def test_entitlement_resource_values(member, value):
+    """Plan entitlement keys must stay stable for billing limit enforcement."""
+    assert hasattr(EntitlementResource, member)
+    assert getattr(EntitlementResource, member).value == value
+
+
+def test_integration_requirement_secrets_and_scopes():
+    """App manifests declare per-integration secret keys and OAuth scopes."""
+    from inferencesh.types import IntegrationRequirement
+
+    req: IntegrationRequirement = {
+        "key": "google",
+        "description": "Google Workspace",
+        "optional": False,
+        "secrets": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
     }
 
-    assert listing["min_concurrency"] == 1
-    assert listing["max_concurrency"] == 10
-    assert listing["max_concurrency_per_team"] == 5
+    assert req["key"] == "google"
+    assert len(req["secrets"]) == 2
+    assert req["scopes"][0].endswith("drive.readonly")
 
 
-def test_user_metadata_dto_terms_acceptance():
-    """User metadata tracks which terms version was accepted and when."""
-    from inferencesh.types import UserMetadataDTO
+def test_integration_dto_scope_team_vs_platform():
+    """IntegrationDTO.scope distinguishes user-owned vs platform-managed connections."""
+    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationStatus
 
-    metadata: UserMetadataDTO = {
-        "user_id": "user_abc",
-        "completed_onboarding": True,
-        "terms_accepted_at": "2026-07-13T12:00:00Z",
-        "terms_version": "2026-07-01",
+    team: IntegrationDTO = {
+        "scope": IntegrationScope.TEAM,
+        "provider": IntegrationProvider.GOOGLE,
+        "type": IntegrationAuthType.O_AUTH,
+        "auth": IntegrationAuthType.O_AUTH,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "My Google",
+    }
+    platform: IntegrationDTO = {
+        "scope": IntegrationScope.PLATFORM,
+        "provider": IntegrationProvider.GOOGLE_SA,
+        "type": IntegrationAuthType.SERVICE_ACCOUNT,
+        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "Managed GCP",
     }
 
-    assert metadata["terms_version"] == "2026-07-01"
-    assert metadata["terms_accepted_at"].endswith("Z")
+    assert team["scope"] == IntegrationScope.TEAM
+    assert platform["scope"] == IntegrationScope.PLATFORM
+
+
+def test_plan_dto_limits_use_entitlement_resources():
+    """PlanDTO.limits maps EntitlementResource keys to PlanLimit entries."""
+    from inferencesh.types import (
+        EnforcementMode,
+        EntitlementType,
+        PlanDTO,
+        PlanLimit,
+        PlanLimits,
+    )
+
+    limits: PlanLimits = {
+        EntitlementResource.RESOURCE_TRIGGERS: PlanLimit(
+            type=EntitlementType.LIMIT,
+            label="Workflow triggers",
+            unit="triggers",
+            limit=10,
+            enforcement=EnforcementMode.ENFORCEMENT_BLOCK,
+        ),
+        EntitlementResource.RESOURCE_FEATURE_BYOK: PlanLimit(
+            type=EntitlementType.BOOLEAN,
+            label="Bring your own key",
+            enabled=True,
+        ),
+    }
+    plan: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "limits": limits,
+    }
+
+    assert plan["limits"][EntitlementResource.RESOURCE_TRIGGERS]["limit"] == 10
+    assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
