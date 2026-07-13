@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ f0a98f6, version bump v0.7.11)
+
+**Recent changes reviewed:** `f0a98f6` (version bump only). Prior commits `cc2685a`/`8ca6d5a`/`8a4dc1a` ping-ponged test sets — entitlement/AppStore/UserMetadata tests landed on `dev`, but Scope/SetupActionType/EngineStatus/INTEGRATION_REQUIREMENT/PENDING coverage was dropped again in `cc2685a`.
+
+**Open PRs checked:** #115 (draft) restores the same dropped Scope/SetupAction/EngineStatus coverage — this run adds only the missing pieces on top of current `dev` without removing existing entitlement tests.
+
+**Gaps filled this run:**
+
+- `Scope` / `ScopeGroup` enums, `AuthSessionDTO.scopes`, and `ScopesResponse` catalog shape (API key permissions)
+- `SetupActionType` enum and `SetupAction` TypedDict with provider labels and scope descriptions
+- `EngineStatus` lifecycle including `disconnected` and `draining` states
+- `IntegrationStatus.PENDING` OAuth-in-progress state
+- `GraphNodeType.INTEGRATION_REQUIREMENT` workflow node kind
+- `RequirementError.from_dict` propagates `provider_name` / `scope_descriptions` through nested setup actions
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`
+
 ## 2026-07-13 (push dev @ 893a4cf, aiofiles + entitlement tests merged)
 
 **Recent changes reviewed:** `893a4cf` (aiofiles RuntimeError, entitlement/IntegrationScope gaps — merged). `a71ad24` AppStoreListingDTO/UserMetadataDTO tests were accidentally dropped when `893a4cf` replaced them with entitlement coverage. `6fd3aac` production: `min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at`/`terms_version` on `UserMetadataDTO`.
