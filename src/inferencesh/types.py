@@ -560,6 +560,7 @@ class AuthSessionDTO(TypedDict, total=False):
     browser: str
     browser_version: str
     auth_method: str
+    scopes: List[Scope]
     current: bool
 
 # BaseModelDTO is the contract-layer base embed — same fields, no gorm tags.
@@ -1042,9 +1043,11 @@ class RequirementError(TypedDict, total=False):
 
 # SetupAction provides actionable info for resolving a missing requirement
 class SetupAction(TypedDict, total=False):
-    type: str
+    type: SetupActionType
     provider: str
+    provider_name: str
     scopes: List[str]
+    scope_descriptions: Dict[str, str]
 
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
@@ -2182,6 +2185,11 @@ class RequirementType(str, Enum):
     SECRET = "secret"
     INTEGRATION = "integration"
     SCOPE = "scope"
+
+class SetupActionType(str, Enum):
+    SETUP_ACTION_ADD_SECRET = "add_secret"
+    SETUP_ACTION_CONNECT = "connect"
+    SETUP_ACTION_ADD_SCOPES = "add_scopes"
 
 class AppCategory(str, Enum):
     IMAGE = "image"
