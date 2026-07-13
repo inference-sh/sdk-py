@@ -1,20 +1,37 @@
 # Coverage automation runs
 
-## 2026-07-13 (push dev @ 1f973e7, v0.7.10 + AuthSessionDTO scopes typegen)
+## 2026-07-13 (push dev @ a71ad24, restore typegen tests dropped in merge)
 
-**Recent changes reviewed:** `1f973e7` (version bump), `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`), `0f41d5e` (`AuthSessionDTO.scopes`, `SetupAction` provider/scope fields). Skipped: `898f677` (dependabot), README copy.
+**Recent changes reviewed:** `a71ad24` (AppStoreListingDTO/UserMetadataDTO tests merged, but accidentally removed SetupActionType/EngineStatus/graph TRIGGER coverage from #103). `0f41d5e` (`SetupActionType` enum, `SetupAction` UI fields). Skipped: `898f677` (dependabot), README copy.
 
-**Open PRs checked:** #106 (AppStoreListingDTO/UserMetadataDTO), #103 (probe_video/SetupActionType/typegen enums), #101 (aiofiles/entitlement) — no overlap with API key scope types.
+**Open PRs checked:** #107 (Scope/AuthSessionDTO/scopes catalog), #101 (aiofiles/IntegrationScope/entitlement) — no overlap with restored enum/DTO tests.
 
 **Gaps filled this run:**
 
-- `Scope` enum stability for API key permission strings (resource + action-level)
-- `ScopeGroup` enum for scope catalog grouping
-- `AuthSessionDTO.scopes` field for active-session permission listing
-- `ScopesResponse` / `ScopeDefinition` catalog TypedDict shape
-- `SetupAction.from_dict()` parses `provider_name` and `scope_descriptions` from 412 payloads
+- Restored `SetupActionType` enum (`add_secret`, `connect`, `add_scopes`) for 412 requirement payloads
+- Restored `EngineStatus` lifecycle including `DISCONNECTED` for worker health checks
+- Restored `GraphNodeType.TRIGGER` and `INTEGRATION_REQUIREMENT` workflow node kinds
+- Restored `IntegrationStatus.PENDING` for OAuth connect-in-progress state
+- Restored `SetupAction` TypedDict `provider_name` / `scope_descriptions` shape from `0f41d5e`
+- Import smoke for `probe_video`, `SetupActionType`, `EngineStatus`
 
-**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`, `src/inferencesh/models/errors.py`
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+## 2026-07-13 (push dev @ 6fd3aac, AppStoreListingDTO + UserMetadataDTO typegen)
+
+**Recent changes reviewed:** `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at` / `terms_version` on `UserMetadataDTO`).
+
+**Open PRs checked:** #103 (probe_video/VideoMeta/typegen enums), #101 (aiofiles/entitlement) — no overlap.
+
+**Gaps filled this run:**
+
+- `AppStoreListingDTO` concurrency fields (`min_concurrency`, `max_concurrency`, `max_concurrency_per_team`)
+- `UserMetadataDTO` terms acceptance fields (`terms_accepted_at`, `terms_version`)
+- Import smoke for both DTOs in `test_imports.py`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**PR:** #106
 
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 
