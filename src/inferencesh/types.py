@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict, Union
+from datetime import datetime
 
 
 ##########
@@ -529,6 +530,7 @@ class AppStoreListingDTO(TypedDict, total=False):
     allows_cloud_workers: bool
     max_concurrency: int
     max_concurrency_per_team: int
+    min_concurrency: int
     tags: List[str]
 
 # PublicAppStoreDTO is a lean DTO for public app store display.
@@ -1315,6 +1317,8 @@ class UserMetadataDTO(TypedDict, total=False):
     use_case_reason: str
     use_case_privacy: str
     signup_source: str
+    terms_accepted_at: Optional[str]
+    terms_version: str
 
 # WidgetAction represents an action triggered by a widget button
 class WidgetAction(TypedDict, total=False):
