@@ -1,5 +1,17 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ 7db09b9, SuggestRequest.Context field)
+
+**Recent changes reviewed:** `7db09b9` (typegen regen: optional `context` on `SuggestRequest` for contextual app/agent suggestions). `f0a98f6` version bump only.
+
+**Open PRs checked:** #118 and #115 (draft) restore Scope/SetupActionType/EngineStatus coverage dropped in ping-pong commits `8a4dc1a`/`8ca6d5a`/`cc2685a` — no overlap; those gaps deferred to open PRs.
+
+**Gaps filled this run:**
+
+- `SuggestRequest.context` optional string for disambiguating suggest queries (e.g. workflow context)
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-13 (push dev @ 893a4cf, aiofiles + entitlement tests merged)
 
 **Recent changes reviewed:** `893a4cf` (aiofiles RuntimeError, entitlement/IntegrationScope gaps — merged). `a71ad24` AppStoreListingDTO/UserMetadataDTO tests were accidentally dropped when `893a4cf` replaced them with entitlement coverage. `6fd3aac` production: `min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at`/`terms_version` on `UserMetadataDTO`.

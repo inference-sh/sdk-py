@@ -479,7 +479,12 @@ def test_suggest_types_shape():
     """Suggest endpoint TypedDicts must accept the documented request/response shape."""
     from inferencesh.types import SuggestRequest, SuggestResponse, SuggestResult
 
-    req: SuggestRequest = {"query": "flux image", "limit": 5, "agent": True}
+    req: SuggestRequest = {
+        "query": "flux image",
+        "context": "building an image generation pipeline",
+        "limit": 5,
+        "agent": True,
+    }
     result: SuggestResult = {
         "type": "app",
         "name": "flux",
@@ -488,6 +493,7 @@ def test_suggest_types_shape():
     }
     resp: SuggestResponse = {"query": req["query"], "results": [result]}
 
+    assert req["context"] == "building an image generation pipeline"
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["score"] == 0.92
 
