@@ -24,7 +24,9 @@ class SetupAction:
     """
     type: str  # "add_secret" | "connect" | "add_scopes"
     provider: Optional[str] = None  # For integration actions
+    provider_name: Optional[str] = None  # Human-readable provider label for UIs
     scopes: Optional[List[str]] = None  # Scopes to request
+    scope_descriptions: Optional[Dict[str, str]] = None  # Scope URL -> description
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional['SetupAction']:
@@ -33,7 +35,9 @@ class SetupAction:
         return cls(
             type=data.get("type", ""),
             provider=data.get("provider"),
+            provider_name=data.get("provider_name"),
             scopes=data.get("scopes"),
+            scope_descriptions=data.get("scope_descriptions"),
         )
 
 
