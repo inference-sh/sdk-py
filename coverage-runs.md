@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-07-13 (push dev @ cd8e0b6, SuggestRequest.context merged; Scope/EngineStatus still missing)
+
+**Recent changes reviewed:** `cd8e0b6` (added `SuggestRequest.context` test only — commit message claimed Scope/SetupAction/EngineStatus restore but those tests were not included). Prior ping-pong commits `8a4dc1a`/`8ca6d5a`/`cc2685a` dropped Scope/SetupActionType/EngineStatus/INTEGRATION_REQUIREMENT/PENDING coverage while landing entitlement/AppStore/UserMetadata tests.
+
+**Open PRs checked:** none open. Remote branches `cursor/missing-test-coverage-9290`/`e655` had the dropped tests but were never merged.
+
+**Gaps filled this run:**
+
+- `Scope` / `ScopeGroup` enums, `AuthSessionDTO.scopes`, and `ScopesResponse` catalog shape (API key permissions)
+- `SetupActionType` enum and `SetupAction` TypedDict with provider labels and scope descriptions
+- `EngineStatus` lifecycle including `disconnected` and `draining` states
+- `IntegrationStatus.PENDING` OAuth-in-progress state
+- `GraphNodeType.INTEGRATION_REQUIREMENT` workflow node kind
+- `RequirementError.from_dict` propagates `provider_name` / `scope_descriptions` through nested setup actions
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`
+
 ## 2026-07-13 (push dev @ 7db09b9, SuggestRequest.Context field)
 
 **Recent changes reviewed:** `7db09b9` (typegen regen: optional `context` on `SuggestRequest` for contextual app/agent suggestions). `f0a98f6` version bump only.
