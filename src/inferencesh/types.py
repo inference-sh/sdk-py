@@ -1019,6 +1019,7 @@ class UpdateIntegrationScopesRequest(TypedDict, total=False):
 # SuggestRequest is the input for the suggest endpoint.
 class SuggestRequest(TypedDict, total=False):
     query: str
+    context: str
     limit: int
     category: str
     agent: bool
