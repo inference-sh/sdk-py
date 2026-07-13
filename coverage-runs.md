@@ -1,37 +1,36 @@
 # Coverage automation runs
 
-## 2026-07-13 (push dev @ a71ad24, restore typegen tests dropped in merge)
+## 2026-07-13 (push dev @ 893a4cf, aiofiles + entitlement tests merged)
 
-**Recent changes reviewed:** `a71ad24` (AppStoreListingDTO/UserMetadataDTO tests merged, but accidentally removed SetupActionType/EngineStatus/graph TRIGGER coverage from #103). `0f41d5e` (`SetupActionType` enum, `SetupAction` UI fields). Skipped: `898f677` (dependabot), README copy.
+**Recent changes reviewed:** `893a4cf` (aiofiles RuntimeError, entitlement/IntegrationScope gaps — merged). `a71ad24` AppStoreListingDTO/UserMetadataDTO tests were accidentally dropped when `893a4cf` replaced them with entitlement coverage. `6fd3aac` production: `min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at`/`terms_version` on `UserMetadataDTO`.
 
-**Open PRs checked:** #107 (Scope/AuthSessionDTO/scopes catalog), #101 (aiofiles/IntegrationScope/entitlement) — no overlap with restored enum/DTO tests.
-
-**Gaps filled this run:**
-
-- Restored `SetupActionType` enum (`add_secret`, `connect`, `add_scopes`) for 412 requirement payloads
-- Restored `EngineStatus` lifecycle including `DISCONNECTED` for worker health checks
-- Restored `GraphNodeType.TRIGGER` and `INTEGRATION_REQUIREMENT` workflow node kinds
-- Restored `IntegrationStatus.PENDING` for OAuth connect-in-progress state
-- Restored `SetupAction` TypedDict `provider_name` / `scope_descriptions` shape from `0f41d5e`
-- Import smoke for `probe_video`, `SetupActionType`, `EngineStatus`
-
-**Files:** `tests/test_types.py`, `tests/test_imports.py`
-
-## 2026-07-13 (push dev @ 6fd3aac, AppStoreListingDTO + UserMetadataDTO typegen)
-
-**Recent changes reviewed:** `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`; `terms_accepted_at` / `terms_version` on `UserMetadataDTO`).
-
-**Open PRs checked:** #103 (probe_video/VideoMeta/typegen enums), #101 (aiofiles/entitlement) — no overlap.
+**Open PRs checked:** #109 (SetupActionType/EngineStatus/graph TRIGGER restore), #107 (Scope/AuthSessionDTO/setup-action parsing) — no overlap.
 
 **Gaps filled this run:**
 
-- `AppStoreListingDTO` concurrency fields (`min_concurrency`, `max_concurrency`, `max_concurrency_per_team`)
-- `UserMetadataDTO` terms acceptance fields (`terms_accepted_at`, `terms_version`)
-- Import smoke for both DTOs in `test_imports.py`
+- `AppStoreListingDTO` `min_concurrency` / `max_concurrency` / `max_concurrency_per_team` worker scaling fields (restored)
+- `UserMetadataDTO` `terms_accepted_at` / `terms_version` terms acceptance tracking (restored)
+- `EntitlementSource` enum (`tier`, `override`, `whitelist`, `trial`) on `EntitlementDTO`
+- `WorkerStatus` lifecycle (`reserved`, `busy`, `idle`, `inactive`) on `WorkerDTO`/`WorkerSummary`
 
 **Files:** `tests/test_types.py`, `tests/test_imports.py`
 
-**PR:** #106
+## 2026-07-09 (push dev @ 73cdf23, aiofiles missing error fix)
+
+**Recent changes reviewed:** `73cdf23` (RuntimeError when aiofiles absent; importorskip on async path upload test). Remaining gaps from `9c89152` typegen: `IntegrationScope`, `EntitlementResource`/`RESOURCE_TRIGGERS`, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER` (closed PRs #92/#99 never merged).
+
+**Open PRs checked:** none open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `_aio_open_file()` raises `RuntimeError` with `pip install aiofiles` hint when dependency missing (regression guard for `73cdf23`)
+- `GraphNodeType.TRIGGER` workflow node kind
+- `IntegrationScope` enum (`team`, `platform`) on `IntegrationDTO`
+- `EntitlementResource` plan limit keys including `RESOURCE_TRIGGERS`
+- `IntegrationRequirement` TypedDict `secrets`/`scopes` fields for app manifests
+- `PlanDTO.limits` `PlanLimits` mapping with `PlanLimit` entries
+
+**Files:** `tests/test_client_helpers.py`, `tests/test_types.py`, `tests/test_imports.py`
 
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 

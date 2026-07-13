@@ -5,7 +5,7 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
-    EngineStatus,
+    EntitlementResource,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -15,10 +15,10 @@ from inferencesh.types import (
     InstanceTypeDeploymentType,
     IntegrationAuthType,
     IntegrationProvider,
+    IntegrationScope,
     IntegrationStatus,
     IntegrationType,
     RequirementType,
-    SetupActionType,
     KnowledgeLifecycle,
     KnowledgeType,
     MCPServerAuthType,
@@ -92,7 +92,6 @@ def test_tool_call_type_only_function_kind():
         (IntegrationAuthType, "API_KEY", "api_key"),
         (IntegrationAuthType, "SERVICE_ACCOUNT", "service_account"),
         (IntegrationAuthType, "WIF", "wif"),
-        (IntegrationStatus, "PENDING", "pending"),
         (IntegrationStatus, "CONNECTED", "connected"),
         (IntegrationStatus, "DISCONNECTED", "disconnected"),
         (IntegrationStatus, "EXPIRED", "expired"),
@@ -135,7 +134,6 @@ def test_instance_status_lifecycle_values(member, value):
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
         ("TRIGGER", "trigger"),
-        ("INTEGRATION_REQUIREMENT", "integration_requirement"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -592,6 +590,116 @@ def test_check_requirements_response_uses_requirement_type():
     assert resp["errors"][0]["type"] == RequirementType.SCOPE
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEAM", "team"),
+        ("PLATFORM", "platform"),
+    ],
+)
+def test_integration_scope_values(member, value):
+    """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
+    assert hasattr(IntegrationScope, member)
+    assert getattr(IntegrationScope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RESOURCE_API_KEYS", "api_keys"),
+        ("RESOURCE_CONNECTORS", "connectors"),
+        ("RESOURCE_KNOWLEDGE_BASES", "knowledge_bases"),
+        ("RESOURCE_STORAGE_MB", "storage_mb"),
+        ("RESOURCE_CONCURRENCY", "concurrency"),
+        ("RESOURCE_RATE_PER_MIN", "rate_per_min"),
+        ("RESOURCE_SEATS", "seats"),
+        ("RESOURCE_TRIGGERS", "triggers"),
+        ("RESOURCE_RETENTION_DAYS", "retention_days"),
+        ("RESOURCE_FEATURE_BYOK", "feature:byok"),
+    ],
+)
+def test_entitlement_resource_values(member, value):
+    """Plan entitlement keys must stay stable for billing limit enforcement."""
+    assert hasattr(EntitlementResource, member)
+    assert getattr(EntitlementResource, member).value == value
+
+
+def test_integration_requirement_secrets_and_scopes():
+    """App manifests declare per-integration secret keys and OAuth scopes."""
+    from inferencesh.types import IntegrationRequirement
+
+    req: IntegrationRequirement = {
+        "key": "google",
+        "description": "Google Workspace",
+        "optional": False,
+        "secrets": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+    }
+
+    assert req["key"] == "google"
+    assert len(req["secrets"]) == 2
+    assert req["scopes"][0].endswith("drive.readonly")
+
+
+def test_integration_dto_scope_team_vs_platform():
+    """IntegrationDTO.scope distinguishes user-owned vs platform-managed connections."""
+    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationStatus
+
+    team: IntegrationDTO = {
+        "scope": IntegrationScope.TEAM,
+        "provider": IntegrationProvider.GOOGLE,
+        "type": IntegrationAuthType.O_AUTH,
+        "auth": IntegrationAuthType.O_AUTH,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "My Google",
+    }
+    platform: IntegrationDTO = {
+        "scope": IntegrationScope.PLATFORM,
+        "provider": IntegrationProvider.GOOGLE_SA,
+        "type": IntegrationAuthType.SERVICE_ACCOUNT,
+        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "Managed GCP",
+    }
+
+    assert team["scope"] == IntegrationScope.TEAM
+    assert platform["scope"] == IntegrationScope.PLATFORM
+
+
+def test_plan_dto_limits_use_entitlement_resources():
+    """PlanDTO.limits maps EntitlementResource keys to PlanLimit entries."""
+    from inferencesh.types import (
+        EnforcementMode,
+        EntitlementType,
+        PlanDTO,
+        PlanLimit,
+        PlanLimits,
+    )
+
+    limits: PlanLimits = {
+        EntitlementResource.RESOURCE_TRIGGERS: PlanLimit(
+            type=EntitlementType.LIMIT,
+            label="Workflow triggers",
+            unit="triggers",
+            limit=10,
+            enforcement=EnforcementMode.ENFORCEMENT_BLOCK,
+        ),
+        EntitlementResource.RESOURCE_FEATURE_BYOK: PlanLimit(
+            type=EntitlementType.BOOLEAN,
+            label="Bring your own key",
+            enabled=True,
+        ),
+    }
+    plan: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "limits": limits,
+    }
+
+    assert plan["limits"][EntitlementResource.RESOURCE_TRIGGERS]["limit"] == 10
+    assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
+
+
 def test_app_store_listing_dto_concurrency_fields():
     """App store listings expose min/max concurrency limits for worker scaling."""
     from inferencesh.types import AppStoreListingDTO
@@ -629,48 +737,54 @@ def test_user_metadata_dto_terms_acceptance():
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("SETUP_ACTION_ADD_SECRET", "add_secret"),
-        ("SETUP_ACTION_CONNECT", "connect"),
-        ("SETUP_ACTION_ADD_SCOPES", "add_scopes"),
+        ("TIER", "tier"),
+        ("OVERRIDE", "override"),
+        ("WHITELIST", "whitelist"),
+        ("TRIAL", "trial"),
     ],
 )
-def test_setup_action_type_values(member, value):
-    """412 setup actions must distinguish secrets, connect, and scope expansion."""
-    assert hasattr(SetupActionType, member)
-    assert getattr(SetupActionType, member).value == value
+def test_entitlement_source_values(member, value):
+    """Entitlement source must distinguish plan tier vs override vs trial grants."""
+    from inferencesh.types import EntitlementSource
+
+    assert hasattr(EntitlementSource, member)
+    assert getattr(EntitlementSource, member).value == value
 
 
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("RUNNING", "running"),
-        ("PENDING", "pending"),
-        ("DRAINING", "draining"),
-        ("DISCONNECTED", "disconnected"),
-        ("STOPPING", "stopping"),
-        ("STOPPED", "stopped"),
+        ("RESERVED", "reserved"),
+        ("BUSY", "busy"),
+        ("IDLE", "idle"),
+        ("INACTIVE", "inactive"),
     ],
 )
-def test_engine_status_lifecycle_values(member, value):
-    """Engine worker lifecycle must include disconnected state for health checks."""
-    assert hasattr(EngineStatus, member)
-    assert getattr(EngineStatus, member).value == value
+def test_worker_status_lifecycle_values(member, value):
+    """Worker status on EngineDTO/WorkerDTO must stay stable for capacity UIs."""
+    from inferencesh.types import WorkerStatus
+
+    assert hasattr(WorkerStatus, member)
+    assert getattr(WorkerStatus, member).value == value
 
 
-def test_setup_action_typed_dict_shape():
-    """SetupAction TypedDict carries provider labels and scope descriptions for UIs."""
-    from inferencesh.types import SetupAction
+def test_entitlement_dto_carries_source_and_enforcement():
+    """EntitlementDTO ties resource limits to source (tier/override) and enforcement."""
+    from inferencesh.types import (
+        EntitlementDTO,
+        EntitlementSource,
+        EntitlementType,
+        EnforcementMode,
+    )
 
-    action: SetupAction = {
-        "type": SetupActionType.SETUP_ACTION_ADD_SCOPES,
-        "provider": "google",
-        "provider_name": "Google Workspace",
-        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
-        "scope_descriptions": {
-            "https://www.googleapis.com/auth/drive.readonly": "Read files in Google Drive",
-        },
+    ent: EntitlementDTO = {
+        "team_id": "team_abc",
+        "resource": EntitlementResource.RESOURCE_CONCURRENCY,
+        "type": EntitlementType.LIMIT,
+        "limit": 5,
+        "source": EntitlementSource.TRIAL,
+        "enforcement": EnforcementMode.ENFORCEMENT_WARN,
     }
 
-    assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
-    assert action["provider_name"] == "Google Workspace"
-    assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+    assert ent["source"] == EntitlementSource.TRIAL
+    assert ent["enforcement"] == EnforcementMode.ENFORCEMENT_WARN
