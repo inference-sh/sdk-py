@@ -1,21 +1,20 @@
 # Coverage automation runs
 
-## 2026-07-09 (push dev @ 73cdf23, aiofiles missing error fix)
+## 2026-07-13 (push dev @ 1f973e7, v0.7.10 + AuthSessionDTO scopes typegen)
 
-**Recent changes reviewed:** `73cdf23` (RuntimeError when aiofiles absent; importorskip on async path upload test). Remaining gaps from `9c89152` typegen: `IntegrationScope`, `EntitlementResource`/`RESOURCE_TRIGGERS`, `IntegrationRequirement` secrets/scopes, `GraphNodeType.TRIGGER` (closed PRs #92/#99 never merged).
+**Recent changes reviewed:** `1f973e7` (version bump), `6fd3aac` (`min_concurrency` on `AppStoreListingDTO`), `0f41d5e` (`AuthSessionDTO.scopes`, `SetupAction` provider/scope fields). Skipped: `898f677` (dependabot), README copy.
 
-**Open PRs checked:** none open — no overlapping test work.
+**Open PRs checked:** #106 (AppStoreListingDTO/UserMetadataDTO), #103 (probe_video/SetupActionType/typegen enums), #101 (aiofiles/entitlement) — no overlap with API key scope types.
 
 **Gaps filled this run:**
 
-- `_aio_open_file()` raises `RuntimeError` with `pip install aiofiles` hint when dependency missing (regression guard for `73cdf23`)
-- `GraphNodeType.TRIGGER` workflow node kind
-- `IntegrationScope` enum (`team`, `platform`) on `IntegrationDTO`
-- `EntitlementResource` plan limit keys including `RESOURCE_TRIGGERS`
-- `IntegrationRequirement` TypedDict `secrets`/`scopes` fields for app manifests
-- `PlanDTO.limits` `PlanLimits` mapping with `PlanLimit` entries
+- `Scope` enum stability for API key permission strings (resource + action-level)
+- `ScopeGroup` enum for scope catalog grouping
+- `AuthSessionDTO.scopes` field for active-session permission listing
+- `ScopesResponse` / `ScopeDefinition` catalog TypedDict shape
+- `SetupAction.from_dict()` parses `provider_name` and `scope_descriptions` from 412 payloads
 
-**Files:** `tests/test_client_helpers.py`, `tests/test_types.py`, `tests/test_imports.py`
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`, `src/inferencesh/models/errors.py`
 
 ## 2026-07-09 (push dev @ 1f8ad37, device auth + GOOGLE_SA DTO tests merged)
 

@@ -5,7 +5,8 @@ import pytest
 from inferencesh.types import (
     DeviceAuthStatus,
     DeviceTokenKind,
-    EntitlementResource,
+    Scope,
+    ScopeGroup,
     GPUType,
     GraphEdgeType,
     GraphNodeStatus,
@@ -15,7 +16,6 @@ from inferencesh.types import (
     InstanceTypeDeploymentType,
     IntegrationAuthType,
     IntegrationProvider,
-    IntegrationScope,
     IntegrationStatus,
     IntegrationType,
     RequirementType,
@@ -133,7 +133,6 @@ def test_instance_status_lifecycle_values(member, value):
         ("APPROVAL", "approval"),
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
-        ("TRIGGER", "trigger"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -593,108 +592,87 @@ def test_check_requirements_response_uses_requirement_type():
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("TEAM", "team"),
-        ("PLATFORM", "platform"),
+        ("ALL", "*"),
+        ("AGENTS", "agents"),
+        ("APPS", "apps"),
+        ("FLOWS_EXECUTE", "flows:execute"),
+        ("SECRETS_READ", "secrets:read"),
+        ("API_KEYS_WRITE", "apikeys:write"),
+        ("SETTINGS_READ", "settings:read"),
     ],
 )
-def test_integration_scope_values(member, value):
-    """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
-    assert hasattr(IntegrationScope, member)
-    assert getattr(IntegrationScope, member).value == value
+def test_scope_permission_values(member, value):
+    """API key scopes must stay stable for permission checks and session listings."""
+    assert hasattr(Scope, member)
+    assert getattr(Scope, member).value == value
 
 
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("RESOURCE_API_KEYS", "api_keys"),
-        ("RESOURCE_CONNECTORS", "connectors"),
-        ("RESOURCE_KNOWLEDGE_BASES", "knowledge_bases"),
-        ("RESOURCE_STORAGE_MB", "storage_mb"),
-        ("RESOURCE_CONCURRENCY", "concurrency"),
-        ("RESOURCE_RATE_PER_MIN", "rate_per_min"),
-        ("RESOURCE_SEATS", "seats"),
-        ("RESOURCE_TRIGGERS", "triggers"),
-        ("RESOURCE_RETENTION_DAYS", "retention_days"),
-        ("RESOURCE_FEATURE_BYOK", "feature:byok"),
+        ("AGENTS", "agents"),
+        ("SECRETS", "secrets"),
+        ("INTEGRATIONS", "integrations"),
+        ("ENGINES", "engines"),
+        ("API_KEYS", "apikeys"),
+        ("SETTINGS", "settings"),
     ],
 )
-def test_entitlement_resource_values(member, value):
-    """Plan entitlement keys must stay stable for billing limit enforcement."""
-    assert hasattr(EntitlementResource, member)
-    assert getattr(EntitlementResource, member).value == value
+def test_scope_group_values(member, value):
+    """Scope catalog groups must match ScopeDefinition.group values."""
+    assert hasattr(ScopeGroup, member)
+    assert getattr(ScopeGroup, member).value == value
 
 
-def test_integration_requirement_secrets_and_scopes():
-    """App manifests declare per-integration secret keys and OAuth scopes."""
-    from inferencesh.types import IntegrationRequirement
+def test_auth_session_dto_lists_granted_scopes():
+    """Auth session listings expose which API key scopes are active on each session."""
+    from inferencesh.types import AuthSessionDTO
 
-    req: IntegrationRequirement = {
-        "key": "google",
-        "description": "Google Workspace",
-        "optional": False,
-        "secrets": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
-        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+    session: AuthSessionDTO = {
+        "id": "sess_abc",
+        "created_at": "2026-07-13T10:00:00Z",
+        "expires_at": "2026-08-13T10:00:00Z",
+        "ip": "203.0.113.10",
+        "browser": "Chrome",
+        "auth_method": "api_key",
+        "scopes": [Scope.AGENTS_READ, Scope.FILES_WRITE],
+        "current": True,
     }
 
-    assert req["key"] == "google"
-    assert len(req["secrets"]) == 2
-    assert req["scopes"][0].endswith("drive.readonly")
+    assert session["scopes"] == [Scope.AGENTS_READ, Scope.FILES_WRITE]
+    assert session["current"] is True
 
 
-def test_integration_dto_scope_team_vs_platform():
-    """IntegrationDTO.scope distinguishes user-owned vs platform-managed connections."""
-    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationStatus
+def test_scopes_response_catalog_shape():
+    """GET /scopes returns grouped scope definitions and preset bundles."""
+    from inferencesh.types import ScopeDefinition, ScopeGroupDefinition, ScopePreset, ScopesResponse
 
-    team: IntegrationDTO = {
-        "scope": IntegrationScope.TEAM,
-        "provider": IntegrationProvider.GOOGLE,
-        "type": IntegrationAuthType.O_AUTH,
-        "auth": IntegrationAuthType.O_AUTH,
-        "status": IntegrationStatus.CONNECTED,
-        "display_name": "My Google",
-    }
-    platform: IntegrationDTO = {
-        "scope": IntegrationScope.PLATFORM,
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "type": IntegrationAuthType.SERVICE_ACCOUNT,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
-        "status": IntegrationStatus.CONNECTED,
-        "display_name": "Managed GCP",
-    }
-
-    assert team["scope"] == IntegrationScope.TEAM
-    assert platform["scope"] == IntegrationScope.PLATFORM
-
-
-def test_plan_dto_limits_use_entitlement_resources():
-    """PlanDTO.limits maps EntitlementResource keys to PlanLimit entries."""
-    from inferencesh.types import (
-        EnforcementMode,
-        EntitlementType,
-        PlanDTO,
-        PlanLimit,
-        PlanLimits,
-    )
-
-    limits: PlanLimits = {
-        EntitlementResource.RESOURCE_TRIGGERS: PlanLimit(
-            type=EntitlementType.LIMIT,
-            label="Workflow triggers",
-            unit="triggers",
-            limit=10,
-            enforcement=EnforcementMode.ENFORCEMENT_BLOCK,
-        ),
-        EntitlementResource.RESOURCE_FEATURE_BYOK: PlanLimit(
-            type=EntitlementType.BOOLEAN,
-            label="Bring your own key",
-            enabled=True,
-        ),
-    }
-    plan: PlanDTO = {
-        "name": "pro",
-        "credits_monthly": 1000,
-        "limits": limits,
+    resp: ScopesResponse = {
+        "scopes": [
+            ScopeDefinition(
+                value=Scope.AGENTS_EXECUTE,
+                label="Run agents",
+                description="Execute agent workflows",
+                group=ScopeGroup.AGENTS,
+            ),
+        ],
+        "groups": [
+            ScopeGroupDefinition(
+                id=ScopeGroup.AGENTS,
+                label="Agents",
+                description="Agent permissions",
+            ),
+        ],
+        "presets": [
+            ScopePreset(
+                id="read_run",
+                label="Read & run",
+                description="Read resources and execute apps/agents",
+                scopes=[Scope.APPS_READ, Scope.APPS_EXECUTE],
+            ),
+        ],
     }
 
-    assert plan["limits"][EntitlementResource.RESOURCE_TRIGGERS]["limit"] == 10
-    assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
+    assert resp["scopes"][0]["value"] == Scope.AGENTS_EXECUTE
+    assert resp["groups"][0]["id"] == ScopeGroup.AGENTS
+    assert Scope.APPS_EXECUTE in resp["presets"][0]["scopes"]

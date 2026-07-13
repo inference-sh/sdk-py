@@ -26,6 +26,22 @@ class TestSetupAction:
         assert action.provider == "github"
         assert action.scopes == ["repo:read"]
 
+    def test_from_dict_parses_provider_name_and_scope_descriptions(self):
+        """412 setup actions include UI labels from latest API payloads."""
+        action = SetupAction.from_dict({
+            "type": "add_scopes",
+            "provider": "google",
+            "provider_name": "Google Workspace",
+            "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+            "scope_descriptions": {
+                "https://www.googleapis.com/auth/drive.readonly": "Read files in Google Drive",
+            },
+        })
+        assert action.provider_name == "Google Workspace"
+        assert action.scope_descriptions["https://www.googleapis.com/auth/drive.readonly"].startswith(
+            "Read files"
+        )
+
 
 class TestRequirementError:
     def test_from_dict_with_nested_action(self):
