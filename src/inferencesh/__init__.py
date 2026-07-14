@@ -168,6 +168,7 @@ __all__ = [
     "AudioMeta",
     "RawMeta",
     "OutputMeta",
+    "probe_video",
     # Utils
     "StorageDir",
     "download",
