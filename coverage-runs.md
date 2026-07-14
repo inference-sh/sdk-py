@@ -1,5 +1,26 @@
 # Coverage automation runs
 
+## 2026-07-14 (push dev @ c5ba7b7, merge PR #125 Scope/EngineStatus coverage)
+
+**Recent changes reviewed:** `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged). `b8502d3`/`3616277`/`c6a3241` (EngineStatus tests, lint-only, probe_video `__all__`).
+
+**Open PRs checked:** None open. Remote branches `849c`/`9290`/`e655`/`be5d` restore overlapping Scope/SetupActionType tests now merged in #125 — no duplicate work.
+
+**Gaps filled this run:**
+
+- `AppCategory` enum including `_3D` digit-prefix member (gotypegen acronym regression guard)
+- `Visibility` enum for public/private/unlisted resource access
+- `ChatStatus` / `ChatMessageRole` / `ChatMessageStatus` / `ChatMessageContentType` chat lifecycle enums
+- `PlanStepStatus` agent planning progress states
+- `FlowRunStatus` IntEnum workflow run lifecycle (numeric values must not shift)
+- `ToolInvocationStatus` full lifecycle including `AWAITING_INPUT` (agent client-tool loop)
+- `AppSessionStatus` warm worker session lifecycle
+- `FilterOperator` search/filter operator tokens for cursor list APIs
+- `MetaItemType` output metadata media discriminators
+- `ChatDTO` / `FlowRunDTO` / `AppSessionDTO` status field shape
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

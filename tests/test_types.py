@@ -948,3 +948,270 @@ def test_setup_action_typed_dict_shape():
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
     assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("IMAGE", "image"),
+        ("VIDEO", "video"),
+        ("AUDIO", "audio"),
+        ("TEXT", "text"),
+        ("CHAT", "chat"),
+        ("_3D", "3d"),
+        ("OTHER", "other"),
+        ("FLOW", "flow"),
+    ],
+)
+def test_app_category_values(member, value):
+    """App store categories must stay stable; _3D guards gotypegen digit-prefix naming."""
+    from inferencesh.types import AppCategory
+
+    assert hasattr(AppCategory, member)
+    assert getattr(AppCategory, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PRIVATE", "private"),
+        ("PUBLIC", "public"),
+        ("UNLISTED", "unlisted"),
+    ],
+)
+def test_visibility_values(member, value):
+    """Visibility controls public/private app and resource access."""
+    from inferencesh.types import Visibility
+
+    assert hasattr(Visibility, member)
+    assert getattr(Visibility, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("BUSY", "busy"),
+        ("IDLE", "idle"),
+        ("AWAITING_INPUT", "awaiting_input"),
+        ("COMPLETED", "completed"),
+    ],
+)
+def test_chat_status_lifecycle_values(member, value):
+    """ChatDTO.status drives agent chat UI state and stream handling."""
+    from inferencesh.types import ChatStatus
+
+    assert hasattr(ChatStatus, member)
+    assert getattr(ChatStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SYSTEM", "system"),
+        ("USER", "user"),
+        ("ASSISTANT", "assistant"),
+        ("TOOL", "tool"),
+    ],
+)
+def test_chat_message_role_values(member, value):
+    """Chat message roles must match OpenAI-compatible message builders."""
+    from inferencesh.types import ChatMessageRole
+
+    assert hasattr(ChatMessageRole, member)
+    assert getattr(ChatMessageRole, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("READY", "ready"),
+        ("FAILED", "failed"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_chat_message_status_lifecycle_values(member, value):
+    """Message readiness checks depend on stable ChatMessageStatus values."""
+    from inferencesh.types import ChatMessageStatus
+
+    assert hasattr(ChatMessageStatus, member)
+    assert getattr(ChatMessageStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEXT", "text"),
+        ("REASONING", "reasoning"),
+        ("IMAGE", "image"),
+        ("FILE", "file"),
+        ("TOOL", "tool"),
+    ],
+)
+def test_chat_message_content_type_values(member, value):
+    """Multimodal chat payloads use content-type discriminators."""
+    from inferencesh.types import ChatMessageContentType
+
+    assert hasattr(ChatMessageContentType, member)
+    assert getattr(ChatMessageContentType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("IN_PROGRESS", "in_progress"),
+        ("COMPLETED", "completed"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_plan_step_status_lifecycle_values(member, value):
+    """Agent plan steps expose lifecycle status for progress UIs."""
+    from inferencesh.types import PlanStepStatus
+
+    assert hasattr(PlanStepStatus, member)
+    assert getattr(PlanStepStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("UNKNOWN", 0),
+        ("PENDING", 1),
+        ("RUNNING", 2),
+        ("COMPLETED", 3),
+        ("FAILED", 4),
+        ("CANCELLED", 5),
+    ],
+)
+def test_flow_run_status_lifecycle_values(member, value):
+    """FlowRunDTO.status is an IntEnum; values must not shift across API versions."""
+    from inferencesh.types import FlowRunStatus
+
+    assert hasattr(FlowRunStatus, member)
+    assert getattr(FlowRunStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("IN_PROGRESS", "in_progress"),
+        ("AWAITING_INPUT", "awaiting_input"),
+        ("AWAITING_APPROVAL", "awaiting_approval"),
+        ("COMPLETED", "completed"),
+        ("FAILED", "failed"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_tool_invocation_status_lifecycle_values(member, value):
+    """Agent client-tool loops gate on ToolInvocationStatus.AWAITING_INPUT."""
+    from inferencesh.types import ToolInvocationStatus
+
+    assert hasattr(ToolInvocationStatus, member)
+    assert getattr(ToolInvocationStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTIVE", "active"),
+        ("ENDED", "ended"),
+        ("EXPIRED", "expired"),
+    ],
+)
+def test_app_session_status_lifecycle_values(member, value):
+    """AppSessionDTO.status tracks warm worker session lifecycle."""
+    from inferencesh.types import AppSessionStatus
+
+    assert hasattr(AppSessionStatus, member)
+    assert getattr(AppSessionStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("OP_EQUAL", "eq"),
+        ("OP_NOT_EQUAL", "neq"),
+        ("OP_IN", "in"),
+        ("OP_NOT_IN", "not_in"),
+        ("OP_GREATER", "gt"),
+        ("OP_GREATER_EQUAL", "gte"),
+        ("OP_LESS", "lt"),
+        ("OP_LESS_EQUAL", "lte"),
+        ("OP_LIKE", "like"),
+        ("OP_I_LIKE", "ilike"),
+        ("OP_CONTAINS", "contains"),
+        ("OP_NOT_CONTAINS", "not_contains"),
+        ("OP_IS_NULL", "is_null"),
+        ("OP_IS_NOT_NULL", "is_not_null"),
+        ("OP_IS_EMPTY", "is_empty"),
+        ("OP_IS_NOT_EMPTY", "is_not_empty"),
+    ],
+)
+def test_filter_operator_values(member, value):
+    """Cursor list filters serialize operator tokens that must stay stable."""
+    from inferencesh.types import FilterOperator
+
+    assert hasattr(FilterOperator, member)
+    assert getattr(FilterOperator, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEXT", "text"),
+        ("IMAGE", "image"),
+        ("VIDEO", "video"),
+        ("AUDIO", "audio"),
+        ("RAW", "raw"),
+    ],
+)
+def test_meta_item_type_values(member, value):
+    """Output metadata discriminates media kinds via MetaItemType."""
+    from inferencesh.types import MetaItemType
+
+    assert hasattr(MetaItemType, member)
+    assert getattr(MetaItemType, member).value == value
+
+
+def test_chat_dto_carries_status():
+    """Chat listings expose ChatStatus for stream and UI state."""
+    from inferencesh.types import ChatDTO, ChatStatus
+
+    chat: ChatDTO = {
+        "id": "chat_abc",
+        "status": ChatStatus.AWAITING_INPUT,
+        "children": [],
+    }
+
+    assert chat["status"] == ChatStatus.AWAITING_INPUT
+
+
+def test_flow_run_dto_carries_int_status():
+    """Flow run records use FlowRunStatus IntEnum values."""
+    from inferencesh.types import FlowRunDTO, FlowRunStatus
+
+    run: FlowRunDTO = {
+        "flow_id": "flow_abc",
+        "status": FlowRunStatus.RUNNING,
+        "fail_on_error": True,
+        "node_tasks": {},
+    }
+
+    assert run["status"] == FlowRunStatus.RUNNING
+    assert run["status"].value == 2
+
+
+def test_app_session_dto_carries_status():
+    """App session records expose lifecycle status for warm workers."""
+    from inferencesh.types import AppSessionDTO, AppSessionStatus
+
+    session: AppSessionDTO = {
+        "id": "sess_abc",
+        "app_id": "app_xyz",
+        "status": AppSessionStatus.ACTIVE,
+        "call_count": 3,
+    }
+
+    assert session["status"] == AppSessionStatus.ACTIVE
