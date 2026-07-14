@@ -774,6 +774,25 @@ def test_worker_status_lifecycle_values(member, value):
     assert getattr(WorkerStatus, member).value == value
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("RUNNING", "running"),
+        ("PENDING", "pending"),
+        ("DRAINING", "draining"),
+        ("DISCONNECTED", "disconnected"),
+        ("STOPPING", "stopping"),
+        ("STOPPED", "stopped"),
+    ],
+)
+def test_engine_status_lifecycle_values(member, value):
+    """EngineStatus values on EngineDTO/EngineSummary must stay stable for dashboard UIs."""
+    from inferencesh.types import EngineStatus
+
+    assert hasattr(EngineStatus, member)
+    assert getattr(EngineStatus, member).value == value
+
+
 def test_entitlement_dto_carries_source_and_enforcement():
     """EntitlementDTO ties resource limits to source (tier/override) and enforcement."""
     from inferencesh.types import (
