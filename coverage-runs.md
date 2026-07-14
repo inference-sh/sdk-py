@@ -1,5 +1,18 @@
 # Coverage automation runs
 
+## 2026-07-14 (push dev @ bd4cfaa, EngineDTO.engine_version + GraphEdgeType.SUPERSEDES)
+
+**Recent changes reviewed:** `bd4cfaa` (typegen regen: `engine_version` on `EngineDTO`, `SUPERSEDES` on `GraphEdgeType`). `eeb8cd6` version bump only.
+
+**Open PRs checked:** #128 (team/CMS/billing/widget enums on `cursor/missing-test-coverage-e699`), #126 (chat/workflow/app-store enums on `cursor/missing-test-coverage-e307`) — no overlap with this run's gaps.
+
+**Gaps filled this run:**
+
+- `GraphEdgeType.SUPERSEDES` workflow edge kind for version/supersession graph links
+- `EngineDTO.engine_version` top-level version field for engine dashboard/API responses
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

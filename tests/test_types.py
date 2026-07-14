@@ -172,10 +172,11 @@ def test_graph_node_status_lifecycle_values(member, value):
         ("ANCESTOR", "ancestor"),
         ("DUPLICATE", "duplicate"),
         ("REFERENCES", "references"),
+        ("SUPERSEDES", "supersedes"),
     ],
 )
 def test_graph_edge_type_values(member, value):
-    """Graph edge kinds must include REFERENCES from latest typegen regen."""
+    """Graph edge kinds must include REFERENCES and SUPERSEDES from typegen regen."""
     assert hasattr(GraphEdgeType, member)
     assert getattr(GraphEdgeType, member).value == value
 
@@ -948,3 +949,18 @@ def test_setup_action_typed_dict_shape():
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
     assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+
+
+def test_engine_dto_carries_engine_version():
+    """EngineDTO exposes engine_version for dashboard version checks (bd4cfaa regen)."""
+    from inferencesh.types import EngineDTO, EngineStatus
+
+    engine: EngineDTO = {
+        "name": "worker-pool-1",
+        "api_url": "https://engine.example.com",
+        "status": EngineStatus.RUNNING,
+        "engine_version": "1.2.3",
+    }
+
+    assert engine["engine_version"] == "1.2.3"
+    assert engine["status"] == EngineStatus.RUNNING
