@@ -450,7 +450,7 @@ def test_stream_reconnects_on_connection_error(monkeypatch, tmp_path):
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
 
     with client.run({"app": "some/app", "input": {"text": "hello"}}, stream=True, reconnect_delay_ms=0) as stream:
-        updates = list(stream)
+        list(stream)
 
     assert call_count == 2
     assert stream.result is not None

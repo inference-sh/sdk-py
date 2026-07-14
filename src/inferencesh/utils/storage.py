@@ -6,7 +6,7 @@ class StorageDir(str, Enum):
     """Standard storage directories used by the SDK."""
     DATA = "/app/data"   # Persistent storage/cache directory
     TEMP = "/app/tmp"    # Temporary storage directory
-    CACHE = "/app/cache" # Cache directory
+    CACHE = "/app/cache"  # Cache directory
 
     @property
     def path(self) -> Path:
