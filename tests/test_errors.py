@@ -57,6 +57,28 @@ class TestRequirementError:
         assert err.action is not None
         assert err.action.provider == "github"
 
+    def test_from_dict_propagates_setup_action_ui_fields(self):
+        """RequirementError must preserve provider_name and scope_descriptions from 412 payloads."""
+        err = RequirementError.from_dict({
+            "type": "scope",
+            "key": "drive.readonly",
+            "message": "Grant Google Drive read scope",
+            "action": {
+                "type": "add_scopes",
+                "provider": "google",
+                "provider_name": "Google Workspace",
+                "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+                "scope_descriptions": {
+                    "https://www.googleapis.com/auth/drive.readonly": "Read files in Google Drive",
+                },
+            },
+        })
+        assert err.action is not None
+        assert err.action.provider_name == "Google Workspace"
+        assert err.action.scope_descriptions["https://www.googleapis.com/auth/drive.readonly"].startswith(
+            "Read files"
+        )
+
 
 class TestRequirementsNotMetError:
     def test_from_response_builds_errors(self):

@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
+
+**Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).
+
+**Open PRs checked:** Remote branches `cursor/missing-test-coverage-849c`, `9290`, `e655` restore overlapping Scope/SetupActionType tests dropped in ping-pong commits — those gaps filled here to avoid duplicate PR work.
+
+**Gaps filled this run:**
+
+- API key `Scope` enum stability (`agents:read`, `apikeys:write`, etc.) for permission checks
+- `ScopeGroup` catalog groups for GET `/scopes` UI rendering
+- `AuthSessionDTO.scopes` session listing shape
+- `ScopesResponse` / `ScopeDefinition` / `ScopePreset` catalog TypedDict shape
+- `SetupActionType` enum for 412 requirement actions (`add_secret`, `connect`, `add_scopes`)
+- `SetupAction` TypedDict `provider_name` / `scope_descriptions` for setup UIs
+- `RequirementError` propagation of nested setup-action UI fields
+- `probe_video` public export smoke test (regression guard for `c6a3241`)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_errors.py`
+
 ## 2026-07-13 (push dev @ 7db09b9, SuggestRequest.Context field)
 
 **Recent changes reviewed:** `7db09b9` (typegen regen: optional `context` on `SuggestRequest` for contextual app/agent suggestions). `f0a98f6` version bump only.
