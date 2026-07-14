@@ -813,3 +813,138 @@ def test_entitlement_dto_carries_source_and_enforcement():
 
     assert ent["source"] == EntitlementSource.TRIAL
     assert ent["enforcement"] == EnforcementMode.ENFORCEMENT_WARN
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALL", "*"),
+        ("AGENTS", "agents"),
+        ("APPS", "apps"),
+        ("FLOWS_EXECUTE", "flows:execute"),
+        ("SECRETS_READ", "secrets:read"),
+        ("API_KEYS_WRITE", "apikeys:write"),
+        ("SETTINGS_READ", "settings:read"),
+    ],
+)
+def test_scope_permission_values(member, value):
+    """API key scopes must stay stable for permission checks and session listings."""
+    from inferencesh.types import Scope
+
+    assert hasattr(Scope, member)
+    assert getattr(Scope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("AGENTS", "agents"),
+        ("SECRETS", "secrets"),
+        ("INTEGRATIONS", "integrations"),
+        ("ENGINES", "engines"),
+        ("API_KEYS", "apikeys"),
+        ("SETTINGS", "settings"),
+    ],
+)
+def test_scope_group_values(member, value):
+    """Scope catalog groups must match ScopeDefinition.group values."""
+    from inferencesh.types import ScopeGroup
+
+    assert hasattr(ScopeGroup, member)
+    assert getattr(ScopeGroup, member).value == value
+
+
+def test_auth_session_dto_lists_granted_scopes():
+    """Auth session listings expose which API key scopes are active on each session."""
+    from inferencesh.types import AuthSessionDTO, Scope
+
+    session: AuthSessionDTO = {
+        "id": "sess_abc",
+        "created_at": "2026-07-13T10:00:00Z",
+        "expires_at": "2026-08-13T10:00:00Z",
+        "ip": "203.0.113.10",
+        "browser": "Chrome",
+        "auth_method": "api_key",
+        "scopes": [Scope.AGENTS_READ, Scope.FILES_WRITE],
+        "current": True,
+    }
+
+    assert session["scopes"] == [Scope.AGENTS_READ, Scope.FILES_WRITE]
+    assert session["current"] is True
+
+
+def test_scopes_response_catalog_shape():
+    """GET /scopes returns grouped scope definitions and preset bundles."""
+    from inferencesh.types import (
+        Scope,
+        ScopeDefinition,
+        ScopeGroup,
+        ScopeGroupDefinition,
+        ScopePreset,
+        ScopesResponse,
+    )
+
+    resp: ScopesResponse = {
+        "scopes": [
+            ScopeDefinition(
+                value=Scope.AGENTS_EXECUTE,
+                label="Run agents",
+                description="Execute agent workflows",
+                group=ScopeGroup.AGENTS,
+            ),
+        ],
+        "groups": [
+            ScopeGroupDefinition(
+                id=ScopeGroup.AGENTS,
+                label="Agents",
+                description="Agent permissions",
+            ),
+        ],
+        "presets": [
+            ScopePreset(
+                id="read_run",
+                label="Read & run",
+                description="Read resources and execute apps/agents",
+                scopes=[Scope.APPS_READ, Scope.APPS_EXECUTE],
+            ),
+        ],
+    }
+
+    assert resp["scopes"][0]["value"] == Scope.AGENTS_EXECUTE
+    assert resp["groups"][0]["id"] == ScopeGroup.AGENTS
+    assert Scope.APPS_EXECUTE in resp["presets"][0]["scopes"]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SETUP_ACTION_ADD_SECRET", "add_secret"),
+        ("SETUP_ACTION_CONNECT", "connect"),
+        ("SETUP_ACTION_ADD_SCOPES", "add_scopes"),
+    ],
+)
+def test_setup_action_type_values(member, value):
+    """412 setup actions must distinguish secrets, connect, and scope expansion."""
+    from inferencesh.types import SetupActionType
+
+    assert hasattr(SetupActionType, member)
+    assert getattr(SetupActionType, member).value == value
+
+
+def test_setup_action_typed_dict_shape():
+    """SetupAction TypedDict carries provider labels and scope descriptions for UIs."""
+    from inferencesh.types import SetupAction, SetupActionType
+
+    action: SetupAction = {
+        "type": SetupActionType.SETUP_ACTION_ADD_SCOPES,
+        "provider": "google",
+        "provider_name": "Google Workspace",
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+        "scope_descriptions": {
+            "https://www.googleapis.com/auth/drive.readonly": "Read files in Google Drive",
+        },
+    }
+
+    assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
+    assert action["provider_name"] == "Google Workspace"
+    assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]

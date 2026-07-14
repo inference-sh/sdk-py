@@ -67,7 +67,7 @@ def test_all_exports_resolvable():
     # Streamable
     "streamable", "streamable_raw",
     # OutputMeta
-    "OutputMeta", "TextMeta", "ImageMeta", "VideoMeta", "AudioMeta",
+    "OutputMeta", "TextMeta", "ImageMeta", "VideoMeta", "AudioMeta", "probe_video",
 ])
 def test_public_name_importable(name):
     """Core public names must be importable from the top-level package."""
@@ -141,6 +141,8 @@ def test_models_llm_export_exists(name):
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
     "UpdateIntegrationScopesRequest",
     "RequirementType", "IntegrationConfigDTO",
+    "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
+    "SetupActionType", "EngineStatus",
     "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
