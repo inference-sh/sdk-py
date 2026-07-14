@@ -119,9 +119,14 @@ def test_models_llm_export_exists(name):
     # Enums
     "ChatStatus", "ChatMessageRole", "ChatMessageContentType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",
+    "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
+    "TeamRole", "TeamType", "TeamStatus", "ContentRating",
+    "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
+    "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
-    "AppSessionDTO",
+    "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
+    "FileDTO", "UsageEventDTO",
     # Agent config
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema

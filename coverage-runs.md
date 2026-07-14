@@ -1,5 +1,30 @@
 # Coverage automation runs
 
+## 2026-07-14 (push dev @ eeb8cd6, v0.7.12 version bump)
+
+**Recent changes reviewed:** `eeb8cd6` (version bump only). `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged).
+
+**Open PRs checked:** #126 (draft) covers chat/workflow/app-store enum stability (`ChatStatus`, `FlowRunStatus`, `FilterOperator` enum, etc.) — no overlap; this run targets team/CMS/billing/widget gaps instead.
+
+**Gaps filled this run:**
+
+- `GPUType` full vendor list for worker/instance GPU config
+- `PageStatus` / `PageType` CMS publish lifecycle (IntEnum + doc/blog/page kinds)
+- `ProjectType` workspace grouping (`agent`, `app`, `flow`, `other`)
+- `TeamInviteStatus` / `TeamRole` / `TeamType` / `TeamStatus` team management enums
+- `ContentRating` moderation ratings with `CONTENT_` acronym prefix guard
+- `UsageEventResourceTier` private vs cloud billing tier
+- `Infra` task routing (`private`, `cloud`, `private_first`)
+- `TaskLogType` IntEnum log stream discriminators
+- `Role` permission tokens
+- `EntitlementType` / `EnforcementMode` plan limit vs feature gate enums
+- `ToolType` full lifecycle (all eight tool kinds)
+- `WidgetNodeType` agent widget tree discriminators
+- `PageDTO` / `ProjectDTO` / `TeamInviteDTO` / `FileDTO` / `UsageEventDTO` status field shapes
+- `Filter` / `CursorListRequest` list API filter envelope (uses `FilterOperator`)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

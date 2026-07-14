@@ -948,3 +948,410 @@ def test_setup_action_typed_dict_shape():
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
     assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ANY", "any"),
+        ("NONE", "none"),
+        ("INTEL", "intel"),
+        ("NVIDIA", "nvidia"),
+        ("AMD", "amd"),
+        ("APPLE", "apple"),
+    ],
+)
+def test_gpu_type_values(member, value):
+    """Worker GPU config and instance types reference stable GPUType tokens."""
+    from inferencesh.types import GPUType
+
+    assert hasattr(GPUType, member)
+    assert getattr(GPUType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("UNKNOWN", 0),
+        ("DRAFT", 1),
+        ("PUBLISHED", 2),
+        ("ARCHIVED", 3),
+    ],
+)
+def test_page_status_lifecycle_values(member, value):
+    """PageDTO.status is an IntEnum; CMS publish workflow depends on stable values."""
+    from inferencesh.types import PageStatus
+
+    assert hasattr(PageStatus, member)
+    assert getattr(PageStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("DOC", "doc"),
+        ("BLOG", "blog"),
+        ("PAGE", "page"),
+    ],
+)
+def test_page_type_values(member, value):
+    """Page listings discriminate doc/blog/page content kinds."""
+    from inferencesh.types import PageType
+
+    assert hasattr(PageType, member)
+    assert getattr(PageType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("AGENT", "agent"),
+        ("APP", "app"),
+        ("FLOW", "flow"),
+        ("OTHER", "other"),
+    ],
+)
+def test_project_type_values(member, value):
+    """ProjectDTO.type groups agents, apps, and flows in the workspace UI."""
+    from inferencesh.types import ProjectType
+
+    assert hasattr(ProjectType, member)
+    assert getattr(ProjectType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("ACCEPTED", "accepted"),
+        ("DECLINED", "declined"),
+        ("EXPIRED", "expired"),
+        ("REVOKED", "revoked"),
+    ],
+)
+def test_team_invite_status_lifecycle_values(member, value):
+    """Team invite acceptance flows gate on TeamInviteStatus."""
+    from inferencesh.types import TeamInviteStatus
+
+    assert hasattr(TeamInviteStatus, member)
+    assert getattr(TeamInviteStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("OWNER", "owner"),
+        ("ADMIN", "admin"),
+        ("MEMBER", "member"),
+    ],
+)
+def test_team_role_values(member, value):
+    """TeamInviteDTO.role and membership APIs use TeamRole tokens."""
+    from inferencesh.types import TeamRole
+
+    assert hasattr(TeamRole, member)
+    assert getattr(TeamRole, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PERSONAL", "personal"),
+        ("TEAM", "team"),
+        ("SYSTEM", "system"),
+    ],
+)
+def test_team_type_values(member, value):
+    """TeamRelationDTO distinguishes personal vs shared workspaces."""
+    from inferencesh.types import TeamType
+
+    assert hasattr(TeamType, member)
+    assert getattr(TeamType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTIVE", "active"),
+        ("SUSPENDED", "suspended"),
+        ("TERMINATED", "terminated"),
+    ],
+)
+def test_team_status_lifecycle_values(member, value):
+    """Suspended teams must not shift status tokens across API versions."""
+    from inferencesh.types import TeamStatus
+
+    assert hasattr(TeamStatus, member)
+    assert getattr(TeamStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("CONTENT_SAFE", "safe"),
+        ("CONTENT_SEXUAL_SUGGESTIVE", "sexual_suggestive"),
+        ("CONTENT_SEXUAL_EXPLICIT", "sexual_explicit"),
+        ("CONTENT_VIOLENCE_NON_GRAPHIC", "violence_non_graphic"),
+        ("CONTENT_VIOLENCE_GRAPHIC", "violence_graphic"),
+        ("CONTENT_GORE", "gore"),
+        ("CONTENT_UNRATED", "unrated"),
+    ],
+)
+def test_content_rating_values(member, value):
+    """FileDTO.rating uses ContentRating; CONTENT_ prefix guards gotypegen naming."""
+    from inferencesh.types import ContentRating
+
+    assert hasattr(ContentRating, member)
+    assert getattr(ContentRating, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PRIVATE", "private"),
+        ("CLOUD", "cloud"),
+    ],
+)
+def test_usage_event_resource_tier_values(member, value):
+    """Usage billing events discriminate private vs cloud resource tiers."""
+    from inferencesh.types import UsageEventResourceTier
+
+    assert hasattr(UsageEventResourceTier, member)
+    assert getattr(UsageEventResourceTier, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PRIVATE", "private"),
+        ("CLOUD", "cloud"),
+        ("PRIVATE_FIRST", "private_first"),
+    ],
+)
+def test_infra_values(member, value):
+    """Task routing uses Infra to prefer private workers vs cloud."""
+    from inferencesh.types import Infra
+
+    assert hasattr(Infra, member)
+    assert getattr(Infra, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("BUILD", 0),
+        ("RUN", 1),
+        ("SERVE", 2),
+        ("SETUP", 3),
+        ("TASK", 4),
+    ],
+)
+def test_task_log_type_values(member, value):
+    """Task log streams use TaskLogType IntEnum discriminators."""
+    from inferencesh.types import TaskLogType
+
+    assert hasattr(TaskLogType, member)
+    assert getattr(TaskLogType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("GUEST", "guest"),
+        ("USER", "user"),
+        ("ADMIN", "admin"),
+        ("SYSTEM", "system"),
+    ],
+)
+def test_role_values(member, value):
+    """Permission checks reference stable Role tokens."""
+    from inferencesh.types import Role
+
+    assert hasattr(Role, member)
+    assert getattr(Role, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("BOOLEAN", "boolean"),
+        ("LIMIT", "limit"),
+    ],
+)
+def test_entitlement_type_values(member, value):
+    """Plan limits vs feature gates use EntitlementType discriminators."""
+    from inferencesh.types import EntitlementType
+
+    assert hasattr(EntitlementType, member)
+    assert getattr(EntitlementType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ENFORCEMENT_BLOCK", "block"),
+        ("ENFORCEMENT_WARN", "warn"),
+    ],
+)
+def test_enforcement_mode_values(member, value):
+    """Entitlement enforcement mode controls block vs warn behavior."""
+    from inferencesh.types import EnforcementMode
+
+    assert hasattr(EnforcementMode, member)
+    assert getattr(EnforcementMode, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("APP", "app"),
+        ("AGENT", "agent"),
+        ("HOOK", "hook"),
+        ("HTTP", "http"),
+        ("CALL", "call"),
+        ("MCP", "mcp"),
+        ("CLIENT", "client"),
+        ("INTERNAL", "internal"),
+    ],
+)
+def test_tool_type_lifecycle_values(member, value):
+    """Tool builders and DTOs discriminate all ToolType kinds."""
+    from inferencesh.types import ToolType
+
+    assert hasattr(ToolType, member)
+    assert getattr(ToolType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEXT", "text"),
+        ("MARKDOWN", "markdown"),
+        ("IMAGE", "image"),
+        ("BADGE", "badge"),
+        ("BUTTON", "button"),
+        ("INPUT", "input"),
+        ("SELECT", "select"),
+        ("CHECKBOX", "checkbox"),
+        ("ROW", "row"),
+        ("COL", "col"),
+        ("BOX", "box"),
+        ("SPACER", "spacer"),
+        ("DIVIDER", "divider"),
+        ("FORM", "form"),
+        ("TITLE", "title"),
+        ("CAPTION", "caption"),
+        ("LABEL", "label"),
+        ("TEXTAREA", "textarea"),
+        ("RADIO_GROUP", "radio-group"),
+        ("DATE_PICKER", "date-picker"),
+        ("ICON", "icon"),
+        ("CHART", "chart"),
+        ("TRANSITION", "transition"),
+        ("PLAN_LIST", "plan-list"),
+        ("KEY_VALUE", "key-value"),
+        ("STATUS_BADGE", "status-badge"),
+    ],
+)
+def test_widget_node_type_values(member, value):
+    """Agent widget trees serialize WidgetNodeType discriminators."""
+    from inferencesh.types import WidgetNodeType
+
+    assert hasattr(WidgetNodeType, member)
+    assert getattr(WidgetNodeType, member).value == value
+
+
+def test_page_dto_carries_status_and_type():
+    """CMS pages expose PageStatus and PageType for publish workflows."""
+    from inferencesh.types import PageDTO, PageStatus, PageType
+
+    page: PageDTO = {
+        "title": "Getting started",
+        "slug": "getting-started",
+        "status": PageStatus.PUBLISHED,
+        "type": PageType.DOC,
+    }
+
+    assert page["status"] == PageStatus.PUBLISHED
+    assert page["type"] == PageType.DOC
+
+
+def test_project_dto_carries_type():
+    """Project listings group resources by ProjectType."""
+    from inferencesh.types import ProjectDTO, ProjectType
+
+    project: ProjectDTO = {
+        "name": "Image pipeline",
+        "type": ProjectType.FLOW,
+    }
+
+    assert project["type"] == ProjectType.FLOW
+
+
+def test_team_invite_dto_carries_status_and_role():
+    """Team invite records expose status and role for acceptance UIs."""
+    from inferencesh.types import TeamInviteDTO, TeamInviteStatus, TeamRole
+
+    invite: TeamInviteDTO = {
+        "email": "dev@example.com",
+        "role": TeamRole.MEMBER,
+        "status": TeamInviteStatus.PENDING,
+    }
+
+    assert invite["role"] == TeamRole.MEMBER
+    assert invite["status"] == TeamInviteStatus.PENDING
+
+
+def test_file_dto_carries_content_rating():
+    """Uploaded files expose ContentRating for moderation filters."""
+    from inferencesh.types import ContentRating, FileDTO
+
+    file_rec: FileDTO = {
+        "filename": "output.png",
+        "rating": ContentRating.CONTENT_SAFE,
+    }
+
+    assert file_rec["rating"] == ContentRating.CONTENT_SAFE
+
+
+def test_usage_event_dto_carries_tier():
+    """Usage events record private vs cloud tier for billing breakdowns."""
+    from inferencesh.types import UsageEventDTO, UsageEventResourceTier
+
+    event: UsageEventDTO = {
+        "reference_id": "task_abc",
+        "tier": UsageEventResourceTier.CLOUD,
+        "quantity": 120,
+    }
+
+    assert event["tier"] == UsageEventResourceTier.CLOUD
+
+
+def test_filter_typed_dict_shape():
+    """Cursor list filters serialize FilterOperator tokens on Filter entries."""
+    from inferencesh.types import Filter, FilterOperator
+
+    filt: Filter = {
+        "field": "status",
+        "operator": FilterOperator.OP_EQUAL,
+        "value": "active",
+    }
+
+    assert filt["operator"] == FilterOperator.OP_EQUAL
+
+
+def test_cursor_list_request_filters_shape():
+    """CursorListRequest bundles search, filters, and sort for list APIs."""
+    from inferencesh.types import CursorListRequest, Filter, FilterOperator, SearchRequest, SortOrder
+
+    req: CursorListRequest = {
+        "limit": 25,
+        "search": SearchRequest(term="flux", exact=False),
+        "filters": [
+            Filter(field="type", operator=FilterOperator.OP_IN, value=["app", "agent"]),
+        ],
+        "sort": [SortOrder(field="updated_at", dir="desc")],
+    }
+
+    assert req["filters"][0]["operator"] == FilterOperator.OP_IN
+    assert req["search"]["term"] == "flux"
