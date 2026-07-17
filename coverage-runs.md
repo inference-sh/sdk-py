@@ -1,5 +1,17 @@
 # Coverage automation runs
 
+## 2026-07-17 (push dev @ a156502, NotificationType.DATA_EXPORT)
+
+**Recent changes reviewed:** `a156502` (typegen regen: `NotificationType.DATA_EXPORT` for data-export completion notifications). `a386bf7` README copy only.
+
+**Open PRs checked:** #131 (`GraphEdgeType.SUPERSEDES`, `EngineDTO.engine_version` on `cursor/missing-test-coverage-99ec`), #128 (team/CMS/billing/widget enums), #126 (chat/workflow/app-store enums) — no overlap; this run covers the new notification kind only.
+
+**Gaps filled this run:**
+
+- `NotificationType.DATA_EXPORT` for data-export job completion/failure notification routing
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

@@ -386,6 +386,7 @@ def test_notification_priority_values(member, value):
         ("SECURITY_ALERT", "security_alert"),
         ("TASK_COMPLETE", "task_complete"),
         ("TASK_FAILED", "task_failed"),
+        ("DATA_EXPORT", "data_export"),
         ("SYSTEM_ALERT", "system_alert"),
         ("MAINTENANCE", "maintenance"),
         ("TOS_UPDATE", "tos_update"),
