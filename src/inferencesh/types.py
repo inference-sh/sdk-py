@@ -1032,6 +1032,7 @@ class SuggestResponse(TypedDict, total=False):
 # SuggestResult is a single result item from the suggest endpoint.
 class SuggestResult(TypedDict, total=False):
     type: str
+    tag: str
     name: str
     description: str
     command: str
