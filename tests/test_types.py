@@ -476,7 +476,7 @@ def test_instance_type_dto_cloud_logo_url():
 
 
 def test_suggest_types_shape():
-    """Suggest endpoint TypedDicts must accept the documented request/response shape."""
+    """Suggest endpoint TypedDicts must accept tag/command on results (fb75385 regen)."""
     from inferencesh.types import SuggestRequest, SuggestResponse, SuggestResult
 
     req: SuggestRequest = {
@@ -487,14 +487,18 @@ def test_suggest_types_shape():
     }
     result: SuggestResult = {
         "type": "app",
+        "tag": "image-generation",
         "name": "flux",
         "description": "Image generation",
+        "command": "inference run flux",
         "score": 0.92,
     }
     resp: SuggestResponse = {"query": req["query"], "results": [result]}
 
     assert req["context"] == "building an image generation pipeline"
+    assert resp["results"][0]["tag"] == "image-generation"
     assert resp["results"][0]["name"] == "flux"
+    assert resp["results"][0]["command"] == "inference run flux"
     assert resp["results"][0]["score"] == 0.92
 
 
