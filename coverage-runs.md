@@ -1,5 +1,18 @@
 # Coverage automation runs
 
+## 2026-07-17 (push dev @ fb75385, SuggestResult.tag field)
+
+**Recent changes reviewed:** `fb75385` (typegen regen: optional `tag` on `SuggestResult` for subscription/category grouping in suggest UI). `a156502` (`NotificationType.DATA_EXPORT` — open PR #133). `bd4cfaa` (`EngineDTO.engine_version`, `GraphEdgeType.SUPERSEDES` — open PR #131).
+
+**Open PRs checked:** #133 (DATA_EXPORT), #131 (engine_version/SUPERSEDES), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with SuggestResult.tag.
+
+**Gaps filled this run:**
+
+- `SuggestResult.tag` optional category label on suggest results (e.g. subscription stats grouping)
+- `SuggestResult.command` CLI invocation string on suggest results (documented field, same TypedDict)
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).
