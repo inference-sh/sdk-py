@@ -208,6 +208,28 @@ def test_subscription_interval_values(member, value):
     assert getattr(SubscriptionInterval, member).value == value
 
 
+def test_subscription_dto_shape():
+    """SubscriptionDTO exposes billing fields without Stripe-internal IDs (d7aa6cb)."""
+    from inferencesh.types import SubscriptionDTO
+
+    dto: SubscriptionDTO = {
+        "team_id": "team_abc",
+        "plan_id": "plan_pro",
+        "interval": SubscriptionInterval.MONTHLY,
+        "status": SubscriptionStatus.ACTIVE,
+        "current_period_start": "2026-01-01T00:00:00Z",
+        "current_period_end": "2026-02-01T00:00:00Z",
+        "trial_end": None,
+        "cancel_at_period_end": False,
+        "credits_per_period": 1000,
+    }
+
+    assert dto["team_id"] == "team_abc"
+    assert dto["status"] == SubscriptionStatus.ACTIVE
+    assert dto["credits_per_period"] == 1000
+    assert "stripe_subscription_id" not in SubscriptionDTO.__annotations__
+
+
 @pytest.mark.parametrize(
     "member,value",
     [

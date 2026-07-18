@@ -1,5 +1,18 @@
 # Coverage automation runs
 
+## 2026-07-18 (push dev @ d7aa6cb, drop stripe_subscription_id from SubscriptionDTO)
+
+**Recent changes reviewed:** `d7aa6cb` (typegen regen: remove `stripe_subscription_id` from `SubscriptionDTO` — Stripe IDs are internal, not part of the public SDK surface). `fb75385` (`SuggestResult.tag` — open PR #137). `a156502` (`NotificationType.DATA_EXPORT` — open PR #133; `EngineDTO.engine_version` / `GraphEdgeType.SUPERSEDES` — open PR #131).
+
+**Open PRs checked:** #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (engine_version/SUPERSEDES), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with SubscriptionDTO stripe field removal.
+
+**Gaps filled this run:**
+
+- `SubscriptionDTO` billing response shape (`team_id`, `plan_id`, `interval`, `status`, period/trial/credits fields)
+- Regression guard: `stripe_subscription_id` must not reappear on `SubscriptionDTO` after backend typegen cleanup
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).
