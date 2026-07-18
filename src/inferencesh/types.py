@@ -531,6 +531,7 @@ class AppStoreListingDTO(TypedDict, total=False):
     max_concurrency: int
     max_concurrency_per_team: int
     min_concurrency: int
+    required_feature: str
     tags: List[str]
 
 # PublicAppStoreDTO is a lean DTO for public app store display.
