@@ -1727,7 +1727,6 @@ class RefRouteDTO(BaseModelDTO, TypedDict, total=False):
 # SubscriptionDTO for API responses
 class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
     team_id: str
-    stripe_subscription_id: str
     plan_id: str
     plan: Optional[PlanDTO]
     interval: SubscriptionInterval
