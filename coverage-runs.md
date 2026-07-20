@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-07-20 (push dev @ b525449, plan add-ons INF-588)
+
+**Recent changes reviewed:** `b525449` (typegen regen: `PlanType` enum, `PlanDTO.plan_type`, `EntitlementSource.ADDON`, `EntitlementDTO.team_plan_id`, `scope` on knowledge/suggest types). `3883610` (`AppStoreListingDTO.required_feature` for feature-gated listings). `d7aa6cb` (`stripe_subscription_id` removal — covered by open PR #138).
+
+**Open PRs checked:** #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap.
+
+**Gaps filled this run:**
+
+- `PlanType` enum (`base`, `addon`) for distinguishing subscription tiers vs add-on plans
+- `PlanDTO.plan_type` on base and add-on plan catalog entries
+- `EntitlementSource.ADDON` for entitlements granted by purchased add-ons
+- `EntitlementDTO.team_plan_id` linking entitlements to the add-on plan that granted them
+- `AppStoreListingDTO.required_feature` for feature-gated app store listings
+- `SuggestRequest.scope` for scoping suggest queries to team/public catalogs
+- `KnowledgeVersionInput` / `KnowledgeVersionDTO.scope` for namespace-scoped knowledge content
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

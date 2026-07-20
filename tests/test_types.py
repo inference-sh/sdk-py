@@ -482,6 +482,7 @@ def test_suggest_types_shape():
     req: SuggestRequest = {
         "query": "flux image",
         "context": "building an image generation pipeline",
+        "scope": ["team", "public"],
         "limit": 5,
         "agent": True,
     }
@@ -494,6 +495,7 @@ def test_suggest_types_shape():
     resp: SuggestResponse = {"query": req["query"], "results": [result]}
 
     assert req["context"] == "building an image generation pipeline"
+    assert req["scope"] == ["team", "public"]
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["score"] == 0.92
 
@@ -680,6 +682,7 @@ def test_plan_dto_limits_use_entitlement_resources():
         PlanDTO,
         PlanLimit,
         PlanLimits,
+        PlanType,
     )
 
     limits: PlanLimits = {
@@ -698,10 +701,12 @@ def test_plan_dto_limits_use_entitlement_resources():
     }
     plan: PlanDTO = {
         "name": "pro",
+        "plan_type": PlanType.BASE,
         "credits_monthly": 1000,
         "limits": limits,
     }
 
+    assert plan["plan_type"] == PlanType.BASE
     assert plan["limits"][EntitlementResource.RESOURCE_TRIGGERS]["limit"] == 10
     assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
 
@@ -717,9 +722,11 @@ def test_app_store_listing_dto_concurrency_fields():
         "min_concurrency": 1,
         "max_concurrency": 10,
         "max_concurrency_per_team": 5,
+        "required_feature": "gpu_workers",
         "tags": ["image", "generation"],
     }
 
+    assert listing["required_feature"] == "gpu_workers"
     assert listing["min_concurrency"] == 1
     assert listing["max_concurrency"] == 10
     assert listing["max_concurrency_per_team"] == 5
@@ -747,6 +754,7 @@ def test_user_metadata_dto_terms_acceptance():
         ("OVERRIDE", "override"),
         ("WHITELIST", "whitelist"),
         ("TRIAL", "trial"),
+        ("ADDON", "addon"),
     ],
 )
 def test_entitlement_source_values(member, value):
@@ -807,11 +815,13 @@ def test_entitlement_dto_carries_source_and_enforcement():
         "resource": EntitlementResource.RESOURCE_CONCURRENCY,
         "type": EntitlementType.LIMIT,
         "limit": 5,
-        "source": EntitlementSource.TRIAL,
+        "source": EntitlementSource.ADDON,
         "enforcement": EnforcementMode.ENFORCEMENT_WARN,
+        "team_plan_id": "plan_addon_extra_concurrency",
     }
 
-    assert ent["source"] == EntitlementSource.TRIAL
+    assert ent["source"] == EntitlementSource.ADDON
+    assert ent["team_plan_id"] == "plan_addon_extra_concurrency"
     assert ent["enforcement"] == EnforcementMode.ENFORCEMENT_WARN
 
 
@@ -948,3 +958,55 @@ def test_setup_action_typed_dict_shape():
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
     assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("BASE", "base"),
+        ("ADDON", "addon"),
+    ],
+)
+def test_plan_type_values(member, value):
+    """PlanType must distinguish base subscriptions from purchasable add-on plans."""
+    from inferencesh.types import PlanType
+
+    assert hasattr(PlanType, member)
+    assert getattr(PlanType, member).value == value
+
+
+def test_plan_dto_addon_plan_type():
+    """Add-on plans are self-serve extras layered on top of a base subscription."""
+    from inferencesh.types import PlanDTO, PlanType
+
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "plan_type": PlanType.ADDON,
+        "self_serve": True,
+        "active": True,
+        "credits_monthly": 0,
+    }
+
+    assert addon["plan_type"] == PlanType.ADDON
+    assert addon["self_serve"] is True
+
+
+def test_knowledge_version_scope_fields():
+    """Knowledge versions can scope content to team namespaces or shared catalogs."""
+    from inferencesh.types import KnowledgeVersionDTO, KnowledgeVersionInput
+
+    version_input: KnowledgeVersionInput = {
+        "description": "Team onboarding docs",
+        "scope": ["team:acme", "catalog:internal"],
+        "tags": ["onboarding"],
+    }
+    version: KnowledgeVersionDTO = {
+        "knowledge_id": "know_abc",
+        "description": version_input["description"],
+        "scope": version_input["scope"],
+        "tags": version_input["tags"],
+        "content_hash": "sha256:abc123",
+    }
+
+    assert version_input["scope"] == ["team:acme", "catalog:internal"]
+    assert version["scope"] == version_input["scope"]
