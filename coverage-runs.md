@@ -1,5 +1,19 @@
 # Coverage automation runs
 
+## 2026-07-21 (push dev @ c23f1ce, RefRouteMode + feature:seedance)
+
+**Recent changes reviewed:** `c23f1ce` (typegen regen: `RefRouteMode` enum, `RefRouteDTO.mode`, `EntitlementResource.RESOURCE_FEATURE_SEEDANCE`).
+
+**Open PRs checked:** #140 (plan add-ons/INF-588), #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap.
+
+**Gaps filled this run:**
+
+- `RefRouteMode` enum (`rewrite`, `redirect`) for alias routing behavior
+- `RefRouteDTO.mode` TypedDict field for rewrite vs redirect ref routes
+- `EntitlementResource.RESOURCE_FEATURE_SEEDANCE` (`feature:seedance`) video-generation feature gate
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

@@ -26,6 +26,7 @@ from inferencesh.types import (
     NotificationPriority,
     NotificationStatus,
     NotificationType,
+    RefRouteMode,
     RefRouteType,
     ResourceType,
     SecretScope,
@@ -276,6 +277,43 @@ def test_mcp_server_auth_type_acronym_names(enum_cls, member, value):
 def test_ref_route_type_values(member, value):
     assert hasattr(RefRouteType, member)
     assert getattr(RefRouteType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("REWRITE", "rewrite"),
+        ("REDIRECT", "redirect"),
+    ],
+)
+def test_ref_route_mode_values(member, value):
+    """Ref route mode must distinguish internal rewrite vs external redirect routing."""
+    assert hasattr(RefRouteMode, member)
+    assert getattr(RefRouteMode, member).value == value
+
+
+def test_ref_route_dto_mode_field():
+    """RefRouteDTO.mode controls whether alias refs rewrite in-place or redirect."""
+    from inferencesh.types import RefRouteDTO
+
+    rewrite: RefRouteDTO = {
+        "type": RefRouteType.APP,
+        "alias_ref": "flux",
+        "target_ref": "black-forest-labs/flux-dev",
+        "primary": True,
+        "mode": RefRouteMode.REWRITE,
+        "enabled": True,
+    }
+    redirect: RefRouteDTO = {
+        "type": RefRouteType.AGENT,
+        "alias_ref": "support",
+        "target_ref": "acme/support-agent",
+        "mode": RefRouteMode.REDIRECT,
+        "enabled": True,
+    }
+
+    assert rewrite["mode"] == RefRouteMode.REWRITE
+    assert redirect["mode"] == RefRouteMode.REDIRECT
 
 
 @pytest.mark.parametrize(
@@ -622,6 +660,7 @@ def test_integration_scope_values(member, value):
         ("RESOURCE_TRIGGERS", "triggers"),
         ("RESOURCE_RETENTION_DAYS", "retention_days"),
         ("RESOURCE_FEATURE_BYOK", "feature:byok"),
+        ("RESOURCE_FEATURE_SEEDANCE", "feature:seedance"),
     ],
 )
 def test_entitlement_resource_values(member, value):
