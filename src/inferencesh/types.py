@@ -444,6 +444,8 @@ class EstimateCostResponse(TypedDict, total=False):
     max: Optional[int]
     # DependsOn lists post-execution variables the pricing needs (when not exact).
     depends_on: List[str]
+    # EstimateError is set when an estimate expression exists but failed to evaluate.
+    estimate_error: str
     # PricingDescription is the rendered human-readable pricing string.
     pricing_description: str
 
@@ -1763,6 +1765,7 @@ class PlanDTO(BaseModelDTO, TypedDict, total=False):
     provider_price_id_yearly: str
     required_plan_ids: List[str]
     required_plan_names: List[str]
+    stackable: bool
     limits: PlanLimits
 
 # RefRouteDTO for API responses
