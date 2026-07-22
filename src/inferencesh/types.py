@@ -427,6 +427,26 @@ class CreateApiKeyRequest(TypedDict, total=False):
     expires_at: Optional[str]
     scopes: List[str]
 
+# EstimateCostRequest is the request for POST /store/apps/{appId}/estimate.
+class EstimateCostRequest(TypedDict, total=False):
+    input: Dict[str, Any]
+    function: str
+
+# EstimateCostResponse is the response from the cost estimation endpoint.
+class EstimateCostResponse(TypedDict, total=False):
+    # Confidence: "exact" (all fees input-based), "range" (estimate expression),
+    # or "unknown" (output-dependent, no estimate expression).
+    confidence: str
+    # Microcents is set when confidence is "exact".
+    microcents: Optional[int]
+    # Min/Max are set when confidence is "range".
+    min: Optional[int]
+    max: Optional[int]
+    # DependsOn lists post-execution variables the pricing needs (when not exact).
+    depends_on: List[str]
+    # PricingDescription is the rendered human-readable pricing string.
+    pricing_description: str
+
 # ScopeDefinition describes a single scope for UI rendering
 class ScopeDefinition(TypedDict, total=False):
     value: Scope
@@ -465,6 +485,15 @@ class AppPricing(TypedDict, total=False):
     royalty_expression: str
     partner_expression: str
     total_expression: str
+    # Estimate is a single CEL expression for pre-execution cost estimation.
+    # Returns either an int (exact total in microcents) or a {"min": int, "max": int} map.
+    # Only has access to pre-execution variables: task_inputs, prices, fees, task_function.
+    # Used by the /estimate endpoint when the real expressions depend on post-execution data.
+    # Not needed when all fee expressions are already input-based (the system evaluates those directly).
+    estimate: str
+    # Estimable is computed at save time. True when all fee expressions can be
+    # evaluated from pre-execution data alone (task_inputs, prices, fees, task_function).
+    estimable: Optional[bool]
     description: str
     description_rendered: str
 
