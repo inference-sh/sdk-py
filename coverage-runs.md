@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-07-22 (push dev @ 7c9f333, cost estimation + scope preset fields)
+
+**Recent changes reviewed:** `7c9f333` (typegen regen: `EstimateCostRequest`/`EstimateCostResponse`, `AppPricing.estimate`/`estimable`). `6c0973d` (`ScopePreset.summary`/`hidden` for standard read-only preset UI).
+
+**Open PRs checked:** #148 (EntitlementErrorMeta), #145 (`required_plan_ids`), #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140–#126 — no overlap with cost estimation or scope preset summary/hidden.
+
+**Gaps filled this run:**
+
+- `EstimateCostRequest` shape for POST `/store/apps/{appId}/estimate`
+- `EstimateCostResponse` confidence variants (`exact`, `range`, `unknown`) with microcents, min/max, or `depends_on`
+- `AppPricing.estimate` CEL expression and `estimable` flag for pre-execution pricing
+- `ScopePreset.summary` bullet labels and `hidden` flag on scope catalog presets
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

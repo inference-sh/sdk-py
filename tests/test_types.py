@@ -902,17 +902,110 @@ def test_scopes_response_catalog_shape():
         ],
         "presets": [
             ScopePreset(
-                id="read_run",
-                label="Read & run",
-                description="Read resources and execute apps/agents",
-                scopes=[Scope.APPS_READ, Scope.APPS_EXECUTE],
+                id="read_only",
+                label="Read only",
+                description="Read resources without write or execute access",
+                scopes=[Scope.APPS_READ, Scope.AGENTS_READ],
+                summary=["View apps and agents"],
+                hidden=False,
+            ),
+            ScopePreset(
+                id="standard",
+                label="Standard",
+                description="Read and execute apps/agents; secrets excluded",
+                scopes=[Scope.APPS_READ, Scope.APPS_EXECUTE, Scope.AGENTS_EXECUTE],
+                summary=["Read & run apps", "Read & run agents"],
+                hidden=False,
             ),
         ],
     }
 
     assert resp["scopes"][0]["value"] == Scope.AGENTS_EXECUTE
     assert resp["groups"][0]["id"] == ScopeGroup.AGENTS
-    assert Scope.APPS_EXECUTE in resp["presets"][0]["scopes"]
+    assert Scope.APPS_READ in resp["presets"][0]["scopes"]
+    assert resp["presets"][0]["summary"] == ["View apps and agents"]
+    assert resp["presets"][0]["hidden"] is False
+    assert resp["presets"][1]["id"] == "standard"
+    assert Scope.SECRETS_READ not in resp["presets"][1]["scopes"]
+
+
+def test_estimate_cost_request_shape():
+    """POST /store/apps/{appId}/estimate accepts task input and optional function."""
+    from inferencesh.types import EstimateCostRequest
+
+    req: EstimateCostRequest = {
+        "input": {"prompt": "a sunset over mountains", "steps": 30},
+        "function": "generate",
+    }
+
+    assert req["function"] == "generate"
+    assert req["input"]["steps"] == 30
+
+
+@pytest.mark.parametrize(
+    "confidence,fields",
+    [
+        (
+            "exact",
+            {"microcents": 250000, "pricing_description": "$0.25 per run"},
+        ),
+        (
+            "range",
+            {
+                "min": 100000,
+                "max": 500000,
+                "pricing_description": "$0.10–$0.50 depending on output size",
+            },
+        ),
+        (
+            "unknown",
+            {
+                "depends_on": ["output_tokens", "duration_seconds"],
+                "pricing_description": "Cost depends on model output",
+            },
+        ),
+    ],
+)
+def test_estimate_cost_response_confidence_shapes(confidence, fields):
+    """Estimate responses vary by confidence: exact microcents, range bounds, or unknown."""
+    from inferencesh.types import EstimateCostResponse
+
+    resp: EstimateCostResponse = {"confidence": confidence, **fields}
+
+    assert resp["confidence"] == confidence
+    assert resp["pricing_description"]
+    if confidence == "exact":
+        assert resp["microcents"] == 250000
+        assert "min" not in resp
+    elif confidence == "range":
+        assert resp["min"] == 100000
+        assert resp["max"] == 500000
+    else:
+        assert resp["depends_on"] == ["output_tokens", "duration_seconds"]
+
+
+def test_app_pricing_estimate_fields():
+    """AppPricing.estimate enables pre-execution cost estimation; estimable flags input-only fees."""
+    from inferencesh.types import AppPricing
+
+    estimable: AppPricing = {
+        "prices": {"gpu_seconds": 1000},
+        "total_expression": "task_inputs.steps * prices.gpu_seconds",
+        "estimable": True,
+        "description": "Per-step GPU pricing",
+    }
+    with_estimate: AppPricing = {
+        "prices": {"base": 50000},
+        "total_expression": "output_tokens * prices.base",
+        "estimate": '{"min": prices.base, "max": prices.base * 10}',
+        "estimable": False,
+        "description": "Output-dependent token pricing",
+    }
+
+    assert estimable["estimable"] is True
+    assert "estimate" not in estimable
+    assert with_estimate["estimable"] is False
+    assert "min" in with_estimate["estimate"]
 
 
 @pytest.mark.parametrize(

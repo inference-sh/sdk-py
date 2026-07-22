@@ -142,6 +142,7 @@ def test_models_llm_export_exists(name):
     "UpdateIntegrationScopesRequest",
     "RequirementType", "IntegrationConfigDTO",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
+    "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
     "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
