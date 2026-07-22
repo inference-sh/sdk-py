@@ -1719,6 +1719,7 @@ class PlanDTO(BaseModelDTO, TypedDict, total=False):
     credits_monthly: int
     provider_price_id_monthly: str
     provider_price_id_yearly: str
+    required_plan_ids: List[str]
     limits: PlanLimits
 
 # RefRouteDTO for API responses
