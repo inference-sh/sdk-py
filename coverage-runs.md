@@ -1,5 +1,17 @@
 # Coverage automation runs
 
+## 2026-07-22 (push dev @ f60c176, GraphEdgeType INPUT/OUTPUT)
+
+**Recent changes reviewed:** `f60c176` (typegen regen: `GraphEdgeType.INPUT` / `OUTPUT` for workflow graph I/O edges). `c23f1ce` (RefRouteMode, `feature:seedance`) — covered by open PR #142.
+
+**Open PRs checked:** #142 (RefRouteMode/seedance), #140 (plan add-ons/INF-588), #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with INPUT/OUTPUT.
+
+**Gaps filled this run:**
+
+- `GraphEdgeType.INPUT` / `OUTPUT` workflow graph edge kinds for data-flow I/O links between nodes
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

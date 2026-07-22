@@ -172,10 +172,12 @@ def test_graph_node_status_lifecycle_values(member, value):
         ("ANCESTOR", "ancestor"),
         ("DUPLICATE", "duplicate"),
         ("REFERENCES", "references"),
+        ("INPUT", "input"),
+        ("OUTPUT", "output"),
     ],
 )
 def test_graph_edge_type_values(member, value):
-    """Graph edge kinds must include REFERENCES from latest typegen regen."""
+    """Graph edge kinds must include workflow I/O links from latest typegen regen."""
     assert hasattr(GraphEdgeType, member)
     assert getattr(GraphEdgeType, member).value == value
 
