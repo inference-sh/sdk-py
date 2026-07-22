@@ -2353,6 +2353,8 @@ class GraphEdgeType(str, Enum):
     DUPLICATE = "duplicate"
     REFERENCES = "references"
     SUPERSEDES = "supersedes"
+    INPUT = "input"
+    OUTPUT = "output"
 
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
