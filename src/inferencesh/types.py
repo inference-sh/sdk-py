@@ -452,6 +452,8 @@ class ScopePreset(TypedDict, total=False):
     label: str
     description: str
     scopes: List[Scope]
+    summary: List[str]
+    hidden: bool
 
 # AppPricing configures all pricing using CEL expressions.
 # Empty expressions use defaults. All values in microcents.
@@ -2170,7 +2172,7 @@ class Scope(str, Enum):
     # Action-level scopes for Billing
     BILLING_READ = "billing:read"
     BILLING_WRITE = "billing:write"
-    # Action-level scopes for Secrets (sensitive - not in read/run presets)
+    # Action-level scopes for Secrets (sensitive - excluded from read-only preset)
     SECRETS_READ = "secrets:read"
     SECRETS_WRITE = "secrets:write"
     # Action-level scopes for Integrations
