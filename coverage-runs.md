@@ -1,5 +1,18 @@
 # Coverage automation runs
 
+## 2026-07-22 (push dev @ 9025916, EntitlementErrorMeta + PlanDTO.required_plan_names)
+
+**Recent changes reviewed:** `9025916` (typegen regen: `EntitlementErrorMeta` for structured entitlement error payloads; `required_plan_names` on `PlanDTO`). `357a038` (`required_plan_ids` — open PR #145).
+
+**Open PRs checked:** #145 (`required_plan_ids`), #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140–#126 — no overlap with `EntitlementErrorMeta` or `required_plan_names`.
+
+**Gaps filled this run:**
+
+- `EntitlementErrorMeta` limit-exceeded and feature-gate error payload shapes (usage, upgrade hints, add-on plan pricing)
+- `PlanDTO.required_plan_names` human-readable prerequisite plan names for add-on eligibility UIs
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

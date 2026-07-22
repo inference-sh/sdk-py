@@ -145,7 +145,7 @@ def test_models_llm_export_exists(name):
     "SetupActionType", "EngineStatus",
     "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
-    "WorkerStatus", "EntitlementDTO",
+    "EntitlementErrorMeta", "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO",
     "CheckRequirementsRequest", "CheckRequirementsResponse",
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",

@@ -706,6 +706,64 @@ def test_plan_dto_limits_use_entitlement_resources():
     assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
 
 
+def test_entitlement_error_meta_limit_exceeded_shape():
+    """Entitlement 402/403 errors expose usage, limits, and add-on upgrade hints."""
+    from inferencesh.types import EntitlementErrorMeta
+
+    meta: EntitlementErrorMeta = {
+        "resource": EntitlementResource.RESOURCE_CONCURRENCY,
+        "resource_label": "Concurrent runs",
+        "limit": 5,
+        "current": 5,
+        "upgrade_available": True,
+        "addon_plan_id": "plan_extra_concurrency",
+        "addon_plan_name": "Extra Concurrency",
+        "addon_plan_price": 2900,
+    }
+
+    assert meta["resource"] == EntitlementResource.RESOURCE_CONCURRENCY
+    assert meta["limit"] == meta["current"] == 5
+    assert meta["upgrade_available"] is True
+    assert meta["addon_plan_price"] == 2900
+
+
+def test_entitlement_error_meta_feature_gate_shape():
+    """Feature-gate entitlement errors may omit numeric limits but still suggest upgrades."""
+    from inferencesh.types import EntitlementErrorMeta
+
+    meta: EntitlementErrorMeta = {
+        "resource": EntitlementResource.RESOURCE_FEATURE_SEEDANCE,
+        "resource_label": "Seedance video",
+        "upgrade_available": True,
+        "addon_plan_id": "plan_pro",
+        "addon_plan_name": "Pro",
+    }
+
+    assert meta["resource"] == EntitlementResource.RESOURCE_FEATURE_SEEDANCE
+    assert meta["upgrade_available"] is True
+    assert "limit" not in meta
+
+
+def test_plan_dto_required_plan_names_prerequisite_chain():
+    """Add-on plans expose human-readable prerequisite plan names for upgrade UIs."""
+    from inferencesh.types import PlanDTO
+
+    base: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "required_plan_names": [],
+    }
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "credits_monthly": 0,
+        "required_plan_ids": ["plan_pro", "plan_team"],
+        "required_plan_names": ["Pro", "Team"],
+    }
+
+    assert base["required_plan_names"] == []
+    assert addon["required_plan_names"] == ["Pro", "Team"]
+
+
 def test_app_store_listing_dto_concurrency_fields():
     """App store listings expose min/max concurrency limits for worker scaling."""
     from inferencesh.types import AppStoreListingDTO
