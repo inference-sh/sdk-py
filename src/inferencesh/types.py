@@ -700,6 +700,17 @@ class WorkerRAM(TypedDict, total=False):
     worker_id: str
     total: int
 
+# EntitlementErrorMeta is the structured metadata returned in entitlement error responses.
+class EntitlementErrorMeta(TypedDict, total=False):
+    resource: EntitlementResource
+    resource_label: str
+    limit: Optional[int]
+    current: Optional[int]
+    upgrade_available: bool
+    addon_plan_id: str
+    addon_plan_name: str
+    addon_plan_price: Optional[int]
+
 # FileMetadata holds probed media metadata cached on File records.
 class FileMetadata(TypedDict, total=False):
     type: str
@@ -1720,6 +1731,7 @@ class PlanDTO(BaseModelDTO, TypedDict, total=False):
     provider_price_id_monthly: str
     provider_price_id_yearly: str
     required_plan_ids: List[str]
+    required_plan_names: List[str]
     limits: PlanLimits
 
 # RefRouteDTO for API responses
