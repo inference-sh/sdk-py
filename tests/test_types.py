@@ -706,6 +706,25 @@ def test_plan_dto_limits_use_entitlement_resources():
     assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
 
 
+def test_plan_dto_required_plan_ids_prerequisite_chain():
+    """Add-on plans declare prerequisite base plan IDs for upgrade eligibility checks."""
+    from inferencesh.types import PlanDTO
+
+    base: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "required_plan_ids": [],
+    }
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "credits_monthly": 0,
+        "required_plan_ids": ["plan_pro", "plan_team"],
+    }
+
+    assert base["required_plan_ids"] == []
+    assert addon["required_plan_ids"] == ["plan_pro", "plan_team"]
+
+
 def test_app_store_listing_dto_concurrency_fields():
     """App store listings expose min/max concurrency limits for worker scaling."""
     from inferencesh.types import AppStoreListingDTO

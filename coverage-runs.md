@@ -1,5 +1,17 @@
 # Coverage automation runs
 
+## 2026-07-22 (push dev @ 357a038, PlanDTO.required_plan_ids)
+
+**Recent changes reviewed:** `357a038` (typegen regen: `required_plan_ids` on `PlanDTO` for plan prerequisite chains). `f60c176` (`GraphEdgeType.INPUT`/`OUTPUT` — open PR #143).
+
+**Open PRs checked:** #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140 (plan add-ons/INF-588 — covers `plan_type` but not `required_plan_ids`), #138–#126 — no overlap with `required_plan_ids`.
+
+**Gaps filled this run:**
+
+- `PlanDTO.required_plan_ids` prerequisite plan ID list for add-on eligibility (empty for base plans, populated for add-ons)
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).
