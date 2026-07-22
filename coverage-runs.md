@@ -1,5 +1,18 @@
 # Coverage automation runs
 
+## 2026-07-22 (push dev @ 07c8ad1, estimate_error + PlanDTO.stackable)
+
+**Recent changes reviewed:** `07c8ad1` (typegen: `EstimateCostResponse.estimate_error` for failed CEL evaluation; `PlanDTO.stackable` for add-on vs base tier plans).
+
+**Open PRs checked:** #150 covers cost estimation types (`EstimateCostRequest`/`Response`, `AppPricing`) and scope preset `summary`/`hidden` but not `estimate_error`. #148/#145 cover `PlanDTO.required_plan_names`/`required_plan_ids` but not `stackable`. No overlap.
+
+**Gaps filled this run:**
+
+- `EstimateCostResponse.estimate_error` when estimate expression exists but CEL evaluation fails
+- `PlanDTO.stackable` flag distinguishing base tiers from stackable add-ons
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

@@ -706,6 +706,27 @@ def test_plan_dto_limits_use_entitlement_resources():
     assert plan["limits"][EntitlementResource.RESOURCE_FEATURE_BYOK]["enabled"] is True
 
 
+def test_plan_dto_stackable_flag():
+    """PlanDTO.stackable distinguishes base tiers from add-ons purchasable alongside them."""
+    from inferencesh.types import PlanDTO
+
+    base: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "stackable": False,
+        "required_plan_ids": [],
+    }
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "credits_monthly": 0,
+        "stackable": True,
+        "required_plan_ids": ["plan_pro"],
+    }
+
+    assert base["stackable"] is False
+    assert addon["stackable"] is True
+
+
 def test_app_store_listing_dto_concurrency_fields():
     """App store listings expose min/max concurrency limits for worker scaling."""
     from inferencesh.types import AppStoreListingDTO
@@ -913,6 +934,21 @@ def test_scopes_response_catalog_shape():
     assert resp["scopes"][0]["value"] == Scope.AGENTS_EXECUTE
     assert resp["groups"][0]["id"] == ScopeGroup.AGENTS
     assert Scope.APPS_EXECUTE in resp["presets"][0]["scopes"]
+
+
+def test_estimate_cost_response_estimate_error_field():
+    """Estimate responses surface CEL failures when an estimate expression cannot evaluate."""
+    from inferencesh.types import EstimateCostResponse
+
+    resp: EstimateCostResponse = {
+        "confidence": "unknown",
+        "estimate_error": "CEL evaluation failed: undefined variable 'output_tokens'",
+        "depends_on": ["output_tokens"],
+        "pricing_description": "Cost depends on model output",
+    }
+
+    assert resp["estimate_error"].startswith("CEL evaluation failed")
+    assert "output_tokens" in resp["depends_on"]
 
 
 @pytest.mark.parametrize(
