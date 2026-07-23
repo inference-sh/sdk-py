@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-07-23 (push dev @ fd3f1cc, batch merge PRs #126-#153)
+
+**Recent changes reviewed:** `fd3f1cc` (batch merge of 13 bot test PRs). Prior commits `07c8ad1`–`357a038` typegen fields largely covered by merged PRs, but the batch merge corrupted one test.
+
+**Open PRs checked:** #153 and #150 (draft) — content already merged into dev via `fd3f1cc`; this run fixes merge damage and fills minor field gaps instead.
+
+**Gaps filled this run:**
+
+- Restored `test_plan_dto_required_plan_ids_prerequisite_chain` body (batch merge left docstring-only stub that passed with zero assertions)
+- `ScopePreset.hidden=True` for admin-only presets excluded from default scope UI
+- `AppPricing.description_rendered` human-readable pricing alongside `estimate`/`estimable`
+- Deduplicated `test_imports.py` parametrize entries from overlapping batch merges
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-14 (push dev @ c5ba7b7, merge PR #125 Scope/EngineStatus coverage)
 
 **Recent changes reviewed:** `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged). `b8502d3`/`3616277`/`c6a3241` (EngineStatus tests, lint-only, probe_video `__all__`).
