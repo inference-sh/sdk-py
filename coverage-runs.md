@@ -1,5 +1,173 @@
 # Coverage automation runs
 
+## 2026-07-14 (push dev @ c5ba7b7, merge PR #125 Scope/EngineStatus coverage)
+
+**Recent changes reviewed:** `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged). `b8502d3`/`3616277`/`c6a3241` (EngineStatus tests, lint-only, probe_video `__all__`).
+
+**Open PRs checked:** None open. Remote branches `849c`/`9290`/`e655`/`be5d` restore overlapping Scope/SetupActionType tests now merged in #125 — no duplicate work.
+
+**Gaps filled this run:**
+
+- `AppCategory` enum including `_3D` digit-prefix member (gotypegen acronym regression guard)
+- `Visibility` enum for public/private/unlisted resource access
+- `ChatStatus` / `ChatMessageRole` / `ChatMessageStatus` / `ChatMessageContentType` chat lifecycle enums
+- `PlanStepStatus` agent planning progress states
+- `FlowRunStatus` IntEnum workflow run lifecycle (numeric values must not shift)
+- `ToolInvocationStatus` full lifecycle including `AWAITING_INPUT` (agent client-tool loop)
+- `AppSessionStatus` warm worker session lifecycle
+- `FilterOperator` search/filter operator tokens for cursor list APIs
+- `MetaItemType` output metadata media discriminators
+- `ChatDTO` / `FlowRunDTO` / `AppSessionDTO` status field shape
+## 2026-07-14 (push dev @ eeb8cd6, v0.7.12 version bump)
+
+**Recent changes reviewed:** `eeb8cd6` (version bump only). `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged).
+
+**Open PRs checked:** #126 (draft) covers chat/workflow/app-store enum stability (`ChatStatus`, `FlowRunStatus`, `FilterOperator` enum, etc.) — no overlap; this run targets team/CMS/billing/widget gaps instead.
+
+**Gaps filled this run:**
+
+- `GPUType` full vendor list for worker/instance GPU config
+- `PageStatus` / `PageType` CMS publish lifecycle (IntEnum + doc/blog/page kinds)
+- `ProjectType` workspace grouping (`agent`, `app`, `flow`, `other`)
+- `TeamInviteStatus` / `TeamRole` / `TeamType` / `TeamStatus` team management enums
+- `ContentRating` moderation ratings with `CONTENT_` acronym prefix guard
+- `UsageEventResourceTier` private vs cloud billing tier
+- `Infra` task routing (`private`, `cloud`, `private_first`)
+- `TaskLogType` IntEnum log stream discriminators
+- `Role` permission tokens
+- `EntitlementType` / `EnforcementMode` plan limit vs feature gate enums
+- `ToolType` full lifecycle (all eight tool kinds)
+- `WidgetNodeType` agent widget tree discriminators
+- `PageDTO` / `ProjectDTO` / `TeamInviteDTO` / `FileDTO` / `UsageEventDTO` status field shapes
+- `Filter` / `CursorListRequest` list API filter envelope (uses `FilterOperator`)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+## 2026-07-14 (push dev @ bd4cfaa, EngineDTO.engine_version + GraphEdgeType.SUPERSEDES)
+
+**Recent changes reviewed:** `bd4cfaa` (typegen regen: `engine_version` on `EngineDTO`, `SUPERSEDES` on `GraphEdgeType`). `eeb8cd6` version bump only.
+
+**Open PRs checked:** #128 (team/CMS/billing/widget enums on `cursor/missing-test-coverage-e699`), #126 (chat/workflow/app-store enums on `cursor/missing-test-coverage-e307`) — no overlap with this run's gaps.
+
+**Gaps filled this run:**
+
+- `GraphEdgeType.SUPERSEDES` workflow edge kind for version/supersession graph links
+- `EngineDTO.engine_version` top-level version field for engine dashboard/API responses
+## 2026-07-17 (push dev @ a156502, NotificationType.DATA_EXPORT)
+
+**Recent changes reviewed:** `a156502` (typegen regen: `NotificationType.DATA_EXPORT` for data-export completion notifications). `a386bf7` README copy only.
+
+**Open PRs checked:** #131 (`GraphEdgeType.SUPERSEDES`, `EngineDTO.engine_version` on `cursor/missing-test-coverage-99ec`), #128 (team/CMS/billing/widget enums), #126 (chat/workflow/app-store enums) — no overlap; this run covers the new notification kind only.
+
+**Gaps filled this run:**
+
+- `NotificationType.DATA_EXPORT` for data-export job completion/failure notification routing
+## 2026-07-17 (push dev @ fb75385, SuggestResult.tag field)
+
+**Recent changes reviewed:** `fb75385` (typegen regen: optional `tag` on `SuggestResult` for subscription/category grouping in suggest UI). `a156502` (`NotificationType.DATA_EXPORT` — open PR #133). `bd4cfaa` (`EngineDTO.engine_version`, `GraphEdgeType.SUPERSEDES` — open PR #131).
+
+**Open PRs checked:** #133 (DATA_EXPORT), #131 (engine_version/SUPERSEDES), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with SuggestResult.tag.
+
+**Gaps filled this run:**
+
+- `SuggestResult.tag` optional category label on suggest results (e.g. subscription stats grouping)
+- `SuggestResult.command` CLI invocation string on suggest results (documented field, same TypedDict)
+## 2026-07-18 (push dev @ d7aa6cb, drop stripe_subscription_id from SubscriptionDTO)
+
+**Recent changes reviewed:** `d7aa6cb` (typegen regen: remove `stripe_subscription_id` from `SubscriptionDTO` — Stripe IDs are internal, not part of the public SDK surface). `fb75385` (`SuggestResult.tag` — open PR #137). `a156502` (`NotificationType.DATA_EXPORT` — open PR #133; `EngineDTO.engine_version` / `GraphEdgeType.SUPERSEDES` — open PR #131).
+
+**Open PRs checked:** #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (engine_version/SUPERSEDES), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with SubscriptionDTO stripe field removal.
+
+**Gaps filled this run:**
+
+- `SubscriptionDTO` billing response shape (`team_id`, `plan_id`, `interval`, `status`, period/trial/credits fields)
+- Regression guard: `stripe_subscription_id` must not reappear on `SubscriptionDTO` after backend typegen cleanup
+
+**Files:** `tests/test_types.py`
+## 2026-07-20 (push dev @ b525449, plan add-ons INF-588)
+
+**Recent changes reviewed:** `b525449` (typegen regen: `PlanType` enum, `PlanDTO.plan_type`, `EntitlementSource.ADDON`, `EntitlementDTO.team_plan_id`, `scope` on knowledge/suggest types). `3883610` (`AppStoreListingDTO.required_feature` for feature-gated listings). `d7aa6cb` (`stripe_subscription_id` removal — covered by open PR #138).
+
+**Open PRs checked:** #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap.
+
+**Gaps filled this run:**
+
+- `PlanType` enum (`base`, `addon`) for distinguishing subscription tiers vs add-on plans
+- `PlanDTO.plan_type` on base and add-on plan catalog entries
+- `EntitlementSource.ADDON` for entitlements granted by purchased add-ons
+- `EntitlementDTO.team_plan_id` linking entitlements to the add-on plan that granted them
+- `AppStoreListingDTO.required_feature` for feature-gated app store listings
+- `SuggestRequest.scope` for scoping suggest queries to team/public catalogs
+- `KnowledgeVersionInput` / `KnowledgeVersionDTO.scope` for namespace-scoped knowledge content
+## 2026-07-21 (push dev @ c23f1ce, RefRouteMode + feature:seedance)
+
+**Recent changes reviewed:** `c23f1ce` (typegen regen: `RefRouteMode` enum, `RefRouteDTO.mode`, `EntitlementResource.RESOURCE_FEATURE_SEEDANCE`).
+
+**Open PRs checked:** #140 (plan add-ons/INF-588), #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap.
+
+**Gaps filled this run:**
+
+- `RefRouteMode` enum (`rewrite`, `redirect`) for alias routing behavior
+- `RefRouteDTO.mode` TypedDict field for rewrite vs redirect ref routes
+- `EntitlementResource.RESOURCE_FEATURE_SEEDANCE` (`feature:seedance`) video-generation feature gate
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+## 2026-07-22 (push dev @ f60c176, GraphEdgeType INPUT/OUTPUT)
+
+**Recent changes reviewed:** `f60c176` (typegen regen: `GraphEdgeType.INPUT` / `OUTPUT` for workflow graph I/O edges). `c23f1ce` (RefRouteMode, `feature:seedance`) — covered by open PR #142.
+
+**Open PRs checked:** #142 (RefRouteMode/seedance), #140 (plan add-ons/INF-588), #138 (SubscriptionDTO), #137 (SuggestResult.tag), #133 (DATA_EXPORT), #131 (SUPERSEDES/engine_version), #128 (team/CMS/billing/widget), #126 (chat/workflow/app-store) — no overlap with INPUT/OUTPUT.
+
+**Gaps filled this run:**
+
+- `GraphEdgeType.INPUT` / `OUTPUT` workflow graph edge kinds for data-flow I/O links between nodes
+## 2026-07-22 (push dev @ 357a038, PlanDTO.required_plan_ids)
+
+**Recent changes reviewed:** `357a038` (typegen regen: `required_plan_ids` on `PlanDTO` for plan prerequisite chains). `f60c176` (`GraphEdgeType.INPUT`/`OUTPUT` — open PR #143).
+
+**Open PRs checked:** #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140 (plan add-ons/INF-588 — covers `plan_type` but not `required_plan_ids`), #138–#126 — no overlap with `required_plan_ids`.
+
+**Gaps filled this run:**
+
+- `PlanDTO.required_plan_ids` prerequisite plan ID list for add-on eligibility (empty for base plans, populated for add-ons)
+
+**Files:** `tests/test_types.py`
+## 2026-07-22 (push dev @ 9025916, EntitlementErrorMeta + PlanDTO.required_plan_names)
+
+**Recent changes reviewed:** `9025916` (typegen regen: `EntitlementErrorMeta` for structured entitlement error payloads; `required_plan_names` on `PlanDTO`). `357a038` (`required_plan_ids` — open PR #145).
+
+**Open PRs checked:** #145 (`required_plan_ids`), #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140–#126 — no overlap with `EntitlementErrorMeta` or `required_plan_names`.
+
+**Gaps filled this run:**
+
+- `EntitlementErrorMeta` limit-exceeded and feature-gate error payload shapes (usage, upgrade hints, add-on plan pricing)
+- `PlanDTO.required_plan_names` human-readable prerequisite plan names for add-on eligibility UIs
+## 2026-07-22 (push dev @ 7c9f333, cost estimation + scope preset fields)
+
+**Recent changes reviewed:** `7c9f333` (typegen regen: `EstimateCostRequest`/`EstimateCostResponse`, `AppPricing.estimate`/`estimable`). `6c0973d` (`ScopePreset.summary`/`hidden` for standard read-only preset UI).
+
+**Open PRs checked:** #148 (EntitlementErrorMeta), #145 (`required_plan_ids`), #143 (GraphEdgeType INPUT/OUTPUT), #142 (RefRouteMode/seedance), #140–#126 — no overlap with cost estimation or scope preset summary/hidden.
+
+**Gaps filled this run:**
+
+- `EstimateCostRequest` shape for POST `/store/apps/{appId}/estimate`
+- `EstimateCostResponse` confidence variants (`exact`, `range`, `unknown`) with microcents, min/max, or `depends_on`
+- `AppPricing.estimate` CEL expression and `estimable` flag for pre-execution pricing
+- `ScopePreset.summary` bullet labels and `hidden` flag on scope catalog presets
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+## 2026-07-22 (push dev @ 07c8ad1, estimate_error + PlanDTO.stackable)
+
+**Recent changes reviewed:** `07c8ad1` (typegen: `EstimateCostResponse.estimate_error` for failed CEL evaluation; `PlanDTO.stackable` for add-on vs base tier plans).
+
+**Open PRs checked:** #150 covers cost estimation types (`EstimateCostRequest`/`Response`, `AppPricing`) and scope preset `summary`/`hidden` but not `estimate_error`. #148/#145 cover `PlanDTO.required_plan_names`/`required_plan_ids` but not `stackable`. No overlap.
+
+**Gaps filled this run:**
+
+- `EstimateCostResponse.estimate_error` when estimate expression exists but CEL evaluation fails
+- `PlanDTO.stackable` flag distinguishing base tiers from stackable add-ons
+
+**Files:** `tests/test_types.py`
+
 ## 2026-07-14 (push dev @ b8502d3, EngineStatus + probe_video __all__)
 
 **Recent changes reviewed:** `b8502d3` (EngineStatus enum coverage — merged). `3616277` (lint-only). `c6a3241` (`probe_video` added to `__all__` for wildcard import parity).

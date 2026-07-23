@@ -117,11 +117,18 @@ def test_models_llm_export_exists(name):
 
 @pytest.mark.parametrize("name", [
     # Enums
-    "ChatStatus", "ChatMessageRole", "ChatMessageContentType",
+    "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
+    "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
+    "AppSessionStatus", "FilterOperator", "MetaItemType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",
+    "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
+    "TeamRole", "TeamType", "TeamStatus", "ContentRating",
+    "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
+    "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
-    "AppSessionDTO",
+    "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
+    "FileDTO", "UsageEventDTO",
     # Agent config
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
@@ -142,17 +149,20 @@ def test_models_llm_export_exists(name):
     "UpdateIntegrationScopesRequest",
     "RequirementType", "IntegrationConfigDTO",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
+    "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
     "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
+    "PlanLimit", "PlanLimits", "PlanDTO", "PlanType",
+    "EntitlementErrorMeta", "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO",
     "CheckRequirementsRequest", "CheckRequirementsResponse",
-    "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO",
+    "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO", "KnowledgeVersionInput",
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
-    "MCPServerAuthType", "RefRouteType", "IntegrationType",
+    "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
 ])
