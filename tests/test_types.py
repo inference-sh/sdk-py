@@ -782,6 +782,23 @@ def test_plan_dto_limits_use_entitlement_resources():
 
 def test_plan_dto_required_plan_ids_prerequisite_chain():
     """Add-on plans declare prerequisite base plan IDs for upgrade eligibility checks."""
+    from inferencesh.types import PlanDTO
+
+    base: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "required_plan_ids": [],
+    }
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "credits_monthly": 0,
+        "required_plan_ids": ["plan_pro", "plan_team"],
+    }
+
+    assert base["required_plan_ids"] == []
+    assert addon["required_plan_ids"] == ["plan_pro", "plan_team"]
+
+
 def test_entitlement_error_meta_limit_exceeded_shape():
     """Entitlement 402/403 errors expose usage, limits, and add-on upgrade hints."""
     from inferencesh.types import EntitlementErrorMeta
@@ -1077,6 +1094,14 @@ def test_scopes_response_catalog_shape():
                 summary=["Read & run apps", "Read & run agents"],
                 hidden=False,
             ),
+            ScopePreset(
+                id="admin_full",
+                label="Full access",
+                description="All scopes including admin-only permissions",
+                scopes=[Scope.API_KEYS_WRITE, Scope.SECRETS_WRITE],
+                summary=["Full platform access"],
+                hidden=True,
+            ),
         ],
     }
 
@@ -1087,6 +1112,7 @@ def test_scopes_response_catalog_shape():
     assert resp["presets"][0]["hidden"] is False
     assert resp["presets"][1]["id"] == "standard"
     assert Scope.SECRETS_READ not in resp["presets"][1]["scopes"]
+    assert resp["presets"][2]["hidden"] is True
 
 
 def test_estimate_cost_request_shape():
@@ -1153,6 +1179,7 @@ def test_app_pricing_estimate_fields():
         "total_expression": "task_inputs.steps * prices.gpu_seconds",
         "estimable": True,
         "description": "Per-step GPU pricing",
+        "description_rendered": "$0.001 per step",
     }
     with_estimate: AppPricing = {
         "prices": {"base": 50000},
@@ -1160,11 +1187,14 @@ def test_app_pricing_estimate_fields():
         "estimate": '{"min": prices.base, "max": prices.base * 10}',
         "estimable": False,
         "description": "Output-dependent token pricing",
+        "description_rendered": "From $0.05 depending on output size",
     }
 
     assert estimable["estimable"] is True
+    assert estimable["description_rendered"] == "$0.001 per step"
     assert "estimate" not in estimable
     assert with_estimate["estimable"] is False
+    assert with_estimate["description_rendered"].startswith("From $0.05")
     assert "min" in with_estimate["estimate"]
 
 
@@ -1889,6 +1919,8 @@ def test_cursor_list_request_filters_shape():
 
     assert req["filters"][0]["operator"] == FilterOperator.OP_IN
     assert req["search"]["term"] == "flux"
+
+
 def test_engine_dto_carries_engine_version():
     """EngineDTO exposes engine_version for dashboard version checks (bd4cfaa regen)."""
     from inferencesh.types import EngineDTO, EngineStatus
