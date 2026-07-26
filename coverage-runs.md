@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-07-26 (push dev @ 7a7bdde, merge PR #156 — billing/catalog gaps after PlanVersionDTO migration)
+
+**Recent changes reviewed:** `7a7bdde` (merge PR #156: PlanVersionDTO, PKCE, AppStatus, Skill/Knowledge uses/installs — already merged). Remaining gaps: subscription nesting of `PlanDTO.active_version`, billing mutation requests, API key scopes, skill store listing metrics, MCP server catalog.
+
+**Open PRs checked:** None open. PR #156 (`cursor/missing-test-coverage-2084`) merged — no duplicate work.
+
+**Gaps filled this run:**
+
+- `SubscriptionDTO.plan` embeds `PlanDTO` with `active_version` pricing (regression guard after `plan_prices` removal)
+- `ChangePlanRequest` / `CancelSubscriptionRequest` billing mutation request shapes
+- `CreateSubscriptionRequest` checkout redirect URL fields
+- `ApiKeyDTO.scopes` for permission auditing
+- `SkillStoreListingDTO` `uses`/`installs` store ranking metrics (parity with `SkillDTO`)
+- `MCPServerDTO` auth type and default OAuth scopes for MCP catalog
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 605 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).

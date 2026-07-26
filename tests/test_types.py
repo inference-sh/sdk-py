@@ -2121,3 +2121,129 @@ def test_knowledge_version_scope_fields():
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
     assert version["scope"] == version_input["scope"]
+
+
+def test_subscription_dto_embeds_plan_with_active_version():
+    """Subscription responses nest PlanDTO with active_version pricing after plan_prices removal."""
+    from inferencesh.types import (
+        PlanDTO,
+        PlanType,
+        PlanVersionDTO,
+        SubscriptionDTO,
+    )
+
+    active_version: PlanVersionDTO = {
+        "plan_id": "plan_pro",
+        "amount_monthly": 2900,
+        "amount_yearly": 29000,
+        "provider_price_id_monthly": "price_m",
+        "provider_price_id_yearly": "price_y",
+        "credits_monthly": 1000,
+        "limits": {},
+        "active": True,
+    }
+    plan: PlanDTO = {
+        "name": "pro",
+        "plan_type": PlanType.BASE,
+        "credits_monthly": 1000,
+        "active_version": active_version,
+        "stackable": False,
+        "required_plan_ids": [],
+        "required_plan_names": [],
+        "limits": {},
+    }
+    subscription: SubscriptionDTO = {
+        "team_id": "team_abc",
+        "plan_id": "plan_pro",
+        "plan": plan,
+        "interval": SubscriptionInterval.MONTHLY,
+        "status": SubscriptionStatus.ACTIVE,
+        "current_period_start": "2026-01-01T00:00:00Z",
+        "current_period_end": "2026-02-01T00:00:00Z",
+        "trial_end": None,
+        "cancel_at_period_end": False,
+        "credits_per_period": 1000,
+    }
+
+    assert subscription["plan"]["active_version"]["amount_monthly"] == 2900
+    assert subscription["plan"]["active_version"]["active"] is True
+    assert "prices" not in PlanDTO.__annotations__
+
+
+def test_change_and_cancel_subscription_requests():
+    """Billing clients upgrade plans and cancel subscriptions via typed request bodies."""
+    from inferencesh.types import CancelSubscriptionRequest, ChangePlanRequest
+
+    change: ChangePlanRequest = {"plan_id": "plan_team"}
+    cancel: CancelSubscriptionRequest = {"at_period_end": True}
+
+    assert change["plan_id"] == "plan_team"
+    assert cancel["at_period_end"] is True
+
+
+def test_create_subscription_request_checkout_urls():
+    """New subscriptions require plan, interval, and Stripe checkout redirect URLs."""
+    from inferencesh.types import CreateSubscriptionRequest
+
+    req: CreateSubscriptionRequest = {
+        "plan_id": "plan_pro",
+        "interval": "monthly",
+        "success_url": "https://app.example.com/billing/success",
+        "cancel_url": "https://app.example.com/billing/cancel",
+    }
+
+    assert req["interval"] == "monthly"
+    assert req["success_url"].startswith("https://")
+
+
+def test_api_key_dto_scopes_shape():
+    """API keys expose granted scopes for permission auditing and session listings."""
+    from inferencesh.types import ApiKeyDTO, Scope
+
+    key: ApiKeyDTO = {
+        "name": "ci-deploy",
+        "key": "inf_sk_abc123",
+        "last_used_at": "2026-07-01T12:00:00Z",
+        "expires_at": None,
+        "scopes": [Scope.APPS_EXECUTE, Scope.AGENTS_READ],
+        "source": "dashboard",
+    }
+
+    assert Scope.APPS_EXECUTE in key["scopes"]
+    assert key["expires_at"] is None
+
+
+def test_skill_store_listing_dto_usage_metrics():
+    """Skill store admin listings expose uses/installs for featured ranking."""
+    from inferencesh.types import SkillStoreListingDTO
+
+    listing: SkillStoreListingDTO = {
+        "id": "listing_xyz",
+        "category": "productivity",
+        "is_featured": True,
+        "rank": 1,
+        "uses": 5000,
+        "installs": 800,
+        "tags": ["code-review"],
+    }
+
+    assert listing["uses"] >= listing["installs"]
+    assert listing["is_featured"] is True
+
+
+def test_mcp_server_dto_catalog_shape():
+    """MCP server catalog entries carry auth type and default OAuth scopes."""
+    from inferencesh.types import MCPServerAuthType, MCPServerDTO
+
+    server: MCPServerDTO = {
+        "slug": "github",
+        "name": "GitHub",
+        "server_url": "https://mcp.github.com/sse",
+        "auth_type": MCPServerAuthType.MCP_SERVER_AUTH_O_AUTH,
+        "oauth_client_id": "gh_client_123",
+        "default_scopes": ["repo:read"],
+        "documentation_url": "https://docs.github.com/mcp",
+    }
+
+    assert server["auth_type"] == MCPServerAuthType.MCP_SERVER_AUTH_O_AUTH
+    assert server["default_scopes"][0] == "repo:read"

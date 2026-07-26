@@ -161,6 +161,8 @@ def test_models_llm_export_exists(name):
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO", "KnowledgeVersionInput",
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
+    "ChangePlanRequest", "CancelSubscriptionRequest",
+    "ApiKeyDTO", "SkillStoreListingDTO", "MCPServerDTO",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)
