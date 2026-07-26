@@ -380,6 +380,20 @@ def test_device_auth_init_request_token_kind():
     assert req["token_kind"] == DeviceTokenKind.SESSION
 
 
+def test_device_auth_init_request_pkce_fields():
+    """Device auth init accepts PKCE code_challenge for secure public clients (8e90e52)."""
+    from inferencesh.types import DeviceAuthInitRequest
+
+    req: DeviceAuthInitRequest = {
+        "token_kind": DeviceTokenKind.SESSION,
+        "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw",
+        "code_challenge_method": "S256",
+    }
+
+    assert req["code_challenge_method"] == "S256"
+    assert len(req["code_challenge"]) > 20
+
+
 def test_device_auth_poll_response_session_and_api_key():
     """Poll responses return session_token or api_key depending on init token_kind."""
     from inferencesh.types import DeviceAuthPollResponse
@@ -782,6 +796,23 @@ def test_plan_dto_limits_use_entitlement_resources():
 
 def test_plan_dto_required_plan_ids_prerequisite_chain():
     """Add-on plans declare prerequisite base plan IDs for upgrade eligibility checks."""
+    from inferencesh.types import PlanDTO
+
+    base: PlanDTO = {
+        "name": "pro",
+        "credits_monthly": 1000,
+        "required_plan_ids": [],
+    }
+    addon: PlanDTO = {
+        "name": "extra_concurrency",
+        "credits_monthly": 0,
+        "required_plan_ids": ["plan_pro", "plan_team"],
+    }
+
+    assert base["required_plan_ids"] == []
+    assert addon["required_plan_ids"] == ["plan_pro", "plan_team"]
+
+
 def test_entitlement_error_meta_limit_exceeded_shape():
     """Entitlement 402/403 errors expose usage, limits, and add-on upgrade hints."""
     from inferencesh.types import EntitlementErrorMeta
@@ -859,6 +890,62 @@ def test_plan_dto_stackable_flag():
 
     assert base["stackable"] is False
     assert addon["stackable"] is True
+
+
+def test_plan_dto_active_version_shape():
+    """Plan catalog entries embed active pricing via PlanVersionDTO (06ecea2/eceba3c regen)."""
+    from inferencesh.types import PlanDTO, PlanType, PlanVersionDTO
+
+    active_version: PlanVersionDTO = {
+        "plan_id": "plan_pro",
+        "amount_monthly": 2900,
+        "amount_yearly": 29000,
+        "provider_price_id_monthly": "price_monthly_abc",
+        "provider_price_id_yearly": "price_yearly_abc",
+        "credits_monthly": 1000,
+        "limits": {},
+        "active": True,
+    }
+    plan: PlanDTO = {
+        "name": "pro",
+        "plan_type": PlanType.BASE,
+        "credits_monthly": 1000,
+        "active_version": active_version,
+    }
+
+    assert plan["active_version"]["amount_monthly"] == 2900
+    assert plan["active_version"]["provider_price_id_yearly"] == "price_yearly_abc"
+
+
+def test_plan_dto_dropped_flat_pricing_fields():
+    """PlanDTO no longer carries top-level monthly/yearly prices after PlanVersionDTO migration."""
+    from inferencesh.types import PlanDTO
+
+    annotations = PlanDTO.__annotations__
+    assert "active_version" in annotations
+    assert "price_monthly" not in annotations
+    assert "price_yearly" not in annotations
+    assert "provider_price_id_monthly" not in annotations
+    assert "prices" not in annotations
+
+
+def test_plan_version_dto_monthly_yearly_amounts():
+    """PlanVersionDTO exposes separate monthly/yearly amounts and provider price IDs."""
+    from inferencesh.types import PlanVersionDTO
+
+    version: PlanVersionDTO = {
+        "plan_id": "plan_team",
+        "amount_monthly": 9900,
+        "amount_yearly": 99000,
+        "provider_price_id_monthly": "price_m",
+        "provider_price_id_yearly": "price_y",
+        "credits_monthly": 5000,
+        "limits": {},
+        "active": True,
+    }
+
+    assert version["amount_monthly"] == 9900
+    assert version["amount_yearly"] == 99000
 
 
 def test_app_store_listing_dto_concurrency_fields():
@@ -1077,6 +1164,14 @@ def test_scopes_response_catalog_shape():
                 summary=["Read & run apps", "Read & run agents"],
                 hidden=False,
             ),
+            ScopePreset(
+                id="admin_full",
+                label="Full access",
+                description="All scopes including admin-only permissions",
+                scopes=[Scope.API_KEYS_WRITE, Scope.SECRETS_WRITE],
+                summary=["Full platform access"],
+                hidden=True,
+            ),
         ],
     }
 
@@ -1087,6 +1182,7 @@ def test_scopes_response_catalog_shape():
     assert resp["presets"][0]["hidden"] is False
     assert resp["presets"][1]["id"] == "standard"
     assert Scope.SECRETS_READ not in resp["presets"][1]["scopes"]
+    assert resp["presets"][2]["hidden"] is True
 
 
 def test_estimate_cost_request_shape():
@@ -1153,6 +1249,7 @@ def test_app_pricing_estimate_fields():
         "total_expression": "task_inputs.steps * prices.gpu_seconds",
         "estimable": True,
         "description": "Per-step GPU pricing",
+        "description_rendered": "$0.001 per step",
     }
     with_estimate: AppPricing = {
         "prices": {"base": 50000},
@@ -1160,11 +1257,14 @@ def test_app_pricing_estimate_fields():
         "estimate": '{"min": prices.base, "max": prices.base * 10}',
         "estimable": False,
         "description": "Output-dependent token pricing",
+        "description_rendered": "From $0.05 depending on output size",
     }
 
     assert estimable["estimable"] is True
+    assert estimable["description_rendered"] == "$0.001 per step"
     assert "estimate" not in estimable
     assert with_estimate["estimable"] is False
+    assert with_estimate["description_rendered"].startswith("From $0.05")
     assert "min" in with_estimate["estimate"]
 
 
@@ -1743,6 +1843,42 @@ def test_flow_run_dto_carries_int_status():
     assert run["status"].value == 2
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTIVE", "active"),
+        ("MAINTENANCE", "maintenance"),
+        ("DEPRECATED", "deprecated"),
+        ("RETIRED", "retired"),
+    ],
+)
+def test_app_status_values(member, value):
+    """AppStatus lifecycle must stay stable for catalog filtering and deprecation banners."""
+    from inferencesh.types import AppStatus
+
+    assert hasattr(AppStatus, member)
+    assert getattr(AppStatus, member).value == value
+
+
+def test_app_dto_carries_status():
+    """AppDTO exposes operational status for maintenance/deprecation messaging."""
+    from inferencesh.types import AppCategory, AppDTO, AppStatus
+
+    app: AppDTO = {
+        "namespace": "acme",
+        "name": "flux",
+        "description": "Image generation",
+        "category": AppCategory.IMAGE,
+        "version_id": "ver_abc",
+        "status": AppStatus.MAINTENANCE,
+        "status_message": "Scheduled maintenance until 18:00 UTC",
+        "status_changed_at": "2026-07-26T12:00:00Z",
+    }
+
+    assert app["status"] == AppStatus.MAINTENANCE
+    assert "maintenance" in app["status_message"].lower()
+
+
 def test_app_session_dto_carries_status():
     """App session records expose lifecycle status for warm workers."""
     from inferencesh.types import AppSessionDTO, AppSessionStatus
@@ -1933,6 +2069,37 @@ def test_plan_dto_addon_plan_type():
 
     assert addon["plan_type"] == PlanType.ADDON
     assert addon["self_serve"] is True
+
+
+def test_skill_dto_usage_metrics():
+    """Skill catalog listings expose uses/installs for popularity sorting."""
+    from inferencesh.types import SkillDTO
+
+    skill: SkillDTO = {
+        "name": "code-review",
+        "uses": 1200,
+        "installs": 340,
+        "version_id": "ver_xyz",
+    }
+
+    assert skill["uses"] >= skill["installs"]
+
+
+def test_knowledge_dto_usage_metrics():
+    """Knowledge catalog listings expose uses/installs for discovery rankings."""
+    from inferencesh.types import KnowledgeDTO, KnowledgeLifecycle, KnowledgeType
+
+    knowledge: KnowledgeDTO = {
+        "name": "onboarding-docs",
+        "type": KnowledgeType.CONCEPT,
+        "lifecycle": KnowledgeLifecycle.PERMANENT,
+        "uses": 50,
+        "installs": 12,
+        "version_id": "ver_abc",
+    }
+
+    assert knowledge["uses"] == 50
+    assert knowledge["installs"] == 12
 
 
 def test_knowledge_version_scope_fields():
