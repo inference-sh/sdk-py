@@ -340,6 +340,8 @@ class AuthResponse(TypedDict, total=False):
 # DeviceTokenKindAPIKey (legacy CLIs send no body).
 class DeviceAuthInitRequest(TypedDict, total=False):
     token_kind: DeviceTokenKind
+    code_challenge: str
+    code_challenge_method: str
 
 class DeviceAuthResponse(TypedDict, total=False):
     user_code: str
