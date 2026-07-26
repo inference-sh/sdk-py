@@ -1,5 +1,25 @@
 # Coverage automation runs
 
+## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
+
+**Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
+
+**Open PRs checked:** #154 (draft, `cursor/missing-test-coverage-ea8b`) — overlaps on corrupted `required_plan_ids` stub, `ScopePreset.hidden`, and `AppPricing.description_rendered`; this run includes those fixes plus new typegen gaps.
+
+**Gaps filled this run:**
+
+- Restored `PlanDTO.required_plan_ids` prerequisite chain test body (batch merge #126–#153 left docstring-only stub)
+- `PlanVersionDTO` monthly/yearly amounts and `PlanDTO.active_version` embedded pricing shape
+- Regression guard: `PlanDTO` must not reintroduce `price_monthly`/`price_yearly`/`prices` top-level fields
+- `DeviceAuthInitRequest` PKCE `code_challenge` / `code_challenge_method` for secure CLI login
+- `AppStatus` enum (`active`, `maintenance`, `deprecated`, `retired`) and `AppDTO` status fields
+- `SkillDTO` / `KnowledgeDTO` `uses` and `installs` catalog popularity metrics
+- `ScopePreset.hidden=True` admin-only presets; `AppPricing.description_rendered` human-readable pricing
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 594 passed.
+
 ## 2026-07-14 (push dev @ c5ba7b7, merge PR #125 Scope/EngineStatus coverage)
 
 **Recent changes reviewed:** `c5ba7b7` (merge PR #125: Scope catalog, SetupActionType, EngineStatus, probe_video export — already merged). `b8502d3`/`3616277`/`c6a3241` (EngineStatus tests, lint-only, probe_video `__all__`).
