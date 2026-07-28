@@ -942,6 +942,9 @@ class PageMetadata(TypedDict, total=False):
     type: str
     icon: str
     hide_from_nav: bool
+    # PublishAt is when a scheduled page goes live. Only meaningful while the
+    # page's status is PageStatusScheduled.
+    publish_at: Optional[str]
 
 # MenuItem represents an item in a menu (can be nested)
 class MenuItem(TypedDict, total=False):
@@ -955,6 +958,11 @@ class MenuItem(TypedDict, total=False):
     is_group: bool
     expanded: bool
     children: List[MenuItem]
+
+# SlugAvailabilityResponse answers the editor's slug availability check.
+class SlugAvailabilityResponse(TypedDict, total=False):
+    slug: str
+    available: bool
 
 # PlanLimit defines a single resource limit or feature gate within a plan.
 class PlanLimit(TypedDict, total=False):
@@ -2438,6 +2446,7 @@ class PageStatus(IntEnum):
     DRAFT = 1
     PUBLISHED = 2
     ARCHIVED = 3
+    SCHEDULED = 4
 
 class PageType(str, Enum):
     DOC = "doc"
