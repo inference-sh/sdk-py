@@ -1486,6 +1486,7 @@ def test_flow_run_status_lifecycle_values(member, value):
         ("DRAFT", 1),
         ("PUBLISHED", 2),
         ("ARCHIVED", 3),
+        ("SCHEDULED", 4),
     ],
 )
 def test_page_status_lifecycle_values(member, value):
@@ -1944,6 +1945,45 @@ def test_page_dto_carries_status_and_type():
 
     assert page["status"] == PageStatus.PUBLISHED
     assert page["type"] == PageType.DOC
+
+
+def test_page_metadata_publish_at_for_scheduled_pages():
+    """Scheduled pages carry publish_at in metadata until they go live (cb0c1ae regen)."""
+    from inferencesh.types import PageDTO, PageMetadata, PageStatus, PageType
+
+    metadata: PageMetadata = {
+        "title": "Launch announcement",
+        "publish_at": "2026-08-01T09:00:00Z",
+    }
+    page: PageDTO = {
+        "title": "Launch announcement",
+        "slug": "launch-announcement",
+        "status": PageStatus.SCHEDULED,
+        "type": PageType.BLOG,
+        "metadata": metadata,
+    }
+
+    assert page["status"] == PageStatus.SCHEDULED
+    assert page["status"].value == 4
+    assert page["metadata"]["publish_at"] == "2026-08-01T09:00:00Z"
+
+
+def test_slug_availability_response_shape():
+    """Slug availability checks return the slug and whether it is free (cb0c1ae regen)."""
+    from inferencesh.types import SlugAvailabilityResponse
+
+    available: SlugAvailabilityResponse = {
+        "slug": "getting-started",
+        "available": True,
+    }
+    taken: SlugAvailabilityResponse = {
+        "slug": "docs",
+        "available": False,
+    }
+
+    assert available["available"] is True
+    assert taken["available"] is False
+    assert taken["slug"] == "docs"
 
 
 def test_project_dto_carries_type():

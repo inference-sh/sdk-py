@@ -1,5 +1,19 @@
 # Coverage automation runs
 
+## 2026-07-28 (push dev @ cb0c1ae, scheduled publishing + slug availability)
+
+**Recent changes reviewed:** `cb0c1ae` (typegen regen: `PageStatus.SCHEDULED`, `PageMetadata.publish_at`, `SlugAvailabilityResponse` for CMS scheduled publishing and slug availability endpoint).
+
+**Open PRs checked:** None open — no overlapping test work.
+
+**Gaps filled this run:**
+
+- `PageStatus.SCHEDULED` (`4`) IntEnum value for scheduled CMS pages
+- `PageMetadata.publish_at` on scheduled `PageDTO` records until go-live
+- `SlugAvailabilityResponse` slug + `available` flag for editor slug checks
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
