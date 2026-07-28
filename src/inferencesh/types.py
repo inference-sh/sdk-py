@@ -2086,6 +2086,9 @@ class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     type: PageType
     metadata: PageMetadata
     slug: str
+    # PublishAt mirrors Metadata.PublishAt, which remains the field clients write.
+    # Surfaced here so a reader does not have to reach into the metadata blob.
+    publish_at: Optional[str]
 
 # MenuDTO for API responses
 class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
