@@ -624,6 +624,22 @@ class ResourceStatusDTO(TypedDict, total=False):
     status: Any
     updated_at: str
 
+# AvailabilityResponse answers "can I use this name?" — for page slugs, team
+# usernames and voucher codes alike.
+# 
+# The three checks had three different shapes, and one of them was an untyped
+# map[string]bool that generated no client type at all, so each caller invented
+# its own handling. Reason exists because "not available" was previously
+# indistinguishable from "reserved": every client that wanted to say why had to
+# mirror the server's reserved-name list to guess, and those mirrors went stale.
+class AvailabilityResponse(TypedDict, total=False):
+    # Value is the normalized form of what was checked — the server may slugify
+    # or lowercase the input, and the client should show what it actually took.
+    value: str
+    available: bool
+    # Reason is set only when Available is false: "taken" or "reserved".
+    reason: str
+
 # SearchRequest represents a search request
 class SearchRequest(TypedDict, total=False):
     fields: List[str]
@@ -958,11 +974,6 @@ class MenuItem(TypedDict, total=False):
     is_group: bool
     expanded: bool
     children: List[MenuItem]
-
-# SlugAvailabilityResponse answers the editor's slug availability check.
-class SlugAvailabilityResponse(TypedDict, total=False):
-    slug: str
-    available: bool
 
 # PlanLimit defines a single resource limit or feature gate within a plan.
 class PlanLimit(TypedDict, total=False):
