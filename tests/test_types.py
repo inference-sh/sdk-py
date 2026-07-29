@@ -1026,6 +1026,7 @@ def test_worker_status_lifecycle_values(member, value):
         ("PENDING", "pending"),
         ("DRAINING", "draining"),
         ("DISCONNECTED", "disconnected"),
+        ("RESTARTING", "restarting"),
         ("STOPPING", "stopping"),
         ("STOPPED", "stopped"),
     ],
