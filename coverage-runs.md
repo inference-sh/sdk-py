@@ -1,5 +1,19 @@
 # Coverage automation runs
 
+## 2026-07-29 (push dev @ e2be1dd, v0.7.13 version bump + Metadata gpu_ids)
+
+**Recent changes reviewed:** `e2be1dd` (version bump only). `71ddb61` (`gpu_ids: Optional[List[str]]` on `Metadata` for worker GPU assignment). `1733467` (`task_id`/`team_id`/`user_id` on `Metadata`).
+
+**Open PRs checked:** #163 (`cursor/missing-test-coverage-40cb`) covers `task_id`/`team_id`/`user_id` — no overlap. #161/#159 cover scheduled publishing / `AvailabilityResponse` — no overlap.
+
+**Gaps filled this run:**
+
+- `Metadata.gpu_ids` list field: default `None`, construction, `update()`, and `model_dump()` round-trip (worker GPU routing metadata passed to app setup/run)
+
+**Files:** `tests/test_models_base.py`
+
+**Validation:** `pytest tests/test_models_base.py` — 13 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
