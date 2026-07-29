@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-07-29 (push dev @ 9107f1b, AvailabilityResponse + PageDTO.publish_at)
+
+**Recent changes reviewed:** `9107f1b` / `b242cfd` (typegen regen: unified `AvailabilityResponse` replaces `SlugAvailabilityResponse`; `PageDTO.publish_at` top-level mirror of metadata). `cb0c1ae` (`PageStatus.SCHEDULED`, `PageMetadata.publish_at`).
+
+**Open PRs checked:** #159 (draft, `cursor/missing-test-coverage-3c69`) — overlaps on SCHEDULED/publish_at but targets removed `SlugAvailabilityResponse`; this run updates for `AvailabilityResponse` and `PageDTO.publish_at`.
+
+**Gaps filled this run:**
+
+- `PageStatus.SCHEDULED` (value `4`) IntEnum member for scheduled CMS pages
+- `PageMetadata.publish_at` scheduled go-live timestamp in page metadata
+- `PageDTO.publish_at` top-level field mirroring metadata for list/detail readers
+- `AvailabilityResponse` unified name-check shape (`value`, `available`, `reason` for taken/reserved)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 600 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).

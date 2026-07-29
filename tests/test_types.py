@@ -1486,6 +1486,7 @@ def test_flow_run_status_lifecycle_values(member, value):
         ("DRAFT", 1),
         ("PUBLISHED", 2),
         ("ARCHIVED", 3),
+        ("SCHEDULED", 4),
     ],
 )
 def test_page_status_lifecycle_values(member, value):
@@ -1944,6 +1945,70 @@ def test_page_dto_carries_status_and_type():
 
     assert page["status"] == PageStatus.PUBLISHED
     assert page["type"] == PageType.DOC
+
+
+def test_page_metadata_publish_at_for_scheduled_pages():
+    """Scheduled pages carry publish_at in metadata until they go live."""
+    from inferencesh.types import PageDTO, PageMetadata, PageStatus, PageType
+
+    metadata: PageMetadata = {
+        "title": "Launch announcement",
+        "publish_at": "2026-08-01T09:00:00Z",
+    }
+    page: PageDTO = {
+        "title": "Launch announcement",
+        "slug": "launch-announcement",
+        "status": PageStatus.SCHEDULED,
+        "type": PageType.BLOG,
+        "metadata": metadata,
+    }
+
+    assert page["status"] == PageStatus.SCHEDULED
+    assert page["status"].value == 4
+    assert page["metadata"]["publish_at"] == "2026-08-01T09:00:00Z"
+
+
+def test_page_dto_publish_at_top_level():
+    """PageDTO surfaces publish_at at the top level so clients need not dig into metadata."""
+    from inferencesh.types import PageDTO, PageMetadata, PageStatus, PageType
+
+    publish_at = "2026-08-01T09:00:00Z"
+    page: PageDTO = {
+        "title": "Launch announcement",
+        "slug": "launch-announcement",
+        "status": PageStatus.SCHEDULED,
+        "type": PageType.BLOG,
+        "metadata": {"title": "Launch announcement", "publish_at": publish_at},
+        "publish_at": publish_at,
+    }
+
+    assert page["publish_at"] == publish_at
+    assert page["metadata"]["publish_at"] == publish_at
+
+
+def test_availability_response_shape():
+    """Name availability checks return normalized value, availability, and reason when taken."""
+    from inferencesh.types import AvailabilityResponse
+
+    available: AvailabilityResponse = {
+        "value": "getting-started",
+        "available": True,
+    }
+    taken: AvailabilityResponse = {
+        "value": "docs",
+        "available": False,
+        "reason": "taken",
+    }
+    reserved: AvailabilityResponse = {
+        "value": "admin",
+        "available": False,
+        "reason": "reserved",
+    }
+
+    assert available["available"] is True
+    assert "reason" not in available
+    assert taken["reason"] == "taken"
+    assert reserved["reason"] == "reserved"
 
 
 def test_project_dto_carries_type():

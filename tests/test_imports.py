@@ -127,7 +127,8 @@ def test_models_llm_export_exists(name):
     "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
-    "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
+    "AppSessionDTO", "PageDTO", "PageMetadata", "AvailabilityResponse",
+    "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
     # Agent config
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
