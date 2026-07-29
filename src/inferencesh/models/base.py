@@ -16,6 +16,9 @@ class Metadata(BaseModel):
     app_version_id: Optional[str] = None
     app_variant: Optional[str] = None
     worker_id: Optional[str] = None
+    task_id: Optional[str] = None
+    team_id: Optional[str] = None
+    user_id: Optional[str] = None
 
     def update(self, other: Dict[str, Any] | BaseModel) -> None:
         update_dict = other.model_dump() if isinstance(other, BaseModel) else other
