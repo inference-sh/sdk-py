@@ -16,6 +16,7 @@ class Metadata(BaseModel):
     app_version_id: Optional[str] = None
     app_variant: Optional[str] = None
     worker_id: Optional[str] = None
+    gpu_ids: Optional[List[str]] = None
     task_id: Optional[str] = None
     team_id: Optional[str] = None
     user_id: Optional[str] = None
