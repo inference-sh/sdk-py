@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-07-29 (push dev @ 1733467, Metadata task_id/team_id/user_id)
+
+**Recent changes reviewed:** `1733467` (`Metadata` runtime identity fields: `task_id`, `team_id`, `user_id` on `inferencesh.models.base.Metadata`).
+
+**Open PRs checked:** #161 (`cursor/missing-test-coverage-0701`) — scheduled publishing / `AvailabilityResponse` types; #159 (`cursor/missing-test-coverage-3c69`) — superseded slug availability coverage. No overlap with `Metadata` model changes.
+
+**Gaps filled this run:**
+
+- `Metadata` `task_id` / `team_id` / `user_id` default to `None` and accept values at construction
+- `Metadata.update()` merges runtime identity fields from dict payloads (runtime metadata propagation)
+- `Metadata.model_dump()` includes identity fields for serialization round-trips
+
+**Files:** `tests/test_models_base.py`
+
+**Validation:** `pytest tests/test_models_base.py` — 13 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
