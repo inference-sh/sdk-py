@@ -431,7 +431,7 @@ class CreateApiKeyRequest(TypedDict, total=False):
 
 # EstimateCostRequest is the request for POST /store/apps/{appId}/estimate.
 class EstimateCostRequest(TypedDict, total=False):
-    input: Dict[str, Any]
+    input: Any
     function: str
 
 # EstimateCostResponse is the response from the cost estimation endpoint.
