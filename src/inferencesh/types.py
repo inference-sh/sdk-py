@@ -1840,6 +1840,20 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     internal_tools: Optional[InternalToolsConfig]
     output_schema: Optional[Any]
 
+class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    agent_id: str
+    agent: Optional[AgentDTO]
+    agent_version_id: Optional[str]
+    chat_id: str
+    user_message_id: Optional[str]
+    state: AgentRunState
+    error: Optional[str]
+    interrupt_reason: Optional[InterruptReason]
+    interrupt_tool_id: Optional[str]
+    interrupt_meta: Any
+    trigger_id: Optional[str]
+    metadata: Any
+
 # ApiKeyDTO for API responses
 class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
@@ -1892,6 +1906,7 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     chat_messages: List[ChatMessageDTO]
     agent_data: ChatData
+    active_run: Optional[AgentRunDTO]
 
 # ChatMessageDTO for API responses
 class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2288,6 +2303,23 @@ class SetupActionType(str, Enum):
     SETUP_ACTION_ADD_SECRET = "add_secret"
     SETUP_ACTION_CONNECT = "connect"
     SETUP_ACTION_ADD_SCOPES = "add_scopes"
+
+class AgentRunState(str, Enum):
+    SUBMITTED = "submitted"
+    WORKING = "working"
+    INPUT_REQUIRED = "input_required"
+    AUTH_REQUIRED = "auth_required"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"
+    REJECTED = "rejected"
+
+class InterruptReason(str, Enum):
+    TOOL_APPROVAL = "tool_approval"
+    CLIENT_TOOL = "client_tool"
+    WIDGET = "widget"
+    AUTH = "auth"
+    CONFIRMATION = "confirmation"
 
 class AppCategory(str, Enum):
     IMAGE = "image"
