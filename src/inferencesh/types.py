@@ -1912,6 +1912,7 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     chat_id: str
     chat: Optional[ChatDTO]
+    agent_run_id: Optional[str]
     order: int
     status: ChatMessageStatus
     task_id: Optional[str]
