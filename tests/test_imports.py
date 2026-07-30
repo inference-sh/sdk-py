@@ -126,7 +126,8 @@ def test_models_llm_export_exists(name):
     "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
     "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
     # DTOs
-    "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
+    "ChatDTO", "ChatMessageDTO", "AgentRunDTO", "AgentRunState", "InterruptReason",
+    "AgentToolDTO", "ToolInvocationDTO",
     "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
     # Agent config

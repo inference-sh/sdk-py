@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-07-30 (push dev @ 61031d9, v0.7.14 agent run types + estimate input)
+
+**Recent changes reviewed:** `61031d9` (version bump only). `8ecf5a3` (`EstimateCostRequest.input` widened to `Any`). `0e76596` (`AgentRunDTO`, `AgentRunState`, `InterruptReason`, `ChatDTO.active_run`). `92fc175` (`ChatMessageDTO.agent_run_id`).
+
+**Open PRs checked:** #168 (`EngineStatus.RESTARTING`), #166 (`Metadata.gpu_ids`), #163 (`Metadata` identity fields), #161 / #159 (scheduled publishing / `AvailabilityResponse`) — no overlap with agent-run execution types.
+
+**Gaps filled this run:**
+
+- `AgentRunState` lifecycle (`submitted` → `working` → interrupt/completion states) for agent execution UIs
+- `InterruptReason` discriminators (`tool_approval`, `client_tool`, `widget`, `auth`, `confirmation`)
+- `AgentRunDTO` interrupt metadata shape (`interrupt_reason`, `interrupt_tool_id`, `interrupt_meta`)
+- `ChatDTO.active_run` links chat listings to in-flight agent runs
+- `ChatMessageDTO.agent_run_id` ties messages back to the run that produced them
+- `EstimateCostRequest.input` accepts non-dict payloads (list/scalar) after typegen widened to `Any`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py -q`
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).

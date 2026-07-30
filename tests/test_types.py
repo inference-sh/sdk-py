@@ -1198,6 +1198,23 @@ def test_estimate_cost_request_shape():
     assert req["input"]["steps"] == 30
 
 
+def test_estimate_cost_request_accepts_non_dict_input():
+    """EstimateCostRequest.input is Any so apps with list or scalar inputs still type-check."""
+    from inferencesh.types import EstimateCostRequest
+
+    list_input: EstimateCostRequest = {
+        "input": ["frame-1.png", "frame-2.png"],
+        "function": "stitch",
+    }
+    scalar_input: EstimateCostRequest = {
+        "input": "a short prompt",
+        "function": "complete",
+    }
+
+    assert list_input["input"] == ["frame-1.png", "frame-2.png"]
+    assert scalar_input["input"] == "a short prompt"
+
+
 @pytest.mark.parametrize(
     "confidence,fields",
     [
@@ -1815,17 +1832,104 @@ def test_meta_item_type_values(member, value):
     assert getattr(MetaItemType, member).value == value
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SUBMITTED", "submitted"),
+        ("WORKING", "working"),
+        ("INPUT_REQUIRED", "input_required"),
+        ("AUTH_REQUIRED", "auth_required"),
+        ("COMPLETED", "completed"),
+        ("FAILED", "failed"),
+        ("CANCELED", "canceled"),
+        ("REJECTED", "rejected"),
+    ],
+)
+def test_agent_run_state_lifecycle_values(member, value):
+    """AgentRunState drives agent execution UIs and interrupt/resume flows."""
+    from inferencesh.types import AgentRunState
+
+    assert hasattr(AgentRunState, member)
+    assert getattr(AgentRunState, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TOOL_APPROVAL", "tool_approval"),
+        ("CLIENT_TOOL", "client_tool"),
+        ("WIDGET", "widget"),
+        ("AUTH", "auth"),
+        ("CONFIRMATION", "confirmation"),
+    ],
+)
+def test_interrupt_reason_values(member, value):
+    """InterruptReason discriminates why an agent run paused for user action."""
+    from inferencesh.types import InterruptReason
+
+    assert hasattr(InterruptReason, member)
+    assert getattr(InterruptReason, member).value == value
+
+
+def test_agent_run_dto_interrupt_shape():
+    """AgentRunDTO links chat messages to execution state and interrupt metadata."""
+    from inferencesh.types import AgentRunDTO, AgentRunState, InterruptReason
+
+    run: AgentRunDTO = {
+        "id": "run_abc",
+        "agent_id": "agent_xyz",
+        "chat_id": "chat_abc",
+        "user_message_id": "msg_user_1",
+        "state": AgentRunState.INPUT_REQUIRED,
+        "interrupt_reason": InterruptReason.TOOL_APPROVAL,
+        "interrupt_tool_id": "tool_send_email",
+        "interrupt_meta": {"subject": "Weekly report"},
+        "trigger_id": "trg_scheduled",
+        "metadata": {"source": "cron"},
+    }
+
+    assert run["state"] == AgentRunState.INPUT_REQUIRED
+    assert run["interrupt_reason"] == InterruptReason.TOOL_APPROVAL
+    assert run["interrupt_tool_id"] == "tool_send_email"
+    assert run["interrupt_meta"]["subject"] == "Weekly report"
+
+
 def test_chat_dto_carries_status():
     """Chat listings expose ChatStatus for stream and UI state."""
-    from inferencesh.types import ChatDTO, ChatStatus
+    from inferencesh.types import AgentRunDTO, AgentRunState, ChatDTO, ChatStatus
 
+    active_run: AgentRunDTO = {
+        "id": "run_abc",
+        "agent_id": "agent_xyz",
+        "chat_id": "chat_abc",
+        "state": AgentRunState.WORKING,
+    }
     chat: ChatDTO = {
         "id": "chat_abc",
         "status": ChatStatus.AWAITING_INPUT,
         "children": [],
+        "active_run": active_run,
     }
 
     assert chat["status"] == ChatStatus.AWAITING_INPUT
+    assert chat["active_run"]["state"] == AgentRunState.WORKING
+
+
+def test_chat_message_dto_agent_run_id():
+    """Chat messages reference the agent run that produced assistant/tool output."""
+    from inferencesh.types import ChatMessageDTO, ChatMessageRole, ChatMessageStatus
+
+    message: ChatMessageDTO = {
+        "id": "msg_asst_1",
+        "chat_id": "chat_abc",
+        "agent_run_id": "run_abc",
+        "order": 2,
+        "status": ChatMessageStatus.READY,
+        "role": ChatMessageRole.ASSISTANT,
+        "content": [],
+    }
+
+    assert message["agent_run_id"] == "run_abc"
 
 
 def test_flow_run_dto_carries_int_status():
