@@ -14,6 +14,7 @@ from .types import (
     ChatDTO,
     ChatMessageDTO,
     AgentConfigInput as AgentConfig,
+    AgentRunState,
     FileRef,
     ToolType,
     ToolInvocationStatus,
@@ -320,8 +321,9 @@ class Agent:
             if event_type == "chats":
                 if on_chat:
                     on_chat(data)
-                # Stop streaming when chat becomes idle (agent finished)
-                if data.get("status") in ("idle", "completed"):
+                active_run = data.get("active_run")
+                run_state = active_run.get("state") if active_run else None
+                if run_state not in (AgentRunState.WORKING, AgentRunState.SUBMITTED):
                     break
 
             elif event_type == "chat_messages":
