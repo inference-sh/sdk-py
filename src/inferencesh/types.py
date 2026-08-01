@@ -640,7 +640,9 @@ class AvailabilityResponse(TypedDict, total=False):
     # Reason is set only when Available is false: "taken" or "reserved".
     reason: str
 
-# SearchRequest represents a search request
+# SearchRequest represents a search request.
+# Fields is accepted for backward compatibility but ignored -- each model
+# declares its own SearchFields() on the repository.
 class SearchRequest(TypedDict, total=False):
     fields: List[str]
     term: str
