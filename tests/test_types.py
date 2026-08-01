@@ -2025,6 +2025,25 @@ def test_cursor_list_request_filters_shape():
 
     assert req["filters"][0]["operator"] == FilterOperator.OP_IN
     assert req["search"]["term"] == "flux"
+
+
+def test_search_request_dropped_fields_param():
+    """SearchRequest no longer accepts fields — each model declares SearchFields()."""
+    from inferencesh.types import CursorListRequest, SearchRequest
+
+    annotations = SearchRequest.__annotations__
+    assert "term" in annotations
+    assert "exact" in annotations
+    assert "fields" not in annotations
+
+    search: SearchRequest = {"term": "flux", "exact": True}
+    assert search["term"] == "flux"
+    assert search["exact"] is True
+
+    # CursorListRequest.fields is for response field selection, not search scoping.
+    assert "fields" in CursorListRequest.__annotations__
+
+
 def test_engine_dto_carries_engine_version():
     """EngineDTO exposes engine_version for dashboard version checks (bd4cfaa regen)."""
     from inferencesh.types import EngineDTO, EngineStatus
