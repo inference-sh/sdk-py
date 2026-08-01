@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
+
+**Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
+
+**Open PRs checked:** #170 (`cursor/missing-test-coverage-a9e5`) — `AgentRunState`/`InterruptReason` type guards (no overlap with production `stream_all` logic). #168 — `EngineStatus.RESTARTING`. #166 — `Metadata.gpu_ids`. #163 — Metadata identity fields. #161 / #159 — scheduled publishing / `AvailabilityResponse`.
+
+**Gaps filled this run:**
+
+- `Agent.stream_all()` termination via `active_run.state` (not legacy `status` field)
+- Continues streaming while `active_run.state` is `working` or `submitted`
+- Stops on all terminal run states (`completed`, `failed`, `canceled`, `input_required`, `auth_required`, `rejected`)
+- Stops when `active_run` is absent (run finished)
+- Regression guard: `status: "idle"` alone must not terminate if `active_run.state` is still `working`
+
+**Files:** `tests/test_agent.py`
+
+**Validation:** `pytest tests/test_agent.py` — 34 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
