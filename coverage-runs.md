@@ -1,5 +1,28 @@
 # Coverage automation runs
 
+## 2026-08-03 (push dev @ cc67205, MCP elicitation + tool annotations)
+
+**Recent changes reviewed:** `cc67205` (typegen regen: MCP elicitation types, tool call request/response annotations, `ResultType` MRTR, `AgentRunDTO.output`, `FlowDTO.namespace`).
+
+**Open PRs checked:** #178 — `SearchRequest.fields` removal guard. #175 — `Agent.stream_all()` `active_run.state` termination. #170 — `AgentRunState`/`InterruptReason` types. #168 — `EngineStatus.RESTARTING`. #166 — `Metadata.gpu_ids`. #163 — Metadata identity fields. #161/#159 — scheduled publishing. No overlap.
+
+**Gaps filled this run:**
+
+- `ElicitAction` enum (`accept`, `decline`, `cancel`) for MCP elicitation responses
+- `ResultType` enum (`complete`, `input_required`) — MRTR must not be mistaken for tool output
+- `CacheScope` and `ToolContentType` enums for result metadata and tool content blocks
+- `ClientCapabilities` / `ElicitationCapability` / `ElicitResult` / `InputRequest` elicitation shapes
+- `ToolCallResponse` complete vs `input_required` MRTR fields (`inputRequests`, `requestState`)
+- `ToolCallRequest` MRTR retry fields (`inputResponses`, `requestState`)
+- `ResultMeta` SEP-2575 `io.modelcontextprotocol/serverInfo` key guard
+- `ToolContent` embedded `ResourceContent` payloads
+- `AgentRunDTO.output` structured run results field
+- `FlowDTO.namespace` team namespace scoping
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 631 passed.
+
 ## 2026-07-26 (push dev @ 8e90e52, PlanVersionDTO + device auth PKCE + AppStatus)
 
 **Recent changes reviewed:** `8e90e52` (device auth PKCE fields on `DeviceAuthInitRequest`). `eceba3c` (PlanVersionDTO monthly/yearly amounts; `SkillDTO`/`KnowledgeDTO` uses/installs). `06ecea2` (`PlanDTO.active_version` replaces flat pricing and `prices` list; `AppStatus` on `AppDTO`).
