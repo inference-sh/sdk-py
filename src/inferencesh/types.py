@@ -917,6 +917,90 @@ class SkillStoreListingDTO(TypedDict, total=False):
     uses: int
     tags: List[str]
 
+# ElicitationCapability advertises which elicitation modes the client handles.
+# An empty struct is equivalent to form-only for backward compatibility.
+class ElicitationCapability(TypedDict, total=False):
+    form: Optional[Dict[str, Any]]
+    url: Optional[Dict[str, Any]]
+
+# ClientCapabilities advertises what a client can do.
+class ClientCapabilities(TypedDict, total=False):
+    elicitation: Optional[ElicitationCapability]
+
+# InputRequest is a single server-to-client request inside an InputRequiredResult.
+class InputRequest(TypedDict, total=False):
+    method: str
+    params: Any
+
+# ElicitResult is the client's response to an elicitation/create request.
+class ElicitResult(TypedDict, total=False):
+    action: ElicitAction
+    content: Dict[str, Any]
+
+# ServerInfo represents information about the server
+class ServerInfo(TypedDict, total=False):
+    name: str
+    title: str
+    version: str
+
+# ResultMeta is the _meta object attached to results. Servers SHOULD identify
+# themselves in every result from 2026-07-28 onward (SEP-2575).
+# 
+# The struct tag is the single definition of the key — Go tags cannot reference
+# a constant, so there is deliberately no MetaServerInfo const to drift from it.
+ResultMeta = TypedDict('ResultMeta', {
+    'io.modelcontextprotocol/serverInfo': 'Optional[ServerInfo]',
+    # TTLMs and CacheScope are read-only legacy fields: servers older than
+    # 2026-07-28 nested the caching signals here instead of on the result. They
+    # live on this type rather than a separate one so a single decode of the
+    # _meta object yields both them and serverInfo.
+    'ttlMs': 'Optional[int]',
+    'cacheScope': 'CacheScope',
+}, total=False)
+
+# ResourceContent represents resource content
+class ResourceContent(TypedDict, total=False):
+    uri: str
+    name: str
+    title: str
+    mimeType: str
+    text: str
+    blob: str
+
+# ToolCallRequest represents a request to call a tool.
+# 
+# InputResponses and RequestState are present on MRTR retries: the client is
+# echoing back responses to the server's InputRequiredResult.
+class ToolCallRequest(TypedDict, total=False):
+    name: str
+    arguments: Dict[str, Any]
+    inputResponses: Dict[str, Any]
+    requestState: str
+
+# ToolCallResponse represents a response from a tool call.
+# 
+# ResultType is read as well as written: an inbound response carrying
+# ResultTypeInputRequired is a Multi Round-Trip Request asking for more input,
+# not tool output, and callers must not treat it as a result. Servers older than
+# 2026-07-28 omit the field, which clients MUST read as "complete".
+class ToolCallResponse(TypedDict, total=False):
+    resultType: ResultType
+    content: List[ToolContent]
+    structuredContent: Any
+    isError: bool
+    _meta: Optional[ResultMeta]
+    # MRTR fields — present when ResultType == ResultTypeInputRequired.
+    inputRequests: Dict[str, InputRequest]
+    requestState: str
+
+# ToolContent represents content in a tool response
+class ToolContent(TypedDict, total=False):
+    type: ToolContentType
+    text: str
+    data: str
+    mimeType: str
+    resource: Optional[ResourceContent]
+
 # StringSlice is a custom type for storing string slices
 StringSlice = List[str]
 
@@ -1848,6 +1932,7 @@ class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     user_message_id: Optional[str]
     state: AgentRunState
     error: Optional[str]
+    output: Optional[Any]
     interrupt_reason: Optional[InterruptReason]
     interrupt_tool_id: Optional[str]
     interrupt_meta: Any
@@ -1955,6 +2040,7 @@ class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 
 # FlowDTO for API responses
 class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
     name: str
     description: str
     card_image: str
@@ -2293,6 +2379,32 @@ class ScopeGroup(str, Enum):
     API_KEYS = "apikeys"
     USER = "user"
     SETTINGS = "settings"
+
+class ElicitAction(str, Enum):
+    ACCEPT = "accept"
+    DECLINE = "decline"
+    CANCEL = "cancel"
+
+class ResultType(str, Enum):
+    # ResultTypeComplete marks an ordinary, finished result.
+    COMPLETE = "complete"
+    # ResultTypeInputRequired marks a Multi Round-Trip Request interim result.
+    # Recognised so the outbound client never mistakes one for tool output.
+    INPUT_REQUIRED = "input_required"
+
+class CacheScope(str, Enum):
+    # CacheScopePublic marks a response as free of user-specific data, so any
+    # client or shared intermediary may cache it across authorization contexts.
+    PUBLIC = "public"
+    # CacheScopePrivate restricts reuse to the same authorization context.
+    PRIVATE = "private"
+
+class ToolContentType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    AUDIO = "audio"
+    RESOURCE_LINK = "resource_link"
+    RESOURCE = "resource"
 
 # Requirement error types
 class RequirementType(str, Enum):
