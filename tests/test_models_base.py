@@ -51,6 +51,47 @@ class TestMetadata:
         dumped = meta.model_dump()
         assert dumped["gpu_ids"] == ["gpu-0", "gpu-1"]
 
+    def test_runtime_identity_fields_default_to_none(self):
+        meta = Metadata()
+        assert meta.task_id is None
+        assert meta.team_id is None
+        assert meta.user_id is None
+
+    def test_runtime_identity_fields_accepted_at_construction(self):
+        meta = Metadata(
+            task_id="task_abc",
+            team_id="team_xyz",
+            user_id="user_123",
+        )
+        assert meta.task_id == "task_abc"
+        assert meta.team_id == "team_xyz"
+        assert meta.user_id == "user_123"
+
+    def test_update_sets_runtime_identity_fields(self):
+        meta = Metadata()
+        meta.update(
+            {
+                "task_id": "task_run",
+                "team_id": "team_acme",
+                "user_id": "user_42",
+            }
+        )
+        assert meta.task_id == "task_run"
+        assert meta.team_id == "team_acme"
+        assert meta.user_id == "user_42"
+
+    def test_model_dump_includes_runtime_identity_fields(self):
+        meta = Metadata(
+            app_id="app_1",
+            task_id="task_abc",
+            team_id="team_xyz",
+            user_id="user_123",
+        )
+        dumped = meta.model_dump()
+        assert dumped["task_id"] == "task_abc"
+        assert dumped["team_id"] == "team_xyz"
+        assert dumped["user_id"] == "user_123"
+
 
 class TestMediaFieldMixins:
     """Guard Pydantic v2 json_schema_extra for contentMediaType."""
