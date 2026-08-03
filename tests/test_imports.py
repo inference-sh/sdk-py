@@ -126,7 +126,8 @@ def test_models_llm_export_exists(name):
     "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
     "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
     # DTOs
-    "ChatDTO", "ChatMessageDTO", "AgentToolDTO", "ToolInvocationDTO",
+    "ChatDTO", "ChatMessageDTO", "AgentRunDTO", "AgentRunState", "InterruptReason",
+    "AgentToolDTO", "ToolInvocationDTO",
     "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
     # Agent config
@@ -165,6 +166,12 @@ def test_models_llm_export_exists(name):
     "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
+    # MCP elicitation + tool annotations (cc67205 typegen regen)
+    "ElicitAction", "ResultType", "CacheScope", "ToolContentType",
+    "ElicitationCapability", "ClientCapabilities", "InputRequest", "ElicitResult",
+    "ServerInfo", "ResultMeta", "ResourceContent",
+    "ToolCallRequest", "ToolCallResponse", "ToolContent",
+    "AgentRunDTO", "FlowDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

@@ -198,7 +198,7 @@ def test_stream_all_dispatches_client_tool_once(monkeypatch, patch_agent_request
     events = [
         ("chat_messages", {"tool_invocations": [inv]}),
         ("chat_messages", {"tool_invocations": [inv]}),
-        ("chats", {"status": "idle"}),
+        ("chats", {"active_run": {"state": "completed"}}),
     ]
 
     def fake_typed_stream(endpoint):
@@ -211,6 +211,126 @@ def test_stream_all_dispatches_client_tool_once(monkeypatch, patch_agent_request
     agent.stream_all(on_tool_call=lambda info: seen.append(info.id))
 
     assert seen == ["inv_dup"]
+
+
+@pytest.mark.parametrize(
+    "terminal_state",
+    [
+        "completed",
+        "failed",
+        "canceled",
+        "input_required",
+        "auth_required",
+        "rejected",
+    ],
+)
+def test_stream_all_stops_on_terminal_active_run_state(
+    monkeypatch, patch_agent_requests, terminal_state,
+):
+    """stream_all stops when active_run.state is not working/submitted (45608aa)."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("chat_messages", {"id": "msg_1", "text": "Hi", "role": "assistant"}),
+        ("chats", {"active_run": {"state": terminal_state}}),
+        ("chat_messages", {"id": "msg_2", "text": "after terminal", "role": "assistant"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    messages = []
+    agent.stream_all(on_message=lambda msg: messages.append(msg["id"]))
+
+    assert messages == ["msg_1"]
+
+
+def test_stream_all_stops_when_active_run_missing(monkeypatch, patch_agent_requests):
+    """No active_run means the agent run finished — stream_all must stop."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("chat_messages", {"id": "msg_1", "text": "Hi", "role": "assistant"}),
+        ("chats", {"id": "chat_1"}),
+        ("chat_messages", {"id": "msg_2", "text": "after idle", "role": "assistant"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    messages = []
+    agent.stream_all(on_message=lambda msg: messages.append(msg["id"]))
+
+    assert messages == ["msg_1"]
+
+
+def test_stream_all_continues_while_active_run_is_working_or_submitted(
+    monkeypatch, patch_agent_requests,
+):
+    """stream_all keeps reading until active_run.state leaves working/submitted."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("chats", {"active_run": {"state": "working"}}),
+        ("chat_messages", {"id": "msg_1", "text": "partial", "role": "assistant"}),
+        ("chats", {"active_run": {"state": "submitted"}}),
+        ("chat_messages", {"id": "msg_2", "text": "more", "role": "assistant"}),
+        ("chats", {"active_run": {"state": "completed"}}),
+        ("chat_messages", {"id": "msg_3", "text": "after terminal", "role": "assistant"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    messages = []
+    chats = []
+    agent.stream_all(
+        on_chat=lambda chat: chats.append(chat.get("active_run", {}).get("state")),
+        on_message=lambda msg: messages.append(msg["id"]),
+    )
+
+    assert messages == ["msg_1", "msg_2"]
+    assert chats == ["working", "submitted", "completed"]
+
+
+def test_stream_all_ignores_legacy_chat_status_field(monkeypatch, patch_agent_requests):
+    """Termination must use active_run.state, not the derived chat status field."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("chats", {"status": "idle", "active_run": {"state": "working"}}),
+        ("chat_messages", {"id": "msg_1", "text": "still running", "role": "assistant"}),
+        ("chats", {"status": "busy", "active_run": {"state": "completed"}}),
+        ("chat_messages", {"id": "msg_2", "text": "after terminal", "role": "assistant"}),
+    ]
+
+    monkeypatch.setattr(
+        agent,
+        "_create_typed_ndjson_generator",
+        lambda endpoint: iter(events),
+    )
+
+    messages = []
+    agent.stream_all(on_message=lambda msg: messages.append(msg["id"]))
+
+    assert messages == ["msg_1"]
 
 
 @pytest.mark.asyncio

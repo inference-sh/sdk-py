@@ -33,6 +33,24 @@ class TestMetadata:
         meta.update(Other())
         assert meta.app_variant == "prod"
 
+    def test_gpu_ids_defaults_to_none(self):
+        meta = Metadata()
+        assert meta.gpu_ids is None
+
+    def test_gpu_ids_accepted_at_construction(self):
+        meta = Metadata(gpu_ids=["gpu-0", "gpu-1"])
+        assert meta.gpu_ids == ["gpu-0", "gpu-1"]
+
+    def test_update_sets_gpu_ids(self):
+        meta = Metadata()
+        meta.update({"gpu_ids": ["gpu-a"]})
+        assert meta.gpu_ids == ["gpu-a"]
+
+    def test_model_dump_includes_gpu_ids(self):
+        meta = Metadata(app_id="app_1", gpu_ids=["gpu-0", "gpu-1"])
+        dumped = meta.model_dump()
+        assert dumped["gpu_ids"] == ["gpu-0", "gpu-1"]
+
 
 class TestMediaFieldMixins:
     """Guard Pydantic v2 json_schema_extra for contentMediaType."""
