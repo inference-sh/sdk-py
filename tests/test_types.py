@@ -2025,6 +2025,8 @@ def test_cursor_list_request_filters_shape():
 
     assert req["filters"][0]["operator"] == FilterOperator.OP_IN
     assert req["search"]["term"] == "flux"
+
+
 def test_engine_dto_carries_engine_version():
     """EngineDTO exposes engine_version for dashboard version checks (bd4cfaa regen)."""
     from inferencesh.types import EngineDTO, EngineStatus
@@ -2121,3 +2123,226 @@ def test_knowledge_version_scope_fields():
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
     assert version["scope"] == version_input["scope"]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACCEPT", "accept"),
+        ("DECLINE", "decline"),
+        ("CANCEL", "cancel"),
+    ],
+)
+def test_elicit_action_values(member, value):
+    """MCP elicitation responses must distinguish accept, decline, and cancel."""
+    from inferencesh.types import ElicitAction
+
+    assert hasattr(ElicitAction, member)
+    assert getattr(ElicitAction, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("COMPLETE", "complete"),
+        ("INPUT_REQUIRED", "input_required"),
+    ],
+)
+def test_result_type_values(member, value):
+    """ToolCallResponse.resultType must not conflate MRTR input_required with complete."""
+    from inferencesh.types import ResultType
+
+    assert hasattr(ResultType, member)
+    assert getattr(ResultType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PUBLIC", "public"),
+        ("PRIVATE", "private"),
+    ],
+)
+def test_cache_scope_values(member, value):
+    """ResultMeta.cacheScope controls cross-auth caching semantics."""
+    from inferencesh.types import CacheScope
+
+    assert hasattr(CacheScope, member)
+    assert getattr(CacheScope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEXT", "text"),
+        ("IMAGE", "image"),
+        ("AUDIO", "audio"),
+        ("RESOURCE_LINK", "resource_link"),
+        ("RESOURCE", "resource"),
+    ],
+)
+def test_tool_content_type_values(member, value):
+    """MCP tool content blocks discriminate media and embedded resources."""
+    from inferencesh.types import ToolContentType
+
+    assert hasattr(ToolContentType, member)
+    assert getattr(ToolContentType, member).value == value
+
+
+def test_client_capabilities_elicitation_modes():
+    """ClientCapabilities.elicitation advertises form and URL elicitation support."""
+    from inferencesh.types import ClientCapabilities, ElicitationCapability
+
+    form_only: ElicitationCapability = {"form": {}}
+    full: ClientCapabilities = {
+        "elicitation": {
+            "form": {"required": ["api_key"]},
+            "url": {"callback": "https://client.example/callback"},
+        },
+    }
+
+    assert form_only["form"] == {}
+    assert "url" not in form_only
+    assert full["elicitation"]["form"]["required"] == ["api_key"]
+    assert full["elicitation"]["url"]["callback"].startswith("https://")
+
+
+def test_elicit_result_action_and_content():
+    """ElicitResult carries the user's accept/decline/cancel choice and form payload."""
+    from inferencesh.types import ElicitAction, ElicitResult
+
+    accepted: ElicitResult = {
+        "action": ElicitAction.ACCEPT,
+        "content": {"api_key": "sk-live-abc"},
+    }
+    declined: ElicitResult = {
+        "action": ElicitAction.DECLINE,
+        "content": {},
+    }
+
+    assert accepted["action"] == ElicitAction.ACCEPT
+    assert accepted["content"]["api_key"] == "sk-live-abc"
+    assert declined["action"] == ElicitAction.DECLINE
+
+
+def test_tool_call_response_complete_shape():
+    """Complete tool results omit MRTR fields; servers older than 2026-07-28 omit resultType."""
+    from inferencesh.types import ResultMeta, ResultType, ToolCallResponse, ToolContent, ToolContentType
+
+    resp: ToolCallResponse = {
+        "resultType": ResultType.COMPLETE,
+        "content": [
+            {"type": ToolContentType.TEXT, "text": "done"},
+        ],
+        "isError": False,
+        "_meta": {
+            "io.modelcontextprotocol/serverInfo": {
+                "name": "inference-mcp",
+                "version": "1.0.0",
+            },
+            "ttlMs": 60000,
+            "cacheScope": "public",
+        },
+    }
+
+    assert resp["resultType"] == ResultType.COMPLETE
+    assert resp["content"][0]["type"] == ToolContentType.TEXT
+    assert resp["_meta"]["io.modelcontextprotocol/serverInfo"]["name"] == "inference-mcp"
+    assert "inputRequests" not in resp
+
+
+def test_tool_call_response_input_required_mrtr_shape():
+    """input_required responses carry inputRequests and requestState for MRTR loops."""
+    from inferencesh.types import InputRequest, ResultType, ToolCallResponse
+
+    input_req: InputRequest = {
+        "method": "elicitation/create",
+        "params": {"message": "Enter API key", "requestedSchema": {"type": "object"}},
+    }
+    resp: ToolCallResponse = {
+        "resultType": ResultType.INPUT_REQUIRED,
+        "content": [],
+        "inputRequests": {"req_1": input_req},
+        "requestState": "state_token_xyz",
+    }
+
+    assert resp["resultType"] == ResultType.INPUT_REQUIRED
+    assert resp["inputRequests"]["req_1"]["method"] == "elicitation/create"
+    assert resp["requestState"] == "state_token_xyz"
+
+
+def test_tool_call_request_mrtr_retry_fields():
+    """MRTR retries echo prior inputResponses and requestState on ToolCallRequest."""
+    from inferencesh.types import ToolCallRequest
+
+    retry: ToolCallRequest = {
+        "name": "deploy",
+        "arguments": {"region": "us-east-1"},
+        "inputResponses": {
+            "req_1": {"action": "accept", "content": {"confirm": True}},
+        },
+        "requestState": "state_token_xyz",
+    }
+
+    assert retry["inputResponses"]["req_1"]["action"] == "accept"
+    assert retry["requestState"] == "state_token_xyz"
+
+
+def test_tool_content_embedded_resource():
+    """ToolContent can embed ResourceContent for MCP resource payloads."""
+    from inferencesh.types import ResourceContent, ToolContent, ToolContentType
+
+    content: ToolContent = {
+        "type": ToolContentType.RESOURCE,
+        "resource": {
+            "uri": "file:///workspace/README.md",
+            "name": "README",
+            "mimeType": "text/markdown",
+            "text": "# Hello",
+        },
+    }
+
+    resource: ResourceContent = content["resource"]
+    assert content["type"] == ToolContentType.RESOURCE
+    assert resource["uri"].startswith("file://")
+    assert resource["mimeType"] == "text/markdown"
+
+
+def test_result_meta_server_info_annotation_key():
+    """ResultMeta uses the SEP-2575 serverInfo key; it must not drift from the Go tag."""
+    from inferencesh.types import ResultMeta
+
+    annotations = ResultMeta.__annotations__
+    assert "io.modelcontextprotocol/serverInfo" in annotations
+    assert "ttlMs" in annotations
+    assert "cacheScope" in annotations
+
+
+def test_agent_run_dto_output_field():
+    """AgentRunDTO.output carries structured run results separate from chat output."""
+    from inferencesh.types import AgentRunDTO, AgentRunState
+
+    run: AgentRunDTO = {
+        "agent_id": "agent_abc",
+        "chat_id": "chat_xyz",
+        "state": AgentRunState.COMPLETED,
+        "output": {"artifacts": [{"type": "file", "uri": "file://out.png"}]},
+    }
+
+    assert run["state"] == AgentRunState.COMPLETED
+    assert run["output"]["artifacts"][0]["uri"].endswith("out.png")
+    assert "output" in AgentRunDTO.__annotations__
+
+
+def test_flow_dto_namespace_field():
+    """FlowDTO.namespace scopes flows to team namespaces like AppDTO."""
+    from inferencesh.types import FlowDTO
+
+    flow: FlowDTO = {
+        "namespace": "acme",
+        "name": "image-pipeline",
+        "description": "Generate and upscale images",
+    }
+
+    assert flow["namespace"] == "acme"
+    assert "namespace" in FlowDTO.__annotations__
