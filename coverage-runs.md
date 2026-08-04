@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-08-04 (push dev @ a3c44ac, update-types template injection fix)
+
+**Recent changes reviewed:** `a3c44ac` (security: `update-types` workflow must pass dispatch inputs through `env:` — `${{ inputs.* }}` inside `run:` enables shell injection). `4fe2668` (CI-only: add `update-types` workflow). Batch-merge gaps from `c04cf8c` still missing on `dev` until this run.
+
+**Open PRs checked:** #185 (`cursor/missing-test-coverage-b1ea`, draft) — same batch-merge restoration; incorporated here plus workflow security regression guards. #184 (superseded by #185).
+
+**Gaps filled this run:**
+
+- Restored batch-merge coverage gaps (AgentRunState, InterruptReason, RESTARTING, SCHEDULED pages, AvailabilityResponse, SearchRequest.fields removal, Metadata identity fields, MCP backward-compat) — see 2026-08-03 entry
+- `update-types.yml` regression: `run:` blocks must not embed `${{ inputs.* }}`; fetch/commit steps use `$FILE`/`$VERSION`/`$DEST` from `env:`
+
+**Files:** `tests/test_types.py`, `tests/test_models_base.py`, `tests/test_imports.py`, `tests/test_workflows.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_models_base.py tests/test_imports.py tests/test_workflows.py`
+
 ## 2026-08-04 (push dev @ 4fe2668, update-types CI workflow)
 
 **Recent changes reviewed:** `4fe2668` (CI-only: `update-types` workflow for models dispatch — no production code). Prior gaps from `c04cf8c` batch merge still uncovered on `dev` (open draft PR #184).
