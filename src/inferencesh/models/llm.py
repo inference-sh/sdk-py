@@ -11,11 +11,10 @@ import json
 from .base import BaseAppInput, BaseAppOutput
 from .file import File
 
-from inferencesh.llm_types_gen import (
-    LLMOutput as _GenLLMOutput,
-    LLMUsage as _GenLLMUsage,
-    ChatMessageRole as ContextMessageRole,
-)
+from inferencesh import llm_types_gen as llm_contract
+
+LLMUsage = llm_contract.LLMUsage
+ContextMessageRole = llm_contract.ChatMessageRole
 
 
 class Message(BaseAppInput):
@@ -199,38 +198,20 @@ class ToolsCapabilityMixin(BaseModel):
         default=None
     )
 
-# Example of how to use:
 class LLMInput(BaseLLMInput):
-    """Default LLM input model with no special capabilities."""
     pass
 
-# For backward compatibility
-LLMInput.model_config["title"] = "LLMInput"
-
-class LLMUsage(_GenLLMUsage):
+class BaseLLMOutput(llm_contract.LLMOutput, BaseAppOutput):
     pass
 
-class BaseLLMOutput(_GenLLMOutput, BaseAppOutput):
-    """Base class for LLM outputs. Fields inherited from generated wire contract."""
-    pass
+class LLMOutput(BaseLLMOutput): pass
 
-# Output mixins — kept for apps that compose custom output types.
-# Standard LLM apps can use LLMOutput directly (it has all fields from the generated contract).
-class LLMUsageMixin(BaseModel):
-    usage: Optional[LLMUsage] = None
-
-class ReasoningMixin(BaseModel):
-    reasoning: Optional[str] = None
-
-class ToolCallsMixin(BaseModel):
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-
-class ImagesMixin(BaseModel):
-    images: Optional[List[File]] = None
-
-class LLMOutput(BaseLLMOutput):
-    """Default LLM output — inherits all fields from generated wire contract."""
-    pass
+# Deprecated no-ops — output fields come from the generated contract on BaseLLMOutput.
+# Kept so existing grid apps don't break on import. Remove once grid apps are cleaned up.
+class LLMUsageMixin(BaseModel): pass
+class ReasoningMixin(BaseModel): pass
+class ToolCallsMixin(BaseModel): pass
+class ImagesMixin(BaseModel): pass
 
 @contextmanager
 def timing_context():
