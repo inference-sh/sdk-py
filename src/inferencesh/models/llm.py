@@ -21,33 +21,12 @@ class Message(BaseAppInput):
     role: ContextMessageRole
     content: str
 
-class ContextMessage(BaseAppInput):
-    role: ContextMessageRole = Field(
-        description="the role of the message. user, assistant, or system",
-    )
-    text: str = Field(
-        description="the text content of the message"
-    )
-    reasoning: Optional[str] = Field(
-        description="the reasoning content of the message",
-        default=None
-    )
-    images: Optional[List[File]] = Field(
-        description="the images of the message",
-        default=None
-    )
-    files: Optional[List[File]] = Field(
-        description="the files of the message",
-        default=None
-    )
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(
-        description="the tool calls of the message",
-        default=None
-    )
-    tool_call_id: Optional[str] = Field(
-        description="the tool call id for tool role messages",
-        default=None
-    )
+class ContextMessage(llm_contract.LLMContextMessage, BaseAppInput):
+    # App-layer File types instead of wire URL strings
+    images: Optional[List[File]] = None
+    files: Optional[List[File]] = None
+    # Dict access for backward compat with build_openai_messages
+    tool_calls: Optional[List[Dict[str, Any]]] = None
 
 class ReasoningEffortEnum(str, Enum):
     LOW = "low"
@@ -71,35 +50,26 @@ class ModelSettings(BaseModel):
     reasoning_max_tokens: Optional[int] = Field(default=None)
 
 
-class LLMInput(BaseAppInput):
-    model: Optional[str] = Field(default=None)
+class LLMInput(llm_contract.LLMInput, BaseAppInput):
+    # App-layer types (File objects, not wire strings/refs)
+    context: List[ContextMessage] = Field(default=[])
+    images: Optional[List[File]] = Field(default=None)
+    files: Optional[List[File]] = Field(default=None)
+    attachments: Optional[List[File]] = Field(default=None)
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
+
+    # App defaults and validation (Go has no annotations for these)
     system_prompt: str = Field(
         default="you are a helpful assistant that can answer questions and help with tasks.",
     )
-    context: List[ContextMessage] = Field(default=[])
-    role: ContextMessageRole = Field(default=ContextMessageRole.USER)
     text: str = Field(default="")
-
+    role: ContextMessageRole = Field(default=ContextMessageRole.USER)
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     top_p: float = Field(default=0.95, ge=0.0, le=1.0)
-    top_k: Optional[int] = Field(default=None, ge=-1)
-    min_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    frequency_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0)
-    presence_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0)
-    repetition_penalty: Optional[float] = Field(default=None, ge=0.0)
-    seed: Optional[int] = Field(default=None)
-    stop: Optional[List[str]] = Field(default=None)
     context_size: int = Field(default=4096)
     max_tokens: int = Field(default=64000)
-
-    attachments: Optional[List[File]] = Field(default=None)
-    images: Optional[List[File]] = Field(default=None)
-    files: Optional[List[File]] = Field(default=None)
-    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
-    tool_call_id: Optional[str] = Field(default=None)
-    reasoning: Optional[str] = Field(default=None)
+    stop: Optional[List[str]] = Field(default=None)
     reasoning_effort: ReasoningEffortEnum = Field(default=ReasoningEffortEnum.NONE)
-    reasoning_max_tokens: Optional[int] = Field(default=None)
 
 BaseLLMInput = LLMInput
 ChatInput = LLMInput

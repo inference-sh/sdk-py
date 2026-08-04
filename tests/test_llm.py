@@ -395,13 +395,23 @@ class TestGeneratedTypeConsumption:
         fields = set(LLMOutput.model_fields.keys())
         assert {"response", "reasoning", "tool_calls", "usage"} <= fields
 
-    def test_llm_input_fields_match_generated(self):
+    def test_llm_input_inherits_generated_contract(self):
         from inferencesh import llm_types_gen as llm_contract
         from inferencesh.models.llm import LLMInput
+        assert issubclass(LLMInput, llm_contract.LLMInput)
         gen_fields = set(llm_contract.LLMInput.model_fields.keys())
         hand_fields = set(LLMInput.model_fields.keys())
         missing = gen_fields - hand_fields
         assert not missing, f"LLMInput is missing fields from generated contract: {missing}"
+
+    def test_context_message_inherits_generated_contract(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import ContextMessage
+        assert issubclass(ContextMessage, llm_contract.LLMContextMessage)
+        gen_fields = set(llm_contract.LLMContextMessage.model_fields.keys())
+        hand_fields = set(ContextMessage.model_fields.keys())
+        missing = gen_fields - hand_fields
+        assert not missing, f"ContextMessage is missing fields from generated contract: {missing}"
 
     def test_llm_output_construction(self):
         from inferencesh.models.llm import LLMOutput, LLMUsage
