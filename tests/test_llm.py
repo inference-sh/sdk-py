@@ -367,3 +367,82 @@ class TestImagePartDetectionRegression:
         user = next(m for m in messages if m["role"] == "user")
         assert isinstance(user["content"], list)
         assert any(p["type"] == "image_url" for p in user["content"])
+
+
+class TestGeneratedTypeConsumption:
+    """Verify sdk-py consumes types from the generated llm_contract module."""
+
+    def test_llm_usage_is_generated_type(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMUsage
+        assert LLMUsage is llm_contract.LLMUsage
+
+    def test_llm_usage_has_zero_value_defaults(self):
+        from inferencesh.models.llm import LLMUsage
+        u = LLMUsage()
+        assert u.stop_reason == ""
+        assert u.prompt_tokens == 0
+        assert u.tokens_per_second == 0.0
+
+    def test_context_message_role_is_generated_enum(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import ContextMessageRole
+        assert ContextMessageRole is llm_contract.ChatMessageRole
+        assert ContextMessageRole.USER.value == "user"
+
+    def test_llm_output_inherits_generated_contract(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMOutput, BaseLLMOutput
+        assert issubclass(BaseLLMOutput, llm_contract.LLMOutput)
+        assert issubclass(LLMOutput, llm_contract.LLMOutput)
+
+    def test_llm_output_has_all_contract_fields(self):
+        from inferencesh.models.llm import LLMOutput
+        fields = set(LLMOutput.model_fields.keys())
+        assert {"response", "reasoning", "tool_calls", "usage"} <= fields
+
+    def test_llm_output_construction(self):
+        from inferencesh.models.llm import LLMOutput, LLMUsage
+        o = LLMOutput(
+            response="hello",
+            reasoning="thought about it",
+            tool_calls=[{"id": "1", "type": "function", "function": {"name": "test", "arguments": {}}}],
+            usage=LLMUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        )
+        assert o.response == "hello"
+        assert o.reasoning == "thought about it"
+        assert len(o.tool_calls) == 1
+        assert o.usage.total_tokens == 15
+
+
+class TestDeprecatedMixins:
+    """Deprecated mixins emit warnings but don't break grid apps."""
+
+    def test_output_mixin_warns(self):
+        import warnings
+        from inferencesh.models.llm import ReasoningMixin, LLMOutput, BaseLLMOutput
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            type("TestOutput", (ReasoningMixin, LLMOutput, BaseLLMOutput), {})
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) >= 1
+            assert "deprecated output mixin" in str(deprecation_warnings[0].message)
+
+    def test_input_mixin_warns(self):
+        import warnings
+        from inferencesh.models.llm import ImageCapabilityMixin, LLMInput
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            type("TestInput", (LLMInput, ImageCapabilityMixin), {})
+            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
+            assert len(deprecation_warnings) >= 1
+            assert "deprecated input mixin" in str(deprecation_warnings[0].message)
+
+    def test_mixin_subclass_still_has_all_fields(self):
+        import warnings
+        from inferencesh.models.llm import ReasoningMixin, ToolCallsMixin, LLMOutput, BaseLLMOutput
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            AppOutput = type("AppOutput", (ReasoningMixin, ToolCallsMixin, LLMOutput, BaseLLMOutput), {})
+        fields = set(AppOutput.model_fields.keys())
+        assert {"response", "reasoning", "tool_calls", "usage"} <= fields
