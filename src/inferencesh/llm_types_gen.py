@@ -27,6 +27,14 @@ class LLMInput(BaseModel):
     context_size: int = 0
     temperature: Optional[float] = None
     top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    min_p: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    repetition_penalty: Optional[float] = None
+    seed: Optional[int] = None
+    stop: List[str]
+    max_tokens: Optional[int] = None
     reasoning_effort: Optional[str] = None
     reasoning_max_tokens: Optional[int] = None
     system_prompt: str = ""
@@ -34,9 +42,7 @@ class LLMInput(BaseModel):
     role: ChatMessageRole
     text: Optional[str] = None
     reasoning: Optional[str] = None
-    # Attachments is the SDK input field with full file metadata
     attachments: Optional[List[FileRef]] = None
-    # Images and Files are internal fields for task workers (filled from Attachments or context)
     images: Optional[List[str]] = None
     files: Optional[List[str]] = None
     tools: Optional[List[Tool]] = None

@@ -284,13 +284,7 @@ class TestBuildTools:
         assert tools[0]["function"]["parameters"]["properties"] == {}
 
 
-class TestChatInputAndModelSettings:
-    """ChatInput nests sampling params in model_settings (v0.7.9)."""
-
-    def test_chat_input_default_model_settings_none(self):
-        inp = ChatInput(text="hello")
-        assert inp.model_settings is None
-        assert inp.text == "hello"
+class TestModelSettingsAndSamplingParams:
 
     def test_model_settings_all_fields_optional(self):
         ms = ModelSettings()
@@ -306,39 +300,39 @@ class TestChatInputAndModelSettings:
             max_tokens=512,
             stop=["END"],
             seed=42,
+            reasoning_effort="high",
+            reasoning_max_tokens=1024,
         )
         assert ms.temperature == 0.5
-        assert ms.top_p == 0.9
         assert ms.top_k == 40
-        assert ms.max_tokens == 512
-        assert ms.stop == ["END"]
-        assert ms.seed == 42
-
-    def test_chat_input_nested_model_settings(self):
-        inp = ChatInput(
-            text="prompt",
-            model_settings=ModelSettings(temperature=0.3, presence_penalty=0.5),
-        )
-        assert inp.model_settings.temperature == 0.3
-        assert inp.model_settings.presence_penalty == 0.5
-
-    def test_unified_input_has_all_fields(self):
-        props = LLMInput.model_json_schema()["properties"]
-        assert "model_settings" in props
-        assert "temperature" in props
-        assert "images" in props
-        assert "tools" in props
-        assert "reasoning_effort" in props
-        assert ChatInput is LLMInput
-        assert BaseLLMInput is LLMInput
+        assert ms.reasoning_effort == "high"
+        assert ms.reasoning_max_tokens == 1024
 
     def test_model_settings_rejects_out_of_range_temperature(self):
         with pytest.raises(ValidationError):
             ModelSettings(temperature=3.0)
 
-    def test_build_openai_messages_accepts_chat_input(self):
+    def test_unified_input_has_all_sampling_fields(self):
+        props = LLMInput.model_json_schema()["properties"]
+        for field in ["temperature", "top_p", "top_k", "min_p",
+                      "frequency_penalty", "presence_penalty", "repetition_penalty",
+                      "seed", "stop", "max_tokens",
+                      "reasoning_effort", "reasoning_max_tokens",
+                      "images", "tools"]:
+            assert field in props, f"missing {field}"
+        assert ChatInput is LLMInput
+        assert BaseLLMInput is LLMInput
+
+    def test_input_sampling_params_flat(self):
+        inp = LLMInput(text="hi", temperature=0.5, top_k=40, min_p=0.1, seed=42)
+        assert inp.temperature == 0.5
+        assert inp.top_k == 40
+        assert inp.min_p == 0.1
+        assert inp.seed == 42
+
+    def test_build_openai_messages_accepts_llm_input(self):
         messages = build_openai_messages(
-            ChatInput(text="hi", context=[], system_prompt="Be brief."),
+            LLMInput(text="hi", context=[], system_prompt="Be brief."),
         )
         assert messages[0] == {"role": "system", "content": "Be brief."}
         assert messages[-1] == {"role": "user", "content": "hi"}
@@ -400,6 +394,14 @@ class TestGeneratedTypeConsumption:
         from inferencesh.models.llm import LLMOutput
         fields = set(LLMOutput.model_fields.keys())
         assert {"response", "reasoning", "tool_calls", "usage"} <= fields
+
+    def test_llm_input_fields_match_generated(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMInput
+        gen_fields = set(llm_contract.LLMInput.model_fields.keys())
+        hand_fields = set(LLMInput.model_fields.keys())
+        missing = gen_fields - hand_fields
+        assert not missing, f"LLMInput is missing fields from generated contract: {missing}"
 
     def test_llm_output_construction(self):
         from inferencesh.models.llm import LLMOutput, LLMUsage

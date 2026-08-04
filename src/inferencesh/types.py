@@ -1654,12 +1654,35 @@ class LLMOutput(TypedDict, total=False):
     tool_calls: Optional[List[ToolCall]]
     usage: Optional[LLMUsage]
 
+# ModelSettings groups sampling and generation parameters as a passable unit.
+class ModelSettings(TypedDict, total=False):
+    temperature: Optional[float]
+    top_p: Optional[float]
+    top_k: Optional[int]
+    min_p: Optional[float]
+    frequency_penalty: Optional[float]
+    presence_penalty: Optional[float]
+    repetition_penalty: Optional[float]
+    seed: Optional[int]
+    stop: List[str]
+    max_tokens: Optional[int]
+    reasoning_effort: Optional[str]
+    reasoning_max_tokens: Optional[int]
+
 # LLMInput is the input envelope for an LLM provider task.
 class LLMInput(TypedDict, total=False):
     model: Optional[str]
     context_size: int
     temperature: Optional[float]
     top_p: Optional[float]
+    top_k: Optional[int]
+    min_p: Optional[float]
+    frequency_penalty: Optional[float]
+    presence_penalty: Optional[float]
+    repetition_penalty: Optional[float]
+    seed: Optional[int]
+    stop: List[str]
+    max_tokens: Optional[int]
     reasoning_effort: Optional[str]
     reasoning_max_tokens: Optional[int]
     system_prompt: str
@@ -1667,9 +1690,7 @@ class LLMInput(TypedDict, total=False):
     role: ChatMessageRole
     text: Optional[str]
     reasoning: Optional[str]
-    # Attachments is the SDK input field with full file metadata
     attachments: Optional[List[FileRef]]
-    # Images and Files are internal fields for task workers (filled from Attachments or context)
     images: Optional[List[str]]
     files: Optional[List[str]]
     tools: Optional[List[Tool]]
