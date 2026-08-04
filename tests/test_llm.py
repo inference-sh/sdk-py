@@ -16,11 +16,16 @@ from inferencesh.models.llm import (
     ContextMessageRole,
     LLMInput,
     ModelSettings,
+    ReasoningEffortEnum,
+    ResponseTransformer,
+    StreamResponse,
     build_messages,
     build_openai_messages,
     build_tools,
     file_to_base64_data_uri,
     image_to_base64_data_uri,
+    stream_generate,
+    timing_context,
 )
 
 
@@ -446,3 +451,187 @@ class TestDeprecatedMixins:
             AppOutput = type("AppOutput", (ReasoningMixin, ToolCallsMixin, LLMOutput, BaseLLMOutput), {})
         fields = set(AppOutput.model_fields.keys())
         assert {"response", "reasoning", "tool_calls", "usage"} <= fields
+
+
+class TestReasoningEffortEnum:
+    def test_reasoning_effort_values(self):
+        assert ReasoningEffortEnum.LOW.value == "low"
+        assert ReasoningEffortEnum.MEDIUM.value == "medium"
+        assert ReasoningEffortEnum.HIGH.value == "high"
+        assert ReasoningEffortEnum.NONE.value == "none"
+
+    def test_llm_input_defaults_reasoning_effort_to_none(self):
+        inp = LLMInput(text="hi")
+        assert inp.reasoning_effort == ReasoningEffortEnum.NONE
+
+
+class TestIncludeReasoning:
+    def test_include_reasoning_adds_reasoning_details_on_role_change(self):
+        messages = build_openai_messages(
+            LLMInput(
+                text="follow up",
+                context=[
+                    ContextMessage(role=ContextMessageRole.USER, text="question"),
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="answer",
+                        reasoning="thought process",
+                    ),
+                ],
+                system_prompt="",
+            ),
+            include_reasoning=True,
+        )
+        user_msg = next(m for m in messages if m["role"] == "user")
+        assert user_msg["reasoning"] == "thought process"
+        assert user_msg["reasoning_details"]["type"] == "reasoning.text"
+        assert user_msg["reasoning_details"]["index"] == 0
+
+
+class _MockTiming:
+    def __init__(self):
+        self._stats = {
+            "time_to_first_token": 0.1,
+            "generation_time": 0.5,
+            "reasoning_time": 0.2,
+            "reasoning_tokens": 3,
+        }
+
+    @property
+    def stats(self):
+        return self._stats
+
+    def mark_first_token(self):
+        pass
+
+    def start_reasoning(self):
+        pass
+
+    def end_reasoning(self, token_count=0):
+        pass
+
+
+class TestTimingContext:
+    def test_timing_context_tracks_first_token_and_reasoning(self):
+        with timing_context() as timing:
+            timing.mark_first_token()
+            timing.start_reasoning()
+            timing.end_reasoning(token_count=8)
+            stats = timing.stats
+
+        assert stats["time_to_first_token"] > 0
+        assert stats["reasoning_time"] > 0
+        assert stats["reasoning_tokens"] == 8
+
+    def test_timing_context_before_first_token_returns_zeros(self):
+        with timing_context() as timing:
+            stats = timing.stats
+
+        assert stats["time_to_first_token"] == 0.0
+        assert stats["generation_time"] == 0.0
+
+
+class TestStreamResponse:
+    def test_update_from_chunk_delta_content(self):
+        response = StreamResponse()
+        chunk = {
+            "choices": [{"delta": {"content": "hello"}, "finish_reason": None}],
+            "usage": {"prompt_tokens": 3, "completion_tokens": 1, "total_tokens": 4},
+        }
+        response.update_from_chunk(chunk, _MockTiming())
+
+        assert response.content == "hello"
+        assert response.usage_stats["prompt_tokens"] == 3
+        assert response.timing_stats["time_to_first_token"] == 0.1
+
+    def test_update_from_chunk_message_mode(self):
+        response = StreamResponse()
+        chunk = {
+            "choices": [{
+                "message": {
+                    "content": "full reply",
+                    "tool_calls": [{
+                        "id": "call_1",
+                        "type": "function",
+                        "function": {"name": "search", "arguments": '{"q":"x"}'},
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+        }
+        response.update_from_chunk(chunk, _MockTiming())
+
+        assert response.content == "full reply"
+        assert response.finish_reason == "tool_calls"
+        assert response.tool_calls[0]["function"]["name"] == "search"
+        assert response.usage_stats["stop_reason"] == "tool_calls"
+
+    def test_tool_call_arguments_accumulate_across_partials(self):
+        response = StreamResponse()
+        timing = _MockTiming()
+        response.update_from_chunk(
+            {"choices": [{"delta": {"tool_calls": [{
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "search", "arguments": '{"q":'},
+            }]}}]},
+            timing,
+        )
+        response.update_from_chunk(
+            {"choices": [{"delta": {"tool_calls": [{
+                "id": "call_1",
+                "function": {"arguments": '"weather"}'},
+            }]}}]},
+            timing,
+        )
+
+        assert response.tool_calls[0]["function"]["arguments"] == '{"q":"weather"}'
+
+    def test_has_updates_detects_finish_reason(self):
+        response = StreamResponse()
+        assert not response.has_updates()
+        response.finish_reason = "stop"
+        assert response.has_updates()
+
+
+class TestResponseTransformer:
+    def test_extracts_reasoning_from_redacted_thinking_tags(self):
+        transformer = ResponseTransformer()
+        transformer.timing = _MockTiming()
+        buffer, output, changes = transformer(
+            "<think>plan steps</think>final answer",
+            "",
+            None,
+        )
+
+        assert output.reasoning == "plan steps"
+        assert output.response == "final answer"
+        assert changes["reasoning_started"]
+        assert changes["reasoning_ended"]
+        assert buffer.endswith("final answer")
+
+    def test_clean_text_strips_common_model_tokens(self):
+        transformer = ResponseTransformer()
+        cleaned = transformer.clean_text("<|im_start|>hello<eos>")
+        assert cleaned == "hello"
+
+
+class TestStreamGenerate:
+    def test_stream_generate_yields_outputs_from_mock_model(self):
+        class MockModel:
+            def create_chat_completion(self, **kwargs):
+                yield {
+                    "choices": [{"delta": {"content": "hi"}, "finish_reason": None}],
+                }
+                yield {
+                    "choices": [{"delta": {"content": "!"}, "finish_reason": "stop"}],
+                    "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+                }
+
+        outputs = list(stream_generate(
+            MockModel(),
+            [{"role": "user", "content": "test"}],
+        ))
+
+        assert len(outputs) >= 1
+        assert any(o.response for o in outputs)

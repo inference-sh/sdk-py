@@ -1,5 +1,29 @@
 # Coverage automation runs
 
+## 2026-08-04 (push dev @ 58800fb, v0.7.18 LLM contract rename + unified input)
+
+**Recent changes reviewed:** `58800fb` (version bump only). `b1430dc` (generated type consumption + deprecated mixin tests — already merged). `35ec43a` (unify LLM input: single `LLMInput` Pydantic model, deprecated input mixins). `69978df`/`2725b2f`/`f574da1` (consume generated pydantic LLM types; rename `ChatTaskInput`→`LLMInput`, `ChatTaskContextMessage`→`LLMContextMessage` in wire types and public exports).
+
+**Open PRs checked:** #186 (`cursor/missing-test-coverage-9fac`) — batch-merge gaps, MCP compat, workflow injection guards (no overlap). #185/#184 — earlier batch-merge restore attempts (no overlap).
+
+**Gaps filled this run:**
+
+- `LLMInput` / `LLMContextMessage` / `LLMOutput` public export smoke tests after `ChatTask*` rename
+- Regression guard: `ChatTaskInput` / `ChatTaskContextMessage` must not reappear in `inferencesh.types` or `__all__`
+- Top-level `LLMInput` is the wire TypedDict; grid apps keep Pydantic `inferencesh.models.LLMInput` (alias of `ChatInput`)
+- `LLMInput` / `LLMContextMessage` / `LLMOutput` TypedDict contract fields (`attachments`, `reasoning_effort`, `tool_calls`, usage)
+- `ApiAgentRunRequest.input` typed as `LLMInput` (agent runtime wire envelope)
+- `timing_context` first-token and reasoning timing stats
+- `StreamResponse.update_from_chunk` delta/message modes, usage tracking, partial tool-call argument accumulation
+- `ResponseTransformer` reasoning extraction from `<think>` tags and common token stripping
+- `stream_generate` end-to-end with mock model (threaded worker path)
+- `include_reasoning` flag on `build_openai_messages`
+- `ReasoningEffortEnum` values and `LLMInput` default
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest` — 978 passed, 26 skipped.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

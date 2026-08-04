@@ -68,6 +68,8 @@ def test_all_exports_resolvable():
     "streamable", "streamable_raw",
     # OutputMeta
     "OutputMeta", "TextMeta", "ImageMeta", "VideoMeta", "AudioMeta", "probe_video",
+    # LLM contract rename (ChatTaskInput → LLMInput, f574da1)
+    "LLMInput", "LLMContextMessage", "LLMOutput",
 ])
 def test_public_name_importable(name):
     """Core public names must be importable from the top-level package."""
@@ -111,6 +113,35 @@ def test_models_llm_export_exists(name):
     """New LLM input types from v0.7.9 must be exported from models."""
     from inferencesh import models
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
+
+
+def test_top_level_llm_input_is_wire_typed_dict():
+    """Top-level LLMInput is the agent-runtime wire TypedDict, not the grid Pydantic model."""
+    from inferencesh import LLMInput as PackageLLMInput
+    from inferencesh.models.llm import LLMInput as ModelLLMInput
+
+    assert PackageLLMInput is not ModelLLMInput
+    assert hasattr(PackageLLMInput, "__annotations__")
+    assert "context" in PackageLLMInput.__annotations__
+
+
+def test_models_llm_input_is_pydantic_grid_model():
+    """Grid apps must keep using the Pydantic LLMInput from inferencesh.models."""
+    from inferencesh.models import LLMInput, ChatInput
+
+    assert ChatInput is LLMInput
+    assert hasattr(LLMInput, "model_fields")
+    assert "text" in LLMInput.model_fields
+
+
+def test_chat_task_types_removed_from_public_api():
+    """ChatTaskInput/ChatTaskContextMessage were renamed; old names must not return."""
+    from inferencesh import types
+
+    assert not hasattr(types, "ChatTaskInput")
+    assert not hasattr(types, "ChatTaskContextMessage")
+    assert "ChatTaskInput" not in inferencesh.__all__
+    assert "ChatTaskContextMessage" not in inferencesh.__all__
 
 
 # ── Generated types (from typegen) ───────────────────────────────────────────

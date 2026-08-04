@@ -2346,3 +2346,98 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_llm_input_typed_dict_contract():
+    """LLMInput wire envelope must expose runtime fields for agent/chat tasks."""
+    from inferencesh.types import ChatMessageRole, LLMContextMessage, LLMInput
+
+    ctx: LLMContextMessage = {
+        "role": ChatMessageRole.USER,
+        "text": "describe this image",
+        "images": ["https://cdn.example.com/photo.png"],
+    }
+    inp: LLMInput = {
+        "model": "gpt-4o",
+        "system_prompt": "You are helpful.",
+        "context": [ctx],
+        "role": ChatMessageRole.USER,
+        "text": "summarize",
+        "reasoning_effort": "medium",
+        "attachments": [{"id": "f1", "uri": "file://doc.pdf", "filename": "doc.pdf"}],
+        "tools": [{"type": "function", "function": {"name": "search", "description": "", "parameters": {"type": "object", "title": "", "properties": {}}}}],
+    }
+
+    annotations = LLMInput.__annotations__
+    assert "attachments" in annotations
+    assert "reasoning_effort" in annotations
+    assert "tools" in annotations
+    assert inp["context"][0]["role"] == ChatMessageRole.USER
+    assert inp["attachments"][0]["filename"] == "doc.pdf"
+
+
+def test_llm_context_message_typed_dict_contract():
+    """LLMContextMessage must carry tool-call metadata for multi-turn agent loops."""
+    from inferencesh.types import ChatMessageRole, LLMContextMessage, ToolCallType
+
+    msg: LLMContextMessage = {
+        "role": ChatMessageRole.ASSISTANT,
+        "text": "calling tool",
+        "reasoning": "need weather data",
+        "tool_calls": [{
+            "id": "call_1",
+            "type": ToolCallType.TOOL_TYPE_FUNCTION,
+            "function": {"name": "weather", "arguments": {"city": "NYC"}},
+        }],
+    }
+
+    assert msg["tool_calls"][0]["function"]["name"] == "weather"
+    assert "tool_call_id" in LLMContextMessage.__annotations__
+
+
+def test_llm_output_typed_dict_contract():
+    """LLMOutput TypedDict mirrors the generated go/api contract."""
+    from inferencesh.types import LLMOutput, LLMUsage, ToolCallType
+
+    out: LLMOutput = {
+        "response": "It is sunny.",
+        "reasoning": "checked forecast",
+        "tool_calls": [{
+            "id": "call_1",
+            "type": ToolCallType.TOOL_TYPE_FUNCTION,
+            "function": {"name": "weather", "arguments": {}},
+        }],
+        "usage": {
+            "prompt_tokens": 12,
+            "completion_tokens": 4,
+            "total_tokens": 16,
+            "stop_reason": "stop",
+        },
+    }
+
+    assert out["response"] == "It is sunny."
+    assert out["usage"]["total_tokens"] == 16
+    assert "reasoning" in LLMOutput.__annotations__
+    assert "reasoning_tokens" in LLMUsage.__annotations__
+
+
+def test_api_agent_run_request_uses_llm_input():
+    """Agent run requests must accept the renamed LLMInput wire envelope."""
+    from typing import get_type_hints
+
+    from inferencesh.types import ApiAgentRunRequest, ChatMessageRole, LLMInput
+
+    req: ApiAgentRunRequest = {
+        "agent": "support-bot",
+        "input": {
+            "system_prompt": "help users",
+            "context": [],
+            "role": ChatMessageRole.USER,
+            "text": "hello",
+        },
+        "stream": True,
+    }
+
+    hints = get_type_hints(ApiAgentRunRequest)
+    assert hints["input"] is LLMInput
+    assert req["input"]["text"] == "hello"
