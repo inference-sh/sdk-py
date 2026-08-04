@@ -26,18 +26,24 @@ jobs:
       - name: Fetch types from models
         env:
           GH_TOKEN: ${{ secrets.REPO_PAT }}
+          FILE: ${{ inputs.file }}
+          VERSION: ${{ inputs.version }}
+          DEST: ${{ inputs.dest }}
         run: |
-          gh api repos/inference-sh/models/contents/${{ inputs.file }}?ref=${{ inputs.version }} \
-            --jq .content | base64 -d > "${{ inputs.dest }}"
+          gh api "repos/inference-sh/models/contents/${FILE}?ref=${VERSION}" \
+            --jq .content | base64 -d > "$DEST"
 
       - name: Commit if changed
+        env:
+          VERSION: ${{ inputs.version }}
+          DEST: ${{ inputs.dest }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- "${{ inputs.dest }}"; then
+          if git diff --quiet -- "$DEST"; then
             echo "No changes to types"
             exit 0
           fi
-          git add "${{ inputs.dest }}"
-          git commit -m "deps: update types from models ${{ inputs.version }}"
+          git add "$DEST"
+          git commit -m "deps: update types from models $VERSION"
           git push origin dev
