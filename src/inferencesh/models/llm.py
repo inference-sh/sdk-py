@@ -11,6 +11,12 @@ import json
 from .base import BaseAppInput, BaseAppOutput
 from .file import File
 
+from inferencesh.llm_types_gen import (
+    LLMOutput as _GenLLMOutput,
+    LLMUsage as _GenLLMUsage,
+    LLMContextMessage as _GenLLMContextMessage,
+)
+
 class ContextMessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
@@ -207,55 +213,30 @@ class LLMInput(BaseLLMInput):
 # For backward compatibility
 LLMInput.model_config["title"] = "LLMInput"
 
-class LLMUsage(BaseAppOutput):
-    stop_reason: str = ""
-    time_to_first_token: float = 0.0
-    tokens_per_second: float = 0.0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    reasoning_tokens: int = 0
-    reasoning_time: float = 0.0
-
-class BaseLLMOutput(BaseAppOutput):
-    """Base class for LLM outputs with common fields."""
-    response: str = Field(description="the generated text response")
-
-class LLMUsageMixin(BaseModel):
-    """Mixin for models that provide token usage statistics."""
-    usage: Optional[LLMUsage] = Field(
-        description="token usage statistics",
-        default=None
-    )
-
-class ReasoningMixin(BaseModel):
-    """Mixin for models that support reasoning."""
-    reasoning: Optional[str] = Field(
-        description="the reasoning output of the model",
-        default=None
-    )
-
-class ToolCallsMixin(BaseModel):
-    """Mixin for models that support tool calls."""
-    tool_calls: Optional[List[Dict[str, Any]]] = Field(
-        description="tool calls for function calling",
-        default=None
-    )
-
-class ImagesMixin(BaseModel):
-    """Mixin for models that support image outputs."""
-    images: Optional[List[File]] = Field(
-        description="the images of the output",
-        default=None
-    )
-
-# Example of how to use:
-class LLMOutput(LLMUsageMixin, BaseLLMOutput):
-    """Default LLM output model with token usage tracking."""
+class LLMUsage(_GenLLMUsage):
     pass
 
-# For backward compatibility
-LLMOutput.model_config["title"] = "LLMOutput"
+class BaseLLMOutput(_GenLLMOutput, BaseAppOutput):
+    """Base class for LLM outputs. Fields inherited from generated wire contract."""
+    pass
+
+# Output mixins — kept for apps that compose custom output types.
+# Standard LLM apps can use LLMOutput directly (it has all fields from the generated contract).
+class LLMUsageMixin(BaseModel):
+    usage: Optional[LLMUsage] = None
+
+class ReasoningMixin(BaseModel):
+    reasoning: Optional[str] = None
+
+class ToolCallsMixin(BaseModel):
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+
+class ImagesMixin(BaseModel):
+    images: Optional[List[File]] = None
+
+class LLMOutput(BaseLLMOutput):
+    """Default LLM output — inherits all fields from generated wire contract."""
+    pass
 
 @contextmanager
 def timing_context():
