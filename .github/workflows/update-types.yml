@@ -1,0 +1,43 @@
+name: Update Types
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Models version"
+        required: true
+      file:
+        description: "Source file in models repo"
+        required: true
+      dest:
+        description: "Destination path in this repo"
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: dev
+
+      - name: Fetch types from models
+        env:
+          GH_TOKEN: ${{ secrets.REPO_PAT }}
+        run: |
+          gh api repos/inference-sh/models/contents/${{ inputs.file }}?ref=${{ inputs.version }} \
+            --jq .content | base64 -d > "${{ inputs.dest }}"
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- "${{ inputs.dest }}"; then
+            echo "No changes to types"
+            exit 0
+          fi
+          git add "${{ inputs.dest }}"
+          git commit -m "deps: update types from models ${{ inputs.version }}"
+          git push origin dev
