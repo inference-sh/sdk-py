@@ -1026,6 +1026,7 @@ def test_worker_status_lifecycle_values(member, value):
         ("PENDING", "pending"),
         ("DRAINING", "draining"),
         ("DISCONNECTED", "disconnected"),
+        ("RESTARTING", "restarting"),
         ("STOPPING", "stopping"),
         ("STOPPED", "stopped"),
     ],
@@ -1486,6 +1487,7 @@ def test_flow_run_status_lifecycle_values(member, value):
         ("DRAFT", 1),
         ("PUBLISHED", 2),
         ("ARCHIVED", 3),
+        ("SCHEDULED", 4),
     ],
 )
 def test_page_status_lifecycle_values(member, value):
@@ -1815,17 +1817,103 @@ def test_meta_item_type_values(member, value):
     assert getattr(MetaItemType, member).value == value
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("SUBMITTED", "submitted"),
+        ("WORKING", "working"),
+        ("INPUT_REQUIRED", "input_required"),
+        ("AUTH_REQUIRED", "auth_required"),
+        ("COMPLETED", "completed"),
+        ("FAILED", "failed"),
+        ("CANCELED", "canceled"),
+        ("REJECTED", "rejected"),
+    ],
+)
+def test_agent_run_state_lifecycle_values(member, value):
+    """AgentRunState drives agent execution UIs and interrupt/resume flows."""
+    from inferencesh.types import AgentRunState
+
+    assert hasattr(AgentRunState, member)
+    assert getattr(AgentRunState, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TOOL_APPROVAL", "tool_approval"),
+        ("CLIENT_TOOL", "client_tool"),
+        ("WIDGET", "widget"),
+        ("AUTH", "auth"),
+        ("CONFIRMATION", "confirmation"),
+    ],
+)
+def test_interrupt_reason_values(member, value):
+    """InterruptReason discriminates why an agent run paused for user action."""
+    from inferencesh.types import InterruptReason
+
+    assert hasattr(InterruptReason, member)
+    assert getattr(InterruptReason, member).value == value
+
+
+def test_agent_run_dto_interrupt_shape():
+    """AgentRunDTO links chat messages to execution state and interrupt metadata."""
+    from inferencesh.types import AgentRunDTO, AgentRunState, InterruptReason
+
+    run: AgentRunDTO = {
+        "id": "run_abc",
+        "agent_id": "agent_xyz",
+        "chat_id": "chat_abc",
+        "user_message_id": "msg_user_1",
+        "state": AgentRunState.INPUT_REQUIRED,
+        "interrupt_reason": InterruptReason.TOOL_APPROVAL,
+        "interrupt_tool_id": "tool_send_email",
+        "interrupt_meta": {"subject": "Weekly report"},
+        "trigger_id": "trg_scheduled",
+        "metadata": {"source": "cron"},
+    }
+
+    assert run["state"] == AgentRunState.INPUT_REQUIRED
+    assert run["interrupt_reason"] == InterruptReason.TOOL_APPROVAL
+    assert run["interrupt_tool_id"] == "tool_send_email"
+    assert run["interrupt_meta"]["subject"] == "Weekly report"
+
+
 def test_chat_dto_carries_status():
     """Chat listings expose ChatStatus for stream and UI state."""
-    from inferencesh.types import ChatDTO, ChatStatus
+    from inferencesh.types import AgentRunDTO, AgentRunState, ChatDTO, ChatStatus
 
+    active_run: AgentRunDTO = {
+        "id": "run_abc",
+        "agent_id": "agent_xyz",
+        "chat_id": "chat_abc",
+        "state": AgentRunState.WORKING,
+    }
     chat: ChatDTO = {
         "id": "chat_abc",
         "status": ChatStatus.AWAITING_INPUT,
         "children": [],
+        "active_run": active_run,
     }
 
     assert chat["status"] == ChatStatus.AWAITING_INPUT
+    assert chat["active_run"]["state"] == AgentRunState.WORKING
+
+
+def test_chat_message_dto_agent_run_id():
+    """Chat messages reference the agent run that produced assistant/tool output."""
+    from inferencesh.types import ChatMessageDTO, ChatMessageRole, ChatMessageStatus
+
+    message: ChatMessageDTO = {
+        "id": "msg_abc",
+        "role": ChatMessageRole.ASSISTANT,
+        "status": ChatMessageStatus.READY,
+        "agent_run_id": "run_abc",
+        "content": [{"type": "text", "text": "Done."}],
+    }
+
+    assert message["agent_run_id"] == "run_abc"
+    assert message["role"] == ChatMessageRole.ASSISTANT
 
 
 def test_flow_run_dto_carries_int_status():
@@ -1946,6 +2034,70 @@ def test_page_dto_carries_status_and_type():
     assert page["type"] == PageType.DOC
 
 
+def test_page_metadata_publish_at_for_scheduled_pages():
+    """Scheduled pages carry publish_at in metadata until they go live."""
+    from inferencesh.types import PageDTO, PageMetadata, PageStatus, PageType
+
+    metadata: PageMetadata = {
+        "title": "Launch announcement",
+        "publish_at": "2026-08-01T09:00:00Z",
+    }
+    page: PageDTO = {
+        "title": "Launch announcement",
+        "slug": "launch-announcement",
+        "status": PageStatus.SCHEDULED,
+        "type": PageType.BLOG,
+        "metadata": metadata,
+    }
+
+    assert page["status"] == PageStatus.SCHEDULED
+    assert page["status"].value == 4
+    assert page["metadata"]["publish_at"] == "2026-08-01T09:00:00Z"
+
+
+def test_page_dto_publish_at_top_level():
+    """PageDTO surfaces publish_at at the top level so clients need not dig into metadata."""
+    from inferencesh.types import PageDTO, PageStatus, PageType
+
+    publish_at = "2026-08-01T09:00:00Z"
+    page: PageDTO = {
+        "title": "Launch announcement",
+        "slug": "launch-announcement",
+        "status": PageStatus.SCHEDULED,
+        "type": PageType.BLOG,
+        "metadata": {"title": "Launch announcement", "publish_at": publish_at},
+        "publish_at": publish_at,
+    }
+
+    assert page["publish_at"] == publish_at
+    assert page["metadata"]["publish_at"] == publish_at
+
+
+def test_availability_response_shape():
+    """Name availability checks return normalized value, availability, and reason when taken."""
+    from inferencesh.types import AvailabilityResponse
+
+    available: AvailabilityResponse = {
+        "value": "getting-started",
+        "available": True,
+    }
+    taken: AvailabilityResponse = {
+        "value": "docs",
+        "available": False,
+        "reason": "taken",
+    }
+    reserved: AvailabilityResponse = {
+        "value": "admin",
+        "available": False,
+        "reason": "reserved",
+    }
+
+    assert available["available"] is True
+    assert "reason" not in available
+    assert taken["reason"] == "taken"
+    assert reserved["reason"] == "reserved"
+
+
 def test_project_dto_carries_type():
     """Project listings group resources by ProjectType."""
     from inferencesh.types import ProjectDTO, ProjectType
@@ -2025,6 +2177,23 @@ def test_cursor_list_request_filters_shape():
 
     assert req["filters"][0]["operator"] == FilterOperator.OP_IN
     assert req["search"]["term"] == "flux"
+
+
+def test_search_request_dropped_fields_param():
+    """SearchRequest no longer accepts fields — each model declares SearchFields()."""
+    from inferencesh.types import CursorListRequest, SearchRequest
+
+    annotations = SearchRequest.__annotations__
+    assert "term" in annotations
+    assert "exact" in annotations
+    assert "fields" not in annotations
+
+    search: SearchRequest = {"term": "flux", "exact": True}
+    assert search["term"] == "flux"
+    assert search["exact"] is True
+
+    # CursorListRequest.fields is for response field selection, not search scoping.
+    assert "fields" in CursorListRequest.__annotations__
 
 
 def test_engine_dto_carries_engine_version():
@@ -2249,6 +2418,51 @@ def test_tool_call_response_complete_shape():
     assert resp["content"][0]["type"] == ToolContentType.TEXT
     assert resp["_meta"]["io.modelcontextprotocol/serverInfo"]["name"] == "inference-mcp"
     assert "inputRequests" not in resp
+
+
+def test_tool_call_response_omitted_result_type_is_complete():
+    """Servers older than 2026-07-28 omit resultType; clients must treat that as complete."""
+    from inferencesh.types import ResultType, ToolCallResponse, ToolContentType
+
+    legacy: ToolCallResponse = {
+        "content": [{"type": ToolContentType.TEXT, "text": "legacy result"}],
+        "isError": False,
+    }
+
+    assert "resultType" not in legacy
+    assert legacy["content"][0]["text"] == "legacy result"
+    assert ResultType.COMPLETE.value == "complete"
+
+
+def test_tool_call_response_structured_content():
+    """ToolCallResponse.structuredContent carries JSON tool output alongside content blocks."""
+    from inferencesh.types import ResultType, ToolCallResponse, ToolContentType
+
+    resp: ToolCallResponse = {
+        "resultType": ResultType.COMPLETE,
+        "content": [{"type": ToolContentType.TEXT, "text": "ok"}],
+        "structuredContent": {"count": 3, "items": ["a", "b", "c"]},
+        "isError": False,
+    }
+
+    assert resp["structuredContent"]["count"] == 3
+    assert resp["structuredContent"]["items"] == ["a", "b", "c"]
+
+
+def test_server_info_shape():
+    """ServerInfo identifies the MCP server in ResultMeta (SEP-2575)."""
+    from inferencesh.types import ResultMeta, ServerInfo
+
+    info: ServerInfo = {
+        "name": "inference-mcp",
+        "title": "Inference MCP",
+        "version": "1.2.0",
+    }
+    meta: ResultMeta = {"io.modelcontextprotocol/serverInfo": info}
+
+    assert meta["io.modelcontextprotocol/serverInfo"]["name"] == "inference-mcp"
+    assert meta["io.modelcontextprotocol/serverInfo"]["title"] == "Inference MCP"
+    assert "title" in ServerInfo.__annotations__
 
 
 def test_tool_call_response_input_required_mrtr_shape():

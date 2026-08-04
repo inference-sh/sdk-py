@@ -1,5 +1,44 @@
 # Coverage automation runs
 
+## 2026-08-04 (push dev @ 4fe2668, update-types CI workflow)
+
+**Recent changes reviewed:** `4fe2668` (CI-only: `update-types` workflow for models dispatch — no production code). Prior gaps from `c04cf8c` batch merge still uncovered on `dev` (open draft PR #184).
+
+**Open PRs checked:** #184 (`cursor/missing-test-coverage-dd7d`) — restores batch-merge gaps; incorporated here plus additional MCP backward-compat guards.
+
+**Gaps filled this run:**
+
+- Restored batch-merge coverage gaps (AgentRunState, InterruptReason, RESTARTING, SCHEDULED pages, AvailabilityResponse, SearchRequest.fields removal, Metadata identity fields) — see 2026-08-03 entry
+- `ToolCallResponse` without `resultType` backward-compat guard (pre-2026-07-28 servers)
+- `ToolCallResponse.structuredContent` JSON tool output field
+- `ServerInfo` shape in `ResultMeta` (SEP-2575 server identification)
+
+**Files:** `tests/test_types.py`, `tests/test_models_base.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_models_base.py tests/test_imports.py`
+
+## 2026-08-03 (push dev @ c04cf8c, batch merge of 7 bot test PRs)
+
+**Recent changes reviewed:** `c04cf8c` (batch merge #163, #166, #168, #170, #175, #178, #182 — MCP elicitation, stream termination, Metadata gpu_ids, but several intended tests did not land). `cc67205` (MCP elicitation + tool annotations — largely covered by merged PR #182). `45608aa` (`Agent.stream_all()` termination via `active_run.state` — covered by merged PR #175). `5d368bf` (`EngineStatus.RESTARTING`). `cb0c1ae`/`b242cfd` (`PageStatus.SCHEDULED`, `publish_at`, `AvailabilityResponse`). `09a48a9` (`SearchRequest.fields` removal). `71ddb61`/`1733467` (Metadata `gpu_ids`, `task_id`/`team_id`/`user_id`).
+
+**Open PRs checked:** none open. Remote branches `0701`/`3c69` (scheduled publishing), `54fe` (SearchRequest.fields), `8554` (RESTARTING), `40cb` (Metadata identity), `a9e5` (AgentRunState/InterruptReason) had unmerged test work — incorporated here to close gaps left by the batch merge.
+
+**Gaps filled this run:**
+
+- `AgentRunState` full lifecycle enum stability (drives `stream_all` termination and agent UIs)
+- `InterruptReason` enum and `AgentRunDTO` interrupt metadata shape (tool approval, auth, widget pauses)
+- `ChatDTO.active_run` nested `AgentRunState` for in-flight run tracking
+- `ChatMessageDTO.agent_run_id` links messages to producing runs
+- `EngineStatus.RESTARTING` lifecycle value for engine dashboard rollouts
+- `PageStatus.SCHEDULED` + `publish_at` on `PageMetadata`/`PageDTO` for scheduled CMS publishing
+- `AvailabilityResponse` slug/name availability checks (`taken` vs `reserved`)
+- `SearchRequest` regression guard: `fields` param removed (per-model `SearchFields()` instead)
+- `Metadata.task_id` / `team_id` / `user_id` runtime identity fields on worker apps
+
+**Files:** `tests/test_types.py`, `tests/test_models_base.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_models_base.py tests/test_imports.py`
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
