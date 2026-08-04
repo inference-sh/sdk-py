@@ -330,6 +330,55 @@ class TestModelSettingsAndSamplingParams:
         assert inp.min_p == 0.1
         assert inp.seed == 42
 
+    def test_llm_input_model_settings_field_removed(self):
+        """Sampling params are flat on LLMInput; nested model_settings was removed (INF-626)."""
+        props = LLMInput.model_json_schema()["properties"]
+        assert "model_settings" not in props
+
+    def test_llm_input_accepts_all_flat_sampling_params(self):
+        inp = LLMInput(
+            text="prompt",
+            model="gpt-4o",
+            temperature=0.3,
+            top_p=0.8,
+            top_k=40,
+            min_p=0.05,
+            frequency_penalty=0.5,
+            presence_penalty=-0.5,
+            repetition_penalty=1.1,
+            seed=99,
+            stop=["END", "STOP"],
+            max_tokens=2048,
+            reasoning_effort="high",
+            reasoning_max_tokens=512,
+        )
+        assert inp.model == "gpt-4o"
+        assert inp.frequency_penalty == 0.5
+        assert inp.presence_penalty == -0.5
+        assert inp.repetition_penalty == 1.1
+        assert inp.stop == ["END", "STOP"]
+        assert inp.reasoning_effort.value == "high"
+        assert inp.reasoning_max_tokens == 512
+
+    def test_llm_input_accepts_attachments(self):
+        doc = _file("https://cdn.example.com/report.pdf")
+        inp = LLMInput(text="summarize", attachments=[doc])
+        assert len(inp.attachments) == 1
+        assert inp.attachments[0].uri == "https://cdn.example.com/report.pdf"
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("frequency_penalty", 3.0),
+            ("presence_penalty", -3.0),
+            ("min_p", 1.5),
+            ("top_k", -2),
+        ],
+    )
+    def test_llm_input_rejects_out_of_range_sampling_params(self, field, value):
+        with pytest.raises(ValidationError):
+            LLMInput(text="hi", **{field: value})
+
     def test_build_openai_messages_accepts_llm_input(self):
         messages = build_openai_messages(
             LLMInput(text="hi", context=[], system_prompt="Be brief."),

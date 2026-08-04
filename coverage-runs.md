@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-04 (push dev @ 1a45219, flat sampling params on LLMInput INF-626)
+
+**Recent changes reviewed:** `1a45219` (feat: flat sampling params on LLMInput — `top_k`, `min_p`, penalties, `seed`, `stop`, etc. as flat fields; `model_settings` removed from input; `attachments` added; `ModelSettings` TypedDict in types.py). `58800fb` version bump only.
+
+**Open PRs checked:** #190 (`cursor/missing-test-coverage-63bd`) — LLM contract rename + streaming helpers (no overlap with flat sampling params). #186/#185/#184 — batch-merge/MCP/workflow gaps (no overlap).
+
+**Gaps filled this run:**
+
+- Pydantic `LLMInput` accepts all flat sampling params (`model`, penalties, `stop`, reasoning fields)
+- Regression guard: `model_settings` must not reappear on `LLMInput` after INF-626 flattening
+- Validation bounds on flat `LLMInput` fields (`frequency_penalty`, `presence_penalty`, `min_p`, `top_k`)
+- `attachments` field on grid-app `LLMInput` (File metadata alongside `images`/`files`)
+- Wire `LLMInput` TypedDict flat sampling field annotations (`top_k` through `reasoning_max_tokens`)
+- `ModelSettings` TypedDict groups sampling params for pass-through APIs
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`
+
+**Validation:** `pytest tests/test_llm.py tests/test_types.py::test_llm_input_flat_sampling_fields_on_wire_contract tests/test_types.py::test_model_settings_typed_dict_sampling_fields` — 45 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

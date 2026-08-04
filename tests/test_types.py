@@ -2346,3 +2346,69 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_llm_input_flat_sampling_fields_on_wire_contract():
+    """LLMInput wire TypedDict exposes flat sampling params (INF-626)."""
+    from inferencesh.types import ChatMessageRole, LLMInput
+
+    inp: LLMInput = {
+        "model": "claude-3",
+        "temperature": 0.4,
+        "top_p": 0.9,
+        "top_k": 50,
+        "min_p": 0.1,
+        "frequency_penalty": 0.2,
+        "presence_penalty": 0.3,
+        "repetition_penalty": 1.05,
+        "seed": 7,
+        "stop": ["<|end|>"],
+        "max_tokens": 1024,
+        "reasoning_effort": "medium",
+        "reasoning_max_tokens": 256,
+        "system_prompt": "Be concise.",
+        "context": [],
+        "role": ChatMessageRole.USER,
+        "text": "hello",
+    }
+
+    annotations = LLMInput.__annotations__
+    for field in [
+        "top_k", "min_p", "frequency_penalty", "presence_penalty",
+        "repetition_penalty", "seed", "stop", "max_tokens",
+        "reasoning_effort", "reasoning_max_tokens",
+    ]:
+        assert field in annotations, f"LLMInput wire contract missing {field}"
+    assert inp["top_k"] == 50
+    assert inp["stop"] == ["<|end|>"]
+    assert inp["reasoning_effort"] == "medium"
+
+
+def test_model_settings_typed_dict_sampling_fields():
+    """ModelSettings TypedDict groups flat sampling params for pass-through APIs."""
+    from inferencesh.types import ModelSettings
+
+    settings: ModelSettings = {
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "top_k": 30,
+        "min_p": 0.05,
+        "frequency_penalty": 0.1,
+        "presence_penalty": 0.2,
+        "repetition_penalty": 1.0,
+        "seed": 42,
+        "stop": ["END"],
+        "max_tokens": 512,
+        "reasoning_effort": "low",
+        "reasoning_max_tokens": 128,
+    }
+
+    annotations = ModelSettings.__annotations__
+    for field in [
+        "top_k", "min_p", "frequency_penalty", "presence_penalty",
+        "repetition_penalty", "seed", "stop", "max_tokens",
+        "reasoning_effort", "reasoning_max_tokens",
+    ]:
+        assert field in annotations, f"ModelSettings wire contract missing {field}"
+    assert settings["top_k"] == 30
+    assert settings["reasoning_max_tokens"] == 128
