@@ -206,12 +206,26 @@ class BaseLLMOutput(llm_contract.LLMOutput, BaseAppOutput):
 
 class LLMOutput(BaseLLMOutput): pass
 
-# Deprecated no-ops — output fields come from the generated contract on BaseLLMOutput.
-# Kept so existing grid apps don't break on import. Remove once grid apps are cleaned up.
-class LLMUsageMixin(BaseModel): pass
-class ReasoningMixin(BaseModel): pass
-class ToolCallsMixin(BaseModel): pass
-class ImagesMixin(BaseModel): pass
+_DEPRECATED_MIXIN_NAMES = frozenset({"LLMUsageMixin", "ReasoningMixin", "ToolCallsMixin", "ImagesMixin"})
+
+class _DeprecatedOutputMixin(BaseModel):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.__name__ in _DEPRECATED_MIXIN_NAMES:
+            return
+        import warnings
+        warnings.warn(
+            f"{cls.__name__} inherits from a deprecated output mixin. "
+            "Output fields now come from BaseLLMOutput. "
+            "Remove the mixin from your class bases.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+class LLMUsageMixin(_DeprecatedOutputMixin): pass
+class ReasoningMixin(_DeprecatedOutputMixin): pass
+class ToolCallsMixin(_DeprecatedOutputMixin): pass
+class ImagesMixin(_DeprecatedOutputMixin): pass
 
 @contextmanager
 def timing_context():
