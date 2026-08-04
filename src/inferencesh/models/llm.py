@@ -49,157 +49,77 @@ class ContextMessage(BaseAppInput):
         default=None
     )
 
-class BaseLLMInput(BaseAppInput):
-    """Base class with common LLM fields."""
-    system_prompt: str = Field(
-        description="the system prompt to use for the model",
-        default="you are a helpful assistant that can answer questions and help with tasks.",
-        examples=[
-            "you are a helpful assistant that can answer questions and help with tasks.",
-        ]
-    )
-    context: List[ContextMessage] = Field(
-        description="the context to use for the model",
-        default=[],
-        examples=[
-            [
-                {"role": "user", "content": [{"type": "text", "text": "What is the capital of France?"}]},
-                {"role": "assistant", "content": [{"type": "text", "text": "The capital of France is Paris."}]}
-            ]
-        ]
-    )
-    role: ContextMessageRole = Field(
-        description="the role of the input text",
-        default=ContextMessageRole.USER
-    )
-    text: str = Field(
-        description="the input text to use for the model",
-        examples=[
-            "write a haiku about artificial general intelligence"
-        ]
-    )
-    temperature: float = Field(default=0.7, ge=0.0, le=1.0)
-    top_p: float = Field(default=0.95, ge=0.0, le=1.0)
-    context_size: int = Field(default=4096)
-    max_tokens: int = Field(default=64000)
-
-class ChatInput(BaseAppInput):
-    """Chat input with settings in a nested ModelSettings object.
-
-    Use this instead of BaseLLMInput for new apps. Sampling params live
-    in model_settings rather than as flat top-level fields.
-    """
-    system_prompt: str = Field(
-        description="the system prompt to use for the model",
-        default="you are a helpful assistant that can answer questions and help with tasks.",
-        examples=[
-            "you are a helpful assistant that can answer questions and help with tasks.",
-        ]
-    )
-    context: List[ContextMessage] = Field(
-        description="the context to use for the model",
-        default=[],
-        examples=[
-            [
-                {"role": "user", "content": [{"type": "text", "text": "What is the capital of France?"}]},
-                {"role": "assistant", "content": [{"type": "text", "text": "The capital of France is Paris."}]}
-            ]
-        ]
-    )
-    role: ContextMessageRole = Field(
-        description="the role of the input text",
-        default=ContextMessageRole.USER
-    )
-    text: str = Field(
-        description="the input text to use for the model",
-        examples=[
-            "write a haiku about artificial general intelligence"
-        ]
-    )
-    context_size: int = Field(default=4096)
-    model_settings: Optional["ModelSettings"] = Field(
-        default=None,
-        description="sampling and generation settings. fields left null use the app's defaults."
-    )
-
-
-class ModelSettings(BaseModel):
-    """Sampling and generation settings for LLM inference.
-
-    Group all provider-agnostic knobs in one object so they collapse in
-    the input schema and can be passed around / overridden as a unit.
-    All fields are optional — omitted fields are not sent to the provider,
-    which lets each model app set its own defaults.
-    """
-    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0, description="sampling temperature.")
-    top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="nucleus sampling probability mass.")
-    top_k: Optional[int] = Field(default=None, ge=-1, description="top-k sampling. limits to k most likely tokens. -1 to disable.")
-    min_p: Optional[float] = Field(default=None, ge=0.0, le=1.0, description="min-p sampling. tokens below this probability are dropped.")
-    frequency_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0, description="penalize tokens by how often they appear in the output so far.")
-    presence_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0, description="penalize tokens that have appeared at all in the output so far.")
-    repetition_penalty: Optional[float] = Field(default=None, ge=0.0, description="multiplicative penalty for repeated tokens (1.0 = no penalty). vLLM/HuggingFace style.")
-    seed: Optional[int] = Field(default=None, description="random seed for reproducible generation.")
-    stop: Optional[List[str]] = Field(default=None, description="stop sequences. generation stops when any of these strings is produced.")
-    max_tokens: Optional[int] = Field(default=None, ge=1, description="maximum tokens to generate.")
-
-
-class ModelSettingsCapabilityMixin(BaseModel):
-    """Mixin that adds a nested model_settings object to an LLM input."""
-    model_settings: Optional[ModelSettings] = Field(
-        default=None,
-        description="sampling and generation settings. fields left null use the app's defaults."
-    )
-
-
-class ImageCapabilityMixin(BaseModel):
-    """Mixin for models that support image inputs."""
-    images: Optional[List[File]] = Field(
-        description="the images to use for the model",
-        default=None,
-    )
-
-class FileCapabilityMixin(BaseModel):
-    """Mixin for models that support file inputs."""
-    files: Optional[List[File]] = Field(
-        description="the files to use for the model",
-        default=None,
-    )
-
 class ReasoningEffortEnum(str, Enum):
-    """Enum for reasoning effort."""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     NONE = "none"
 
-class ReasoningCapabilityMixin(BaseModel):
-    """Mixin for models that support reasoning."""
-    reasoning: str | None = Field(
-        description="the reasoning input of the message",
-        default=None
-    )
-    reasoning_effort: ReasoningEffortEnum = Field(
-        description="enable step-by-step reasoning",
-        default=ReasoningEffortEnum.NONE
-    )
-    reasoning_max_tokens: int | None = Field(
-        description="the maximum number of tokens to use for reasoning",
-        default=None
-    )
 
-class ToolsCapabilityMixin(BaseModel):
-    """Mixin for models that support tool/function calling."""
-    tools: Optional[List[Dict[str, Any]]] = Field(
-        description="tool definitions for function calling",
-        default=None
-    )
-    tool_call_id: Optional[str] = Field(
-        description="the tool call id for tool role messages",
-        default=None
-    )
+class ModelSettings(BaseModel):
+    temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
+    top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    top_k: Optional[int] = Field(default=None, ge=-1)
+    min_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    frequency_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0)
+    presence_penalty: Optional[float] = Field(default=None, ge=-2.0, le=2.0)
+    repetition_penalty: Optional[float] = Field(default=None, ge=0.0)
+    seed: Optional[int] = Field(default=None)
+    stop: Optional[List[str]] = Field(default=None)
+    max_tokens: Optional[int] = Field(default=None, ge=1)
 
-class LLMInput(BaseLLMInput):
-    pass
+
+class LLMInput(BaseAppInput):
+    system_prompt: str = Field(
+        default="you are a helpful assistant that can answer questions and help with tasks.",
+    )
+    context: List[ContextMessage] = Field(default=[])
+    role: ContextMessageRole = Field(default=ContextMessageRole.USER)
+    text: str = Field(default="")
+
+    temperature: float = Field(default=0.7, ge=0.0, le=1.0)
+    top_p: float = Field(default=0.95, ge=0.0, le=1.0)
+    context_size: int = Field(default=4096)
+    max_tokens: int = Field(default=64000)
+    model_settings: Optional[ModelSettings] = Field(default=None)
+
+    images: Optional[List[File]] = Field(default=None)
+    files: Optional[List[File]] = Field(default=None)
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
+    tool_call_id: Optional[str] = Field(default=None)
+    reasoning: Optional[str] = Field(default=None)
+    reasoning_effort: ReasoningEffortEnum = Field(default=ReasoningEffortEnum.NONE)
+    reasoning_max_tokens: Optional[int] = Field(default=None)
+
+BaseLLMInput = LLMInput
+ChatInput = LLMInput
+
+
+# Deprecated no-op input mixins — all fields now on BaseLLMInput.
+class _DeprecatedInputMixin(BaseModel):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if cls.__name__ in _DEPRECATED_INPUT_MIXIN_NAMES:
+            return
+        import warnings
+        warnings.warn(
+            f"{cls.__name__} inherits from a deprecated input mixin. "
+            "All input fields now live on BaseLLMInput. "
+            "Remove the mixin from your class bases.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
+_DEPRECATED_INPUT_MIXIN_NAMES = frozenset({
+    "ImageCapabilityMixin", "FileCapabilityMixin", "ReasoningCapabilityMixin",
+    "ToolsCapabilityMixin", "ModelSettingsCapabilityMixin",
+})
+
+class ImageCapabilityMixin(_DeprecatedInputMixin): pass
+class FileCapabilityMixin(_DeprecatedInputMixin): pass
+class ReasoningCapabilityMixin(_DeprecatedInputMixin): pass
+class ToolsCapabilityMixin(_DeprecatedInputMixin): pass
+class ModelSettingsCapabilityMixin(_DeprecatedInputMixin): pass
 
 class BaseLLMOutput(llm_contract.LLMOutput, BaseAppOutput):
     pass

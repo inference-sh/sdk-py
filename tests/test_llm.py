@@ -10,6 +10,7 @@ from inferencesh import File
 from pydantic import ValidationError
 
 from inferencesh.models.llm import (
+    BaseLLMInput,
     ChatInput,
     ContextMessage,
     ContextMessageRole,
@@ -321,12 +322,15 @@ class TestChatInputAndModelSettings:
         assert inp.model_settings.temperature == 0.3
         assert inp.model_settings.presence_penalty == 0.5
 
-    def test_chat_input_schema_nests_model_settings_not_flat_sampling(self):
-        props = ChatInput.model_json_schema()["properties"]
+    def test_unified_input_has_all_fields(self):
+        props = LLMInput.model_json_schema()["properties"]
         assert "model_settings" in props
-        assert "temperature" not in props
-        llm_props = LLMInput.model_json_schema()["properties"]
-        assert "temperature" in llm_props
+        assert "temperature" in props
+        assert "images" in props
+        assert "tools" in props
+        assert "reasoning_effort" in props
+        assert ChatInput is LLMInput
+        assert BaseLLMInput is LLMInput
 
     def test_model_settings_rejects_out_of_range_temperature(self):
         with pytest.raises(ValidationError):
