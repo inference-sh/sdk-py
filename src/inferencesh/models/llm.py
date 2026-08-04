@@ -14,14 +14,8 @@ from .file import File
 from inferencesh.llm_types_gen import (
     LLMOutput as _GenLLMOutput,
     LLMUsage as _GenLLMUsage,
-    LLMContextMessage as _GenLLMContextMessage,
+    ChatMessageRole as ContextMessageRole,
 )
-
-class ContextMessageRole(str, Enum):
-    USER = "user"
-    ASSISTANT = "assistant"
-    SYSTEM = "system"
-    TOOL = "tool"
 
 
 class Message(BaseAppInput):
