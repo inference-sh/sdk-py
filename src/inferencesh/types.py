@@ -238,7 +238,7 @@ class ApiAgentRunRequest(TypedDict, total=False):
     agent: Optional[str]
     agent_config: Optional[AgentConfigInput]
     agent_name: Optional[str]
-    input: ChatTaskInput
+    input: LLMInput
     context: Dict[str, str]
     stream: bool
 
@@ -249,7 +249,7 @@ class CreateAgentMessageRequest(TypedDict, total=False):
     agent_version_id: Optional[str]
     agent: Optional[str]
     tool_call_id: Optional[str]
-    input: ChatTaskInput
+    input: LLMInput
     integration_context: Optional[IntegrationContext]
     agent_config: Optional[AgentConfigInput]
     agent_name: Optional[str]
@@ -1592,38 +1592,6 @@ class IntegrationContext(TypedDict, total=False):
     integration_type: Optional[IntegrationType]
     integration_metadata: Any
 
-# ChatTaskInput is the input envelope for a chat LLM task
-class ChatTaskInput(TypedDict, total=False):
-    model: Optional[str]
-    context_size: int
-    temperature: Optional[float]
-    top_p: Optional[float]
-    reasoning_effort: Optional[str]
-    reasoning_max_tokens: Optional[int]
-    system_prompt: str
-    context: List[ChatTaskContextMessage]
-    role: ChatMessageRole
-    text: Optional[str]
-    reasoning: Optional[str]
-    # Attachments is the SDK input field with full file metadata
-    attachments: Optional[List[FileRef]]
-    # Images and Files are internal fields for task workers (filled from Attachments or context)
-    images: Optional[List[str]]
-    files: Optional[List[str]]
-    tools: Optional[List[Tool]]
-    tool_call_id: Optional[str]
-
-# ChatTaskContextMessage represents a message in the chat context for LLM tasks
-class ChatTaskContextMessage(TypedDict, total=False):
-    role: ChatMessageRole
-    text: Optional[str]
-    reasoning: Optional[str]
-    images: Optional[List[str]]
-    files: Optional[List[str]]
-    tools: Optional[List[Tool]]
-    tool_calls: Optional[List[ToolCall]]
-    tool_call_id: Optional[str]
-
 StringEncodedMap = Dict[str, Any]
 
 # FlowViewport represents the viewport state of a flow canvas
@@ -1678,6 +1646,46 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
+# LLMOutput is the output envelope from an LLM provider task.
+# This is the contract between chat apps (sdk-py) and the agent runtime (go/api).
+class LLMOutput(TypedDict, total=False):
+    response: str
+    reasoning: Optional[str]
+    tool_calls: Optional[List[ToolCall]]
+    usage: Optional[LLMUsage]
+
+# LLMInput is the input envelope for an LLM provider task.
+class LLMInput(TypedDict, total=False):
+    model: Optional[str]
+    context_size: int
+    temperature: Optional[float]
+    top_p: Optional[float]
+    reasoning_effort: Optional[str]
+    reasoning_max_tokens: Optional[int]
+    system_prompt: str
+    context: List[LLMContextMessage]
+    role: ChatMessageRole
+    text: Optional[str]
+    reasoning: Optional[str]
+    # Attachments is the SDK input field with full file metadata
+    attachments: Optional[List[FileRef]]
+    # Images and Files are internal fields for task workers (filled from Attachments or context)
+    images: Optional[List[str]]
+    files: Optional[List[str]]
+    tools: Optional[List[Tool]]
+    tool_call_id: Optional[str]
+
+# LLMContextMessage represents a message in the chat context for LLM tasks
+class LLMContextMessage(TypedDict, total=False):
+    role: ChatMessageRole
+    text: Optional[str]
+    reasoning: Optional[str]
+    images: Optional[List[str]]
+    files: Optional[List[str]]
+    tools: Optional[List[Tool]]
+    tool_calls: Optional[List[ToolCall]]
+    tool_call_id: Optional[str]
+
 # TaskAction defines an action to execute when a task reaches a specific status.
 class TaskAction(TypedDict, total=False):
     key: str
@@ -1699,6 +1707,17 @@ class ToolCall(TypedDict, total=False):
 class ToolCallFunction(TypedDict, total=False):
     name: str
     arguments: StringEncodedMap
+
+# LLMUsage contains token usage and performance metrics from an LLM response
+class LLMUsage(TypedDict, total=False):
+    stop_reason: str
+    time_to_first_token: float
+    tokens_per_second: float
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    reasoning_tokens: int
+    reasoning_time: float
 
 # FileRef is a lightweight reference to a file with essential metadata.
 # Used in chat inputs/context instead of full File objects.
