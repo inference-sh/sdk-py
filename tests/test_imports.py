@@ -128,7 +128,8 @@ def test_models_llm_export_exists(name):
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentRunDTO", "AgentRunState", "InterruptReason",
     "AgentToolDTO", "ToolInvocationDTO",
-    "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
+    "AppSessionDTO", "PageDTO", "PageMetadata", "AvailabilityResponse",
+    "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
     # Agent config
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
