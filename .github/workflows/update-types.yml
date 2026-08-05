@@ -13,6 +13,10 @@ on:
         description: "Destination path in this repo"
         required: true
 
+concurrency:
+  group: update-types
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
