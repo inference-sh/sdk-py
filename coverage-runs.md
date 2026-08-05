@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-05 (push dev @ a9afec1, LLMInput/ContextMessage inherit generated contract)
+
+**Recent changes reviewed:** `a9afec1` (ci: concurrency group on update-types workflow — CI-only, no unit tests). `1949bd5` (refactor: `LLMInput` and `ContextMessage` subclass generated pydantic bases; app-layer File types, defaults, and validation overrides).
+
+**Open PRs checked:** #192 (`cursor/missing-test-coverage-8985`) — flat sampling params on pre-refactor branch; behind dev. #190 — streaming helpers; behind dev. #186/#185/#184 — batch-merge/MCP gaps; behind dev. No overlap with inheritance refactor defaults.
+
+**Gaps filled this run:**
+
+- `LLMInput()` zero-arg construction without wire-required generated fields (`context`, `role`, `stop`)
+- App-layer defaults differ from generated contract (`system_prompt`, `temperature`, `top_p`, `context_size`, `max_tokens`, `reasoning_effort`)
+- App-layer validation: `LLMInput` rejects `temperature > 1.0` (stricter than generated optional float)
+- Generated-only sampling fields (`top_k`, `min_p`, penalties, `seed`, `reasoning_max_tokens`) pass through without redeclaration in `llm.py`
+- `ContextMessage.images` / `ContextMessage.files` field annotations use `File`, not wire `str`
+
+**Files:** `tests/test_llm.py`
+
+**Validation:** `pytest tests/test_llm.py` — all passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

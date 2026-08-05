@@ -16,6 +16,7 @@ from inferencesh.models.llm import (
     ContextMessageRole,
     LLMInput,
     ModelSettings,
+    ReasoningEffortEnum,
     build_messages,
     build_openai_messages,
     build_tools,
@@ -413,6 +414,28 @@ class TestGeneratedTypeConsumption:
         missing = gen_fields - hand_fields
         assert not missing, f"ContextMessage is missing fields from generated contract: {missing}"
 
+    def test_context_message_images_files_use_file_type(self):
+        """App layer must override wire string lists with File objects."""
+        from typing import Union, get_args, get_origin
+        from inferencesh import File as FileType
+
+        def _list_inner(ann):
+            origin = get_origin(ann)
+            if origin is Union:
+                for arg in get_args(ann):
+                    if arg is not type(None):
+                        return _list_inner(arg)
+            if origin is list:
+                return get_args(ann)[0]
+            return None
+
+        assert _list_inner(ContextMessage.model_fields["images"].annotation) is FileType
+        assert _list_inner(ContextMessage.model_fields["files"].annotation) is FileType
+
+        image = _file("https://cdn.example.com/photo.png")
+        msg = ContextMessage(role=ContextMessageRole.USER, text="look", images=[image])
+        assert isinstance(msg.images[0], File)
+
     def test_llm_output_construction(self):
         from inferencesh.models.llm import LLMOutput, LLMUsage
         o = LLMOutput(
@@ -425,6 +448,65 @@ class TestGeneratedTypeConsumption:
         assert o.reasoning == "thought about it"
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
+
+
+class TestAppLayerLLMInputOverrides:
+    """App-layer defaults and validation on generated LLMInput (commit 1949bd5)."""
+
+    def test_llm_input_zero_arg_construction(self):
+        """Grid apps must construct LLMInput without wire-required gen fields."""
+        inp = LLMInput()
+        assert inp.context == []
+        assert inp.role == ContextMessageRole.USER
+        assert inp.text == ""
+
+    def test_llm_input_app_defaults_differ_from_generated(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        gen = llm_contract.LLMInput(
+            context=[],
+            role=llm_contract.ChatMessageRole.USER,
+            stop=[],
+        )
+        app = LLMInput()
+
+        assert app.system_prompt == (
+            "you are a helpful assistant that can answer questions and help with tasks."
+        )
+        assert gen.system_prompt == ""
+        assert app.temperature == 0.7
+        assert gen.temperature is None
+        assert app.top_p == 0.95
+        assert gen.top_p is None
+        assert app.context_size == 4096
+        assert gen.context_size == 0
+        assert app.max_tokens == 64000
+        assert gen.max_tokens is None
+        assert app.reasoning_effort == ReasoningEffortEnum.NONE
+        assert gen.reasoning_effort is None
+
+    def test_llm_input_rejects_temperature_above_app_max(self):
+        with pytest.raises(ValidationError):
+            LLMInput(temperature=1.5)
+
+    def test_generated_sampling_fields_pass_through_without_redeclaration(self):
+        """New Go sampling fields must flow through inherited contract."""
+        inp = LLMInput(
+            top_k=40,
+            min_p=0.1,
+            frequency_penalty=0.2,
+            presence_penalty=0.3,
+            repetition_penalty=1.1,
+            seed=99,
+            reasoning_max_tokens=2048,
+        )
+        assert inp.top_k == 40
+        assert inp.min_p == 0.1
+        assert inp.frequency_penalty == 0.2
+        assert inp.presence_penalty == 0.3
+        assert inp.repetition_penalty == 1.1
+        assert inp.seed == 99
+        assert inp.reasoning_max_tokens == 2048
 
 
 class TestDeprecatedMixins:
