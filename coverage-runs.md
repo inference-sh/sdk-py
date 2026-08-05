@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-05 (push dev @ a84bb71, v0.7.19 version bump)
+
+**Recent changes reviewed:** `a84bb71` (version bump only). `a9afec1` (update-types workflow concurrency group — CI-only). `1949bd5` / `1a45219` LLM contract inheritance and flat sampling params — covered by open draft PRs #193, #192, #190.
+
+**Open PRs checked:** #193 (app-layer LLMInput/ContextMessage overrides), #192 (flat sampling + wire contract), #190 (streaming helpers + contract rename), #186 (batch-merge gaps + MCP compat + workflow injection guards), #185, #184 — no overlap with this run's gaps.
+
+**Gaps filled this run:**
+
+- `build_openai_messages`: tool-role messages without `tool_call_id` default to `""` (OpenAI schema requirement)
+- `build_openai_messages`: consecutive same-role merge accumulates `images` and `files` from all merged context messages
+- `update-types.yml`: concurrency group `update-types` with `cancel-in-progress: false` (commit a9afec1 race guard)
+
+**Files:** `tests/test_llm.py`, `tests/test_workflows.py`
+
+**Validation:** `pytest tests/test_llm.py tests/test_workflows.py` — 41 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
