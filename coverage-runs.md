@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-06 (push dev @ e6da235, Response wrapper as first-class return type)
+
+**Recent changes reviewed:** `e6da235` (feat: introduce `Response` wrapper as first-class return type — `_request()` now returns `Response(data, messages)` instead of bare DTOs; removed `_last_messages`; `get_task()` returns `Response`; sessions API reads `.data`).
+
+**Open PRs checked:** #201 (`cursor/missing-test-coverage-2631`) — flow action payloads / `_last_messages` (superseded by Response wrapper). #198 (`cursor/missing-test-coverage-2423`) — V3 envelope `_last_messages` tests (outdated; adapted for Response). Other draft coverage PRs — no overlap.
+
+**Gaps filled this run:**
+
+- `Response` model: `has_warnings`, default empty `messages`, `__repr__`
+- Sync `_request()` V3 envelope unwrap into `Response`, raw payload wrap, null data, HTTP 204
+- Async `_request()` parity: envelope unwrap, raw wrap, HTTP 204
+- Sessions API CRUD with V3 `{data, messages}` envelope (`.data` extraction regression guard)
+- `models.Response` export and `inferencesh.models.response` import smoke
+
+**Files:** `tests/test_response.py`, `tests/test_client.py`, `tests/test_sessions.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_response.py tests/test_client.py tests/test_sessions.py tests/test_imports.py` — 305 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
