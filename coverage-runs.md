@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-06 (push dev @ 73cd6cd, V3 API envelope migration)
+
+**Recent changes reviewed:** `73cd6cd` (feat: migrate to V3 API envelope, remove `X-API-Version: 2` header — `_request` unwraps `{data, messages}`, stores `_last_messages`; new `ResponseMessage`, `FlowActionType`, flow action TypedDicts; live smoke tests in `test_smoke.py`).
+
+**Open PRs checked:** #197 (`tool_call_id`/merge attachments), #193 (LLMInput overrides), #192 (flat sampling params), #190 (streaming helpers), #186/#185/#184 (batch-merge gaps) — no overlap with V3 envelope client parsing.
+
+**Gaps filled this run:**
+
+- Sync `Inference._request()` unwraps V3 `{data, messages}` envelope and stores `messages` in `_last_messages`
+- Envelope without `messages`, null `data`, and non-envelope pass-through (raw lists) parity
+- Async `AsyncInference._request()` V3 envelope unwrap parity with sync
+- `FlowActionType` enum stability (17 graph mutation action tokens)
+- `ResponseMessage` and `FlowActionsRequest`/`FlowActionsResponse` TypedDict shapes
+
+**Files:** `tests/test_client.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest` on new tests — 25 passed. Smoke tests in `test_smoke.py` remain opt-in (`INFERENCE_SMOKE=1`).
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
