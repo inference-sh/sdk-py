@@ -177,6 +177,36 @@ def test_async_headers_omit_api_version():
     assert "X-API-Version" not in client._headers()
 
 
+def test_last_messages_persists_until_next_envelope_response(monkeypatch):
+    """Non-envelope responses do not clear _last_messages from a prior envelope call."""
+    import inferencesh.client as client_mod
+
+    responses = [
+        {
+            "data": {"user": {"id": "u_1"}},
+            "messages": [{"level": "info", "code": "NOTICE", "message": "welcome"}],
+        },
+        [{"id": "plan_1", "name": "Free"}],
+        {"data": {"balance": 50}},
+    ]
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data=responses.pop(0))
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    client._request("GET", "/me")
+    assert client._last_messages == [{"level": "info", "code": "NOTICE", "message": "welcome"}]
+
+    client._request("GET", "/plans")
+    assert client._last_messages == [{"level": "info", "code": "NOTICE", "message": "welcome"}]
+
+    client._request("GET", "/billing/balance")
+    assert client._last_messages is None
+
+
 def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):
     """HTTP errors use RFC 9457 problem+json detail field."""
     import inferencesh.client as client_mod

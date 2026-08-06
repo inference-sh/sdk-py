@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-06 (push dev @ 5545344, v0.7.20 version bump)
+
+**Recent changes reviewed:** `5545344` (version bump only). `73cd6cd` (V3 API envelope, flow action types — open PR #198 covers envelope unwrap and basic FlowActionType/ResponseMessage).
+
+**Open PRs checked:** #198 (`cursor/missing-test-coverage-2423`) — V3 envelope unwrap, FlowActionType enum, ResponseMessage, AddNodePayload in request/response shape. #197–#184 — LLM, workflow, batch-merge gaps (no overlap).
+
+**Gaps filled this run:**
+
+- Flow graph action payload TypedDict shapes for all 17 `FlowActionType` values (node/edge/schema/mapping mutations)
+- `_last_messages` persistence: non-envelope responses must not clear messages from the prior envelope call; cleared only on next envelope without messages
+- Import smoke for flow action payload types and `ResponseMessage`
+
+**Files:** `tests/test_types.py`, `tests/test_client.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_client.py::test_last_messages_persists_until_next_envelope_response tests/test_types.py -k flow_action_payload tests/test_imports.py -k "FlowAction or AddNode or ResponseMessage"` — passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
