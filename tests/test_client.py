@@ -1,3 +1,4 @@
+from inferencesh.models.response import Response
 import json
 from unittest.mock import MagicMock
 
@@ -348,10 +349,10 @@ def test_get_task(tmp_path):
     """Test get_task() returns current task state."""
     client = Inference(api_key="test")
 
-    task = client.get_task("task_123")
+    resp = client.get_task("task_123")
 
-    assert task["id"] == "task_123"
-    assert task["status"] == 7  # RUNNING
+    assert resp.data["id"] == "task_123"
+    assert resp.data["status"] == 7  # RUNNING
 
 
 def test_cancel(tmp_path):
@@ -468,11 +469,11 @@ def test_stream_reconciles_via_get_when_no_terminal_event(monkeypatch):
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {
+        lambda tid: Response({
             "id": tid,
             "status": TaskStatus.COMPLETED,
             "output": {"reconciled": True},
-        },
+}),
     )
 
     with client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
@@ -494,7 +495,7 @@ def test_stream_reconcile_raises_on_failed_task(monkeypatch):
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"},
+        lambda tid: Response({"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"}),
     )
 
     with pytest.raises(RuntimeError, match="GPU OOM"):
@@ -513,7 +514,7 @@ def test_stream_reconcile_raises_on_cancelled_task(monkeypatch):
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {"id": tid, "status": TaskStatus.CANCELLED},
+        lambda tid: Response({"id": tid, "status": TaskStatus.CANCELLED},)
     )
 
     with pytest.raises(RuntimeError, match="Task cancelled"):
@@ -532,11 +533,11 @@ def test_wait_for_completion_reconciles_via_get_when_stream_ends_without_termina
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {
+        lambda tid: Response({
             "id": tid,
             "status": TaskStatus.COMPLETED,
             "output": {"reconciled": True},
-        },
+}),
     )
 
     result = client.wait_for_completion("task_123")
@@ -556,7 +557,7 @@ def test_wait_for_completion_raises_timeout_when_task_stays_non_terminal(monkeyp
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {"id": tid, "status": TaskStatus.RUNNING},
+        lambda tid: Response({"id": tid, "status": TaskStatus.RUNNING},)
     )
 
     with pytest.raises(TimeoutError, match="did not complete within"):
@@ -574,11 +575,11 @@ def test_wait_for_completion_timeout_still_returns_completed_task_from_get(monke
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {
+        lambda tid: Response({
             "id": tid,
             "status": TaskStatus.COMPLETED,
             "output": {"late": True},
-        },
+}),
     )
 
     result = client.wait_for_completion("task_123", timeout=0)
@@ -623,7 +624,7 @@ def test_wait_for_completion_get_reconcile_raises_on_failed_task(monkeypatch):
     monkeypatch.setattr(
         client,
         "get_task",
-        lambda tid: {"id": tid, "status": TaskStatus.FAILED, "error": "worker crashed"},
+        lambda tid: Response({"id": tid, "status": TaskStatus.FAILED, "error": "worker crashed"},)
     )
 
     with pytest.raises(RuntimeError, match="worker crashed"):
@@ -1122,10 +1123,10 @@ async def test_async_get_task(patch_aiohttp):
     """Test async get_task() returns current task state."""
     client = AsyncInference(api_key="test")
 
-    task = await client.get_task("task_async_123")
+    resp = await client.get_task("task_async_123")
 
-    assert task["id"] == "task_async_123"
-    assert task["status"] == 7  # RUNNING
+    assert resp.data["id"] == "task_async_123"
+    assert resp.data["status"] == 7  # RUNNING
 
 
 @pytest.mark.asyncio
@@ -1146,11 +1147,11 @@ async def test_async_stream_reconciles_via_get_when_no_terminal_event(monkeypatc
         yield {"id": task_id, "status": 7, "output": None}
 
     async def fake_get_task(tid):
-        return {
+        return Response({
             "id": tid,
             "status": TaskStatus.COMPLETED,
             "output": {"reconciled": True},
-        }
+        })
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
@@ -1172,7 +1173,7 @@ async def test_async_stream_reconcile_raises_on_failed_task(monkeypatch, patch_a
         yield {"id": task_id, "status": 7}
 
     async def fake_get_task(tid):
-        return {"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"}
+        return Response({"id": tid, "status": TaskStatus.FAILED, "error": "GPU OOM"})
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
@@ -1194,7 +1195,7 @@ async def test_async_stream_reconcile_raises_on_cancelled_task(monkeypatch, patc
         yield {"id": task_id, "status": 7}
 
     async def fake_get_task(tid):
-        return {"id": tid, "status": TaskStatus.CANCELLED}
+        return Response({"id": tid, "status": TaskStatus.CANCELLED})
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
@@ -1218,11 +1219,11 @@ async def test_async_wait_for_completion_reconciles_via_get_when_stream_ends_wit
         yield {"id": task_id, "status": 7}
 
     async def fake_get_task(tid):
-        return {
+        return Response({
             "id": tid,
             "status": TaskStatus.COMPLETED,
             "output": {"reconciled": True},
-        }
+        })
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
@@ -1244,7 +1245,7 @@ async def test_async_wait_for_completion_raises_timeout_when_task_stays_non_term
         yield {"id": task_id, "status": 7}
 
     async def fake_get_task(tid):
-        return {"id": tid, "status": TaskStatus.RUNNING}
+        return Response({"id": tid, "status": TaskStatus.RUNNING})
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
@@ -1332,10 +1333,10 @@ def test_tasks_get_via_namespace(tmp_path):
     """Test client.tasks.get() works like client.get_task()."""
     client = Inference(api_key="test")
 
-    task = client.tasks.get("task_123")
+    resp = client.tasks.get("task_123")
 
-    assert task["id"] == "task_123"
-    assert task["status"] == 7
+    assert resp.data["id"] == "task_123"
+    assert resp.data["status"] == 7
 
 
 def test_tasks_cancel_via_namespace(tmp_path):
@@ -1456,10 +1457,10 @@ async def test_async_tasks_get_via_namespace(patch_aiohttp):
     """Test async client.tasks.get() works like client.get_task()."""
     client = AsyncInference(api_key="test")
 
-    task = await client.tasks.get("task_async_123")
+    resp = await client.tasks.get("task_async_123")
 
-    assert task["id"] == "task_async_123"
-    assert task["status"] == 7
+    assert resp.data["id"] == "task_async_123"
+    assert resp.data["status"] == 7
 
 
 @pytest.mark.asyncio
