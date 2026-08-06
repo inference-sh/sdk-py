@@ -165,16 +165,16 @@ def test_short_strings_are_not_treated_as_base64(monkeypatch, patch_requests):
     assert patch_requests.put_calls == []
 
 
-def test_headers_include_api_version_2():
-    """v2 API requires X-API-Version: 2 on every request."""
+def test_headers_omit_api_version():
+    """V3 is the default — no X-API-Version header should be sent."""
     client = Inference(api_key="test")
-    assert client._headers()["X-API-Version"] == "2"
+    assert "X-API-Version" not in client._headers()
 
 
-def test_async_headers_include_api_version_2():
-    """Async client must send the same v2 API version header as sync."""
+def test_async_headers_omit_api_version():
+    """Async client should also omit X-API-Version for V3 default."""
     client = AsyncInference(api_key="test")
-    assert client._headers()["X-API-Version"] == "2"
+    assert "X-API-Version" not in client._headers()
 
 
 def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):

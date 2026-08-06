@@ -531,6 +531,7 @@ class Inference:
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url or "https://api.inference.sh"
+        self._last_messages: Optional[list] = None
 
         # SSE configuration with environment variable fallbacks
         self._sse_mode = sse_mode or os.getenv("INFERENCE_SSE_MODE") or "iter_lines"
@@ -582,7 +583,6 @@ class Inference:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
             "User-Agent": f"inference-sdk-py/{__version__}",
-            "X-API-Version": "2",
         }
 
     def _request(
@@ -634,6 +634,10 @@ class Inference:
         if resp.status_code == 204:
             return None
 
+        # V3 envelope: unwrap {"data": <dto>, "messages": [...]}
+        if isinstance(payload, dict) and "data" in payload:
+            self._last_messages = payload.get("messages")
+            return payload["data"]
         return payload
 
     # --------------- Public API ---------------
@@ -1108,6 +1112,7 @@ class AsyncInference:
     def __init__(self, *, api_key: str, base_url: Optional[str] = None) -> None:
         self._api_key = api_key
         self._base_url = base_url or "https://api.inference.sh"
+        self._last_messages: Optional[list] = None
 
         # Initialize namespaced APIs
         from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI, AsyncSessionsAPI
@@ -1143,7 +1148,6 @@ class AsyncInference:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._api_key}",
             "User-Agent": f"inference-sdk-py/{__version__}",
-            "X-API-Version": "2",
         }
 
     async def _request(
@@ -1195,6 +1199,10 @@ class AsyncInference:
                 if resp.status == 204:
                     return None
 
+                # V3 envelope: unwrap {"data": <dto>, "messages": [...]}
+                if isinstance(payload, dict) and "data" in payload:
+                    self._last_messages = payload.get("messages")
+                    return payload["data"]
                 return payload
 
     # --------------- Public API ---------------
