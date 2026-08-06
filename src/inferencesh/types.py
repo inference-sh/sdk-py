@@ -214,6 +214,15 @@ class APIError(TypedDict, total=False):
     suggestions: List[str]
     meta: Dict[str, Any]
 
+# ResponseMessage carries a non-error notice alongside a successful response.
+# Inspired by GraphQL's coexisting data+errors pattern, but for actionable
+# messages (warnings, info) rather than partial failures.
+class ResponseMessage(TypedDict, total=False):
+    level: str
+    code: str
+    message: str
+    meta: Dict[str, Any]
+
 # ApiAppRunRequest is the request body for /apps/run endpoint.
 class ApiAppRunRequest(TypedDict, total=False):
     app: str
@@ -793,6 +802,94 @@ FlowNodeDataMap = Dict[str, "FlowNodeData"]
 class NodeTaskDTO(TypedDict, total=False):
     task_id: str
     task: Optional[TaskDTO]
+
+# FlowAction represents a single graph mutation.
+class FlowAction(TypedDict, total=False):
+    type: FlowActionType
+    payload: Any
+
+# FlowActionsRequest is the request body for POST /flows/{id}/actions.
+class FlowActionsRequest(TypedDict, total=False):
+    actions: List[FlowAction]
+
+# FlowActionsResponse is the response from the actions endpoint.
+class FlowActionsResponse(TypedDict, total=False):
+    version: int
+    actions: List[FlowAction]
+    errors: List[FlowActionError]
+
+# FlowActionError is an error returned from an action.
+class FlowActionError(TypedDict, total=False):
+    type: str
+    message: str
+
+class AddNodePayload(TypedDict, total=False):
+    id: str
+    type: str
+    position: FlowNodePosition
+    data: FlowNodeData
+
+class RemoveNodePayload(TypedDict, total=False):
+    id: str
+
+class MoveNodePayload(TypedDict, total=False):
+    id: str
+    position: FlowNodePosition
+
+class MoveNodesPayload(TypedDict, total=False):
+    positions: Dict[str, FlowNodePosition]
+
+class DuplicateNodePayload(TypedDict, total=False):
+    source_id: str
+    new_id: str
+    offset: FlowNodePosition
+
+class RenameNodePayload(TypedDict, total=False):
+    old_id: str
+    new_id: str
+
+class SetNodeAppPayload(TypedDict, total=False):
+    node_id: str
+    app_id: str
+    app_version_id: str
+    function: str
+
+class UpdateNodeDataPayload(TypedDict, total=False):
+    node_id: str
+    patch: Dict[str, Any]
+
+class SetInputPayload(TypedDict, total=False):
+    node_id: str
+    input_key: str
+    input: FlowRunInput
+
+class ClearInputPayload(TypedDict, total=False):
+    node_id: str
+    input_key: str
+
+class AddEdgePayload(TypedDict, total=False):
+    id: str
+    source: str
+    target: str
+    source_handle: Optional[str]
+    target_handle: Optional[str]
+
+class RemoveEdgePayload(TypedDict, total=False):
+    id: str
+
+class SetSchemaPayload(TypedDict, total=False):
+    schema: Any
+
+class SetOutputMappingPayload(TypedDict, total=False):
+    field: str
+    mapping: OutputFieldMapping
+
+class RemoveOutputMappingPayload(TypedDict, total=False):
+    field: str
+
+class RenameOutputFieldPayload(TypedDict, total=False):
+    old_field: str
+    new_field: str
 
 # ChatTraceDTO is the trace response for chat observability
 class ChatTraceDTO(TypedDict, total=False):
@@ -2419,6 +2516,26 @@ class ScopeGroup(str, Enum):
     API_KEYS = "apikeys"
     USER = "user"
     SETTINGS = "settings"
+
+# Flow graph action type constants.
+class FlowActionType(str, Enum):
+    ACTION_NODE_ADD = "node.add"
+    ACTION_NODE_REMOVE = "node.remove"
+    ACTION_NODE_MOVE = "node.move"
+    ACTION_NODE_MOVE_MANY = "node.move_many"
+    ACTION_NODE_DUPLICATE = "node.duplicate"
+    ACTION_NODE_RENAME = "node.rename"
+    ACTION_NODE_SET_APP = "node.set_app"
+    ACTION_NODE_UPDATE = "node.update"
+    ACTION_NODE_SET_INPUT = "node.set_input"
+    ACTION_NODE_CLEAR_INPUT = "node.clear_input"
+    ACTION_EDGE_ADD = "edge.add"
+    ACTION_EDGE_REMOVE = "edge.remove"
+    ACTION_FLOW_SET_INPUT_SCHEMA = "flow.set_input_schema"
+    ACTION_FLOW_SET_OUTPUT_SCHEMA = "flow.set_output_schema"
+    ACTION_FLOW_SET_OUTPUT_MAPPING = "flow.set_output_mapping"
+    ACTION_FLOW_REMOVE_OUTPUT_MAPPING = "flow.remove_output_mapping"
+    ACTION_FLOW_RENAME_OUTPUT_FIELD = "flow.rename_output_field"
 
 class ElicitAction(str, Enum):
     ACCEPT = "accept"
