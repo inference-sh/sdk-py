@@ -181,6 +181,14 @@ def test_models_response_export_exists():
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
+    # Flow graph action payloads (73cd6cd V3 typegen)
+    "FlowActionType", "FlowAction", "FlowActionsRequest", "FlowActionsResponse",
+    "FlowActionError", "ResponseMessage",
+    "AddNodePayload", "RemoveNodePayload", "MoveNodePayload", "MoveNodesPayload",
+    "DuplicateNodePayload", "RenameNodePayload", "SetNodeAppPayload",
+    "UpdateNodeDataPayload", "SetInputPayload", "ClearInputPayload",
+    "AddEdgePayload", "RemoveEdgePayload", "SetSchemaPayload",
+    "SetOutputMappingPayload", "RemoveOutputMappingPayload", "RenameOutputFieldPayload",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

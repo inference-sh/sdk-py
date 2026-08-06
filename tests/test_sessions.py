@@ -236,6 +236,72 @@ def test_sessions_api_unwraps_v3_envelope(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_async_sessions_api_unwraps_v3_envelope(monkeypatch):
+    """Async sessions CRUD must read .data from V3 {data, messages} responses."""
+    import inferencesh.client as client_mod
+
+    session_dto = {"id": "sess_async_v3", "status": "active"}
+
+    class MockAsyncResponse:
+        def __init__(self, json_data=None, status=200):
+            self._json_data = json_data if json_data is not None else {}
+            self.status = status
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return self.status < 400
+
+        async def text(self):
+            return json.dumps(self._json_data)
+
+        async def json(self):
+            return self._json_data
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class MockClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            if url.endswith("/sessions/sess_async_v3") and method.upper() == "GET":
+                return MockAsyncResponse({
+                    "data": session_dto,
+                    "messages": [{"level": "warning", "message": "expiring"}],
+                })
+            if url.endswith("/sessions") and method.upper() == "GET":
+                return MockAsyncResponse({"data": [session_dto], "messages": []})
+            if url.endswith("/sessions/sess_async_v3/keepalive") and method.upper() == "POST":
+                return MockAsyncResponse({
+                    "data": {**session_dto, "expires_at": "2099-12-31"},
+                    "messages": [],
+                })
+            return MockAsyncResponse(status=404, json_data={"detail": "not found"})
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: MockClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    assert (await client.sessions.get("sess_async_v3")) == session_dto
+    assert (await client.sessions.list()) == [session_dto]
+    assert (await client.sessions.keepalive("sess_async_v3"))["expires_at"] == "2099-12-31"
+
+
+@pytest.mark.asyncio
 async def test_async_sessions_api(monkeypatch):
     """Async sessions namespace hits _request with expected paths."""
     calls = []

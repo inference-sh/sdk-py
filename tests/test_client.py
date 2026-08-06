@@ -265,6 +265,64 @@ def test_request_204_returns_response_with_none_data(monkeypatch):
     assert resp.messages == []
 
 
+def test_run_unwraps_v3_envelope_for_task_creation(monkeypatch):
+    """run() must read task DTO from Response.data after V3 envelope unwrap."""
+    import inferencesh.client as client_mod
+
+    task_dto = {"id": "task_v3", "status": 1, "input": {"text": "hello"}}
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(json_data={
+                    "data": task_dto,
+                    "messages": [{"level": "info", "message": "queued"}],
+                })
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    task = client.run({"app": "some/app", "input": {"text": "hello"}}, wait=False)
+    assert task["id"] == task_dto["id"]
+    assert task["status"] == task_dto["status"]
+    assert task["input"] == task_dto["input"]
+
+
+def test_upload_file_unwraps_v3_envelope(monkeypatch):
+    """upload_file() must index into Response.data when /files returns a V3 envelope."""
+    import inferencesh.client as client_mod
+
+    file_dto = {
+        "id": "file_v3",
+        "uri": "https://cloud.inference.sh/u/user/file_v3.png",
+        "upload_url": "https://upload.example.com/file_v3",
+    }
+
+    class FakeRequestsModule:
+        def __init__(self):
+            self.put_calls = []
+
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/files") and method.upper() == "POST":
+                return DummyResponse(json_data={"data": [file_dto], "messages": []})
+            return DummyResponse()
+
+        def put(self, url, data=None, headers=None):
+            self.put_calls.append({"url": url, "size": len(data or b"")})
+            return DummyResponse(status_code=200)
+
+    fake_requests = FakeRequestsModule()
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: fake_requests)
+
+    client = Inference(api_key="test")
+    file_obj = client.upload_file(b"PNGDATA")
+
+    assert file_obj["id"] == "file_v3"
+    assert file_obj["upload_url"] == "https://upload.example.com/file_v3"
+    assert len(fake_requests.put_calls) == 1
+
+
 def test_async_headers_omit_api_version():
     """Async client should also omit X-API-Version for V3 default."""
     client = AsyncInference(api_key="test")

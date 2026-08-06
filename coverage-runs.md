@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-06 (push dev @ 62d1e3c, v0.7.21 version bump)
+
+**Recent changes reviewed:** `62d1e3c` (version bump only). `e6da235` (Response wrapper — covered below plus complementary high-level client paths).
+
+**Open PRs checked:** #205 (`cursor/missing-test-coverage-eadf`) — Response wrapper envelope tests (cherry-picked onto this branch). #201 — flow action payloads / obsolete `_last_messages` test (payload tests adopted; `_last_messages` skipped). #198 — envelope tests superseded by Response wrapper. Other draft coverage PRs — no overlap.
+
+**Gaps filled this run:**
+
+- Cherry-picked PR #205: `Response` model, sync/async `_request()` envelope unwrap, sessions sync CRUD `.data` extraction
+- `run()` and `upload_file()` read task/file DTOs from `Response.data` when server returns V3 envelope
+- Async sessions CRUD V3 envelope `.data` extraction (parity with sync)
+- All 17 `FlowActionType` enum tokens and payload TypedDict wire shapes for `POST /flows/{id}/actions`
+- `ResponseMessage`, `FlowActionsRequest`/`FlowActionsResponse` TypedDict shapes
+- Import smoke for flow action payload types
+
+**Files:** `tests/test_response.py`, `tests/test_client.py`, `tests/test_sessions.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_response.py tests/test_client.py tests/test_sessions.py tests/test_types.py -k "flow_action or response_message or flow_actions_request" tests/test_imports.py` — see CI.
+
 ## 2026-08-06 (push dev @ e6da235, Response wrapper as first-class return type)
 
 **Recent changes reviewed:** `e6da235` (feat: introduce `Response` wrapper as first-class return type — `_request()` now returns `Response(data, messages)` instead of bare DTOs; removed `_last_messages`; `get_task()` returns `Response`; sessions API reads `.data`).

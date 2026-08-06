@@ -2346,3 +2346,172 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTION_NODE_ADD", "node.add"),
+        ("ACTION_NODE_REMOVE", "node.remove"),
+        ("ACTION_NODE_MOVE", "node.move"),
+        ("ACTION_NODE_MOVE_MANY", "node.move_many"),
+        ("ACTION_NODE_DUPLICATE", "node.duplicate"),
+        ("ACTION_NODE_RENAME", "node.rename"),
+        ("ACTION_NODE_SET_APP", "node.set_app"),
+        ("ACTION_NODE_UPDATE", "node.update"),
+        ("ACTION_NODE_SET_INPUT", "node.set_input"),
+        ("ACTION_NODE_CLEAR_INPUT", "node.clear_input"),
+        ("ACTION_EDGE_ADD", "edge.add"),
+        ("ACTION_EDGE_REMOVE", "edge.remove"),
+        ("ACTION_FLOW_SET_INPUT_SCHEMA", "flow.set_input_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_SCHEMA", "flow.set_output_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_MAPPING", "flow.set_output_mapping"),
+        ("ACTION_FLOW_REMOVE_OUTPUT_MAPPING", "flow.remove_output_mapping"),
+        ("ACTION_FLOW_RENAME_OUTPUT_FIELD", "flow.rename_output_field"),
+    ],
+)
+def test_flow_action_type_values(member, value):
+    """Flow graph mutation actions must keep stable string tokens for the V3 actions API."""
+    from inferencesh.types import FlowActionType
+
+    assert hasattr(FlowActionType, member)
+    assert getattr(FlowActionType, member).value == value
+
+
+def test_response_message_shape():
+    """V3 envelope messages carry level/code/message alongside successful data."""
+    from inferencesh.types import ResponseMessage
+
+    msg: ResponseMessage = {
+        "level": "warning",
+        "code": "DEPRECATED",
+        "message": "field will be removed",
+        "meta": {"field": "legacy_id"},
+    }
+    assert msg["level"] == "warning"
+    assert msg["code"] == "DEPRECATED"
+    assert msg["meta"]["field"] == "legacy_id"
+
+
+def test_flow_actions_request_and_response_shape():
+    """Flow actions endpoint request/response TypedDicts match V3 graph mutation contract."""
+    from inferencesh.types import (
+        AddNodePayload,
+        FlowAction,
+        FlowActionError,
+        FlowActionType,
+        FlowActionsRequest,
+        FlowActionsResponse,
+    )
+
+    action: FlowAction = {
+        "type": FlowActionType.ACTION_NODE_ADD,
+        "payload": AddNodePayload(id="n1", type="app"),
+    }
+    request: FlowActionsRequest = {"actions": [action]}
+    response: FlowActionsResponse = {
+        "version": 2,
+        "actions": [action],
+        "errors": [FlowActionError(type="node.add", message="duplicate id")],
+    }
+    assert request["actions"][0]["type"] == FlowActionType.ACTION_NODE_ADD
+    assert response["version"] == 2
+    assert response["errors"][0]["message"] == "duplicate id"
+
+
+@pytest.mark.parametrize(
+    "action_type,payload_cls,payload",
+    [
+        (
+            "ACTION_NODE_ADD",
+            "AddNodePayload",
+            {"id": "n1", "type": "app", "position": {"x": 10.0, "y": 20.0}},
+        ),
+        ("ACTION_NODE_REMOVE", "RemoveNodePayload", {"id": "n1"}),
+        (
+            "ACTION_NODE_MOVE",
+            "MoveNodePayload",
+            {"id": "n1", "position": {"x": 50.0, "y": 75.0}},
+        ),
+        (
+            "ACTION_NODE_MOVE_MANY",
+            "MoveNodesPayload",
+            {"positions": {"n1": {"x": 1.0, "y": 2.0}, "n2": {"x": 3.0, "y": 4.0}}},
+        ),
+        (
+            "ACTION_NODE_DUPLICATE",
+            "DuplicateNodePayload",
+            {"source_id": "n1", "new_id": "n2", "offset": {"x": 100.0, "y": 0.0}},
+        ),
+        ("ACTION_NODE_RENAME", "RenameNodePayload", {"old_id": "n1", "new_id": "n1b"}),
+        (
+            "ACTION_NODE_SET_APP",
+            "SetNodeAppPayload",
+            {
+                "node_id": "n1",
+                "app_id": "app_abc",
+                "app_version_id": "ver_1",
+                "function": "run",
+            },
+        ),
+        (
+            "ACTION_NODE_UPDATE",
+            "UpdateNodeDataPayload",
+            {"node_id": "n1", "patch": {"setup": {"model": "gpt-4"}}},
+        ),
+        (
+            "ACTION_NODE_SET_INPUT",
+            "SetInputPayload",
+            {
+                "node_id": "n1",
+                "input_key": "prompt",
+                "input": {"Value": "hello world"},
+            },
+        ),
+        ("ACTION_NODE_CLEAR_INPUT", "ClearInputPayload", {"node_id": "n1", "input_key": "prompt"}),
+        (
+            "ACTION_EDGE_ADD",
+            "AddEdgePayload",
+            {
+                "id": "e1",
+                "source": "n1",
+                "target": "n2",
+                "source_handle": "out",
+                "target_handle": "in",
+            },
+        ),
+        ("ACTION_EDGE_REMOVE", "RemoveEdgePayload", {"id": "e1"}),
+        ("ACTION_FLOW_SET_INPUT_SCHEMA", "SetSchemaPayload", {"schema": {"type": "object"}}),
+        ("ACTION_FLOW_SET_OUTPUT_SCHEMA", "SetSchemaPayload", {"schema": {"type": "object"}}),
+        (
+            "ACTION_FLOW_SET_OUTPUT_MAPPING",
+            "SetOutputMappingPayload",
+            {
+                "field": "result",
+                "mapping": {
+                    "sourceNodeId": "n1",
+                    "sourceFieldPath": "output.url",
+                    "outputFieldName": "result",
+                    "type": "string",
+                },
+            },
+        ),
+        ("ACTION_FLOW_REMOVE_OUTPUT_MAPPING", "RemoveOutputMappingPayload", {"field": "result"}),
+        (
+            "ACTION_FLOW_RENAME_OUTPUT_FIELD",
+            "RenameOutputFieldPayload",
+            {"old_field": "result", "new_field": "image_url"},
+        ),
+    ],
+)
+def test_flow_action_payload_shapes(action_type, payload_cls, payload):
+    """Flow graph action payloads must match the wire contract for POST /flows/{id}/actions."""
+    import inferencesh.types as types_mod
+    from inferencesh.types import FlowAction, FlowActionType
+
+    action_enum = getattr(FlowActionType, action_type)
+    payload_type = getattr(types_mod, payload_cls)
+
+    action: FlowAction = {"type": action_enum, "payload": payload_type(**payload)}
+    assert action["type"].value == action_enum.value
+    assert action["payload"] == payload
