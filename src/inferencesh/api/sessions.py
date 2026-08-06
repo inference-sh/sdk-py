@@ -195,7 +195,7 @@ class SessionsAPI:
         Raises:
             SessionNotFoundError: If session doesn't exist
         """
-        data = self._client._request("get", f"/sessions/{session_id}")
+        data = self._client._request("get", f"/sessions/{session_id}").data
         return data
 
     def list(self) -> List[AppSession]:
@@ -204,7 +204,7 @@ class SessionsAPI:
         Returns:
             List of session information
         """
-        data = self._client._request("get", "/sessions")
+        data = self._client._request("get", "/sessions").data
         return data or []
 
     def keepalive(self, session_id: str) -> AppSession:
@@ -221,7 +221,7 @@ class SessionsAPI:
             SessionExpiredError: If session has expired
             SessionEndedError: If session was ended
         """
-        data = self._client._request("post", f"/sessions/{session_id}/keepalive")
+        data = self._client._request("post", f"/sessions/{session_id}/keepalive").data
         return data
 
     def end(self, session_id: str) -> None:
@@ -262,17 +262,17 @@ class AsyncSessionsAPI:
 
     async def get(self, session_id: str) -> AppSession:
         """Get information about a session."""
-        data = await self._client._request("get", f"/sessions/{session_id}")
+        data = (await self._client._request("get", f"/sessions/{session_id}")).data
         return data
 
     async def list(self) -> List[AppSession]:
         """List all sessions for the current user/team."""
-        data = await self._client._request("get", "/sessions")
+        data = (await self._client._request("get", "/sessions")).data
         return data or []
 
     async def keepalive(self, session_id: str) -> AppSession:
         """Extend session expiration time."""
-        data = await self._client._request("post", f"/sessions/{session_id}/keepalive")
+        data = (await self._client._request("post", f"/sessions/{session_id}/keepalive")).data
         return data
 
     async def end(self, session_id: str) -> None:
