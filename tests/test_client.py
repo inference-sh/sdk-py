@@ -172,6 +172,99 @@ def test_headers_omit_api_version():
     assert "X-API-Version" not in client._headers()
 
 
+def test_request_unwraps_v3_envelope_into_response(monkeypatch):
+    """V3 API responses wrap DTOs in {data, messages}; _request returns Response."""
+    import inferencesh.client as client_mod
+
+    envelope = {
+        "data": {"user": {"id": "u_1", "name": "Alice"}},
+        "messages": [
+            {"level": "warning", "code": "DEPRECATED", "message": "use v3"},
+        ],
+    }
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data=envelope)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("GET", "/me")
+    assert isinstance(resp, Response)
+    assert resp.data == {"user": {"id": "u_1", "name": "Alice"}}
+    assert resp.messages == envelope["messages"]
+    assert resp.has_warnings is True
+
+
+def test_request_v3_envelope_without_messages(monkeypatch):
+    """Envelope responses without messages yield an empty messages list."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data={"data": {"balance": 100}})
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("GET", "/billing/balance")
+    assert resp.data == {"balance": 100}
+    assert resp.messages == []
+
+
+def test_request_wraps_raw_payload_in_response(monkeypatch):
+    """Non-envelope JSON (lists or legacy dicts) is wrapped in Response."""
+    import inferencesh.client as client_mod
+
+    raw_plans = [{"id": "plan_1", "name": "Free"}]
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data=raw_plans)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("GET", "/plans")
+    assert isinstance(resp, Response)
+    assert resp.data == raw_plans
+    assert resp.messages == []
+
+
+def test_request_v3_envelope_with_null_data(monkeypatch):
+    """Envelope may carry null data (e.g. empty success bodies)."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data={"data": None, "messages": []})
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("POST", "/flows/flow_1/actions")
+    assert resp.data is None
+    assert resp.messages == []
+
+
+def test_request_204_returns_response_with_none_data(monkeypatch):
+    """HTTP 204 No Content must return Response(None), not bare None."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(status_code=204, json_data=None)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("DELETE", "/sessions/sess_1")
+    assert isinstance(resp, Response)
+    assert resp.data is None
+    assert resp.messages == []
+
+
 def test_async_headers_omit_api_version():
     """Async client should also omit X-API-Version for V3 default."""
     client = AsyncInference(api_key="test")
@@ -917,6 +1010,109 @@ def _async_failing_run_response(status, json_data):
             return MockAsyncResponse()
 
     return FailingClientSession
+
+
+@pytest.mark.asyncio
+async def test_async_request_unwraps_v3_envelope_into_response(monkeypatch):
+    """Async client must unwrap V3 {data, messages} envelopes into Response."""
+    import inferencesh.client as client_mod
+
+    envelope = {
+        "data": {"user": {"id": "u_async", "name": "Bob"}},
+        "messages": [
+            {"level": "info", "code": "NOTICE", "message": "welcome"},
+        ],
+    }
+
+    class EnvelopeClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            return MockAsyncResponse(json_data=envelope)
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: EnvelopeClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    resp = await client._request("GET", "/me")
+    assert isinstance(resp, Response)
+    assert resp.data == {"user": {"id": "u_async", "name": "Bob"}}
+    assert resp.messages == envelope["messages"]
+    assert resp.has_warnings is False
+
+
+@pytest.mark.asyncio
+async def test_async_request_wraps_raw_payload_in_response(monkeypatch):
+    """Async client wraps non-envelope JSON in Response like sync."""
+    import inferencesh.client as client_mod
+
+    raw_plans = [{"id": "plan_1", "name": "Pro"}]
+
+    class RawClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            return MockAsyncResponse(json_data=raw_plans)
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: RawClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    resp = await client._request("GET", "/plans")
+    assert isinstance(resp, Response)
+    assert resp.data == raw_plans
+    assert resp.messages == []
+
+
+@pytest.mark.asyncio
+async def test_async_request_204_returns_response_with_none_data(monkeypatch):
+    """Async HTTP 204 must return Response(None), not bare None."""
+    import inferencesh.client as client_mod
+
+    class NoContentClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            return MockAsyncResponse(json_data=None, status=204)
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: NoContentClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    resp = await client._request("DELETE", "/sessions/sess_async")
+    assert isinstance(resp, Response)
+    assert resp.data is None
+    assert resp.messages == []
 
 
 @pytest.mark.asyncio

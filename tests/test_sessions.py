@@ -201,6 +201,40 @@ def test_sessions_api_get_list_keepalive_end(patch_sessions_requests):
     assert any(c["method"] == "DELETE" for c in patch_sessions_requests)
 
 
+def test_sessions_api_unwraps_v3_envelope(monkeypatch):
+    """Sessions CRUD must read .data from V3 {data, messages} responses."""
+    import inferencesh.client as client_mod
+
+    session_dto = {"id": "sess_v3", "status": "active"}
+    envelope = {
+        "data": session_dto,
+        "messages": [{"level": "warning", "message": "session expiring soon"}],
+    }
+
+    def fake_request(method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+        if url.endswith("/sessions/sess_v3") and method.upper() == "GET":
+            return _dummy_response(json_data=envelope)
+        if url.endswith("/sessions") and method.upper() == "GET":
+            return _dummy_response(json_data={"data": [session_dto], "messages": []})
+        if url.endswith("/sessions/sess_v3/keepalive") and method.upper() == "POST":
+            return _dummy_response(json_data={
+                "data": {**session_dto, "expires_at": "2099-12-31"},
+                "messages": [],
+            })
+        return _dummy_response(status_code=404, json_data={"detail": "not found"})
+
+    class FakeRequestsModule:
+        def request(self, *args, **kwargs):
+            return fake_request(*args, **kwargs)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    assert client.sessions.get("sess_v3") == session_dto
+    assert client.sessions.list() == [session_dto]
+    assert client.sessions.keepalive("sess_v3")["expires_at"] == "2099-12-31"
+
+
 @pytest.mark.asyncio
 async def test_async_sessions_api(monkeypatch):
     """Async sessions namespace hits _request with expected paths."""
