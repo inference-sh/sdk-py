@@ -1139,6 +1139,8 @@ class PageMetadata(TypedDict, total=False):
     type: str
     icon: str
     hide_from_nav: bool
+    action_url: str
+    action_label: str
     # PublishAt is when a scheduled page goes live. Only meaningful while the
     # page's status is PageStatusScheduled.
     publish_at: Optional[str]
@@ -2769,6 +2771,7 @@ class PageType(str, Enum):
     DOC = "doc"
     BLOG = "blog"
     PAGE = "page"
+    ANNOUNCEMENT = "announcement"
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
