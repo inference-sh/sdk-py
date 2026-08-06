@@ -118,7 +118,7 @@ def test_models_llm_export_exists(name):
 @pytest.mark.parametrize("name", [
     # Enums
     "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
-    "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
+    "PlanStepStatus", "FlowRunStatus", "FlowActionType", "AppCategory", "Visibility",
     "AppSessionStatus", "FilterOperator", "MetaItemType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
@@ -172,6 +172,9 @@ def test_models_llm_export_exists(name):
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
+    # V3 API envelope + flow graph actions (73cd6cd)
+    "ResponseMessage", "FlowAction", "FlowActionsRequest", "FlowActionsResponse",
+    "FlowActionError", "AddNodePayload",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
