@@ -132,6 +132,7 @@ def test_models_llm_export_exists(name):
     "FileDTO", "UsageEventDTO",
     # Agent config
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
+    "HookEvent", "HookHandlerType", "LifecycleHookConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallType", "ToolParamType",

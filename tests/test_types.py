@@ -1379,6 +1379,8 @@ def test_chat_status_lifecycle_values(member, value):
         ("USER", "user"),
         ("ASSISTANT", "assistant"),
         ("TOOL", "tool"),
+        ("INJECTION", "injection"),
+        ("COMPACTION", "compaction"),
     ],
 )
 def test_chat_message_role_values(member, value):
@@ -2346,3 +2348,76 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("AGENT_START", "agent.start"),
+        ("TURN_START", "agent.turn_start"),
+        ("TOOL_CALL", "agent.tool_call"),
+        ("TOOL_RESULT", "agent.tool_result"),
+        ("TURN_COMPLETE", "agent.turn_complete"),
+        ("AGENT_ERROR", "agent.error"),
+        ("AGENT_COMPLETE", "agent.complete"),
+        ("AGENT_IDLE", "agent.idle"),
+    ],
+)
+def test_hook_event_values(member, value):
+    """Agent lifecycle hooks fire on stable event tokens from typegen."""
+    from inferencesh.types import HookEvent
+
+    assert hasattr(HookEvent, member)
+    assert getattr(HookEvent, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("HOOK_HANDLER_WEBHOOK", "webhook"),
+        ("HOOK_HANDLER_TASK", "task"),
+    ],
+)
+def test_hook_handler_type_values(member, value):
+    """Lifecycle hook handlers must distinguish webhook vs task invocations."""
+    from inferencesh.types import HookHandlerType
+
+    assert hasattr(HookHandlerType, member)
+    assert getattr(HookHandlerType, member).value == value
+
+
+def test_lifecycle_hook_config_shape():
+    """LifecycleHookConfig registers webhook/task handlers on agent lifecycle events."""
+    from inferencesh.types import HookEvent, HookHandlerType, LifecycleHookConfig
+
+    hook: LifecycleHookConfig = {
+        "event": HookEvent.TOOL_CALL,
+        "type": HookHandlerType.HOOK_HANDLER_WEBHOOK,
+        "handler": "https://hooks.example.com/agent-events",
+        "every": 5,
+        "async_": True,
+        "timeout": 30,
+    }
+
+    assert hook["event"] == HookEvent.TOOL_CALL
+    assert hook["type"] == HookHandlerType.HOOK_HANDLER_WEBHOOK
+    assert hook["async_"] is True
+    assert hook["every"] == 5
+
+
+def test_agent_config_input_hooks_field():
+    """AgentConfigInput.hooks wires lifecycle hooks alongside tools and skills."""
+    from inferencesh.types import AgentConfigInput, HookEvent, HookHandlerType, LifecycleHookConfig
+
+    hook: LifecycleHookConfig = {
+        "event": HookEvent.AGENT_COMPLETE,
+        "type": HookHandlerType.HOOK_HANDLER_TASK,
+        "handler": "acme/notify-complete",
+    }
+    config: AgentConfigInput = {
+        "name": "support-agent",
+        "hooks": [hook],
+    }
+
+    assert "hooks" in AgentConfigInput.__annotations__
+    assert config["hooks"][0]["event"] == HookEvent.AGENT_COMPLETE

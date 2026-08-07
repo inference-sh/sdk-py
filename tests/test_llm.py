@@ -383,6 +383,8 @@ class TestGeneratedTypeConsumption:
         from inferencesh.models.llm import ContextMessageRole
         assert ContextMessageRole is llm_contract.ChatMessageRole
         assert ContextMessageRole.USER.value == "user"
+        assert ContextMessageRole.INJECTION.value == "injection"
+        assert ContextMessageRole.COMPACTION.value == "compaction"
 
     def test_llm_output_inherits_generated_contract(self):
         from inferencesh import llm_types_gen as llm_contract
