@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-07 (push dev @ c9cc0b2, on_message callback for V3 response messages)
+
+**Recent changes reviewed:** `e46e808` (feat: add `on_message` callback on `Inference`/`AsyncInference` — fires with V3 envelope `messages` during `_request` unwrap). `c9cc0b2` (version bump only). `c292248` (type regen: bounty submission types, `PageMetadata.display_mode`).
+
+**Open PRs checked:** #206 (`cursor/missing-test-coverage-7b8e`) — Response wrapper envelope and `.data` integration (overlaps envelope unwrap baseline; does not cover `on_message` callback). #205, #201, #198 — superseded envelope/flow-action drafts.
+
+**Gaps filled this run:**
+
+- V3 envelope unwrap into `Response` with `has_warnings`
+- `on_message` callback invoked with envelope messages before `Response` is returned (sync + async)
+- `on_message` skipped when `messages` is absent, null, or empty (sync + async)
+
+**Files:** `tests/test_client.py`
+
+**Validation:** `pytest tests/test_client.py -k "on_message or unwraps_v3_envelope"` — 5 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
