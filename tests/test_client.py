@@ -172,10 +172,169 @@ def test_headers_omit_api_version():
     assert "X-API-Version" not in client._headers()
 
 
+def test_request_unwraps_v3_envelope_into_response(monkeypatch):
+    """V3 API responses wrap DTOs in {data, messages}; _request returns Response."""
+    import inferencesh.client as client_mod
+
+    envelope = {
+        "data": {"user": {"id": "u_1", "name": "Alice"}},
+        "messages": [
+            {"level": "warning", "code": "DEPRECATED", "message": "use v3"},
+        ],
+    }
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data=envelope)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    resp = client._request("GET", "/me")
+    assert isinstance(resp, Response)
+    assert resp.data == {"user": {"id": "u_1", "name": "Alice"}}
+    assert resp.messages == envelope["messages"]
+    assert resp.has_warnings is True
+
+
+def test_request_v3_on_message_callback_receives_messages(monkeypatch):
+    """on_message is invoked with V3 envelope messages before Response is returned."""
+    import inferencesh.client as client_mod
+
+    envelope_messages = [{"level": "warning", "code": "DEPRECATED", "message": "use v3"}]
+    envelope = {
+        "data": {"user": {"id": "u_1"}},
+        "messages": envelope_messages,
+    }
+    received = []
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data=envelope)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test", on_message=received.extend)
+    resp = client._request("GET", "/me")
+
+    assert received == envelope_messages
+    assert resp.data == envelope["data"]
+    assert resp.messages == envelope_messages
+
+
+def test_request_v3_on_message_skipped_without_messages(monkeypatch):
+    """on_message is not called when messages is absent, null, or empty."""
+    import inferencesh.client as client_mod
+
+    call_count = 0
+
+    def on_message(messages):
+        nonlocal call_count
+        call_count += 1
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/empty"):
+                return DummyResponse(json_data={"data": {"balance": 100}, "messages": []})
+            if url.endswith("/null"):
+                return DummyResponse(json_data={"data": {"balance": 100}, "messages": None})
+            return DummyResponse(json_data={"data": {"balance": 100}})
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test", on_message=on_message)
+    client._request("GET", "/billing/empty")
+    client._request("GET", "/billing/null")
+    client._request("GET", "/billing/balance")
+
+    assert call_count == 0
+
+
 def test_async_headers_omit_api_version():
     """Async client should also omit X-API-Version for V3 default."""
     client = AsyncInference(api_key="test")
     assert "X-API-Version" not in client._headers()
+
+
+@pytest.mark.asyncio
+async def test_async_request_v3_on_message_callback_receives_messages(monkeypatch):
+    """Async on_message is invoked with V3 envelope messages before Response is returned."""
+    import inferencesh.client as client_mod
+
+    envelope_messages = [{"level": "info", "message": "queued"}]
+    envelope = {
+        "data": {"id": "task_v3", "status": 1},
+        "messages": envelope_messages,
+    }
+    received = []
+
+    class EnvelopeClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            return MockAsyncResponse(json_data=envelope)
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: EnvelopeClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test", on_message=received.extend)
+    resp = await client._request("GET", "/tasks/task_v3")
+
+    assert received == envelope_messages
+    assert resp.data == envelope["data"]
+    assert resp.messages == envelope_messages
+
+
+@pytest.mark.asyncio
+async def test_async_request_v3_on_message_skipped_without_messages(monkeypatch):
+    """Async on_message is not called when messages is absent, null, or empty."""
+    import inferencesh.client as client_mod
+
+    call_count = 0
+
+    def on_message(messages):
+        nonlocal call_count
+        call_count += 1
+
+    class EnvelopeClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            if url.endswith("/empty"):
+                return MockAsyncResponse(json_data={"data": {"balance": 100}, "messages": []})
+            if url.endswith("/null"):
+                return MockAsyncResponse(json_data={"data": {"balance": 100}, "messages": None})
+            return MockAsyncResponse(json_data={"data": {"balance": 100}})
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: EnvelopeClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test", on_message=on_message)
+    await client._request("GET", "/billing/empty")
+    await client._request("GET", "/billing/null")
+    await client._request("GET", "/billing/balance")
+
+    assert call_count == 0
 
 
 def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):
