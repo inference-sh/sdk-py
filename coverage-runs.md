@@ -1,6 +1,24 @@
 # Coverage automation runs
 
-## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
+## 2026-08-07 (push dev @ c8408d5, ChatMessageRole injection/compaction + lifecycle hooks)
+
+**Recent changes reviewed:** `c8408d5` (typegen regen v0.7.35: `ChatMessageRole.INJECTION`/`COMPACTION` in `llm_types_gen.py`). `44a5037`/`5c4f3a2` (regen: `HookEvent`, `HookHandlerType`, `LifecycleHookConfig`, `AgentConfigInput.hooks`/`AgentVersionDTO.hooks`).
+
+**Open PRs checked:** #214 (resource sharing/grant types), #213 (UserDTO ban fields), #212 (bounty types), #207 (on_message callback) — no overlap with injection/compaction roles or lifecycle hooks.
+
+**Gaps filled this run:**
+
+- `ChatMessageRole.INJECTION` / `COMPACTION` for context injection and compaction message kinds
+- `HookEvent` agent lifecycle event tokens (`agent.start`, `agent.tool_call`, etc.)
+- `HookHandlerType` webhook vs task handler discriminators
+- `LifecycleHookConfig` TypedDict shape (`event`, `type`, `handler`, `every`, `async_`, `timeout`)
+- `AgentConfigInput.hooks` field wiring lifecycle hooks alongside tools/skills
+- Generated `llm_types_gen.ChatMessageRole` contract includes new roles (ContextMessageRole alias)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_llm.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py tests/test_llm.py` — 688 passed.
+
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
 
