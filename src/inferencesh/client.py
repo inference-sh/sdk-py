@@ -505,9 +505,11 @@ class Inference:
         base_url: Optional[str] = None,
         sse_chunk_size: Optional[int] = None,
         sse_mode: Optional[str] = None,
+        on_message: Optional[Callable[[list], None]] = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url or "https://api.inference.sh"
+        self._on_message = on_message
         
 
         # SSE configuration with environment variable fallbacks
@@ -613,7 +615,10 @@ class Inference:
 
         # V3 envelope: unwrap {"data": <dto>, "messages": [...]}
         if isinstance(payload, dict) and "data" in payload:
-            return Response(payload["data"], payload.get("messages"))
+            messages = payload.get("messages")
+            if messages and self._on_message:
+                self._on_message(messages)
+            return Response(payload["data"], messages)
         return Response(payload)
 
     # --------------- Public API ---------------
@@ -1084,10 +1089,10 @@ class AsyncInference:
         ```
     """
 
-    def __init__(self, *, api_key: str, base_url: Optional[str] = None) -> None:
+    def __init__(self, *, api_key: str, base_url: Optional[str] = None, on_message: Optional[Callable[[list], None]] = None) -> None:
         self._api_key = api_key
         self._base_url = base_url or "https://api.inference.sh"
-        
+        self._on_message = on_message
 
         # Initialize namespaced APIs
         from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI, AsyncSessionsAPI
@@ -1176,7 +1181,10 @@ class AsyncInference:
 
                 # V3 envelope: unwrap {"data": <dto>, "messages": [...]}
                 if isinstance(payload, dict) and "data" in payload:
-                    return Response(payload["data"], payload.get("messages"))
+                    messages = payload.get("messages")
+                    if messages and self._on_message:
+                        self._on_message(messages)
+                    return Response(payload["data"], messages)
                 return Response(payload)
 
     # --------------- Public API ---------------
