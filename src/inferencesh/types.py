@@ -1327,6 +1327,10 @@ class CheckRequirementsResponse(TypedDict, total=False):
     satisfied: bool
     errors: List[RequirementError]
 
+class ShareRequest(TypedDict, total=False):
+    user_id: str
+    permission: Permission
+
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
 # in the generated SDK output (TypeScript, Python, Go).
@@ -2042,6 +2046,13 @@ class RefRouteDTO(BaseModelDTO, TypedDict, total=False):
     description: str
     enabled: bool
 
+class ResourceShareDTO(BaseModelDTO, TypedDict, total=False):
+    resource_id: str
+    resource_type: str
+    user_id: str
+    user: Optional[UserRelationDTO]
+    permission: Permission
+
 # SubscriptionDTO for API responses
 class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
     team_id: str
@@ -2298,6 +2309,7 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 # IntegrationDTO for API responses (never exposes tokens)
 class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     scope: IntegrationScope
+    grant: Optional[IntegrationGrant]
     provider: IntegrationProvider
     type: IntegrationAuthType
     auth: IntegrationAuthType
@@ -2660,8 +2672,13 @@ class GPUType(str, Enum):
 
 class Visibility(str, Enum):
     PRIVATE = "private"
+    TEAM = "team"
     PUBLIC = "public"
     UNLISTED = "unlisted"
+
+class Permission(str, Enum):
+    PERM_READ = "read"
+    PERM_WRITE = "write"
 
 class SubscriptionStatus(str, Enum):
     TRIALING = "trialing"
@@ -3038,10 +3055,16 @@ class IntegrationStatus(str, Enum):
     ERROR = "error"
 
 class IntegrationScope(str, Enum):
-    # IntegrationScopeTeam is owned by a user/team (BYOK credentials, user connections)
     TEAM = "team"
-    # IntegrationScopePlatform is owned by the platform (managed credentials, admin-configured)
     PLATFORM = "platform"
+    USER = "user"
+
+class IntegrationGrant(str, Enum):
+    # IntegrationGrantCredentials provides OAuth app credentials (client_id/secret).
+    # Users connect their own accounts against it. Only valid for type=oauth.
+    CREDENTIALS = "credentials"
+    # IntegrationGrantToken provides ready-to-use access (token, API key, etc.).
+    TOKEN = "token"
 
 class WidgetNodeType(str, Enum):
     TEXT = "text"
