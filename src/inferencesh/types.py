@@ -192,6 +192,7 @@ class AgentConfigInput(TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
 # CoreAppConfigInput is the API input shape for core app configuration.
@@ -1025,6 +1026,17 @@ class SkillStoreListingDTO(TypedDict, total=False):
     installs: int
     uses: int
     tags: List[str]
+
+# LifecycleHookConfig registers a handler for an agent lifecycle event.
+# Stored on AgentVersion alongside Tools and Skills.
+class LifecycleHookConfig(TypedDict, total=False):
+    event: HookEvent
+    type: HookHandlerType
+    handler: str
+    # Filtering — fire every N occurrences (0 = every time)
+    every: int
+    async_: bool
+    timeout: int
 
 # ElicitationCapability advertises which elicitation modes the client handles.
 # An empty struct is equivalent to form-only for backward compatibility.
@@ -2087,6 +2099,7 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
 class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2727,6 +2740,8 @@ class ChatMessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    INJECTION = "injection"
+    COMPACTION = "compaction"
 
 class ChatMessageStatus(str, Enum):
     PENDING = "pending"
@@ -2809,6 +2824,20 @@ class GraphEdgeType(str, Enum):
     SUPERSEDES = "supersedes"
     INPUT = "input"
     OUTPUT = "output"
+
+class HookEvent(str, Enum):
+    AGENT_START = "agent.start"
+    TURN_START = "agent.turn_start"
+    TOOL_CALL = "agent.tool_call"
+    TOOL_RESULT = "agent.tool_result"
+    TURN_COMPLETE = "agent.turn_complete"
+    AGENT_ERROR = "agent.error"
+    AGENT_COMPLETE = "agent.complete"
+    AGENT_IDLE = "agent.idle"
+
+class HookHandlerType(str, Enum):
+    HOOK_HANDLER_WEBHOOK = "webhook"
+    HOOK_HANDLER_TASK = "task"
 
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
