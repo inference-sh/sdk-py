@@ -123,6 +123,8 @@ class ChatMessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    INJECTION = "injection"
+    COMPACTION = "compaction"
 
 # Tool call types
 class ToolCallType(str, Enum):
