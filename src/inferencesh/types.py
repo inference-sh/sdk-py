@@ -2063,6 +2063,8 @@ class UserDTO(BaseModelDTO, TypedDict, total=False):
     name: str
     full_name: str
     avatar_url: str
+    banned_at: Optional[str]
+    ban_note: str
     metadata: Optional[UserMetadataDTO]
 
 class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
