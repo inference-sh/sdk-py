@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-07 (push dev @ 44a5037, resource sharing + integration grant typegen)
+
+**Recent changes reviewed:** `44a5037` (typegen regen: `ShareRequest`, `ResourceShareDTO`, `Permission` enum, `Visibility.TEAM`, `IntegrationScope.USER`, `IntegrationGrant` enum, `IntegrationDTO.grant`). `3d4a007` (`UserDTO.banned_at`/`ban_note` — open PR #213). `1f16e2f` (bounty program types — open PR #212).
+
+**Open PRs checked:** #213 (UserDTO ban fields), #212 (bounty types), #207 (on_message), #206 (Response wrapper) — no overlap with resource sharing or integration grant types.
+
+**Gaps filled this run:**
+
+- `Permission` enum (`read`, `write`) for resource ACL enforcement
+- `ShareRequest` TypedDict for sharing APIs (`user_id`, `permission`)
+- `ResourceShareDTO` share grant shape with embedded `UserRelationDTO`
+- `Visibility.TEAM` team-scoped visibility alongside private/public/unlisted
+- `IntegrationScope.USER` per-user integration connections
+- `IntegrationGrant` enum (`credentials`, `token`) and `IntegrationDTO.grant` field
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 647 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
