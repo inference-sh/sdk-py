@@ -984,6 +984,30 @@ def test_user_metadata_dto_terms_acceptance():
     assert metadata["terms_accepted_at"].endswith("Z")
 
 
+def test_user_dto_ban_moderation_fields():
+    """UserDTO exposes banned_at and ban_note for admin moderation responses (v0.7.30)."""
+    from inferencesh.types import Role, UserDTO
+
+    banned: UserDTO = {
+        "email": "spam@example.com",
+        "name": "spammer",
+        "role": Role.USER,
+        "banned_at": "2026-08-07T12:00:00Z",
+        "ban_note": "Repeated ToS violations",
+    }
+    active: UserDTO = {
+        "email": "dev@example.com",
+        "name": "dev",
+        "role": Role.USER,
+    }
+
+    assert banned["banned_at"].endswith("Z")
+    assert banned["ban_note"] == "Repeated ToS violations"
+    assert "banned_at" not in active
+    assert "banned_at" in UserDTO.__annotations__
+    assert "ban_note" in UserDTO.__annotations__
+
+
 @pytest.mark.parametrize(
     "member,value",
     [

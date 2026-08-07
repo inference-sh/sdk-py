@@ -165,7 +165,7 @@ def test_models_llm_export_exists(name):
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)
-    "AppStoreListingDTO", "UserMetadataDTO",
+    "AppStoreListingDTO", "UserMetadataDTO", "UserDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
     "ElicitAction", "ResultType", "CacheScope", "ToolContentType",
     "ElicitationCapability", "ClientCapabilities", "InputRequest", "ElicitResult",

@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-07 (push dev @ 3d4a007, UserDTO ban moderation v0.7.30 typegen)
+
+**Recent changes reviewed:** `3d4a007` (deps: update types from models v0.7.30 — adds `banned_at` and `ban_note` on `UserDTO` for admin moderation responses).
+
+**Open PRs checked:** #212 (BountyProgramDTO/SubmitBounty from v0.7.26 — no overlap). #207 (`on_message` callback), #206 (Response wrapper + flow actions), #205–#198 (V3 envelope / flow payloads — already drafted).
+
+**Gaps filled this run:**
+
+- `UserDTO.banned_at` timestamp when a user account is banned
+- `UserDTO.ban_note` admin-visible reason for the ban
+- Regression guard: unbanned users omit `banned_at`; both fields present in TypedDict annotations
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py -k "user_dto or UserDTO"` — passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
