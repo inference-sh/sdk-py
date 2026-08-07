@@ -2127,6 +2127,24 @@ class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     last_call_at: Optional[str]
     idle_timeout: Optional[int]
 
+# BountyProgramDTO is the API representation of a bounty program.
+class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    description: str
+    amount_microcents: int
+    grant_type: str
+    expiry_days: int
+    max_per_day: int
+    proof_type: str
+    proof_min_length: int
+    status: str
+    notice_text: str
+    notice_cooldown_hours: int
+    notice_priority: int
+    starts_at: Optional[str]
+    ends_at: Optional[str]
+    claim_count: int
+
 # BountySubmissionDTO is the API representation of a bounty claim.
 class BountySubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     bounty_id: str
