@@ -685,12 +685,28 @@ def test_check_requirements_response_uses_requirement_type():
     [
         ("TEAM", "team"),
         ("PLATFORM", "platform"),
+        ("USER", "user"),
     ],
 )
 def test_integration_scope_values(member, value):
     """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
     assert hasattr(IntegrationScope, member)
     assert getattr(IntegrationScope, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("CREDENTIALS", "credentials"),
+        ("TOKEN", "token"),
+    ],
+)
+def test_integration_grant_values(member, value):
+    """IntegrationGrant distinguishes OAuth app credentials vs ready-to-use tokens."""
+    from inferencesh.types import IntegrationGrant
+
+    assert hasattr(IntegrationGrant, member)
+    assert getattr(IntegrationGrant, member).value == value
 
 
 @pytest.mark.parametrize(
@@ -755,6 +771,39 @@ def test_integration_dto_scope_team_vs_platform():
 
     assert team["scope"] == IntegrationScope.TEAM
     assert platform["scope"] == IntegrationScope.PLATFORM
+
+
+def test_integration_dto_grant_credentials_vs_token():
+    """IntegrationDTO.grant declares whether OAuth creds or tokens are provided."""
+    from inferencesh.types import (
+        IntegrationAuthType,
+        IntegrationDTO,
+        IntegrationGrant,
+        IntegrationStatus,
+    )
+
+    credentials: IntegrationDTO = {
+        "scope": IntegrationScope.TEAM,
+        "grant": IntegrationGrant.CREDENTIALS,
+        "provider": IntegrationProvider.GOOGLE,
+        "type": IntegrationAuthType.O_AUTH,
+        "auth": IntegrationAuthType.O_AUTH,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "Google OAuth app",
+    }
+    token: IntegrationDTO = {
+        "scope": IntegrationScope.USER,
+        "grant": IntegrationGrant.TOKEN,
+        "provider": IntegrationProvider.SLACK,
+        "type": IntegrationAuthType.API_KEY,
+        "auth": IntegrationAuthType.API_KEY,
+        "status": IntegrationStatus.CONNECTED,
+        "display_name": "My Slack token",
+    }
+
+    assert credentials["grant"] == IntegrationGrant.CREDENTIALS
+    assert token["grant"] == IntegrationGrant.TOKEN
+    assert "grant" in IntegrationDTO.__annotations__
 
 
 def test_plan_dto_limits_use_entitlement_resources():
@@ -1343,6 +1392,7 @@ def test_app_category_values(member, value):
     "member,value",
     [
         ("PRIVATE", "private"),
+        ("TEAM", "team"),
         ("PUBLIC", "public"),
         ("UNLISTED", "unlisted"),
     ],
@@ -1744,6 +1794,59 @@ def test_role_values(member, value):
 
     assert hasattr(Role, member)
     assert getattr(Role, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PERM_READ", "read"),
+        ("PERM_WRITE", "write"),
+    ],
+)
+def test_permission_values(member, value):
+    """Resource share permissions must stay stable for ACL enforcement."""
+    from inferencesh.types import Permission
+
+    assert hasattr(Permission, member)
+    assert getattr(Permission, member).value == value
+
+
+def test_share_request_shape():
+    """ShareRequest carries target user and permission for resource sharing APIs."""
+    from inferencesh.types import Permission, ShareRequest
+
+    req: ShareRequest = {
+        "user_id": "usr_abc123",
+        "permission": Permission.PERM_WRITE,
+    }
+
+    assert req["user_id"] == "usr_abc123"
+    assert req["permission"] == Permission.PERM_WRITE
+    assert "permission" in ShareRequest.__annotations__
+
+
+def test_resource_share_dto_shape():
+    """ResourceShareDTO exposes share grants with embedded user relation."""
+    from inferencesh.types import Permission, ResourceShareDTO, Role, UserRelationDTO
+
+    user: UserRelationDTO = {
+        "id": "usr_abc123",
+        "role": Role.USER,
+        "avatar_url": "https://cdn.example/avatar.png",
+    }
+    share: ResourceShareDTO = {
+        "id": "share_xyz",
+        "resource_id": "res_flow_1",
+        "resource_type": "flow",
+        "user_id": "usr_abc123",
+        "user": user,
+        "permission": Permission.PERM_READ,
+    }
+
+    assert share["resource_type"] == "flow"
+    assert share["user"]["role"] == Role.USER
+    assert share["permission"] == Permission.PERM_READ
+    assert "permission" in ResourceShareDTO.__annotations__
 
 
 @pytest.mark.parametrize(

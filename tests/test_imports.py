@@ -118,7 +118,7 @@ def test_models_llm_export_exists(name):
 @pytest.mark.parametrize("name", [
     # Enums
     "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
-    "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
+    "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility", "Permission",
     "AppSessionStatus", "FilterOperator", "MetaItemType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
@@ -152,7 +152,8 @@ def test_models_llm_export_exists(name):
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
-    "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
+    "IntegrationScope", "IntegrationGrant", "IntegrationRequirement", "SecretRequirement",
+    "ShareRequest", "ResourceShareDTO",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO", "PlanType", "PlanVersionDTO",
