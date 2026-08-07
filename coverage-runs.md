@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-07 (push dev @ 1f16e2f, BountyProgramDTO v0.7.26 typegen)
+
+**Recent changes reviewed:** `1f16e2f` (deps: update types from models v0.7.26 — adds `BountyProgramDTO` with grant amounts, proof rules, scheduling, and notice fields). `e46e808` (same release train — `SubmitBountyRequest`/`SubmitBountyResponse`/`BountySubmissionDTO` for bounty claim APIs; covered here because still untested on dev).
+
+**Open PRs checked:** #207 (`on_message` callback), #206 (Response wrapper + flow actions), #205 (Response envelope — superseded by #206), #201–#198 (flow action payloads / V3 envelope — overlapping areas already drafted). None cover bounty types.
+
+**Gaps filled this run:**
+
+- `BountyProgramDTO` grant configuration (`amount_microcents`, `grant_type`, proof validation, rate limits, scheduling windows, notice fields)
+- `BountySubmissionDTO` proof linkage fields (`bounty_id`, `proof_id`, `proof_ref`, `agent`, `source`)
+- `SubmitBountyRequest` / `SubmitBountyResponse` claim request and nested response with `granted_amount`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py -k bounty` — 8 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

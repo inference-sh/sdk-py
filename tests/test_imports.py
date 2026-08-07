@@ -162,6 +162,9 @@ def test_models_llm_export_exists(name):
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO", "KnowledgeVersionInput",
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
+    # Bounty rewards (e46e808, v0.7.26 typegen)
+    "BountyProgramDTO", "BountySubmissionDTO",
+    "SubmitBountyRequest", "SubmitBountyResponse",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)

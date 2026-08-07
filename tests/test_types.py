@@ -234,6 +234,88 @@ def test_subscription_dto_shape():
     assert "stripe_subscription_id" not in SubscriptionDTO.__annotations__
 
 
+def test_bounty_program_dto_shape():
+    """BountyProgramDTO exposes grant amounts, proof rules, and scheduling (v0.7.26)."""
+    from inferencesh.types import BountyProgramDTO
+
+    program: BountyProgramDTO = {
+        "name": "agent-demo-bounty",
+        "description": "Post a demo on X",
+        "amount_microcents": 5_000_000,
+        "grant_type": "credits",
+        "expiry_days": 30,
+        "max_per_day": 10,
+        "proof_type": "url",
+        "proof_min_length": 20,
+        "status": "active",
+        "notice_text": "Thanks for participating!",
+        "notice_cooldown_hours": 24,
+        "notice_priority": 1,
+        "starts_at": "2026-08-01T00:00:00Z",
+        "ends_at": None,
+        "claim_count": 42,
+    }
+
+    assert program["amount_microcents"] == 5_000_000
+    assert program["grant_type"] == "credits"
+    assert program["proof_min_length"] == 20
+    assert program["ends_at"] is None
+    assert "amount_microcents" in BountyProgramDTO.__annotations__
+
+
+def test_bounty_submission_dto_shape():
+    """BountySubmissionDTO links a proof submission to its bounty program (e46e808)."""
+    from inferencesh.types import BountySubmissionDTO
+
+    submission: BountySubmissionDTO = {
+        "bounty_id": "bounty_abc",
+        "proof_id": "https://x.com/user/status/123",
+        "proof_ref": "ref_xyz",
+        "agent": "my-agent",
+        "source": "cli",
+    }
+
+    assert submission["bounty_id"] == "bounty_abc"
+    assert submission["proof_id"].startswith("https://")
+    assert "proof_ref" in BountySubmissionDTO.__annotations__
+
+
+def test_submit_bounty_request_shape():
+    """SubmitBountyRequest carries proof and agent attribution for claim APIs."""
+    from inferencesh.types import SubmitBountyRequest
+
+    req: SubmitBountyRequest = {
+        "bounty_id": "bounty_abc",
+        "proof_id": "https://x.com/user/status/123",
+        "agent": "my-agent",
+        "source": "sdk",
+    }
+
+    assert req["source"] == "sdk"
+    assert "proof_id" in SubmitBountyRequest.__annotations__
+
+
+def test_submit_bounty_response_shape():
+    """SubmitBountyResponse returns nested submission and granted microcents."""
+    from inferencesh.types import BountySubmissionDTO, SubmitBountyResponse
+
+    submission: BountySubmissionDTO = {
+        "bounty_id": "bounty_abc",
+        "proof_id": "https://x.com/user/status/123",
+        "proof_ref": "ref_xyz",
+        "agent": "my-agent",
+        "source": "cli",
+    }
+    resp: SubmitBountyResponse = {
+        "submission": submission,
+        "granted_amount": 5_000_000,
+    }
+
+    assert resp["granted_amount"] == 5_000_000
+    assert resp["submission"]["bounty_id"] == "bounty_abc"
+    assert "granted_amount" in SubmitBountyResponse.__annotations__
+
+
 @pytest.mark.parametrize(
     "member,value",
     [
