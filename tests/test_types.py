@@ -2346,3 +2346,40 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PRE_COMPACT", "agent.pre_compact"),
+        ("POST_COMPACT", "agent.post_compact"),
+    ],
+)
+def test_hook_event_compaction_values(member, value):
+    """Compaction lifecycle hooks fire before/after context compaction (v0.7.37)."""
+    from inferencesh.types import HookEvent
+
+    assert hasattr(HookEvent, member)
+    assert getattr(HookEvent, member).value == value
+
+
+def test_lifecycle_hook_config_compaction_events():
+    """AgentConfigInput can register pre/post compaction webhook handlers."""
+    from inferencesh.types import AgentConfigInput, HookEvent, HookHandlerType, LifecycleHookConfig
+
+    hooks: list[LifecycleHookConfig] = [
+        {
+            "event": HookEvent.PRE_COMPACT,
+            "type": HookHandlerType.HOOK_HANDLER_WEBHOOK,
+            "handler": "https://hooks.example.com/pre-compact",
+        },
+        {
+            "event": HookEvent.POST_COMPACT,
+            "type": HookHandlerType.HOOK_HANDLER_TASK,
+            "handler": "acme/post-compact-notify",
+        },
+    ]
+    config: AgentConfigInput = {"name": "long-context-agent", "hooks": hooks}
+
+    assert config["hooks"][0]["event"] == HookEvent.PRE_COMPACT
+    assert config["hooks"][1]["event"] == HookEvent.POST_COMPACT

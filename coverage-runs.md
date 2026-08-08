@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-08 (push dev @ d1c424c, HookEvent compaction hooks from v0.7.37)
+
+**Recent changes reviewed:** `d1c424c` (deps: update types from models v0.7.37 — `HookEvent.PRE_COMPACT`/`POST_COMPACT` for context compaction lifecycle; `ChatMessageRole` INJECTION/COMPACTION doc comments only).
+
+**Open PRs checked:** #216 (`cursor/missing-test-coverage-9fcb`) — covers v0.7.35 `ChatMessageRole` INJECTION/COMPACTION and base `HookEvent`/`LifecycleHookConfig` (no overlap with new compaction events). #214–#212 — resource sharing, user ban, bounty types.
+
+**Gaps filled this run:**
+
+- `HookEvent.PRE_COMPACT` / `POST_COMPACT` stable tokens for pre/post context compaction hooks
+- `AgentConfigInput.hooks` can wire compaction webhook/task handlers alongside other lifecycle events
+- `HookEvent` export guard in `test_imports.py`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 210 passed (3 new compaction hook tests).
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
