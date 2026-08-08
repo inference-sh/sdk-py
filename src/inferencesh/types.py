@@ -2736,10 +2736,13 @@ class PlanStepStatus(str, Enum):
     CANCELLED = "cancelled"
 
 class ChatMessageRole(str, Enum):
+    # LLM wire-protocol roles
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    # Internal bookkeeping roles — never sent to the LLM provider.
+    # BuildContext converts these to system messages or skips them.
     INJECTION = "injection"
     COMPACTION = "compaction"
 
@@ -2834,6 +2837,8 @@ class HookEvent(str, Enum):
     AGENT_ERROR = "agent.error"
     AGENT_COMPLETE = "agent.complete"
     AGENT_IDLE = "agent.idle"
+    PRE_COMPACT = "agent.pre_compact"
+    POST_COMPACT = "agent.post_compact"
 
 class HookHandlerType(str, Enum):
     HOOK_HANDLER_WEBHOOK = "webhook"
