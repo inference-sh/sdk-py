@@ -119,10 +119,13 @@ class ToolParameterProperty(BaseModel):
     required: Optional[List[str]] = None
 
 class ChatMessageRole(str, Enum):
+    # LLM wire-protocol roles
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    # Internal bookkeeping roles — never sent to the LLM provider.
+    # BuildContext converts these to system messages or skips them.
     INJECTION = "injection"
     COMPACTION = "compaction"
 
