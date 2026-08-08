@@ -192,6 +192,7 @@ class AgentConfigInput(TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
 # CoreAppConfigInput is the API input shape for core app configuration.
@@ -950,6 +951,7 @@ class IntegrationConfigDTO(TypedDict, total=False):
     allows_byok: bool
     available: bool
     has_managed: bool
+    grant: str
     integration: Optional[IntegrationDTO]
 
 # SecretFieldConfig defines a secret field for the UI
@@ -1025,6 +1027,15 @@ class SkillStoreListingDTO(TypedDict, total=False):
     installs: int
     uses: int
     tags: List[str]
+
+# LifecycleHookConfig registers a handler for an agent lifecycle event.
+# Stored on AgentVersion alongside Tools and Skills.
+class LifecycleHookConfig(TypedDict, total=False):
+    event: HookEvent
+    type: HookHandlerType
+    handler: str
+    async_: bool
+    timeout: int
 
 # ElicitationCapability advertises which elicitation modes the client handles.
 # An empty struct is equivalent to form-only for backward compatibility.
@@ -2087,6 +2098,7 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
 class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2723,10 +2735,15 @@ class PlanStepStatus(str, Enum):
     CANCELLED = "cancelled"
 
 class ChatMessageRole(str, Enum):
+    # LLM wire-protocol roles
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+    # Internal bookkeeping roles — never sent to the LLM provider.
+    # BuildContext converts these to system messages or skips them.
+    INJECTION = "injection"
+    COMPACTION = "compaction"
 
 class ChatMessageStatus(str, Enum):
     PENDING = "pending"
@@ -2809,6 +2826,22 @@ class GraphEdgeType(str, Enum):
     SUPERSEDES = "supersedes"
     INPUT = "input"
     OUTPUT = "output"
+
+class HookEvent(str, Enum):
+    AGENT_START = "agent.start"
+    TURN_START = "agent.turn_start"
+    TOOL_CALL = "agent.tool_call"
+    TOOL_RESULT = "agent.tool_result"
+    TURN_COMPLETE = "agent.turn_complete"
+    AGENT_ERROR = "agent.error"
+    AGENT_COMPLETE = "agent.complete"
+    AGENT_IDLE = "agent.idle"
+    PRE_COMPACT = "agent.pre_compact"
+    POST_COMPACT = "agent.post_compact"
+
+class HookHandlerType(str, Enum):
+    HOOK_HANDLER_WEBHOOK = "webhook"
+    HOOK_HANDLER_TASK = "task"
 
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
