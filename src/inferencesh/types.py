@@ -703,6 +703,10 @@ class CursorListResponse(TypedDict, total=False):
     items_per_page: int
     total_items: int
 
+# CountResponse is the response for count endpoints.
+class CountResponse(TypedDict, total=False):
+    count: int
+
 # EngineConfig holds engine configuration (no gorm tags).
 class EngineConfig(TypedDict, total=False):
     id: str
@@ -2211,7 +2215,6 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
     notice_priority: int
     starts_at: Optional[str]
     ends_at: Optional[str]
-    claim_count: int
 
 # BountySubmissionDTO is the API representation of a bounty claim.
 class BountySubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
