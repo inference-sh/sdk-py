@@ -1393,6 +1393,7 @@ def test_chat_message_role_values(member, value):
     "member,value",
     [
         ("PENDING", "pending"),
+        ("QUEUED", "queued"),
         ("READY", "ready"),
         ("FAILED", "failed"),
         ("CANCELLED", "cancelled"),
@@ -2346,3 +2347,173 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALLOW", "allow"),
+        ("DENY", "deny"),
+        ("STOP", "stop"),
+    ],
+)
+def test_hook_decision_values(member, value):
+    """Lifecycle hook handlers return allow/deny/stop decisions (v0.7.43)."""
+    from inferencesh.types import HookDecision
+
+    assert hasattr(HookDecision, member)
+    assert getattr(HookDecision, member).value == value
+
+
+def test_lifecycle_hook_config_no_every_field():
+    """LifecycleHookConfig dropped the every filter field in v0.7.43."""
+    from inferencesh.types import LifecycleHookConfig
+
+    assert "every" not in LifecycleHookConfig.__annotations__
+
+
+def test_lifecycle_hook_payload_shape():
+    """LifecycleHookPayload carries event context sent to webhook/task handlers."""
+    from inferencesh.types import HookEvent, LifecycleHookPayload, ToolCallEventData
+
+    tool_data: ToolCallEventData = {
+        "tool": "search",
+        "arguments": {"query": "inference.sh"},
+    }
+    payload: LifecycleHookPayload = {
+        "event": HookEvent.TOOL_CALL,
+        "timestamp": "2026-08-10T10:00:00Z",
+        "agent_id": "agent_abc",
+        "chat_id": "chat_xyz",
+        "run_id": "run_123",
+        "turn_count": 3,
+        "data": tool_data,
+    }
+
+    assert payload["event"] == HookEvent.TOOL_CALL
+    assert payload["data"]["tool"] == "search"
+    assert "turn_count" in LifecycleHookPayload.__annotations__
+
+
+def test_lifecycle_hook_response_shape():
+    """LifecycleHookResponse lets handlers inject context or veto agent actions."""
+    from inferencesh.types import ContextInjection, HookDecision, LifecycleHookResponse
+
+    injection: ContextInjection = {
+        "content": "User prefers concise answers.",
+        "role": "system",
+        "ttl_turns": 5,
+        "dedup_key": "user-prefs",
+    }
+    response: LifecycleHookResponse = {
+        "inject": injection,
+        "decision": HookDecision.ALLOW,
+        "reason": "approved",
+        "override": {"temperature": 0.2},
+        "system": "Hook handler updated system prompt.",
+    }
+
+    assert response["decision"] == HookDecision.ALLOW
+    assert response["inject"]["dedup_key"] == "user-prefs"
+    assert "override" in LifecycleHookResponse.__annotations__
+
+
+def test_context_injection_shape():
+    """ContextInjection adds ephemeral messages filtered at context-build time."""
+    from inferencesh.types import ContextInjection
+
+    injection: ContextInjection = {
+        "content": "Reminder: budget cap is $50.",
+        "role": "system",
+        "ttl_turns": 2,
+        "dedup_key": "budget-cap",
+    }
+
+    assert injection["ttl_turns"] == 2
+    assert "dedup_key" in ContextInjection.__annotations__
+
+
+def test_tool_call_event_data_shape():
+    """ToolCallEventData is the typed payload for agent.tool_call hook events."""
+    from inferencesh.types import ToolCallEventData
+
+    data: ToolCallEventData = {
+        "tool": "browser.navigate",
+        "arguments": {"url": "https://example.com"},
+    }
+
+    assert data["arguments"]["url"] == "https://example.com"
+    assert "arguments" in ToolCallEventData.__annotations__
+
+
+def test_tool_result_event_data_shape():
+    """ToolResultEventData is the typed payload for agent.tool_result hook events."""
+    from inferencesh.types import ToolResultEventData
+
+    data: ToolResultEventData = {
+        "tool": "browser.navigate",
+        "status": "success",
+        "result": "page loaded",
+    }
+
+    assert data["status"] == "success"
+    assert "result" in ToolResultEventData.__annotations__
+
+
+def test_error_event_data_shape():
+    """ErrorEventData is the typed payload for agent.error hook events."""
+    from inferencesh.types import ErrorEventData
+
+    data: ErrorEventData = {"error": "tool timeout after 30s"}
+
+    assert data["error"].startswith("tool timeout")
+    assert "error" in ErrorEventData.__annotations__
+
+
+def test_agent_run_dto_tool_invocation_id():
+    """AgentRunDTO.tool_invocation_id links paused runs to client tool invocations."""
+    from inferencesh.types import AgentRunDTO, AgentRunState
+
+    run: AgentRunDTO = {
+        "agent_id": "agent_abc",
+        "chat_id": "chat_xyz",
+        "state": AgentRunState.INPUT_REQUIRED,
+        "tool_invocation_id": "inv_789",
+    }
+
+    assert run["tool_invocation_id"] == "inv_789"
+    assert "tool_invocation_id" in AgentRunDTO.__annotations__
+
+
+def test_bounty_submission_dto_resource_id():
+    """BountySubmissionDTO.resource_id links claims to the shared proof resource."""
+    from inferencesh.types import BountySubmissionDTO
+
+    submission: BountySubmissionDTO = {
+        "bounty_id": "bounty_abc",
+        "resource_id": "res_proof_xyz",
+        "proof_id": "https://x.com/user/status/123",
+        "proof_ref": "ref_xyz",
+        "agent": "my-agent",
+        "source": "cli",
+    }
+
+    assert submission["resource_id"] == "res_proof_xyz"
+    assert "resource_id" in BountySubmissionDTO.__annotations__
+
+
+def test_integration_config_dto_grant_field():
+    """IntegrationConfigDTO.grant advertises credential vs token grant mode in catalog."""
+    from inferencesh.types import IntegrationConfigDTO, IntegrationGrant
+
+    config: IntegrationConfigDTO = {
+        "slug": "github",
+        "provider": IntegrationProvider.GIT_HUB,
+        "auth": IntegrationAuthType.O_AUTH,
+        "name": "GitHub",
+        "available": True,
+        "grant": IntegrationGrant.CREDENTIALS,
+    }
+
+    assert config["grant"] == IntegrationGrant.CREDENTIALS
+    assert "grant" in IntegrationConfigDTO.__annotations__

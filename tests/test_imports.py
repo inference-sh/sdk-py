@@ -172,6 +172,9 @@ def test_models_llm_export_exists(name):
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
+    # Lifecycle hooks (v0.7.43 typegen)
+    "HookDecision", "LifecycleHookPayload", "LifecycleHookResponse",
+    "ContextInjection", "ToolCallEventData", "ToolResultEventData", "ErrorEventData",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
