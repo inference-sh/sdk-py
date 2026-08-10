@@ -2206,6 +2206,7 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
     amount_microcents: int
     grant_type: str
     expiry_days: int
+    max_per_user: int
     max_per_day: int
     proof_type: str
     proof_min_length: int
