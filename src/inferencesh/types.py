@@ -1037,6 +1037,48 @@ class LifecycleHookConfig(TypedDict, total=False):
     async_: bool
     timeout: int
 
+# LifecycleHookPayload is sent to hook handlers on lifecycle events.
+class LifecycleHookPayload(TypedDict, total=False):
+    event: HookEvent
+    timestamp: str
+    agent_id: str
+    chat_id: str
+    run_id: str
+    turn_count: int
+    data: Any
+
+# LifecycleHookResponse is returned by hook handlers.
+# All fields are optional — an empty 200 response is equivalent to {decision: "allow"}.
+class LifecycleHookResponse(TypedDict, total=False):
+    inject: Optional[ContextInjection]
+    decision: HookDecision
+    reason: str
+    override: Any
+    system: str
+
+# ContextInjection adds ephemeral content to the agent's context window.
+# Injections are stored as ChatMessages and filtered at context-build time.
+class ContextInjection(TypedDict, total=False):
+    content: str
+    role: str
+    ttl_turns: int
+    dedup_key: str
+
+# ToolCallEventData is the typed payload for agent.tool_call events.
+class ToolCallEventData(TypedDict, total=False):
+    tool: str
+    arguments: Dict[str, Any]
+
+# ToolResultEventData is the typed payload for agent.tool_result events.
+class ToolResultEventData(TypedDict, total=False):
+    tool: str
+    status: str
+    result: str
+
+# ErrorEventData is the typed payload for agent.error events.
+class ErrorEventData(TypedDict, total=False):
+    error: str
+
 # ElicitationCapability advertises which elicitation modes the client handles.
 # An empty struct is equivalent to form-only for backward compatibility.
 class ElicitationCapability(TypedDict, total=False):
@@ -2113,6 +2155,7 @@ class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     interrupt_reason: Optional[InterruptReason]
     interrupt_tool_id: Optional[str]
     interrupt_meta: Any
+    tool_invocation_id: Optional[str]
     trigger_id: Optional[str]
     metadata: Any
 
@@ -2173,6 +2216,7 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
 # BountySubmissionDTO is the API representation of a bounty claim.
 class BountySubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     bounty_id: str
+    resource_id: str
     proof_id: str
     proof_ref: str
     agent: str
@@ -2747,6 +2791,7 @@ class ChatMessageRole(str, Enum):
 
 class ChatMessageStatus(str, Enum):
     PENDING = "pending"
+    QUEUED = "queued"
     READY = "ready"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -2838,6 +2883,11 @@ class HookEvent(str, Enum):
     AGENT_IDLE = "agent.idle"
     PRE_COMPACT = "agent.pre_compact"
     POST_COMPACT = "agent.post_compact"
+
+class HookDecision(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"
+    STOP = "stop"
 
 class HookHandlerType(str, Enum):
     HOOK_HANDLER_WEBHOOK = "webhook"

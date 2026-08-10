@@ -9,6 +9,9 @@ from .types import (
     HookToolConfig,
     HTTPToolConfig,
     InternalToolsConfig,
+    LifecycleHookConfig,
+    HookEvent,
+    HookHandlerType,
     ToolAuthConfig,
     ToolType,
 )
@@ -445,3 +448,58 @@ class InternalToolsBuilder:
 def internal_tools() -> InternalToolsBuilder:
     """Create internal tools configuration."""
     return InternalToolsBuilder()
+
+
+# =============================================================================
+# Lifecycle Hook Builder
+# =============================================================================
+
+class LifecycleHookBuilder:
+    """Builder for lifecycle hook configurations."""
+
+    def __init__(self, event: HookEvent):
+        self._event = event
+        self._type: Optional[HookHandlerType] = None
+        self._handler: Optional[str] = None
+        self._async: Optional[bool] = None
+        self._timeout: Optional[int] = None
+
+    def webhook(self, url: str) -> "LifecycleHookBuilder":
+        """Set hook type to webhook with the given URL."""
+        self._type = HookHandlerType.HOOK_HANDLER_WEBHOOK
+        self._handler = url
+        return self
+
+    def task(self, agent_ref: str) -> "LifecycleHookBuilder":
+        """Set hook type to task with the given agent ref."""
+        self._type = HookHandlerType.HOOK_HANDLER_TASK
+        self._handler = agent_ref
+        return self
+
+    def async_(self, enabled: bool = True) -> "LifecycleHookBuilder":
+        """Set whether the hook runs asynchronously."""
+        self._async = enabled
+        return self
+
+    def timeout(self, seconds: int) -> "LifecycleHookBuilder":
+        """Set hook timeout in seconds."""
+        self._timeout = seconds
+        return self
+
+    def build(self) -> LifecycleHookConfig:
+        """Build the lifecycle hook configuration."""
+        config: LifecycleHookConfig = {"event": self._event}
+        if self._type is not None:
+            config["type"] = self._type
+        if self._handler is not None:
+            config["handler"] = self._handler
+        if self._async is not None:
+            config["async"] = self._async
+        if self._timeout is not None:
+            config["timeout"] = self._timeout
+        return config
+
+
+def lifecycle_hook(event: HookEvent) -> LifecycleHookBuilder:
+    """Create a lifecycle hook configuration."""
+    return LifecycleHookBuilder(event)
