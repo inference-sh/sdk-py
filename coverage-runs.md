@@ -1,5 +1,26 @@
 # Coverage automation runs
 
+## 2026-08-10 (push dev @ 219f795, lifecycle hook payloads from v0.7.43 typegen)
+
+**Recent changes reviewed:** `219f795` (deps: update types from models v0.7.43 — lifecycle hook payload/response types, `HookDecision`, typed event data, `ChatMessageStatus.QUEUED`, DTO field additions).
+
+**Open PRs checked:** #217 (`cursor/missing-test-coverage-c117`) — `HookEvent` PRE_COMPACT/POST_COMPACT compaction hooks (v0.7.37). #216 — ChatMessageRole INJECTION/COMPACTION and base lifecycle hook config (v0.7.35). #214 — resource sharing and `IntegrationDTO.grant` (not `IntegrationConfigDTO.grant`). #212 — bounty types without `resource_id`. No overlap with v0.7.43 hook payload/response contracts.
+
+**Gaps filled this run:**
+
+- `HookDecision` enum (`allow`, `deny`, `stop`) for lifecycle hook handler responses
+- `LifecycleHookPayload` / `LifecycleHookResponse` / `ContextInjection` wire shapes
+- Typed hook event payloads: `ToolCallEventData`, `ToolResultEventData`, `ErrorEventData`
+- `LifecycleHookConfig` regression guard: `every` field removed in v0.7.43
+- `ChatMessageStatus.QUEUED` message lifecycle enum member
+- `AgentRunDTO.tool_invocation_id` for client-tool pause linkage
+- `BountySubmissionDTO.resource_id` for proof resource linkage
+- `IntegrationConfigDTO.grant` catalog grant mode field
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py -k "hook_decision or lifecycle_hook or context_injection or tool_call_event or tool_result_event or error_event or tool_invocation_id or bounty_submission_dto_resource or integration_config_dto_grant or HookDecision or LifecycleHook or ContextInjection or ToolCallEvent"` — 25 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
