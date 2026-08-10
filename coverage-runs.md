@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-10 (push dev @ 569b5f9, lifecycle hook builder + v0.7.23)
+
+**Recent changes reviewed:** `e231803` (feat: `lifecycle_hook()` fluent builder, hook types exported from top-level package). `569b5f9` (version bump to v0.7.23). `219f795`/`7973896` (typegen regen — hook payload/response types on `dev`).
+
+**Open PRs checked:** #218 — v0.7.43 hook payload/response TypedDicts and `HookDecision` (no overlap with builder API). #217 — `HookEvent` PRE_COMPACT/POST_COMPACT enum stability. #216 — base `LifecycleHookConfig` shape and `HookHandlerType`.
+
+**Gaps filled this run:**
+
+- `lifecycle_hook()` builder: full webhook config (`async` wire key, timeout), task-overrides-webhook chaining, explicit `async_(False)`
+- `AgentConfigInput.hooks` accepts `lifecycle_hook().build()` output (agent registration contract)
+- Top-level package exports: `lifecycle_hook`, `LifecycleHookBuilder`, and all hook TypedDict/enum symbols in `__all__`
+
+**Files:** `tests/test_hooks.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_hooks.py tests/test_imports.py` — 218 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

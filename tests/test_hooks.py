@@ -1,7 +1,8 @@
 """Tests for the lifecycle hook builder."""
 
+import inferencesh
 from inferencesh.tools import lifecycle_hook, LifecycleHookBuilder
-from inferencesh.types import HookEvent, HookHandlerType
+from inferencesh.types import AgentConfigInput, HookEvent, HookHandlerType
 
 
 class TestLifecycleHookBuilder:
@@ -51,3 +52,59 @@ class TestLifecycleHookBuilder:
         assert builder.task("acme/agent@v1") is builder
         assert builder.async_(True) is builder
         assert builder.timeout(60) is builder
+
+    def test_importable_from_top_level_package(self):
+        """lifecycle_hook and hook types are part of the public SDK surface."""
+        assert inferencesh.lifecycle_hook is lifecycle_hook
+        assert inferencesh.LifecycleHookBuilder is LifecycleHookBuilder
+        assert inferencesh.HookEvent is HookEvent
+        assert inferencesh.HookHandlerType is HookHandlerType
+
+    def test_full_webhook_config_with_async_and_timeout(self):
+        hook = (
+            lifecycle_hook(HookEvent.TURN_START)
+            .webhook("https://example.com/hooks/audit")
+            .async_(True)
+            .timeout(45)
+            .build()
+        )
+
+        assert hook == {
+            "event": HookEvent.TURN_START,
+            "type": HookHandlerType.HOOK_HANDLER_WEBHOOK,
+            "handler": "https://example.com/hooks/audit",
+            "async": True,
+            "timeout": 45,
+        }
+
+    def test_task_overrides_prior_webhook_handler(self):
+        """The last handler method wins when builders are chained."""
+        hook = (
+            lifecycle_hook(HookEvent.TOOL_RESULT)
+            .webhook("https://example.com/webhook")
+            .task("acme/validator@v2")
+            .build()
+        )
+
+        assert hook["type"] == HookHandlerType.HOOK_HANDLER_TASK
+        assert hook["handler"] == "acme/validator@v2"
+
+    def test_async_false_is_serialized(self):
+        hook = lifecycle_hook(HookEvent.AGENT_COMPLETE).webhook("https://example.com").async_(False).build()
+
+        assert hook["async"] is False
+
+    def test_builder_output_fits_agent_config_hooks(self):
+        """AgentConfigInput.hooks accepts lifecycle_hook().build() output."""
+        config: AgentConfigInput = {
+            "name": "audited-agent",
+            "hooks": [
+                lifecycle_hook(HookEvent.AGENT_START).webhook("https://example.com/start").build(),
+                lifecycle_hook(HookEvent.TOOL_CALL).task("acme/policy-check@v1").timeout(15).build(),
+            ],
+        }
+
+        assert len(config["hooks"]) == 2
+        assert config["hooks"][0]["event"] == HookEvent.AGENT_START
+        assert config["hooks"][1]["type"] == HookHandlerType.HOOK_HANDLER_TASK
+        assert config["hooks"][1]["timeout"] == 15
