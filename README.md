@@ -427,6 +427,40 @@ web_search = (
 
 See the [Tool Builder reference](https://inference.sh/docs/api/agent-tools) for schema helpers and more examples.
 
+### lifecycle hooks
+
+Use `lifecycle_hook()` to attach hooks to agent events. Hooks can call a webhook or delegate to another agent as a task:
+
+```python
+from inferencesh import inference, lifecycle_hook, HookEvent
+
+client = inference(api_key="your-api-key")
+
+agent = client.agents.create({
+    "core_app": {"ref": "openrouter/claude-sonnet-4@abc"},
+    "hooks": [
+        lifecycle_hook(HookEvent.TURN_START)
+            .webhook("https://example.com/on-turn")
+            .timeout(10)
+            .build(),
+        lifecycle_hook(HookEvent.TOOL_CALL)
+            .task("my-org/approval-agent")
+            .async_(True)
+            .build(),
+    ],
+})
+```
+
+### queued messages
+
+`send_message` automatically queues when the agent is busy processing a previous message. Queued messages appear with a `queued` status until the agent picks them up.
+
+To cancel a queued message before it is processed:
+
+```python
+client.chats.cancel_message(message_id)
+```
+
 ### generated tool types
 
 The fluent tool builder produces JSON Schema objects. For lower-level typing (parsing LLM tool calls or building `Tool` / `ToolParameters` dicts by hand), import enums from `inferencesh.types`:

@@ -76,6 +76,8 @@ from .tools import (
     call_tool,
     mcp_tool,
     internal_tools,
+    lifecycle_hook,
+    LifecycleHookBuilder,
     string,
     number,
     integer,
@@ -116,6 +118,17 @@ from .types import (
     Tool,
     ToolFunction,
     ToolParameters,
+    # Hook types
+    LifecycleHookConfig,
+    LifecycleHookPayload,
+    LifecycleHookResponse,
+    ContextInjection,
+    HookEvent,
+    HookHandlerType,
+    HookDecision,
+    ToolCallEventData,
+    ToolResultEventData,
+    ErrorEventData,
 )
 
 
@@ -234,6 +247,8 @@ __all__ = [
     "call_tool",
     "mcp_tool",
     "internal_tools",
+    "lifecycle_hook",
+    "LifecycleHookBuilder",
     "string",
     "number",
     "integer",
@@ -244,6 +259,17 @@ __all__ = [
     "optional",
     "ClientTool",
     "ClientToolHandler",
+    # Hook types
+    "LifecycleHookConfig",
+    "LifecycleHookPayload",
+    "LifecycleHookResponse",
+    "ContextInjection",
+    "HookEvent",
+    "HookHandlerType",
+    "HookDecision",
+    "ToolCallEventData",
+    "ToolResultEventData",
+    "ErrorEventData",
     # Namespaced APIs
     "TasksAPI",
     "AsyncTasksAPI",
