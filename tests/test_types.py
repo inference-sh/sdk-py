@@ -2346,3 +2346,141 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_count_response_shape():
+    """CountResponse is the envelope for count-only API endpoints (bc647e2)."""
+    from inferencesh.types import CountResponse
+
+    resp: CountResponse = {"count": 42}
+
+    assert resp["count"] == 42
+    assert "count" in CountResponse.__annotations__
+
+
+def test_bounty_program_dto_max_per_user_no_claim_count():
+    """BountyProgramDTO caps per-user claims; claim_count moved to CountResponse (bc647e2/2ed67af)."""
+    from inferencesh.types import BountyProgramDTO
+
+    program: BountyProgramDTO = {
+        "name": "agent-demo-bounty",
+        "description": "Post a demo on X",
+        "amount_microcents": 5_000_000,
+        "grant_type": "credits",
+        "expiry_days": 30,
+        "max_per_user": 3,
+        "max_per_day": 10,
+        "proof_type": "url",
+        "proof_min_length": 20,
+        "status": "active",
+        "notice_text": "Thanks for participating!",
+        "notice_cooldown_hours": 24,
+        "notice_priority": 1,
+        "starts_at": "2026-08-01T00:00:00Z",
+        "ends_at": None,
+    }
+
+    assert program["max_per_user"] == 3
+    assert program["max_per_day"] == 10
+    assert "max_per_user" in BountyProgramDTO.__annotations__
+    assert "claim_count" not in BountyProgramDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TOOL_APPROVAL", "tool_approval"),
+        ("CLIENT_TOOL", "client_tool"),
+        ("WIDGET", "widget"),
+        ("AUTH", "auth"),
+        ("CONFIRMATION", "confirmation"),
+        ("HOOK_GATE", "hook_gate"),
+    ],
+)
+def test_interrupt_reason_values(member, value):
+    """InterruptReason must include hook-gate pauses from lifecycle hooks (71dd337)."""
+    from inferencesh.types import InterruptReason
+
+    assert hasattr(InterruptReason, member)
+    assert getattr(InterruptReason, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("RESOLVED", "resolved"),
+        ("EXPIRED", "expired"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_interrupt_status_lifecycle(member, value):
+    """InterruptStatus tracks pending/resolved/expired/cancelled interrupt lifecycle."""
+    from inferencesh.types import InterruptStatus
+
+    assert hasattr(InterruptStatus, member)
+    assert getattr(InterruptStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALLOW", "allow"),
+        ("DENY", "deny"),
+    ],
+)
+def test_interrupt_resolution_values(member, value):
+    """InterruptResolution records allow/deny outcomes for resolved interrupts."""
+    from inferencesh.types import InterruptResolution
+
+    assert hasattr(InterruptResolution, member)
+    assert getattr(InterruptResolution, member).value == value
+
+
+def test_interrupt_dto_shape():
+    """InterruptDTO is the first-class API representation of agent run interrupts (71dd337)."""
+    from inferencesh.types import (
+        InterruptDTO,
+        InterruptReason,
+        InterruptResolution,
+        InterruptStatus,
+    )
+
+    interrupt: InterruptDTO = {
+        "run_id": "run_abc",
+        "chat_id": "chat_xyz",
+        "reason": InterruptReason.HOOK_GATE,
+        "source": "lifecycle_hook",
+        "resource_id": "tool_deploy",
+        "resource_type": "tool",
+        "status": InterruptStatus.PENDING,
+        "resolution": None,
+        "resolved_at": None,
+        "expires_at": "2026-08-11T18:00:00Z",
+        "meta": {"hook_event": "agent.tool_call"},
+    }
+
+    assert interrupt["reason"] == InterruptReason.HOOK_GATE
+    assert interrupt["status"] == InterruptStatus.PENDING
+    assert interrupt["resolution"] is None
+    assert "run_id" in InterruptDTO.__annotations__
+    assert "status" in InterruptDTO.__annotations__
+    assert InterruptResolution.ALLOW.value == "allow"
+
+
+def test_public_app_store_dto_pricing_description():
+    """PublicAppStoreDTO exposes human-readable pricing on store listings (71dd337)."""
+    from inferencesh.types import PublicAppStoreDTO
+
+    listing: PublicAppStoreDTO = {
+        "id": "app_abc",
+        "namespace": "acme",
+        "name": "image-gen",
+        "description": "Generate images from prompts",
+        "pricing_description": "From $0.05 per image",
+        "is_featured": True,
+        "rank": 1,
+    }
+
+    assert listing["pricing_description"].startswith("From $")
+    assert "pricing_description" in PublicAppStoreDTO.__annotations__

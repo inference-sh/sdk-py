@@ -1,5 +1,25 @@
 # Coverage automation runs
 
+## 2026-08-11 (push dev @ 71dd337, InterruptDTO + bounty count refactor)
+
+**Recent changes reviewed:** `71dd337` (typegen regen: `InterruptDTO`, `InterruptStatus`/`InterruptResolution` enums, `InterruptReason.HOOK_GATE`, `PublicAppStoreDTO.pricing_description`). `2ed67af` (`max_per_user` on `BountyProgramDTO`). `bc647e2` (remove `claim_count` from `BountyProgramDTO`; add `CountResponse` for count endpoints).
+
+**Open PRs checked:** #219 (`cursor/missing-test-coverage-0f90`) — lifecycle hook builder API. #218 — hook payloads/v0.7.43 typegen. #212 (`cursor/missing-test-coverage-2e97`) — bounty program tests still assert removed `claim_count` field; this run supersedes with updated schema. #207–#186 — client/LLM/flow coverage (no overlap).
+
+**Gaps filled this run:**
+
+- `InterruptDTO` first-class interrupt representation (run/chat linkage, reason, status, resolution, expiry)
+- `InterruptStatus` lifecycle (`pending`, `resolved`, `expired`, `cancelled`)
+- `InterruptResolution` allow/deny outcomes
+- `InterruptReason.HOOK_GATE` for lifecycle-hook gate pauses
+- `CountResponse` envelope for count-only API endpoints
+- `BountyProgramDTO.max_per_user` per-user claim cap; regression guard removing `claim_count`
+- `PublicAppStoreDTO.pricing_description` human-readable store listing pricing
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 655 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
