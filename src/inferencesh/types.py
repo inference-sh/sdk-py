@@ -593,6 +593,7 @@ class PublicAppStoreDTO(TypedDict, total=False):
     rank: int
     has_approved_version: bool
     page_id: Optional[str]
+    pricing_description: str
 
 # AuthSessionDTO is a safe representation of AuthSession for API responses.
 class AuthSessionDTO(TypedDict, total=False):
@@ -2385,6 +2386,19 @@ class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     is_primary: bool
     error_message: str
 
+class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    run_id: str
+    chat_id: str
+    reason: InterruptReason
+    source: str
+    resource_id: str
+    resource_type: str
+    status: InterruptStatus
+    resolution: Optional[InterruptResolution]
+    resolved_at: Optional[str]
+    expires_at: Optional[str]
+    meta: Any
+
 # SkillDTO for API responses (backward-compatible naming)
 class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
@@ -2705,6 +2719,7 @@ class InterruptReason(str, Enum):
     WIDGET = "widget"
     AUTH = "auth"
     CONFIRMATION = "confirmation"
+    HOOK_GATE = "hook_gate"
 
 class AppCategory(str, Enum):
     IMAGE = "image"
@@ -2875,6 +2890,16 @@ class GraphEdgeType(str, Enum):
     SUPERSEDES = "supersedes"
     INPUT = "input"
     OUTPUT = "output"
+
+class InterruptStatus(str, Enum):
+    PENDING = "pending"
+    RESOLVED = "resolved"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+class InterruptResolution(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"
 
 class HookEvent(str, Enum):
     AGENT_START = "agent.start"
