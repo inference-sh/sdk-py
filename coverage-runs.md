@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-12 (push dev @ 12eeed3, InterruptResourceType trigger enhancements)
+
+**Recent changes reviewed:** `12eeed3` (typegen regen: `InterruptResourceType` enum with `tool_invocation`/`hook_event`; `InterruptDTO.resource_type` narrowed from `str` to `InterruptResourceType`). `94a8c3c` (gate hooks typegen — covered by open PR #226).
+
+**Open PRs checked:** #226 (`cursor/missing-test-coverage-57ce`) — gate hook fields (`HookDecision.SUSPEND`, `HookHandlerType.HOOK_HANDLER_GATE`, `LifecycleHookConfig.default_resolution`, `InterruptDTO.resolved_data`); no overlap with `InterruptResourceType`. #224 — InterruptDTO lifecycle enums and bounty schema (uses plain `resource_type: "tool"` string; predates typed enum).
+
+**Gaps filled this run:**
+
+- `InterruptResourceType` enum stability (`tool_invocation`, `hook_event`)
+- `InterruptDTO.resource_type` typed to `InterruptResourceType` (regression guard against reverting to bare `str`)
+- Tool-approval and hook-gate interrupt shapes using distinct resource type discriminators
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

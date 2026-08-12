@@ -2346,3 +2346,55 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("INTERRUPT_RESOURCE_TOOL_INVOCATION", "tool_invocation"),
+        ("INTERRUPT_RESOURCE_HOOK_EVENT", "hook_event"),
+    ],
+)
+def test_interrupt_resource_type_values(member, value):
+    """InterruptDTO.resource_type uses InterruptResourceType (12eeed3 trigger enhancements)."""
+    from inferencesh.types import InterruptResourceType
+
+    assert hasattr(InterruptResourceType, member)
+    assert getattr(InterruptResourceType, member).value == value
+
+
+def test_interrupt_dto_resource_type_field():
+    """InterruptDTO.resource_type is typed to InterruptResourceType, not bare str (12eeed3)."""
+    from typing import get_type_hints
+
+    from inferencesh.types import (
+        InterruptDTO,
+        InterruptReason,
+        InterruptResourceType,
+        InterruptStatus,
+    )
+
+    tool_interrupt: InterruptDTO = {
+        "run_id": "run_tool_1",
+        "chat_id": "chat_abc",
+        "reason": InterruptReason.TOOL_APPROVAL,
+        "source": "tool_runner",
+        "resource_id": "inv_123",
+        "resource_type": InterruptResourceType.INTERRUPT_RESOURCE_TOOL_INVOCATION,
+        "status": InterruptStatus.PENDING,
+    }
+
+    gate_interrupt: InterruptDTO = {
+        "run_id": "run_gate_1",
+        "chat_id": "chat_abc",
+        "reason": InterruptReason.HOOK_GATE,
+        "source": "lifecycle_hook",
+        "resource_id": "hook_evt_456",
+        "resource_type": InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT,
+        "status": InterruptStatus.PENDING,
+    }
+
+    assert tool_interrupt["resource_type"] == InterruptResourceType.INTERRUPT_RESOURCE_TOOL_INVOCATION
+    assert gate_interrupt["resource_type"] == InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT
+    assert "resource_type" in InterruptDTO.__annotations__
+    assert get_type_hints(InterruptDTO)["resource_type"] is InterruptResourceType
