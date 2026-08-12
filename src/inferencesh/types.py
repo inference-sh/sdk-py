@@ -1041,6 +1041,8 @@ class LifecycleHookConfig(TypedDict, total=False):
     handler: str
     async_: bool
     timeout: int
+    # Gate-specific fields (type: "gate")
+    default_resolution: InterruptResolution
 
 # LifecycleHookPayload is sent to hook handlers on lifecycle events.
 class LifecycleHookPayload(TypedDict, total=False):
@@ -1820,6 +1822,12 @@ class OutputFieldMapping(TypedDict, total=False):
 # OutputMappings is a map of output field name to OutputFieldMapping
 OutputMappings = Dict[str, "OutputFieldMapping"]
 
+# HookEventDefinition describes a lifecycle hook event and its capabilities.
+class HookEventDefinition(TypedDict, total=False):
+    event: HookEvent
+    description: str
+    can_gate: bool
+
 # LLMOutput is the output envelope from an LLM provider task.
 # This is the contract between chat apps (sdk-py) and the agent runtime (go/api).
 class LLMOutput(TypedDict, total=False):
@@ -2396,6 +2404,7 @@ class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: InterruptStatus
     resolution: Optional[InterruptResolution]
     resolved_at: Optional[str]
+    resolved_data: Any
     expires_at: Optional[str]
     meta: Any
 
@@ -2917,10 +2926,12 @@ class HookDecision(str, Enum):
     ALLOW = "allow"
     DENY = "deny"
     STOP = "stop"
+    SUSPEND = "suspend"
 
 class HookHandlerType(str, Enum):
     HOOK_HANDLER_WEBHOOK = "webhook"
     HOOK_HANDLER_TASK = "task"
+    HOOK_HANDLER_GATE = "gate"
 
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
