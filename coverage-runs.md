@@ -1,6 +1,22 @@
 # Coverage automation runs
 
-## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
+## 2026-08-12 (push dev @ 891c83e, Makefile-only + queued message readiness gap)
+
+**Recent changes reviewed:** `891c83e` (chore: remove duplicate make main target — no production logic). Prior commits `527a9b4`–`c3e1ba5` (interrupt/gate typegen) and `6eebf34` (lifecycle hook builder exports) are covered by open draft PRs #224/#226/#228/#231/#219.
+
+**Open PRs checked:** #231 (gate builder + InterruptResourceType), #228 (InterruptResourceType), #226 (gate typegen + HookDecision.SUSPEND), #224 (InterruptDTO/CountResponse/bounty), #219 (lifecycle hook builder exports) — no overlap with this run's gaps.
+
+**Gaps filled this run:**
+
+- `is_message_ready()` treats `ChatMessageStatus.QUEUED` as non-terminal (regression guard; previously returned True for `"queued"`)
+- `ChatMessageStatus.QUEUED` enum stability in typegen parametrize
+- `lifecycle_hook` / `LifecycleHookBuilder` / `HookEvent` / `HookHandlerType` public export smoke tests
+- Lifecycle hook builder: task overrides chained webhook; `AgentConfigInput.hooks` accepts builder output
+
+**Files:** `src/inferencesh/client.py`, `tests/test_client_status.py`, `tests/test_hooks.py`, `tests/test_imports.py`, `tests/test_types.py`
+
+**Validation:** `pytest tests/test_client_status.py tests/test_hooks.py tests/test_imports.py` — passed.
+
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
 

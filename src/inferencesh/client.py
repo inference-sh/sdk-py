@@ -68,7 +68,12 @@ def is_message_ready(status: str | None) -> bool:
     """
     if not status:
         return False
-    return status not in (ChatMessageStatus.PENDING, ChatMessageStatus.PENDING.value)
+    return status not in (
+        ChatMessageStatus.PENDING,
+        ChatMessageStatus.PENDING.value,
+        ChatMessageStatus.QUEUED,
+        ChatMessageStatus.QUEUED.value,
+    )
 if TYPE_CHECKING:
     from .types import AgentConfigInput as AgentConfig
     from .agent import Agent, AsyncAgent

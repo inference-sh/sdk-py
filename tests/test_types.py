@@ -1393,6 +1393,7 @@ def test_chat_message_role_values(member, value):
     "member,value",
     [
         ("PENDING", "pending"),
+        ("QUEUED", "queued"),
         ("READY", "ready"),
         ("FAILED", "failed"),
         ("CANCELLED", "cancelled"),

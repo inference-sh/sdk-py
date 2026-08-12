@@ -62,6 +62,9 @@ def test_all_exports_resolvable():
     "Agent", "AsyncAgent",
     # Tools
     "tool", "app_tool", "agent_tool", "http_tool", "call_tool", "mcp_tool",
+    "lifecycle_hook", "LifecycleHookBuilder",
+    # Hook types (v0.7.23 public API)
+    "HookEvent", "HookHandlerType",
     # Errors
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable

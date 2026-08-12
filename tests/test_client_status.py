@@ -53,6 +53,11 @@ class TestIsMessageReady:
         assert is_message_ready(ChatMessageStatus.PENDING) is False
         assert is_message_ready("pending") is False
 
+    def test_queued_is_not_ready(self):
+        """Queued messages are in-flight and must not be treated as terminal."""
+        assert is_message_ready(ChatMessageStatus.QUEUED) is False
+        assert is_message_ready("queued") is False
+
     def test_ready_is_terminal(self):
         assert is_message_ready(ChatMessageStatus.READY) is True
         assert is_message_ready("ready") is True
