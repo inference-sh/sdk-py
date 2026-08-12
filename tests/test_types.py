@@ -2346,3 +2346,113 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALLOW", "allow"),
+        ("DENY", "deny"),
+        ("STOP", "stop"),
+        ("SUSPEND", "suspend"),
+    ],
+)
+def test_hook_decision_values(member, value):
+    """Hook handlers can suspend agent runs for gate interrupts (94a8c3c)."""
+    from inferencesh.types import HookDecision
+
+    assert hasattr(HookDecision, member)
+    assert getattr(HookDecision, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("HOOK_HANDLER_WEBHOOK", "webhook"),
+        ("HOOK_HANDLER_TASK", "task"),
+        ("HOOK_HANDLER_GATE", "gate"),
+    ],
+)
+def test_hook_handler_type_values(member, value):
+    """Lifecycle hook handler types must include gate for interrupt-gated events."""
+    from inferencesh.types import HookHandlerType
+
+    assert hasattr(HookHandlerType, member)
+    assert getattr(HookHandlerType, member).value == value
+
+
+def test_lifecycle_hook_config_gate_fields():
+    """Gate hooks declare a default_resolution when type is gate (94a8c3c)."""
+    from inferencesh.types import (
+        HookEvent,
+        HookHandlerType,
+        InterruptResolution,
+        LifecycleHookConfig,
+    )
+
+    hook: LifecycleHookConfig = {
+        "event": HookEvent.TOOL_CALL,
+        "type": HookHandlerType.HOOK_HANDLER_GATE,
+        "default_resolution": InterruptResolution.ALLOW,
+    }
+
+    assert hook["type"] == HookHandlerType.HOOK_HANDLER_GATE
+    assert hook["default_resolution"] == InterruptResolution.ALLOW
+    assert "default_resolution" in LifecycleHookConfig.__annotations__
+
+
+def test_hook_event_definition_shape():
+    """HookEventDefinition advertises which events support gate interrupts."""
+    from inferencesh.types import HookEvent, HookEventDefinition
+
+    definition: HookEventDefinition = {
+        "event": HookEvent.TOOL_CALL,
+        "description": "Fires before a tool is invoked",
+        "can_gate": True,
+    }
+
+    assert definition["event"] == HookEvent.TOOL_CALL
+    assert definition["can_gate"] is True
+    assert "can_gate" in HookEventDefinition.__annotations__
+
+
+def test_interrupt_dto_resolved_data_field():
+    """InterruptDTO.resolved_data carries handler payload after gate resolution."""
+    from inferencesh.types import (
+        InterruptDTO,
+        InterruptReason,
+        InterruptResolution,
+        InterruptStatus,
+    )
+
+    interrupt: InterruptDTO = {
+        "run_id": "run_gate_1",
+        "chat_id": "chat_abc",
+        "reason": InterruptReason.HOOK_GATE,
+        "status": InterruptStatus.RESOLVED,
+        "resolution": InterruptResolution.ALLOW,
+        "resolved_data": {"approved_by": "hook", "note": "auto-allow"},
+    }
+
+    assert interrupt["reason"] == InterruptReason.HOOK_GATE
+    assert interrupt["resolved_data"]["approved_by"] == "hook"
+    assert "resolved_data" in InterruptDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TOOL_APPROVAL", "tool_approval"),
+        ("CLIENT_TOOL", "client_tool"),
+        ("WIDGET", "widget"),
+        ("AUTH", "auth"),
+        ("CONFIRMATION", "confirmation"),
+        ("HOOK_GATE", "hook_gate"),
+    ],
+)
+def test_interrupt_reason_values(member, value):
+    """InterruptReason.HOOK_GATE identifies lifecycle-hook gate pauses (94a8c3c)."""
+    from inferencesh.types import InterruptReason
+
+    assert hasattr(InterruptReason, member)
+    assert getattr(InterruptReason, member).value == value
