@@ -1393,6 +1393,7 @@ def test_chat_message_role_values(member, value):
     "member,value",
     [
         ("PENDING", "pending"),
+        ("QUEUED", "queued"),
         ("READY", "ready"),
         ("FAILED", "failed"),
         ("CANCELLED", "cancelled"),
@@ -2346,3 +2347,122 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("HOOK_HANDLER_WEBHOOK", "webhook"),
+        ("HOOK_HANDLER_TASK", "task"),
+        ("HOOK_HANDLER_GATE", "gate"),
+    ],
+)
+def test_hook_handler_type_values(member, value):
+    """Hook handler discriminators must include gate type from c3e1ba5 typegen."""
+    from inferencesh.types import HookHandlerType
+
+    assert hasattr(HookHandlerType, member)
+    assert getattr(HookHandlerType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALLOW", "allow"),
+        ("DENY", "deny"),
+        ("STOP", "stop"),
+        ("SUSPEND", "suspend"),
+    ],
+)
+def test_hook_decision_values(member, value):
+    """HookDecision includes suspend for gate-hook pauses (c3e1ba5)."""
+    from inferencesh.types import HookDecision
+
+    assert hasattr(HookDecision, member)
+    assert getattr(HookDecision, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("INTERRUPT_RESOURCE_TOOL_INVOCATION", "tool_invocation"),
+        ("INTERRUPT_RESOURCE_HOOK_EVENT", "hook_event"),
+    ],
+)
+def test_interrupt_resource_type_values(member, value):
+    """InterruptDTO.resource_type uses InterruptResourceType (527a9b4)."""
+    from inferencesh.types import InterruptResourceType
+
+    assert hasattr(InterruptResourceType, member)
+    assert getattr(InterruptResourceType, member).value == value
+
+
+def test_interrupt_dto_resource_type_and_resolved_data():
+    """InterruptDTO uses typed resource_type and resolved_data from gate-hook typegen."""
+    from typing import get_type_hints
+
+    from inferencesh.types import (
+        InterruptDTO,
+        InterruptReason,
+        InterruptResourceType,
+        InterruptResolution,
+        InterruptStatus,
+    )
+
+    interrupt: InterruptDTO = {
+        "run_id": "run_gate_1",
+        "chat_id": "chat_abc",
+        "reason": InterruptReason.HOOK_GATE,
+        "source": "lifecycle_hook",
+        "resource_id": "hook_evt_456",
+        "resource_type": InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT,
+        "status": InterruptStatus.RESOLVED,
+        "resolution": InterruptResolution.ALLOW,
+        "resolved_data": {"approved_by": "admin"},
+    }
+
+    assert interrupt["resource_type"] == InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT
+    assert interrupt["resolved_data"]["approved_by"] == "admin"
+    assert "resource_type" in InterruptDTO.__annotations__
+    assert "resolved_data" in InterruptDTO.__annotations__
+    assert get_type_hints(InterruptDTO)["resource_type"] is InterruptResourceType
+
+
+def test_count_response_shape():
+    """CountResponse is the envelope for count-only API endpoints (bc647e2)."""
+    from inferencesh.types import CountResponse
+
+    resp: CountResponse = {"count": 42}
+
+    assert resp["count"] == 42
+    assert "count" in CountResponse.__annotations__
+
+
+def test_bounty_program_dto_max_per_user_no_claim_count():
+    """BountyProgramDTO caps per-user claims; claim_count moved to CountResponse."""
+    from inferencesh.types import BountyProgramDTO
+
+    program: BountyProgramDTO = {
+        "name": "agent-demo-bounty",
+        "max_per_user": 3,
+        "max_per_day": 10,
+        "amount_microcents": 5_000_000,
+    }
+
+    assert program["max_per_user"] == 3
+    assert "max_per_user" in BountyProgramDTO.__annotations__
+    assert "claim_count" not in BountyProgramDTO.__annotations__
+
+
+def test_hook_event_definition_can_gate_flag():
+    """HookEventDefinition.can_gate advertises gate-capable lifecycle events (c3e1ba5)."""
+    from inferencesh.types import HookEvent, HookEventDefinition
+
+    definition: HookEventDefinition = {
+        "event": HookEvent.TOOL_CALL,
+        "description": "Fires before a tool is invoked",
+        "can_gate": True,
+    }
+
+    assert definition["can_gate"] is True
+    assert "can_gate" in HookEventDefinition.__annotations__

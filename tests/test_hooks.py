@@ -1,7 +1,8 @@
 """Tests for the lifecycle hook builder."""
 
+import inferencesh
 from inferencesh.tools import lifecycle_hook, LifecycleHookBuilder
-from inferencesh.types import HookEvent, HookHandlerType
+from inferencesh.types import AgentConfigInput, HookEvent, HookHandlerType, InterruptResolution
 
 
 class TestLifecycleHookBuilder:
@@ -49,5 +50,31 @@ class TestLifecycleHookBuilder:
 
         assert builder.webhook("https://example.com") is builder
         assert builder.task("acme/agent@v1") is builder
+        assert builder.gate(InterruptResolution.ALLOW) is builder
         assert builder.async_(True) is builder
         assert builder.timeout(60) is builder
+
+    def test_gate_produces_correct_config(self):
+        hook = lifecycle_hook(HookEvent.TOOL_CALL).gate(InterruptResolution.DENY).build()
+
+        assert hook["event"] == HookEvent.TOOL_CALL
+        assert hook["type"] == HookHandlerType.HOOK_HANDLER_GATE
+        assert hook["default_resolution"] == InterruptResolution.DENY
+        assert "handler" not in hook
+
+    def test_gate_config_fits_agent_config_hooks(self):
+        config: AgentConfigInput = {
+            "name": "gated-agent",
+            "hooks": [
+                lifecycle_hook(HookEvent.TOOL_CALL).gate(InterruptResolution.DENY).build(),
+            ],
+        }
+
+        assert config["hooks"][0]["type"] == HookHandlerType.HOOK_HANDLER_GATE
+        assert config["hooks"][0]["default_resolution"] == InterruptResolution.DENY
+
+    def test_importable_from_top_level_package(self):
+        assert inferencesh.lifecycle_hook is lifecycle_hook
+        assert inferencesh.LifecycleHookBuilder is LifecycleHookBuilder
+        assert inferencesh.HookEvent is HookEvent
+        assert inferencesh.HookHandlerType is HookHandlerType
