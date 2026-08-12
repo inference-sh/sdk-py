@@ -12,6 +12,7 @@ from .types import (
     LifecycleHookConfig,
     HookEvent,
     HookHandlerType,
+    InterruptResolution,
     ToolAuthConfig,
     ToolType,
 )
@@ -463,6 +464,7 @@ class LifecycleHookBuilder:
         self._handler: Optional[str] = None
         self._async: Optional[bool] = None
         self._timeout: Optional[int] = None
+        self._default_resolution: Optional[InterruptResolution] = None
 
     def webhook(self, url: str) -> "LifecycleHookBuilder":
         """Set hook type to webhook with the given URL."""
@@ -474,6 +476,12 @@ class LifecycleHookBuilder:
         """Set hook type to task with the given agent ref."""
         self._type = HookHandlerType.HOOK_HANDLER_TASK
         self._handler = agent_ref
+        return self
+
+    def gate(self, default_resolution: InterruptResolution) -> "LifecycleHookBuilder":
+        """Set hook type to gate — pauses the agent until the interrupt is resolved."""
+        self._type = HookHandlerType.HOOK_HANDLER_GATE
+        self._default_resolution = default_resolution
         return self
 
     def async_(self, enabled: bool = True) -> "LifecycleHookBuilder":
@@ -497,6 +505,8 @@ class LifecycleHookBuilder:
             config["async"] = self._async
         if self._timeout is not None:
             config["timeout"] = self._timeout
+        if self._default_resolution is not None:
+            config["default_resolution"] = self._default_resolution
         return config
 
 
