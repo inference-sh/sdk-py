@@ -204,5 +204,3 @@ help:
 
 .DEFAULT_GOAL := help
 
-main:
-	git push origin dev:main
