@@ -2400,7 +2400,7 @@ class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     reason: InterruptReason
     source: str
     resource_id: str
-    resource_type: str
+    resource_type: InterruptResourceType
     status: InterruptStatus
     resolution: Optional[InterruptResolution]
     resolved_at: Optional[str]
@@ -2909,6 +2909,10 @@ class InterruptStatus(str, Enum):
 class InterruptResolution(str, Enum):
     ALLOW = "allow"
     DENY = "deny"
+
+class InterruptResourceType(str, Enum):
+    INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
+    INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
 
 class HookEvent(str, Enum):
     AGENT_START = "agent.start"
