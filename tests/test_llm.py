@@ -141,6 +141,70 @@ class TestBuildOpenAIMessages:
         tool_msg = next(m for m in messages if m["role"] == "tool")
         assert tool_msg["tool_call_id"] == "call_abc"
 
+    def test_tool_role_message_without_tool_call_id_defaults_to_empty_string(self):
+        """OpenAI requires tool_call_id on tool messages; missing id must not be omitted."""
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="result",
+                    ),
+                ],
+                system_prompt="",
+            ),
+        )
+        tool_msg = next(m for m in messages if m["role"] == "tool")
+        assert tool_msg["tool_call_id"] == ""
+
+    def test_consecutive_same_role_messages_merge_images_and_files(self):
+        img1 = _file("https://cdn.example.com/a.png")
+        img2 = _file("https://cdn.example.com/b.png")
+        doc1 = _file("https://cdn.example.com/a.pdf")
+        doc2 = _file("https://cdn.example.com/b.pdf")
+        messages = build_openai_messages(
+            LLMInput(
+                text="second",
+                images=[img2],
+                files=[doc2],
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="first",
+                        images=[img1],
+                        files=[doc1],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+            file_mode="url",
+        )
+        user = next(m for m in messages if m["role"] == "user")
+        assert isinstance(user["content"], list)
+        text_parts = [p for p in user["content"] if p["type"] == "text"]
+        assert len(text_parts) == 1
+        assert text_parts[0]["text"] == "first\n\nsecond"
+        image_urls = {
+            p["image_url"]["url"]
+            for p in user["content"]
+            if p["type"] == "image_url"
+        }
+        file_urls = {
+            p["file"]["file_data"]
+            for p in user["content"]
+            if p["type"] == "file"
+        }
+        assert image_urls == {
+            "https://cdn.example.com/a.png",
+            "https://cdn.example.com/b.png",
+        }
+        assert file_urls == {
+            "https://cdn.example.com/a.pdf",
+            "https://cdn.example.com/b.pdf",
+        }
+
     def test_assistant_text_only_uses_plain_string_content(self):
         """Providers reject multipart arrays for text-only assistant messages."""
         messages = build_openai_messages(
