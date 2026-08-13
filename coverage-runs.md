@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-13 (push dev @ 5e5cc55, batch merge #193/#197)
+
+**Recent changes reviewed:** `5e5cc55` (batch merge bot PRs #193/#197 — LLM message merge + workflow concurrency guards, already on dev). `51bd4fc` (Makefile-only). Prior gate-hook/interrupt typegen (`527a9b4`, `c3e1ba5`, `f720f05`, `bc647e2`, `af20511`) and V3 client features (`73cd6cd`, `e6da235`, `e46e808`).
+
+**Open PRs checked:** #242 (`cursor/missing-test-coverage-7c59`) — gate hooks, QUEUED readiness, interrupt typegen; no overlap. #192/#190/#186/#185/#184 — older draft LLM/MCP gaps.
+
+**Gaps filled this run:**
+
+- `Response` wrapper `has_warnings` / `__repr__` / default messages list
+- V3 envelope unwrapping via `_request` and `on_message` callback (sync + async)
+- `ResponseMessage` TypedDict shape for warning/info notices
+- `HookEvent.PRE_COMPACT` / `POST_COMPACT` compaction lifecycle enum stability
+- `update-types.yml` template-injection guard (inputs via env vars, not inline in run scripts)
+
+**Files:** `tests/test_response.py`, `tests/test_client.py`, `tests/test_types.py`, `tests/test_workflows.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_response.py tests/test_workflows.py tests/test_client.py tests/test_types.py tests/test_imports.py` — passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
