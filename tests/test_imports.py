@@ -93,6 +93,7 @@ def test_public_name_importable(name):
     "inferencesh.models.llm",
     "inferencesh.models.output_meta",
     "inferencesh.models.errors",
+    "inferencesh.models.response",
     "inferencesh.utils",
     "inferencesh.utils.storage",
     "inferencesh.utils.download",
@@ -111,6 +112,14 @@ def test_models_llm_export_exists(name):
     """New LLM input types from v0.7.9 must be exported from models."""
     from inferencesh import models
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
+
+
+def test_models_response_export_exists():
+    """V3 Response envelope must be exported from models for client return types."""
+    from inferencesh import models
+    from inferencesh.models.response import Response
+
+    assert models.Response is Response
 
 
 # ── Generated types (from typegen) ───────────────────────────────────────────

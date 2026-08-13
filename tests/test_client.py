@@ -178,6 +178,106 @@ def test_async_headers_omit_api_version():
     assert "X-API-Version" not in client._headers()
 
 
+def test_request_v3_envelope_unwraps_data_and_invokes_on_message(monkeypatch):
+    """V3 responses surface warnings via on_message and return Response.data."""
+    import inferencesh.client as client_mod
+
+    captured = []
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data={
+                "data": {"user": {"id": "u1"}},
+                "messages": [
+                    {"level": "warning", "code": "quota.low", "message": "approaching limit"},
+                ],
+            })
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test", on_message=captured.extend)
+    resp = client._request("GET", "/me")
+
+    assert resp.data == {"user": {"id": "u1"}}
+    assert resp.messages == [
+        {"level": "warning", "code": "quota.low", "message": "approaching limit"},
+    ]
+    assert captured == resp.messages
+
+
+def test_request_v3_envelope_skips_on_message_when_messages_absent(monkeypatch):
+    """on_message must not fire for bare DTO payloads without a messages array."""
+    import inferencesh.client as client_mod
+
+    called = []
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            return DummyResponse(json_data={"id": "task_1", "status": 1})
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test", on_message=lambda msgs: called.append(msgs))
+    resp = client._request("GET", "/tasks/task_1")
+
+    assert resp.data == {"id": "task_1", "status": 1}
+    assert called == []
+
+
+@pytest.mark.asyncio
+async def test_async_request_v3_envelope_unwraps_data_and_invokes_on_message(monkeypatch):
+    """Async client mirrors sync V3 envelope parsing and on_message delivery."""
+    import inferencesh.client as client_mod
+
+    captured = []
+
+    class FakeResponse:
+        status = 200
+        content_type = "application/json"
+
+        @property
+        def ok(self):
+            return True
+
+        async def text(self):
+            return json.dumps({
+                "data": {"balance": 100},
+                "messages": [{"level": "info", "message": "trial active"}],
+            })
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class FakeSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            return FakeResponse()
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: FakeSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test", on_message=captured.extend)
+    resp = await client._request("GET", "/billing/balance")
+
+    assert resp.data == {"balance": 100}
+    assert resp.messages == [{"level": "info", "message": "trial active"}]
+    assert captured == resp.messages
+
+
 def test_run_raises_api_error_with_rfc9457_detail(monkeypatch):
     """HTTP errors use RFC 9457 problem+json detail field."""
     import inferencesh.client as client_mod

@@ -2346,3 +2346,34 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PRE_COMPACT", "agent.pre_compact"),
+        ("POST_COMPACT", "agent.post_compact"),
+    ],
+)
+def test_hook_event_compaction_values(member, value):
+    """Compaction lifecycle events must remain stable for hook registration (v0.7.37)."""
+    from inferencesh.types import HookEvent
+
+    assert hasattr(HookEvent, member)
+    assert getattr(HookEvent, member).value == value
+
+
+def test_response_message_shape():
+    """ResponseMessage carries non-error notices in the V3 API envelope."""
+    from inferencesh.types import ResponseMessage
+
+    msg: ResponseMessage = {
+        "level": "warning",
+        "code": "quota.low",
+        "message": "approaching monthly limit",
+        "meta": {"remaining": 12},
+    }
+
+    assert msg["level"] == "warning"
+    assert msg["meta"]["remaining"] == 12
+    assert "level" in ResponseMessage.__annotations__
