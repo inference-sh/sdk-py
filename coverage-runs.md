@@ -15,7 +15,7 @@
 
 **Files:** `tests/test_types.py`, `tests/test_imports.py`
 
-**Validation:** `pytest tests/test_types.py tests/test_imports.py` — pending.
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 235 passed (25 new A2UI tests).
 
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
