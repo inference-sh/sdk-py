@@ -124,7 +124,8 @@ def test_models_llm_export_exists(name):
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
     "TeamRole", "TeamType", "TeamStatus", "ContentRating",
     "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
-    "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
+    "WidgetNodeType", "Widget", "A2UIComponentType", "A2UISurface", "A2UIComponent",
+    "GPUType", "Filter", "CursorListRequest",
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentRunDTO", "AgentRunState", "InterruptReason",
     "AgentToolDTO", "ToolInvocationDTO",

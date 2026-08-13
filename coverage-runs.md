@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-08-13 (push dev @ 334c4f1, A2UI widget typegen v0.7.63)
+
+**Recent changes reviewed:** `334c4f1` (deps: update types from models v0.7.63 — `Widget` gains `surface` for `type="a2ui"`, new `A2UIComponent`/`A2UISurface` flat adjacency-list types, `A2UIComponentType` enum with PascalCase catalog values including extensions `Badge`/`Chart`/`Form`/`HTML`).
+
+**Open PRs checked:** #245 (`cursor/missing-test-coverage-cbf8`) — V3 Response envelope, `on_message`, compaction hooks, workflow injection guard (no A2UI overlap). #242 — gate hooks / QUEUED readiness / interrupt typegen (no overlap).
+
+**Gaps filled this run:**
+
+- `A2UIComponentType` enum — all 21 catalog component kinds including `A2UIHTML` gotypegen naming
+- `Widget` three-format discriminator: `a2ui` (`surface`), legacy `ui` (`children`), `html` (`html`)
+- `A2UISurface` flat adjacency list — `children` are string IDs, not nested `WidgetNode` trees
+- `ToolInvocationDTO.widget` carries A2UI interactive confirmation payloads
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — pending.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
