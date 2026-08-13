@@ -1728,17 +1728,121 @@ class WidgetSelectOption(TypedDict, total=False):
     label: str
     value: str
 
-# Widget represents an interactive widget for display in chat
-# Type is either "ui" (structured nodes) or "html" (raw HTML)
-# For "ui" widgets, data-bound nodes read values from ToolInvocation.Data
+# Widget represents an interactive widget for display in chat.
+# Type determines which fields are populated:
+#   - "a2ui": Surface contains the A2UI component tree (preferred)
+#   - "ui": Children contains the legacy nested WidgetNode tree
+#   - "html": HTML contains raw HTML content
 class Widget(TypedDict, total=False):
     type: str
     interactive: bool
+    # A2UI format (type="a2ui")
+    surface: Optional[A2UISurface]
+    # Legacy format (type="ui")
     title: str
-    html: str
-    json: str
     children: List[WidgetNode]
     actions: List[WidgetActionButton]
+    # HTML format (type="html")
+    html: str
+    # Original JSON for debugging/reference
+    json: str
+
+# A2UIComponent is the universal component representation.
+# Children are string IDs (flat adjacency list), not nested objects.
+class A2UIComponent(TypedDict, total=False):
+    id: str
+    component: A2UIComponentType
+    # Layout
+    children: List[str]
+    justify: str
+    align: str
+    direction: str
+    gap: int
+    # Text
+    text: Optional[A2UIBoundValue]
+    variant: str
+    # Image
+    url: Optional[A2UIBoundValue]
+    fit: str
+    # Icon
+    name: Optional[A2UIBoundValue]
+    # Divider
+    axis: str
+    # Button / Card
+    child: str
+    primary: bool
+    action: Optional[A2UIAction]
+    # TextField
+    label: str
+    value: Optional[A2UIBoundValue]
+    textFieldType: str
+    validationRegexp: str
+    placeholder: str
+    rows: int
+    # Slider
+    minValue: Optional[float]
+    maxValue: Optional[float]
+    # DateTimeInput
+    enableDate: Optional[bool]
+    enableTime: Optional[bool]
+    # ChoicePicker
+    options: List[A2UIChoiceOption]
+    selections: Optional[A2UIBoundValue]
+    maxAllowedSelections: Optional[int]
+    # Modal
+    entryPointChild: str
+    contentChild: str
+    # Tabs
+    tabItems: List[A2UITabItem]
+    # Common
+    accessibility: Optional[A2UIAccessibility]
+    weight: Optional[float]
+    disabled: bool
+    required: bool
+    # Extension: Badge
+    badgeLabel: str
+    badgeVariant: str
+    # Extension: Spacer
+    minSize: Any
+    # Extension: Chart
+    chartData: Any
+    chartSeries: Any
+    xAxis: Any
+    showYAxis: bool
+    showLegend: bool
+    showTooltip: bool
+    # Extension: Form
+    onSubmitAction: Optional[A2UIAction]
+    # Extension: HTML
+    htmlContent: str
+
+# A2UIBoundValue is either a literal or a data model path reference.
+class A2UIBoundValue(TypedDict, total=False):
+    path: str
+
+class A2UIAction(TypedDict, total=False):
+    type: str
+    payload: Dict[str, Any]
+
+class A2UIChoiceOption(TypedDict, total=False):
+    label: str
+    value: str
+
+class A2UITabItem(TypedDict, total=False):
+    title: str
+    child: str
+
+class A2UIAccessibility(TypedDict, total=False):
+    label: str
+    description: str
+
+# A2UISurface is the complete renderable state for a widget.
+class A2UISurface(TypedDict, total=False):
+    version: str
+    surfaceId: str
+    catalogId: str
+    components: List[A2UIComponent]
+    dataModel: Any
 
 # ChatData contains agent-specific data for a chat session
 class ChatData(TypedDict, total=False):
@@ -2711,6 +2815,30 @@ class SetupActionType(str, Enum):
     SETUP_ACTION_ADD_SECRET = "add_secret"
     SETUP_ACTION_CONNECT = "connect"
     SETUP_ACTION_ADD_SCOPES = "add_scopes"
+
+class A2UIComponentType(str, Enum):
+    A2UI_ROW = "Row"
+    A2UI_COLUMN = "Column"
+    A2UI_LIST = "List"
+    A2UI_TEXT = "Text"
+    A2UI_IMAGE = "Image"
+    A2UI_ICON = "Icon"
+    A2UI_DIVIDER = "Divider"
+    A2UI_BUTTON = "Button"
+    A2UI_TEXT_FIELD = "TextField"
+    A2UI_CHECK_BOX = "CheckBox"
+    A2UI_SLIDER = "Slider"
+    A2UI_DATE_TIME_INPUT = "DateTimeInput"
+    A2UI_CHOICE_PICKER = "ChoicePicker"
+    A2UI_CARD = "Card"
+    A2UI_MODAL = "Modal"
+    A2UI_TABS = "Tabs"
+    # Extensions (inferencesh/v1 catalog)
+    A2UI_BADGE = "Badge"
+    A2UI_SPACER = "Spacer"
+    A2UI_CHART = "Chart"
+    A2UI_FORM = "Form"
+    A2UIHTML = "HTML"
 
 class AgentRunState(str, Enum):
     SUBMITTED = "submitted"
