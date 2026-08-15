@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-15 (push dev @ ff42d25, Widget = A2UISurface)
+
+**Recent changes reviewed:** `ff42d25` (typegen regen: `Widget` is now an alias of `A2UISurface`; legacy `WidgetNode`/`WidgetNodeType`/`WidgetAction` types removed). `334c4f1` (deps: update types from models v0.7.63 — A2UI surface/component types).
+
+**Open PRs checked:** #246 (`cursor/missing-test-coverage-6ad3`) covers pre-alias three-format Widget (a2ui/ui/html) and `WidgetNodeType` — superseded by this run. #245 (V3 Response / `on_message`) — no overlap.
+
+**Gaps filled this run:**
+
+- `Widget is A2UISurface` alias contract for `ToolInvocationDTO.widget`
+- `A2UIComponentType` enum (21 PascalCase catalog component kinds)
+- `A2UISurface` flat adjacency list (`children` are string IDs, not nested nodes)
+- `ToolInvocationDTO.widget` embeds A2UI surfaces for client-tool confirmation UIs
+- Removed obsolete `WidgetNodeType` enum tests (type removed from typegen)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — all passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

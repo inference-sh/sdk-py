@@ -1896,39 +1896,35 @@ def test_app_session_dto_carries_status():
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("MARKDOWN", "markdown"),
-        ("IMAGE", "image"),
-        ("BADGE", "badge"),
-        ("BUTTON", "button"),
-        ("INPUT", "input"),
-        ("SELECT", "select"),
-        ("CHECKBOX", "checkbox"),
-        ("ROW", "row"),
-        ("COL", "col"),
-        ("BOX", "box"),
-        ("SPACER", "spacer"),
-        ("DIVIDER", "divider"),
-        ("FORM", "form"),
-        ("TITLE", "title"),
-        ("CAPTION", "caption"),
-        ("LABEL", "label"),
-        ("TEXTAREA", "textarea"),
-        ("RADIO_GROUP", "radio-group"),
-        ("DATE_PICKER", "date-picker"),
-        ("ICON", "icon"),
-        ("CHART", "chart"),
-        ("TRANSITION", "transition"),
-        ("PLAN_LIST", "plan-list"),
-        ("KEY_VALUE", "key-value"),
-        ("STATUS_BADGE", "status-badge"),
+        ("A2UI_ROW", "Row"),
+        ("A2UI_COLUMN", "Column"),
+        ("A2UI_LIST", "List"),
+        ("A2UI_TEXT", "Text"),
+        ("A2UI_IMAGE", "Image"),
+        ("A2UI_ICON", "Icon"),
+        ("A2UI_DIVIDER", "Divider"),
+        ("A2UI_BUTTON", "Button"),
+        ("A2UI_TEXT_FIELD", "TextField"),
+        ("A2UI_CHECK_BOX", "CheckBox"),
+        ("A2UI_SLIDER", "Slider"),
+        ("A2UI_DATE_TIME_INPUT", "DateTimeInput"),
+        ("A2UI_CHOICE_PICKER", "ChoicePicker"),
+        ("A2UI_CARD", "Card"),
+        ("A2UI_MODAL", "Modal"),
+        ("A2UI_TABS", "Tabs"),
+        ("A2UI_BADGE", "Badge"),
+        ("A2UI_SPACER", "Spacer"),
+        ("A2UI_CHART", "Chart"),
+        ("A2UI_FORM", "Form"),
+        ("A2UIHTML", "HTML"),
     ],
 )
-def test_widget_node_type_values(member, value):
-    """Agent widget trees serialize WidgetNodeType discriminators."""
-    from inferencesh.types import WidgetNodeType
+def test_a2ui_component_type_values(member, value):
+    """A2UI catalog component kinds use PascalCase wire values from typegen."""
+    from inferencesh.types import A2UIComponentType
 
-    assert hasattr(WidgetNodeType, member)
-    assert getattr(WidgetNodeType, member).value == value
+    assert hasattr(A2UIComponentType, member)
+    assert getattr(A2UIComponentType, member).value == value
 
 
 def test_page_dto_carries_status_and_type():
@@ -2346,3 +2342,99 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_widget_is_a2ui_surface_alias():
+    """Widget is an alias of A2UISurface for tool-invocation widget payloads."""
+    from inferencesh.types import A2UISurface, Widget
+
+    assert Widget is A2UISurface
+    assert "components" in Widget.__annotations__
+    assert "surfaceId" in Widget.__annotations__
+
+
+def test_a2ui_surface_flat_adjacency_list():
+    """A2UI surfaces use a flat component list; children are string IDs, not nested nodes."""
+    from inferencesh.types import (
+        A2UIAction,
+        A2UIComponent,
+        A2UIComponentType,
+        A2UISurface,
+        Widget,
+    )
+
+    surface: A2UISurface = {
+        "version": "1.0",
+        "surfaceId": "confirm_dialog",
+        "catalogId": "inferencesh/v1",
+        "dataModel": {"user": {"name": "Ada"}},
+        "components": [
+            {
+                "id": "root",
+                "component": A2UIComponentType.A2UI_ROW,
+                "children": ["title", "submit"],
+                "gap": 8,
+            },
+            {
+                "id": "title",
+                "component": A2UIComponentType.A2UI_TEXT,
+                "text": {"path": "/user/name"},
+                "variant": "heading",
+            },
+            {
+                "id": "submit",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "label": "Confirm",
+                "primary": True,
+                "action": {"type": "submit", "payload": {"form": "confirm"}},
+            },
+        ],
+    }
+    widget: Widget = surface
+
+    root: A2UIComponent = surface["components"][0]
+    assert widget is surface
+    assert root["children"] == ["title", "submit"]
+    assert isinstance(root["children"][0], str)
+    assert surface["components"][1]["text"]["path"] == "/user/name"
+    action: A2UIAction = surface["components"][2]["action"]
+    assert action["type"] == "submit"
+
+
+def test_tool_invocation_dto_carries_widget_surface():
+    """Client tool invocations embed A2UI widget surfaces for interactive confirmation UIs."""
+    from inferencesh.types import (
+        A2UIComponentType,
+        ToolInvocationDTO,
+        ToolInvocationStatus,
+        ToolType,
+        Widget,
+    )
+
+    widget: Widget = {
+        "version": "1.0",
+        "surfaceId": "tool_confirm",
+        "catalogId": "inferencesh/v1",
+        "components": [
+            {
+                "id": "confirm",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "label": "Run deployment",
+                "action": {"type": "confirm", "payload": {}},
+            },
+        ],
+    }
+    invocation: ToolInvocationDTO = {
+        "tool_invocation_id": "inv_a2ui",
+        "type": ToolType.CLIENT,
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "function": {"name": "deploy", "arguments": {"region": "us-east-1"}},
+        "widget": widget,
+    }
+
+    assert invocation["widget"]["surfaceId"] == "tool_confirm"
+    assert (
+        invocation["widget"]["components"][0]["component"]
+        == A2UIComponentType.A2UI_BUTTON
+    )
+    assert "widget" in ToolInvocationDTO.__annotations__
