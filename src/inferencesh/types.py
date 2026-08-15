@@ -1650,103 +1650,6 @@ class UserMetadataDTO(TypedDict, total=False):
     terms_accepted_at: Optional[str]
     terms_version: str
 
-# WidgetAction represents an action triggered by a widget button
-class WidgetAction(TypedDict, total=False):
-    type: str
-    payload: Dict[str, Any]
-
-# WidgetActionButton represents a button in a widget's action bar
-class WidgetActionButton(TypedDict, total=False):
-    label: str
-    action: WidgetAction
-    variant: str
-
-# WidgetNode represents a UI element in a widget (text, input, select, etc.)
-class WidgetNode(TypedDict, total=False):
-    type: WidgetNodeType
-    value: str
-    src: str
-    alt: str
-    label: str
-    name: str
-    placeholder: str
-    defaultValue: str
-    variant: str
-    action: Optional[WidgetAction]
-    options: List[WidgetSelectOption]
-    defaultChecked: bool
-    children: List[WidgetNode]
-    gap: int
-    # Layout props (Box, Row, Col, Form)
-    align: str
-    justify: str
-    padding: Any
-    background: Any
-    radius: str
-    direction: str
-    wrap: str
-    flex: Any
-    # Typography props (Text, Title, Caption, Label)
-    size: str
-    weight: str
-    color: Any
-    textAlign: str
-    truncate: bool
-    maxLines: int
-    # Control props (Input, Textarea, Select, Checkbox, RadioGroup, DatePicker, Button)
-    disabled: bool
-    required: bool
-    rows: int
-    fieldName: str
-    submit: bool
-    pattern: str
-    min: str
-    max: str
-    clearable: bool
-    # Action handler for buttons (form data is collected locally and sent with action)
-    onClickAction: Optional[WidgetAction]
-    # Content props (Icon, Spacer, Divider, Chart)
-    iconName: str
-    spacing: Any
-    minSize: Any
-    height: Any
-    width: Any
-    # Chart specific props
-    chartData: Any
-    chartSeries: Any
-    xAxis: Any
-    showYAxis: bool
-    showLegend: bool
-    showTooltip: bool
-    # Form-specific props
-    onSubmitAction: Optional[WidgetAction]
-    # Data binding (deprecated - use templates instead)
-    dataKey: str
-
-# WidgetSelectOption represents an option in a select widget
-class WidgetSelectOption(TypedDict, total=False):
-    label: str
-    value: str
-
-# Widget represents an interactive widget for display in chat.
-# Type determines which fields are populated:
-#   - "a2ui": Surface contains the A2UI component tree (preferred)
-#   - "ui": Children contains the legacy nested WidgetNode tree
-#   - "html": HTML contains raw HTML content
-class Widget(TypedDict, total=False):
-    type: str
-    interactive: bool
-    # A2UI format (type="a2ui")
-    surface: Optional[A2UISurface]
-    # Legacy format (type="ui")
-    title: str
-    children: List[WidgetNode]
-    actions: List[WidgetActionButton]
-    # HTML format (type="html")
-    html: str
-    # Original JSON for debugging/reference
-    json: str
-
 # A2UIComponent is the universal component representation.
 # Children are string IDs (flat adjacency list), not nested objects.
 class A2UIComponent(TypedDict, total=False):
@@ -2677,6 +2580,10 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     version_id: str
     version: Optional[AgentVersionDTO]
 
+# Widget is an A2UI surface stored on a ToolInvocation.
+# Alias of shared.A2UISurface so the type generation pipeline picks it up.
+Widget = A2UISurface
+
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
 # Empty scopes = full access (for backwards compatibility with existing keys).
@@ -3320,34 +3227,6 @@ class IntegrationGrant(str, Enum):
     CREDENTIALS = "credentials"
     # IntegrationGrantToken provides ready-to-use access (token, API key, etc.).
     TOKEN = "token"
-
-class WidgetNodeType(str, Enum):
-    TEXT = "text"
-    MARKDOWN = "markdown"
-    IMAGE = "image"
-    BADGE = "badge"
-    BUTTON = "button"
-    INPUT = "input"
-    SELECT = "select"
-    CHECKBOX = "checkbox"
-    ROW = "row"
-    COL = "col"
-    BOX = "box"
-    SPACER = "spacer"
-    DIVIDER = "divider"
-    FORM = "form"
-    TITLE = "title"
-    CAPTION = "caption"
-    LABEL = "label"
-    TEXTAREA = "textarea"
-    RADIO_GROUP = "radio-group"
-    DATE_PICKER = "date-picker"
-    ICON = "icon"
-    CHART = "chart"
-    TRANSITION = "transition"
-    PLAN_LIST = "plan-list"
-    KEY_VALUE = "key-value"
-    STATUS_BADGE = "status-badge"
 
 class NotificationChannel(str, Enum):
     EMAIL = "email"
