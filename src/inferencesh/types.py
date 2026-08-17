@@ -18,6 +18,7 @@ class InternalToolsConfig(TypedDict, total=False):
     finish: Optional[bool]
     skills: Optional[bool]
     host_context: Optional[bool]
+    meta: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
@@ -1725,7 +1726,7 @@ class A2UIBoundValue(TypedDict, total=False):
 
 class A2UIAction(TypedDict, total=False):
     type: str
-    payload: Dict[str, Any]
+    payload: Any
 
 class A2UIChoiceOption(TypedDict, total=False):
     label: str
