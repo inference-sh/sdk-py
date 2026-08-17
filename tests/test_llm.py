@@ -123,6 +123,66 @@ class TestBuildOpenAIMessages:
         )
         assistant = next(m for m in messages if m["role"] == "assistant")
         assert assistant["tool_calls"][0]["function"]["arguments"] == '{"q": "weather"}'
+        assert assistant["content"] is None
+
+    def test_assistant_tool_calls_with_empty_text_sets_content_null(self):
+        """Providers like MiniMax reject assistant tool_call messages with content=\"\"."""
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="What's the weather?",
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "arguments": {"q": "weather"},
+                                },
+                            }
+                        ],
+                    ),
+                ],
+                system_prompt="",
+            ),
+        )
+        assistant = next(m for m in messages if m["role"] == "assistant")
+        assert assistant["tool_calls"]
+        assert assistant["content"] is None
+        assert assistant["content"] != ""
+
+    def test_assistant_tool_calls_with_text_preserves_content(self):
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="I'll look that up.",
+                        tool_calls=[
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "arguments": {"q": "weather"},
+                                },
+                            }
+                        ],
+                    ),
+                ],
+                system_prompt="",
+            ),
+        )
+        assistant = next(m for m in messages if m["role"] == "assistant")
+        assert assistant["content"] == "I'll look that up."
 
     def test_tool_role_message_includes_tool_call_id(self):
         messages = build_openai_messages(

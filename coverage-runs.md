@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-17 (push dev @ 23f2447, assistant tool_calls content=null)
+
+**Recent changes reviewed:** `23f2447` (fix: set `content=null` for assistant messages with `tool_calls` and empty text — MiniMax and other providers reject empty-string content on tool-call assistant messages). `44bd47f` (v0.7.65 typegen — covered by closed PR on `cursor/missing-test-coverage-81a0`).
+
+**Open PRs checked:** None open. Remote `cursor/missing-test-coverage-81a0` covers A2UI/widget alias and v0.7.65 typegen (no overlap with LLM message builder fix).
+
+**Gaps filled this run:**
+
+- `build_openai_messages()` sets `content: null` (not `""`) when assistant message has `tool_calls` and no text
+- Regression guard: assistant with both text and `tool_calls` keeps plain-string content
+- Covers both role-flush and final-message code paths in the message builder loop
+
+**Files:** `tests/test_llm.py`
+
+**Validation:** `pytest tests/test_llm.py::TestBuildOpenAIMessages` — 17 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
