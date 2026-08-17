@@ -1896,39 +1896,35 @@ def test_app_session_dto_carries_status():
 @pytest.mark.parametrize(
     "member,value",
     [
-        ("MARKDOWN", "markdown"),
-        ("IMAGE", "image"),
-        ("BADGE", "badge"),
-        ("BUTTON", "button"),
-        ("INPUT", "input"),
-        ("SELECT", "select"),
-        ("CHECKBOX", "checkbox"),
-        ("ROW", "row"),
-        ("COL", "col"),
-        ("BOX", "box"),
-        ("SPACER", "spacer"),
-        ("DIVIDER", "divider"),
-        ("FORM", "form"),
-        ("TITLE", "title"),
-        ("CAPTION", "caption"),
-        ("LABEL", "label"),
-        ("TEXTAREA", "textarea"),
-        ("RADIO_GROUP", "radio-group"),
-        ("DATE_PICKER", "date-picker"),
-        ("ICON", "icon"),
-        ("CHART", "chart"),
-        ("TRANSITION", "transition"),
-        ("PLAN_LIST", "plan-list"),
-        ("KEY_VALUE", "key-value"),
-        ("STATUS_BADGE", "status-badge"),
+        ("A2UI_ROW", "Row"),
+        ("A2UI_COLUMN", "Column"),
+        ("A2UI_LIST", "List"),
+        ("A2UI_TEXT", "Text"),
+        ("A2UI_IMAGE", "Image"),
+        ("A2UI_ICON", "Icon"),
+        ("A2UI_DIVIDER", "Divider"),
+        ("A2UI_BUTTON", "Button"),
+        ("A2UI_TEXT_FIELD", "TextField"),
+        ("A2UI_CHECK_BOX", "CheckBox"),
+        ("A2UI_SLIDER", "Slider"),
+        ("A2UI_DATE_TIME_INPUT", "DateTimeInput"),
+        ("A2UI_CHOICE_PICKER", "ChoicePicker"),
+        ("A2UI_CARD", "Card"),
+        ("A2UI_MODAL", "Modal"),
+        ("A2UI_TABS", "Tabs"),
+        ("A2UI_BADGE", "Badge"),
+        ("A2UI_SPACER", "Spacer"),
+        ("A2UI_CHART", "Chart"),
+        ("A2UI_FORM", "Form"),
+        ("A2UIHTML", "HTML"),
     ],
 )
-def test_widget_node_type_values(member, value):
-    """Agent widget trees serialize WidgetNodeType discriminators."""
-    from inferencesh.types import WidgetNodeType
+def test_a2ui_component_type_values(member, value):
+    """A2UI surfaces serialize A2UIComponentType discriminators (ff42d25 regen)."""
+    from inferencesh.types import A2UIComponentType
 
-    assert hasattr(WidgetNodeType, member)
-    assert getattr(WidgetNodeType, member).value == value
+    assert hasattr(A2UIComponentType, member)
+    assert getattr(A2UIComponentType, member).value == value
 
 
 def test_page_dto_carries_status_and_type():
@@ -2346,3 +2342,127 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_widget_is_a2ui_surface_alias():
+    """Widget is an alias of A2UISurface on ToolInvocationDTO (ff42d25 regen)."""
+    from inferencesh.types import A2UISurface, Widget
+
+    assert Widget is A2UISurface
+
+
+def test_a2ui_surface_flat_adjacency_shape():
+    """A2UI surfaces use flat adjacency lists; children are component IDs, not nested objects."""
+    from inferencesh.types import A2UIComponent, A2UIComponentType, A2UISurface
+
+    surface: A2UISurface = {
+        "version": "1.0",
+        "surfaceId": "confirm-deploy",
+        "catalogId": "inferencesh/v1",
+        "components": [
+            {
+                "id": "root",
+                "component": A2UIComponentType.A2UI_COLUMN,
+                "children": ["title", "actions"],
+            },
+            {
+                "id": "title",
+                "component": A2UIComponentType.A2UI_TEXT,
+                "text": {"path": "/prompt"},
+            },
+            {
+                "id": "actions",
+                "component": A2UIComponentType.A2UI_ROW,
+                "children": ["approve", "cancel"],
+            },
+            {
+                "id": "approve",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "text": {"path": "/labels/approve"},
+                "primary": True,
+                "action": {"type": "approve", "payload": {"confirm": True}},
+            },
+            {
+                "id": "cancel",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "text": {"path": "/labels/cancel"},
+                "action": {"type": "cancel", "payload": "dismiss"},
+            },
+        ],
+        "dataModel": {"prompt": "Deploy to production?", "labels": {"approve": "Deploy", "cancel": "Cancel"}},
+    }
+
+    root: A2UIComponent = surface["components"][0]
+    assert root["children"] == ["title", "actions"]
+    assert isinstance(root["children"][0], str)
+    assert surface["components"][4]["action"]["payload"] == "dismiss"
+
+
+def test_tool_invocation_dto_widget_field():
+    """ToolInvocationDTO.widget carries an A2UI surface for interactive client tools."""
+    from inferencesh.types import (
+        A2UIComponentType,
+        ToolInvocationDTO,
+        ToolInvocationFunction,
+        ToolInvocationStatus,
+        ToolType,
+        Widget,
+    )
+
+    widget: Widget = {
+        "surfaceId": "pick-region",
+        "components": [
+            {
+                "id": "picker",
+                "component": A2UIComponentType.A2UI_CHOICE_PICKER,
+                "options": [{"label": "US East", "value": "us-east-1"}],
+            },
+        ],
+    }
+    invocation: ToolInvocationDTO = {
+        "tool_invocation_id": "ti_abc",
+        "type": ToolType.CLIENT,
+        "display_name": "Pick region",
+        "function": ToolInvocationFunction(name="pick_region", arguments={}),
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "widget": widget,
+    }
+
+    assert invocation["widget"]["surfaceId"] == "pick-region"
+    assert invocation["widget"]["components"][0]["component"] == A2UIComponentType.A2UI_CHOICE_PICKER
+
+
+def test_a2ui_action_payload_accepts_any():
+    """A2UIAction.payload is Any so actions can carry dicts, strings, or lists (v0.7.65)."""
+    from typing import Any
+
+    from inferencesh.types import A2UIAction
+
+    dict_payload: A2UIAction = {"type": "submit", "payload": {"region": "us-east-1", "confirm": True}}
+    string_payload: A2UIAction = {"type": "dismiss", "payload": "cancelled"}
+    list_payload: A2UIAction = {"type": "multi", "payload": ["a", "b"]}
+
+    assert dict_payload["payload"]["region"] == "us-east-1"
+    assert string_payload["payload"] == "cancelled"
+    assert list_payload["payload"] == ["a", "b"]
+
+    from typing import get_type_hints
+
+    assert get_type_hints(A2UIAction)["payload"] is Any
+
+
+def test_internal_tools_config_meta_field():
+    """InternalToolsConfig.meta toggles built-in metadata tools for agents (v0.7.65)."""
+    from inferencesh.types import InternalToolsConfig
+
+    enabled: InternalToolsConfig = {
+        "plan": True,
+        "meta": True,
+    }
+    disabled: InternalToolsConfig = {
+        "meta": False,
+    }
+
+    assert "meta" in InternalToolsConfig.__annotations__
+    assert enabled["meta"] is True
+    assert disabled["meta"] is False
