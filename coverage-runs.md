@@ -14,7 +14,7 @@
 
 **Files:** `tests/test_llm.py`
 
-**Validation:** `pytest tests/test_llm.py::TestBuildOpenAIMessages` — 17 passed.
+**Validation:** `pytest tests/test_llm.py::TestBuildOpenAIMessages` — 16 passed.
 
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
