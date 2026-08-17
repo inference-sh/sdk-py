@@ -350,6 +350,10 @@ def build_openai_messages(
                         if isinstance(tc["function"]["arguments"], dict):
                             tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
                 msg_dict["tool_calls"] = tool_calls
+                # Assistant messages with tool_calls can have null content per OpenAI spec.
+                # Some providers (MiniMax) reject empty string content with tool_calls.
+                if msg_dict.get("content") == "":
+                    msg_dict["content"] = None
 
             # Add tool_call_id for tool role messages (required by OpenAI API)
             if role_str == "tool":
@@ -391,6 +395,8 @@ def build_openai_messages(
                     if isinstance(tc["function"]["arguments"], dict):
                         tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
             msg_dict["tool_calls"] = tool_calls
+            if msg_dict.get("content") == "":
+                msg_dict["content"] = None
 
         # Add tool_call_id for tool role messages (required by OpenAI API)
         if role_str == "tool":
