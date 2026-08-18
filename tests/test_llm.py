@@ -428,12 +428,7 @@ class TestImagePartDetectionRegression:
 
 
 class TestGeneratedTypeConsumption:
-    """Verify sdk-py consumes types from the generated llm_contract module."""
-
-    def test_llm_usage_is_generated_type(self):
-        from inferencesh import llm_types_gen as llm_contract
-        from inferencesh.models.llm import LLMUsage
-        assert LLMUsage is llm_contract.LLMUsage
+    """Verify app-layer Pydantic models stay aligned with generated wire contracts."""
 
     def test_llm_usage_has_zero_value_defaults(self):
         from inferencesh.models.llm import LLMUsage
@@ -448,34 +443,46 @@ class TestGeneratedTypeConsumption:
         assert ContextMessageRole is llm_contract.ChatMessageRole
         assert ContextMessageRole.USER.value == "user"
 
-    def test_llm_output_inherits_generated_contract(self):
-        from inferencesh import llm_types_gen as llm_contract
-        from inferencesh.models.llm import LLMOutput, BaseLLMOutput
-        assert issubclass(BaseLLMOutput, llm_contract.LLMOutput)
-        assert issubclass(LLMOutput, llm_contract.LLMOutput)
-
     def test_llm_output_has_all_contract_fields(self):
         from inferencesh.models.llm import LLMOutput
         fields = set(LLMOutput.model_fields.keys())
         assert {"response", "reasoning", "tool_calls", "usage"} <= fields
 
-    def test_llm_input_inherits_generated_contract(self):
+    def test_llm_input_covers_generated_contract_fields(self):
         from inferencesh import llm_types_gen as llm_contract
         from inferencesh.models.llm import LLMInput
-        assert issubclass(LLMInput, llm_contract.LLMInput)
-        gen_fields = set(llm_contract.LLMInput.model_fields.keys())
+
+        gen_fields = set(llm_contract.LLMInput.__annotations__.keys())
         hand_fields = set(LLMInput.model_fields.keys())
         missing = gen_fields - hand_fields
         assert not missing, f"LLMInput is missing fields from generated contract: {missing}"
 
-    def test_context_message_inherits_generated_contract(self):
+    def test_context_message_covers_generated_contract_fields(self):
         from inferencesh import llm_types_gen as llm_contract
         from inferencesh.models.llm import ContextMessage
-        assert issubclass(ContextMessage, llm_contract.LLMContextMessage)
-        gen_fields = set(llm_contract.LLMContextMessage.model_fields.keys())
+
+        gen_fields = set(llm_contract.LLMContextMessage.__annotations__.keys())
         hand_fields = set(ContextMessage.model_fields.keys())
         missing = gen_fields - hand_fields
         assert not missing, f"ContextMessage is missing fields from generated contract: {missing}"
+
+    def test_llm_output_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMOutput
+
+        gen_fields = set(llm_contract.LLMOutput.__annotations__.keys())
+        hand_fields = set(LLMOutput.model_fields.keys())
+        missing = gen_fields - hand_fields
+        assert not missing, f"LLMOutput is missing fields from generated contract: {missing}"
+
+    def test_llm_usage_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMUsage
+
+        gen_fields = set(llm_contract.LLMUsage.__annotations__.keys())
+        hand_fields = set(LLMUsage.model_fields.keys())
+        missing = gen_fields - hand_fields
+        assert not missing, f"LLMUsage is missing fields from generated contract: {missing}"
 
     def test_llm_output_construction(self):
         from inferencesh.models.llm import LLMOutput, LLMUsage
@@ -489,6 +496,46 @@ class TestGeneratedTypeConsumption:
         assert o.reasoning == "thought about it"
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
+
+
+class TestLLMWireContract:
+    """Guard generated llm_types_gen TypedDict wire shapes (v0.7.67)."""
+
+    def test_llm_input_is_typed_dict_with_sampling_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert hasattr(llm_contract.LLMInput, "__annotations__")
+        annotations = llm_contract.LLMInput.__annotations__
+        for field in [
+            "model", "context_size", "temperature", "top_p", "top_k", "min_p",
+            "frequency_penalty", "presence_penalty", "repetition_penalty",
+            "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
+            "system_prompt", "context", "role", "text", "reasoning",
+            "attachments", "images", "files", "tools", "tool_call_id",
+        ]:
+            assert field in annotations, f"missing {field} on LLMInput wire contract"
+
+    def test_llm_context_message_is_typed_dict(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        annotations = llm_contract.LLMContextMessage.__annotations__
+        assert {"role", "text", "reasoning", "images", "files", "tools", "tool_calls", "tool_call_id"} <= set(
+            annotations.keys()
+        )
+
+    def test_tool_call_wire_shape(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        call: llm_contract.ToolCall = {
+            "id": "call_1",
+            "type": llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+            "function": {
+                "name": "search",
+                "arguments": {"q": "weather"},
+            },
+        }
+        assert call["function"]["name"] == "search"
+        assert call["type"] == llm_contract.ToolCallType.TOOL_TYPE_FUNCTION
 
 
 class TestDeprecatedMixins:

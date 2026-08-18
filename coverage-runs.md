@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-18 (push dev @ 92ec11e, v0.7.67 LLM TypedDict wire contract)
+
+**Recent changes reviewed:** `92ec11e` (typegen: `llm_types_gen` LLM types migrated from Pydantic BaseModel to TypedDict wire contracts). `cc10de7` (`NotificationType.SUBSCRIPTION_PAYMENT_FAILED`; `ResultMeta` class-form regen — invalid Python field name for SEP-2575 key). `23f2447` (assistant tool_calls empty text → `content=null` — open PR #249).
+
+**Open PRs checked:** #249 (`cursor/missing-test-coverage-1270`) — assistant tool_calls `content=null` serialization (no overlap).
+
+**Gaps filled this run:**
+
+- Fixed SDK import regression: app-layer Pydantic models decoupled from TypedDict wire contracts in `llm_types_gen` (metaclass conflict after v0.7.67 typegen)
+- `ResultMeta` restored to functional TypedDict form (SEP-2575 `io.modelcontextprotocol/serverInfo` key is not a valid Python identifier)
+- `NotificationType.SUBSCRIPTION_PAYMENT_FAILED` and missing subscription notification enum members
+- `TestLLMWireContract` guards TypedDict wire shapes for `LLMInput`, `LLMContextMessage`, `ToolCall`
+- App-layer field parity tests updated for TypedDict `__annotations__` instead of Pydantic inheritance
+- Stale `WidgetNodeType` tests replaced with `A2UIComponentType` / `Widget = A2UISurface` coverage (ff42d25 regression guard)
+
+**Files:** `src/inferencesh/models/llm.py`, `src/inferencesh/types.py`, `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/` — 978 passed, 32 skipped.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
