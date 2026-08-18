@@ -1118,14 +1118,15 @@ class ServerInfo(TypedDict, total=False):
 # 
 # The struct tag is the single definition of the key — Go tags cannot reference
 # a constant, so there is deliberately no MetaServerInfo const to drift from it.
-class ResultMeta(TypedDict, total=False):
-    io.modelcontextprotocol/serverInfo: Optional[ServerInfo]
+ResultMeta = TypedDict('ResultMeta', {
+    'io.modelcontextprotocol/serverInfo': 'Optional[ServerInfo]',
     # TTLMs and CacheScope are read-only legacy fields: servers older than
     # 2026-07-28 nested the caching signals here instead of on the result. They
     # live on this type rather than a separate one so a single decode of the
     # _meta object yields both them and serverInfo.
-    ttlMs: Optional[int]
-    cacheScope: CacheScope
+    'ttlMs': 'Optional[int]',
+    'cacheScope': 'CacheScope',
+}, total=False)
 
 # ResourceContent represents resource content
 class ResourceContent(TypedDict, total=False):
