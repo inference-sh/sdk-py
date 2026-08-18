@@ -1118,15 +1118,14 @@ class ServerInfo(TypedDict, total=False):
 # 
 # The struct tag is the single definition of the key — Go tags cannot reference
 # a constant, so there is deliberately no MetaServerInfo const to drift from it.
-ResultMeta = TypedDict('ResultMeta', {
-    'io.modelcontextprotocol/serverInfo': 'Optional[ServerInfo]',
+class ResultMeta(TypedDict, total=False):
+    io.modelcontextprotocol/serverInfo: Optional[ServerInfo]
     # TTLMs and CacheScope are read-only legacy fields: servers older than
     # 2026-07-28 nested the caching signals here instead of on the result. They
     # live on this type rather than a separate one so a single decode of the
     # _meta object yields both them and serverInfo.
-    'ttlMs': 'Optional[int]',
-    'cacheScope': 'CacheScope',
-}, total=False)
+    ttlMs: Optional[int]
+    cacheScope: CacheScope
 
 # ResourceContent represents resource content
 class ResourceContent(TypedDict, total=False):
@@ -3253,6 +3252,7 @@ class NotificationType(str, Enum):
     SUBSCRIPTION_CREATED = "subscription_created"
     SUBSCRIPTION_CREDIT = "subscription_credit"
     SUBSCRIPTION_CANCELED = "subscription_canceled"
+    SUBSCRIPTION_PAYMENT_FAILED = "subscription_payment_failed"
     SUBSCRIPTION_TRIAL_ENDING = "subscription_trial_ending"
     # Account notifications
     WELCOME = "welcome"
