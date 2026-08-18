@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel
+from typing import Any, Dict, List, Optional, TypedDict, Union
 from datetime import datetime
 
 
@@ -15,108 +14,108 @@ StringEncodedMap = Dict[str, Any]
 
 # LLMOutput is the output envelope from an LLM provider task.
 # This is the contract between chat apps (sdk-py) and the agent runtime (go/api).
-class LLMOutput(BaseModel):
-    response: str = ""
-    reasoning: Optional[str] = None
-    tool_calls: Optional[List[ToolCall]] = None
-    usage: Optional[LLMUsage] = None
+class LLMOutput(TypedDict, total=False):
+    response: str
+    reasoning: Optional[str]
+    tool_calls: Optional[List[ToolCall]]
+    usage: Optional[LLMUsage]
 
 # LLMInput is the input envelope for an LLM provider task.
-class LLMInput(BaseModel):
-    model: Optional[str] = None
-    context_size: int = 0
-    temperature: Optional[float] = None
-    top_p: Optional[float] = None
-    top_k: Optional[int] = None
-    min_p: Optional[float] = None
-    frequency_penalty: Optional[float] = None
-    presence_penalty: Optional[float] = None
-    repetition_penalty: Optional[float] = None
-    seed: Optional[int] = None
+class LLMInput(TypedDict, total=False):
+    model: Optional[str]
+    context_size: int
+    temperature: Optional[float]
+    top_p: Optional[float]
+    top_k: Optional[int]
+    min_p: Optional[float]
+    frequency_penalty: Optional[float]
+    presence_penalty: Optional[float]
+    repetition_penalty: Optional[float]
+    seed: Optional[int]
     stop: List[str]
-    max_tokens: Optional[int] = None
-    reasoning_effort: Optional[str] = None
-    reasoning_max_tokens: Optional[int] = None
-    system_prompt: str = ""
+    max_tokens: Optional[int]
+    reasoning_effort: Optional[str]
+    reasoning_max_tokens: Optional[int]
+    system_prompt: str
     context: List[LLMContextMessage]
     role: ChatMessageRole
-    text: Optional[str] = None
-    reasoning: Optional[str] = None
-    attachments: Optional[List[FileRef]] = None
-    images: Optional[List[str]] = None
-    files: Optional[List[str]] = None
-    tools: Optional[List[Tool]] = None
-    tool_call_id: Optional[str] = None
+    text: Optional[str]
+    reasoning: Optional[str]
+    attachments: Optional[List[FileRef]]
+    images: Optional[List[str]]
+    files: Optional[List[str]]
+    tools: Optional[List[Tool]]
+    tool_call_id: Optional[str]
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
-class LLMContextMessage(BaseModel):
+class LLMContextMessage(TypedDict, total=False):
     role: ChatMessageRole
-    text: Optional[str] = None
-    reasoning: Optional[str] = None
-    images: Optional[List[str]] = None
-    files: Optional[List[str]] = None
-    tools: Optional[List[Tool]] = None
-    tool_calls: Optional[List[ToolCall]] = None
-    tool_call_id: Optional[str] = None
+    text: Optional[str]
+    reasoning: Optional[str]
+    images: Optional[List[str]]
+    files: Optional[List[str]]
+    tools: Optional[List[Tool]]
+    tool_calls: Optional[List[ToolCall]]
+    tool_call_id: Optional[str]
 
 # ToolCall represents a tool call from an LLM response (wire format)
 # This is a transport object for parsing LLM responses, not a database model
-class ToolCall(BaseModel):
-    id: str = ""
+class ToolCall(TypedDict, total=False):
+    id: str
     type: ToolCallType
     function: ToolCallFunction
 
 # ToolCallFunction contains the function name and arguments from an LLM tool call
-class ToolCallFunction(BaseModel):
-    name: str = ""
+class ToolCallFunction(TypedDict, total=False):
+    name: str
     arguments: StringEncodedMap
 
 # LLMUsage contains token usage and performance metrics from an LLM response
-class LLMUsage(BaseModel):
-    stop_reason: str = ""
-    time_to_first_token: float = 0.0
-    tokens_per_second: float = 0.0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    reasoning_tokens: int = 0
-    reasoning_time: float = 0.0
+class LLMUsage(TypedDict, total=False):
+    stop_reason: str
+    time_to_first_token: float
+    tokens_per_second: float
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    reasoning_tokens: int
+    reasoning_time: float
 
 # FileRef is a lightweight reference to a file with essential metadata.
 # Used in chat inputs/context instead of full File objects.
-class FileRef(BaseModel):
-    id: str = ""
-    uri: str = ""
-    filename: str = ""
-    content_type: str = ""
-    size: int = 0
+class FileRef(TypedDict, total=False):
+    id: str
+    uri: str
+    filename: str
+    content_type: str
+    size: int
 
 # Tool represents a tool definition for LLM function calling
-class Tool(BaseModel):
+class Tool(TypedDict, total=False):
     type: ToolCallType
     function: ToolFunction
 
-class ToolFunction(BaseModel):
-    name: str = ""
-    description: str = ""
+class ToolFunction(TypedDict, total=False):
+    name: str
+    description: str
     parameters: ToolParameters
-    required: Optional[List[str]] = None
+    required: Optional[List[str]]
 
-class ToolParameters(BaseModel):
+class ToolParameters(TypedDict, total=False):
     type: ToolParamType
-    title: str = ""
+    title: str
     properties: ToolParameterProperties
-    required: Optional[List[str]] = None
+    required: Optional[List[str]]
 
 ToolParameterProperties = Dict[str, "ToolParameterProperty"]
 
-class ToolParameterProperty(BaseModel):
+class ToolParameterProperty(TypedDict, total=False):
     type: ToolParamType
-    title: str = ""
-    description: str = ""
-    properties: Optional[ToolParameterProperties] = None
-    items: Optional[ToolParameterProperty] = None
-    required: Optional[List[str]] = None
+    title: str
+    description: str
+    properties: Optional[ToolParameterProperties]
+    items: Optional[ToolParameterProperty]
+    required: Optional[List[str]]
 
 class ChatMessageRole(str, Enum):
     # LLM wire-protocol roles
@@ -142,18 +141,4 @@ class ToolParamType(str, Enum):
     BOOLEAN = "boolean"
     ARRAY = "array"
     NULL = "null"
-
-
-# Resolve forward references
-LLMOutput.model_rebuild()
-LLMInput.model_rebuild()
-LLMContextMessage.model_rebuild()
-ToolCall.model_rebuild()
-ToolCallFunction.model_rebuild()
-LLMUsage.model_rebuild()
-FileRef.model_rebuild()
-Tool.model_rebuild()
-ToolFunction.model_rebuild()
-ToolParameters.model_rebuild()
-ToolParameterProperty.model_rebuild()
 
