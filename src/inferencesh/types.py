@@ -2688,6 +2688,8 @@ class FlowActionType(str, Enum):
     ACTION_FLOW_SET_OUTPUT_MAPPING = "flow.set_output_mapping"
     ACTION_FLOW_REMOVE_OUTPUT_MAPPING = "flow.remove_output_mapping"
     ACTION_FLOW_RENAME_OUTPUT_FIELD = "flow.rename_output_field"
+    ACTION_UNDO = "undo"
+    ACTION_REDO = "redo"
 
 class ElicitAction(str, Enum):
     ACCEPT = "accept"
