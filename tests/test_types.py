@@ -2346,3 +2346,62 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTION_NODE_ADD", "node.add"),
+        ("ACTION_NODE_REMOVE", "node.remove"),
+        ("ACTION_NODE_MOVE", "node.move"),
+        ("ACTION_NODE_MOVE_MANY", "node.move_many"),
+        ("ACTION_NODE_DUPLICATE", "node.duplicate"),
+        ("ACTION_NODE_RENAME", "node.rename"),
+        ("ACTION_NODE_SET_APP", "node.set_app"),
+        ("ACTION_NODE_UPDATE", "node.update"),
+        ("ACTION_NODE_SET_INPUT", "node.set_input"),
+        ("ACTION_NODE_CLEAR_INPUT", "node.clear_input"),
+        ("ACTION_EDGE_ADD", "edge.add"),
+        ("ACTION_EDGE_REMOVE", "edge.remove"),
+        ("ACTION_FLOW_SET_INPUT_SCHEMA", "flow.set_input_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_SCHEMA", "flow.set_output_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_MAPPING", "flow.set_output_mapping"),
+        ("ACTION_FLOW_REMOVE_OUTPUT_MAPPING", "flow.remove_output_mapping"),
+        ("ACTION_FLOW_RENAME_OUTPUT_FIELD", "flow.rename_output_field"),
+        ("ACTION_UNDO", "undo"),
+        ("ACTION_REDO", "redo"),
+    ],
+)
+def test_flow_action_type_values(member, value):
+    """Flow graph mutation kinds must stay stable for POST /flows/{id}/actions."""
+    from inferencesh.types import FlowActionType
+
+    assert hasattr(FlowActionType, member)
+    assert getattr(FlowActionType, member).value == value
+
+
+def test_flow_actions_request_undo_redo():
+    """Undo/redo actions use top-level tokens, not dotted node/edge prefixes."""
+    from inferencesh.types import (
+        FlowAction,
+        FlowActionError,
+        FlowActionsRequest,
+        FlowActionsResponse,
+        FlowActionType,
+    )
+
+    undo: FlowAction = {"type": FlowActionType.ACTION_UNDO}
+    redo: FlowAction = {"type": FlowActionType.ACTION_REDO}
+    request: FlowActionsRequest = {"actions": [undo, redo]}
+    response: FlowActionsResponse = {
+        "version": 7,
+        "actions": [undo],
+        "errors": [{"type": "redo", "message": "nothing to redo"}],
+    }
+    error: FlowActionError = response["errors"][0]
+
+    assert request["actions"][0]["type"] == FlowActionType.ACTION_UNDO
+    assert request["actions"][1]["type"].value == "redo"
+    assert response["version"] == 7
+    assert error["type"] == "redo"
+    assert "type" in FlowAction.__annotations__

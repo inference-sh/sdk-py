@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-19 (push dev @ 659da56, FlowActionType undo/redo v0.7.76)
+
+**Recent changes reviewed:** `659da56` (typegen regen: `FlowActionType.ACTION_UNDO` / `ACTION_REDO` for flow graph undo/redo on POST `/flows/{id}/actions`). `d03ffaf` (`origin` on knowledge versions and suggest — open PR #260).
+
+**Open PRs checked:** #260 (origin field v0.7.74), #256 (WidgetNodeType→A2UI), #255 (is_new/llm_types_gen), #252 (v0.7.67 LLM TypedDict), #249 (tool_calls content=null) — no overlap with undo/redo.
+
+**Gaps filled this run:**
+
+- `FlowActionType` full enum stability including new `ACTION_UNDO` (`undo`) and `ACTION_REDO` (`redo`) tokens
+- `FlowActionsRequest` / `FlowActionsResponse` / `FlowAction` TypedDict shapes for undo/redo action batches
+- Import smoke for `FlowActionType`, `FlowAction`, `FlowActionsRequest`, `FlowActionsResponse`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_flow_action_type_values tests/test_types.py::test_flow_actions_request_undo_redo` — 20 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
