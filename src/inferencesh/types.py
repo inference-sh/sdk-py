@@ -342,6 +342,7 @@ class CheckoutCreateRequest(TypedDict, total=False):
 class AuthResponse(TypedDict, total=False):
     user: Optional[UserDTO]
     session_id: str
+    is_new: bool
     otp_required: bool
     redirect_to: str
     provider: str
