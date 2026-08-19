@@ -108,7 +108,6 @@ from .types import (
     ChatMessageDTO,
     ChatData,
     ChatMessageContent,
-    LLMInput,
     LLMContextMessage,
     # Tool types
     ToolCall,
@@ -222,7 +221,6 @@ __all__ = [
     "ChatMessageDTO",
     "ChatData",
     "ChatMessageContent",
-    "LLMInput",
     "LLMContextMessage",
     # Generated types - Tool
     "ToolCall",
