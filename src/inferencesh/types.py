@@ -1718,8 +1718,6 @@ class A2UIComponent(TypedDict, total=False):
     showTooltip: bool
     # Extension: Form
     onSubmitAction: Optional[A2UIAction]
-    # Extension: HTML
-    htmlContent: str
 
 # A2UIBoundValue is either a literal or a data model path reference.
 class A2UIBoundValue(TypedDict, total=False):
@@ -2747,7 +2745,6 @@ class A2UIComponentType(str, Enum):
     A2UI_SPACER = "Spacer"
     A2UI_CHART = "Chart"
     A2UI_FORM = "Form"
-    A2UIHTML = "HTML"
 
 class AgentRunState(str, Enum):
     SUBMITTED = "submitted"
