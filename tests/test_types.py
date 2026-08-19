@@ -561,6 +561,7 @@ def test_suggest_types_shape():
         "query": "flux image",
         "context": "building an image generation pipeline",
         "scope": ["team", "public"],
+        "origin": "cli",
         "limit": 5,
         "agent": True,
     }
@@ -577,6 +578,7 @@ def test_suggest_types_shape():
     assert req["context"] == "building an image generation pipeline"
     assert resp["results"][0]["tag"] == "image-generation"
     assert req["scope"] == ["team", "public"]
+    assert req["origin"] == "cli"
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["command"] == "inference run flux"
     assert resp["results"][0]["score"] == 0.92
@@ -2111,18 +2113,22 @@ def test_knowledge_version_scope_fields():
     version_input: KnowledgeVersionInput = {
         "description": "Team onboarding docs",
         "scope": ["team:acme", "catalog:internal"],
+        "origin": "import",
         "tags": ["onboarding"],
     }
     version: KnowledgeVersionDTO = {
         "knowledge_id": "know_abc",
         "description": version_input["description"],
         "scope": version_input["scope"],
+        "origin": version_input["origin"],
         "tags": version_input["tags"],
         "content_hash": "sha256:abc123",
     }
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
+    assert version_input["origin"] == "import"
     assert version["scope"] == version_input["scope"]
+    assert version["origin"] == version_input["origin"]
 
 
 @pytest.mark.parametrize(
