@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-19 (push dev @ c601ad4, remove A2UIHTML component type)
+
+**Recent changes reviewed:** `c601ad4` (regen: remove `A2UIHTML` component type and `htmlContent` field from `A2UIComponent`). `0e3d4e3` (track uv.lock — build infra only). `5e8d5ec` (`AuthResponse.is_new`). `9ee7459` (`llm_types_gen` BaseModel migration).
+
+**Open PRs checked:** #255 (`cursor/missing-test-coverage-15f4`) — AuthResponse.is_new, llm_types_gen BaseModel, A2UI widget tests (includes stale `A2UIHTML` entry); not duplicated. #252 — TypedDict wire contracts (stale after BaseModel migration). #249 — assistant tool_calls content=null.
+
+**Gaps filled this run:**
+
+- Replaced stale `WidgetNodeType` tests (26 failures on `dev`) with `A2UIComponentType` enum stability
+- Regression guard: `A2UIHTML` enum member and `htmlContent` field must stay removed after c601ad4
+- `Widget = A2UISurface` alias, flat adjacency `A2UISurface` shape, and `ToolInvocationDTO.widget` interactive payloads
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/` — pending.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
