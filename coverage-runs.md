@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-08-19 (push dev @ d03ffaf, origin field on knowledge/suggest types)
+
+**Recent changes reviewed:** `d03ffaf` (typegen v0.7.74: optional `origin` on `KnowledgeVersionInput`, `KnowledgeVersionDTO`, and `SuggestRequest` for tracking content/suggestion provenance). `c601ad4` (A2UIHTML removal — open PR #256).
+
+**Open PRs checked:** #256 (WidgetNodeType → A2UI migration, A2UIHTML removal), #255 (AuthResponse.is_new, llm_types_gen BaseModel), #252 (v0.7.67 TypedDict wire contracts), #249 (tool_calls content=null) — no overlap with `origin` field.
+
+**Gaps filled this run:**
+
+- `SuggestRequest.origin` for scoping suggest queries by client/source (e.g. CLI vs dashboard)
+- `KnowledgeVersionInput.origin` / `KnowledgeVersionDTO.origin` for tracking knowledge content provenance (e.g. import, upload, sync)
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py::test_suggest_types_shape tests/test_types.py::test_knowledge_version_scope_fields` — 2 passed. Note: 25 pre-existing `WidgetNodeType` failures on `dev` (covered by open PR #256).
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
