@@ -1269,6 +1269,7 @@ class KnowledgeVersionInput(TypedDict, total=False):
     tags: List[str]
     scope: List[str]
     metadata: Dict[str, str]
+    origin: str
     source_url: str
     mutation_type: str
     version_notes: str
@@ -1349,6 +1350,7 @@ class SuggestRequest(TypedDict, total=False):
     category: str
     agent: bool
     scope: List[str]
+    origin: str
 
 # SuggestResponse is the output of the suggest endpoint.
 class SuggestResponse(TypedDict, total=False):
@@ -2079,6 +2081,7 @@ class KnowledgeVersionDTO(BaseModelDTO, TypedDict, total=False):
     tags: List[str]
     scope: List[str]
     metadata: Dict[str, str]
+    origin: str
     source_url: str
     mutation_type: str
     version_notes: str
