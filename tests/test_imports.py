@@ -124,7 +124,8 @@ def test_models_llm_export_exists(name):
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
     "TeamRole", "TeamType", "TeamStatus", "ContentRating",
     "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
-    "WidgetNodeType", "GPUType", "Filter", "CursorListRequest",
+    "A2UIComponentType", "A2UISurface", "Widget", "A2UIAction", "A2UIComponent",
+    "GPUType", "Filter", "CursorListRequest",
     # DTOs
     "ChatDTO", "ChatMessageDTO", "AgentRunDTO", "AgentRunState", "InterruptReason",
     "AgentToolDTO", "ToolInvocationDTO",
@@ -162,6 +163,7 @@ def test_models_llm_export_exists(name):
     "KnowledgeDTO", "KnowledgeCreateRequest", "KnowledgeVersionDTO", "KnowledgeVersionInput",
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
+    "AuthResponse",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "IntegrationType",
     # App store + user metadata (6fd3aac typegen regen)

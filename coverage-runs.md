@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-08-19 (push dev @ 0e3d4e3, AuthResponse.is_new + llm_types_gen BaseModel migration)
+
+**Recent changes reviewed:** `0e3d4e3` (track uv.lock — build infra only). `5e8d5ec` (`AuthResponse.is_new` for first-time vs returning logins). `9ee7459` (regen: `llm_types_gen` migrated from TypedDict to Pydantic BaseModel with `model_rebuild()`).
+
+**Open PRs checked:** #252 (`cursor/missing-test-coverage-f91d`) — TypedDict wire contracts now stale after BaseModel migration; not duplicated. #249 (`cursor/missing-test-coverage-1270`) — assistant tool_calls content=null; no overlap.
+
+**Gaps filled this run:**
+
+- `AuthResponse.is_new` distinguishes signup vs returning login responses
+- `NotificationType.SUBSCRIPTION_PAYMENT_FAILED` and `SUBSCRIPTION_TRIAL_ENDING` billing notification kinds
+- Replaced stale `WidgetNodeType` tests with `A2UIComponentType`, `Widget` alias, flat adjacency `A2UISurface`, and `ToolInvocationDTO.widget`
+- `llm_types_gen` Pydantic BaseModel wire contract: model_fields parity, nested `tool_calls` after `model_rebuild()`, JSON round-trip, required-field validation
+
+**Files:** `tests/test_types.py`, `tests/test_llm.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/` — 980 passed, 32 skipped.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

@@ -491,6 +491,74 @@ class TestGeneratedTypeConsumption:
         assert o.usage.total_tokens == 15
 
 
+class TestLLMWireContract:
+    """Guard generated llm_types_gen Pydantic wire models (apitypes BaseModel migration)."""
+
+    def test_generated_llm_types_are_pydantic_models(self):
+        from pydantic import BaseModel
+        from inferencesh import llm_types_gen as llm_contract
+
+        for name in [
+            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
+            "ToolParameters", "ToolParameterProperty",
+        ]:
+            cls = getattr(llm_contract, name)
+            assert issubclass(cls, BaseModel), f"{name} must be a Pydantic BaseModel"
+
+    def test_llm_input_model_fields_cover_sampling_contract(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.LLMInput.model_fields.keys())
+        for field in [
+            "model", "context_size", "temperature", "top_p", "top_k", "min_p",
+            "frequency_penalty", "presence_penalty", "repetition_penalty",
+            "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
+            "system_prompt", "context", "role", "text", "reasoning",
+            "attachments", "images", "files", "tools", "tool_call_id",
+        ]:
+            assert field in fields, f"missing {field} on LLMInput wire contract"
+
+    def test_llm_context_message_model_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.LLMContextMessage.model_fields.keys())
+        assert {"role", "text", "reasoning", "images", "files", "tools", "tool_calls", "tool_call_id"} <= fields
+
+    def test_tool_call_nested_in_llm_output_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so tool_calls validate on LLMOutput."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        call = llm_contract.ToolCall(
+            id="call_1",
+            type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+            function=llm_contract.ToolCallFunction(
+                name="search",
+                arguments={"q": "weather"},
+            ),
+        )
+        output = llm_contract.LLMOutput(response="ok", tool_calls=[call])
+        assert output.tool_calls[0].function.name == "search"
+
+    def test_llm_output_json_round_trip(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMOutput(
+            response="hello",
+            usage=llm_contract.LLMUsage(prompt_tokens=5, completion_tokens=3, total_tokens=8),
+        )
+        restored = llm_contract.LLMOutput.model_validate_json(original.model_dump_json())
+        assert restored.response == "hello"
+        assert restored.usage.total_tokens == 8
+
+    def test_llm_input_requires_wire_required_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            llm_contract.LLMInput()
+
+
 class TestDeprecatedMixins:
     """Deprecated mixins emit warnings but don't break grid apps."""
 
