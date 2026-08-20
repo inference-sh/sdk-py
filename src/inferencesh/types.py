@@ -815,8 +815,11 @@ class FlowNodeData(TypedDict, total=False):
     additional: Optional[Any]
     task: Optional[TaskDTO]
     task_id: Optional[str]
-    # Gate node config (type="gate" only)
+    # Primitive node configs (legacy, kept for backward compat)
     gate_condition: Optional[GateCondition]
+    selector_config: Optional[SelectorConfig]
+    # Unified utility node config (replaces gate_condition/selector_config)
+    utility: Optional[UtilityConfig]
 
 # FlowNodeDataMap maps node IDs to their data
 FlowNodeDataMap = Dict[str, "FlowNodeData"]
@@ -1273,6 +1276,7 @@ class KnowledgeVersionInput(TypedDict, total=False):
     scope: List[str]
     metadata: Dict[str, str]
     origin: str
+    generated_by: str
     source_url: str
     mutation_type: str
     version_notes: str
@@ -1840,6 +1844,12 @@ class GateCondition(TypedDict, total=False):
     operator: str
     value: Any
 
+# SelectorConfig defines how to pick element(s) from an array.
+class SelectorConfig(TypedDict, total=False):
+    field: str
+    mode: str
+    index: Optional[int]
+
 # HookEventDefinition describes a lifecycle hook event and its capabilities.
 class HookEventDefinition(TypedDict, total=False):
     event: HookEvent
@@ -1976,6 +1986,14 @@ class ToolParameterProperty(TypedDict, total=False):
     items: Optional[ToolParameterProperty]
     required: Optional[List[str]]
 
+# UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
+class UtilityConfig(TypedDict, total=False):
+    preset: str
+    expression: str
+    gate: Optional[GateCondition]
+    selector: Optional[SelectorConfig]
+    constant: Any
+
 # AppVersionDTO is the API response for an app version.
 class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
@@ -2091,6 +2109,7 @@ class KnowledgeVersionDTO(BaseModelDTO, TypedDict, total=False):
     scope: List[str]
     metadata: Dict[str, str]
     origin: str
+    generated_by: str
     source_url: str
     mutation_type: str
     version_notes: str
@@ -3131,6 +3150,8 @@ class KnowledgeType(str, Enum):
 class KnowledgeLifecycle(str, Enum):
     PERMANENT = "permanent"
     DECAY = "decay"
+    DRAFT = "draft"
+    DEPRECATED = "deprecated"
 
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
