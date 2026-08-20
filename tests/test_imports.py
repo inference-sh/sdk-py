@@ -172,6 +172,8 @@ def test_models_llm_export_exists(name):
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
+    # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
+    "SelectorConfig", "UtilityConfig",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

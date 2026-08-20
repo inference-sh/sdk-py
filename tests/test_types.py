@@ -518,6 +518,8 @@ def test_knowledge_type_values(member, value):
     [
         ("PERMANENT", "permanent"),
         ("DECAY", "decay"),
+        ("DRAFT", "draft"),
+        ("DEPRECATED", "deprecated"),
     ],
 )
 def test_knowledge_lifecycle_values(member, value):
@@ -2123,6 +2125,96 @@ def test_knowledge_version_scope_fields():
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
     assert version["scope"] == version_input["scope"]
+
+
+def test_knowledge_version_generated_by_field():
+    """Knowledge versions track which agent or pipeline produced generated content."""
+    from inferencesh.types import KnowledgeVersionDTO, KnowledgeVersionInput
+
+    version_input: KnowledgeVersionInput = {
+        "description": "Auto-generated summary",
+        "generated_by": "agent:research-bot",
+    }
+    version: KnowledgeVersionDTO = {
+        "knowledge_id": "know_abc",
+        "description": version_input["description"],
+        "generated_by": version_input["generated_by"],
+        "content_hash": "sha256:def456",
+    }
+
+    assert version_input["generated_by"] == "agent:research-bot"
+    assert version["generated_by"] == version_input["generated_by"]
+    assert "generated_by" in KnowledgeVersionInput.__annotations__
+    assert "generated_by" in KnowledgeVersionDTO.__annotations__
+
+
+def test_selector_config_typed_dict_shape():
+    """SelectorConfig picks element(s) from an array for flow selector nodes."""
+    from inferencesh.types import SelectorConfig
+
+    config: SelectorConfig = {
+        "field": "results",
+        "mode": "first",
+        "index": 0,
+    }
+
+    assert config["field"] == "results"
+    assert config["mode"] == "first"
+    assert config["index"] == 0
+    assert set(SelectorConfig.__annotations__) >= {"field", "mode", "index"}
+
+
+def test_utility_config_typed_dict_shape():
+    """UtilityConfig unifies gate, selector, merge, and custom CEL utility nodes."""
+    from inferencesh.types import GateCondition, SelectorConfig, UtilityConfig
+
+    gate: GateCondition = {"field": "approved", "operator": "eq", "value": True}
+    selector: SelectorConfig = {"field": "items", "mode": "index", "index": 2}
+    utility: UtilityConfig = {
+        "preset": "gate",
+        "expression": "input.score > 0.8",
+        "gate": gate,
+        "selector": selector,
+        "constant": {"threshold": 0.8},
+    }
+
+    assert utility["preset"] == "gate"
+    assert utility["gate"]["value"] is True
+    assert utility["selector"]["index"] == 2
+    assert utility["constant"]["threshold"] == 0.8
+    assert set(UtilityConfig.__annotations__) >= {
+        "preset",
+        "expression",
+        "gate",
+        "selector",
+        "constant",
+    }
+
+
+def test_flow_node_data_utility_fields():
+    """FlowNodeData supports legacy gate/selector configs and unified utility config."""
+    from inferencesh.types import FlowNodeData, GateCondition, SelectorConfig, UtilityConfig
+
+    gate_condition: GateCondition = {
+        "field": "status",
+        "operator": "eq",
+        "value": "ok",
+    }
+    selector_config: SelectorConfig = {"field": "outputs", "mode": "last"}
+    utility: UtilityConfig = {"preset": "selector", "selector": selector_config}
+    node: FlowNodeData = {
+        "function": "utility",
+        "gate_condition": gate_condition,
+        "selector_config": selector_config,
+        "utility": utility,
+    }
+
+    assert node["gate_condition"]["field"] == "status"
+    assert node["selector_config"]["mode"] == "last"
+    assert node["utility"]["preset"] == "selector"
+    assert {"gate_condition", "selector_config", "utility"} <= set(
+        FlowNodeData.__annotations__
+    )
 
 
 @pytest.mark.parametrize(
