@@ -391,6 +391,7 @@ class SecretCreateRequest(TypedDict, total=False):
     key: str
     value: str
     description: str
+    provider: str
 
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
@@ -814,6 +815,8 @@ class FlowNodeData(TypedDict, total=False):
     additional: Optional[Any]
     task: Optional[TaskDTO]
     task_id: Optional[str]
+    # Gate node config (type="gate" only)
+    gate_condition: Optional[GateCondition]
 
 # FlowNodeDataMap maps node IDs to their data
 FlowNodeDataMap = Dict[str, "FlowNodeData"]
@@ -1830,6 +1833,12 @@ class OutputFieldMapping(TypedDict, total=False):
 
 # OutputMappings is a map of output field name to OutputFieldMapping
 OutputMappings = Dict[str, "OutputFieldMapping"]
+
+# GateCondition defines a simple boolean condition for gate nodes.
+class GateCondition(TypedDict, total=False):
+    field: str
+    operator: str
+    value: Any
 
 # HookEventDefinition describes a lifecycle hook event and its capabilities.
 class HookEventDefinition(TypedDict, total=False):
