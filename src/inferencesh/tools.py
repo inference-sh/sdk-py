@@ -488,7 +488,7 @@ class LifecycleHookBuilder:
 
     def build(self) -> LifecycleHookConfig:
         """Build the lifecycle hook configuration."""
-        config: LifecycleHookConfig = {"event": self._event}
+        config: Dict[str, Any] = {"event": self._event}
         if self._type is not None:
             config["type"] = self._type
         if self._handler is not None:
@@ -497,7 +497,7 @@ class LifecycleHookBuilder:
             config["async"] = self._async
         if self._timeout is not None:
             config["timeout"] = self._timeout
-        return config
+        return cast(LifecycleHookConfig, config)
 
 
 def lifecycle_hook(event: HookEvent) -> LifecycleHookBuilder:
