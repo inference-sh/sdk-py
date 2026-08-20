@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-08-20 (push dev @ 2440109, SecretCreateRequest.provider + GateCondition)
+
+**Recent changes reviewed:** `2440109` (typegen regen: `SecretCreateRequest.provider` for provider-scoped BYOK secrets; `GateCondition` TypedDict and `FlowNodeData.gate_condition` for flow gate nodes). `659da56` (`FlowActionType.ACTION_UNDO`/`ACTION_REDO` — open PR #261).
+
+**Open PRs checked:** #261 (FlowActionType undo/redo), #260 (`origin` field v0.7.74), #256 (A2UI migration), #255 (AuthResponse.is_new), #252 (v0.7.67 LLM TypedDict), #249 (assistant tool_calls content=null) — no overlap.
+
+**Gaps filled this run:**
+
+- `SecretCreateRequest.provider` optional provider slug when creating team secrets (BYOK / integration-scoped keys)
+- `GateCondition` field/operator/value predicate shape for flow gate node branching
+- `FlowNodeData.gate_condition` wiring gate config onto flow graph nodes
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_secret_create_request_provider_field tests/test_types.py::test_gate_condition_typed_dict_shape tests/test_types.py::test_flow_node_data_gate_condition tests/test_imports.py::test_generated_type_exists[SecretCreateRequest] tests/test_imports.py::test_generated_type_exists[GateCondition] tests/test_imports.py::test_generated_type_exists[FlowNodeData]` — 6 passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).

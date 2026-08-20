@@ -172,6 +172,8 @@ def test_models_llm_export_exists(name):
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
+    # Secrets + flow gate nodes (2440109 typegen regen)
+    "SecretCreateRequest", "GateCondition", "FlowNodeData",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

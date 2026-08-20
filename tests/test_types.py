@@ -2346,3 +2346,52 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_secret_create_request_provider_field():
+    """SecretCreateRequest.provider scopes BYOK secrets to an integration provider slug."""
+    from inferencesh.types import SecretCreateRequest
+
+    secret: SecretCreateRequest = {
+        "key": "OPENAI_API_KEY",
+        "value": "sk-team-key",
+        "description": "Team OpenAI key",
+        "provider": "openai",
+    }
+
+    assert secret["provider"] == "openai"
+    assert "provider" in SecretCreateRequest.__annotations__
+
+
+def test_gate_condition_typed_dict_shape():
+    """GateCondition defines field/operator/value predicates for flow gate nodes."""
+    from inferencesh.types import GateCondition
+
+    condition: GateCondition = {
+        "field": "output.approved",
+        "operator": "eq",
+        "value": True,
+    }
+
+    assert condition["field"] == "output.approved"
+    assert condition["operator"] == "eq"
+    assert condition["value"] is True
+    assert set(GateCondition.__annotations__) >= {"field", "operator", "value"}
+
+
+def test_flow_node_data_gate_condition():
+    """FlowNodeData.gate_condition configures boolean gates on type='gate' nodes."""
+    from inferencesh.types import FlowNodeData, GateCondition
+
+    gate_condition: GateCondition = {
+        "field": "status",
+        "operator": "neq",
+        "value": "failed",
+    }
+    node: FlowNodeData = {
+        "function": "gate",
+        "gate_condition": gate_condition,
+    }
+
+    assert node["gate_condition"]["operator"] == "neq"
+    assert "gate_condition" in FlowNodeData.__annotations__
