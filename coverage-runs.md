@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-20 (push dev @ c9af3fe, user stats + flow node state + telemetry v0.7.97)
+
+**Recent changes reviewed:** `c9af3fe` (typegen v0.7.97: `MeStatsResponse`/`StatBuckets` for GET `/me/stats`; `FlowRunDTO.node_statuses`/`node_outputs`; `SubmitTelemetryRequest`; `TelemetryReportDTO`). `cc0d2be` (batch merge of test PRs #249–#264).
+
+**Open PRs checked:** #267 (`cursor/missing-test-coverage-aa48`) restores batch-merge gaps (content=null, undo/redo, is_new, A2UI, origin, gate/interrupt types) — no overlap with v0.7.97 fields.
+
+**Gaps filled this run:**
+
+- `MeStatsResponse` catalog counts with nested `StatBuckets` time windows
+- `StatBuckets` today/this_week/all_time dashboard rollup fields
+- `SubmitTelemetryRequest.payload` for client telemetry submission
+- `FlowRunDTO.node_statuses` per-node `GraphNodeStatus` map for workflow progress UIs
+- `FlowRunDTO.node_outputs` per-node result payloads alongside `node_tasks`
+- `TelemetryReportDTO` ip/level/payload shape for ingested telemetry records
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_me_stats_response_shape tests/test_types.py::test_stat_buckets_time_windows tests/test_types.py::test_submit_telemetry_request_shape tests/test_types.py::test_flow_run_dto_node_statuses_and_outputs tests/test_types.py::test_telemetry_report_dto_shape tests/test_imports.py::test_generated_type_exists[MeStatsResponse] tests/test_imports.py::test_generated_type_exists[StatBuckets] tests/test_imports.py::test_generated_type_exists[SubmitTelemetryRequest] tests/test_imports.py::test_generated_type_exists[TelemetryReportDTO]` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
