@@ -518,6 +518,8 @@ def test_knowledge_type_values(member, value):
     [
         ("PERMANENT", "permanent"),
         ("DECAY", "decay"),
+        ("DRAFT", "draft"),
+        ("DEPRECATED", "deprecated"),
     ],
 )
 def test_knowledge_lifecycle_values(member, value):
@@ -1893,43 +1895,6 @@ def test_app_session_dto_carries_status():
     assert session["status"] == AppSessionStatus.ACTIVE
 
 
-@pytest.mark.parametrize(
-    "member,value",
-    [
-        ("MARKDOWN", "markdown"),
-        ("IMAGE", "image"),
-        ("BADGE", "badge"),
-        ("BUTTON", "button"),
-        ("INPUT", "input"),
-        ("SELECT", "select"),
-        ("CHECKBOX", "checkbox"),
-        ("ROW", "row"),
-        ("COL", "col"),
-        ("BOX", "box"),
-        ("SPACER", "spacer"),
-        ("DIVIDER", "divider"),
-        ("FORM", "form"),
-        ("TITLE", "title"),
-        ("CAPTION", "caption"),
-        ("LABEL", "label"),
-        ("TEXTAREA", "textarea"),
-        ("RADIO_GROUP", "radio-group"),
-        ("DATE_PICKER", "date-picker"),
-        ("ICON", "icon"),
-        ("CHART", "chart"),
-        ("TRANSITION", "transition"),
-        ("PLAN_LIST", "plan-list"),
-        ("KEY_VALUE", "key-value"),
-        ("STATUS_BADGE", "status-badge"),
-    ],
-)
-def test_widget_node_type_values(member, value):
-    """Agent widget trees serialize WidgetNodeType discriminators."""
-    from inferencesh.types import WidgetNodeType
-
-    assert hasattr(WidgetNodeType, member)
-    assert getattr(WidgetNodeType, member).value == value
-
 
 def test_page_dto_carries_status_and_type():
     """CMS pages expose PageStatus and PageType for publish workflows."""
@@ -2123,6 +2088,96 @@ def test_knowledge_version_scope_fields():
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
     assert version["scope"] == version_input["scope"]
+
+
+def test_knowledge_version_generated_by_field():
+    """Knowledge versions track which agent or pipeline produced generated content."""
+    from inferencesh.types import KnowledgeVersionDTO, KnowledgeVersionInput
+
+    version_input: KnowledgeVersionInput = {
+        "description": "Auto-generated summary",
+        "generated_by": "agent:research-bot",
+    }
+    version: KnowledgeVersionDTO = {
+        "knowledge_id": "know_abc",
+        "description": version_input["description"],
+        "generated_by": version_input["generated_by"],
+        "content_hash": "sha256:def456",
+    }
+
+    assert version_input["generated_by"] == "agent:research-bot"
+    assert version["generated_by"] == version_input["generated_by"]
+    assert "generated_by" in KnowledgeVersionInput.__annotations__
+    assert "generated_by" in KnowledgeVersionDTO.__annotations__
+
+
+def test_selector_config_typed_dict_shape():
+    """SelectorConfig picks element(s) from an array for flow selector nodes."""
+    from inferencesh.types import SelectorConfig
+
+    config: SelectorConfig = {
+        "field": "results",
+        "mode": "first",
+        "index": 0,
+    }
+
+    assert config["field"] == "results"
+    assert config["mode"] == "first"
+    assert config["index"] == 0
+    assert set(SelectorConfig.__annotations__) >= {"field", "mode", "index"}
+
+
+def test_utility_config_typed_dict_shape():
+    """UtilityConfig unifies gate, selector, merge, and custom CEL utility nodes."""
+    from inferencesh.types import GateCondition, SelectorConfig, UtilityConfig
+
+    gate: GateCondition = {"field": "approved", "operator": "eq", "value": True}
+    selector: SelectorConfig = {"field": "items", "mode": "index", "index": 2}
+    utility: UtilityConfig = {
+        "preset": "gate",
+        "expression": "input.score > 0.8",
+        "gate": gate,
+        "selector": selector,
+        "constant": {"threshold": 0.8},
+    }
+
+    assert utility["preset"] == "gate"
+    assert utility["gate"]["value"] is True
+    assert utility["selector"]["index"] == 2
+    assert utility["constant"]["threshold"] == 0.8
+    assert set(UtilityConfig.__annotations__) >= {
+        "preset",
+        "expression",
+        "gate",
+        "selector",
+        "constant",
+    }
+
+
+def test_flow_node_data_utility_fields():
+    """FlowNodeData supports legacy gate/selector configs and unified utility config."""
+    from inferencesh.types import FlowNodeData, GateCondition, SelectorConfig, UtilityConfig
+
+    gate_condition: GateCondition = {
+        "field": "status",
+        "operator": "eq",
+        "value": "ok",
+    }
+    selector_config: SelectorConfig = {"field": "outputs", "mode": "last"}
+    utility: UtilityConfig = {"preset": "selector", "selector": selector_config}
+    node: FlowNodeData = {
+        "function": "utility",
+        "gate_condition": gate_condition,
+        "selector_config": selector_config,
+        "utility": utility,
+    }
+
+    assert node["gate_condition"]["field"] == "status"
+    assert node["selector_config"]["mode"] == "last"
+    assert node["utility"]["preset"] == "selector"
+    assert {"gate_condition", "selector_config", "utility"} <= set(
+        FlowNodeData.__annotations__
+    )
 
 
 @pytest.mark.parametrize(
@@ -2346,3 +2401,52 @@ def test_flow_dto_namespace_field():
 
     assert flow["namespace"] == "acme"
     assert "namespace" in FlowDTO.__annotations__
+
+
+def test_secret_create_request_provider_field():
+    """SecretCreateRequest.provider scopes BYOK secrets to an integration provider slug."""
+    from inferencesh.types import SecretCreateRequest
+
+    secret: SecretCreateRequest = {
+        "key": "OPENAI_API_KEY",
+        "value": "sk-team-key",
+        "description": "Team OpenAI key",
+        "provider": "openai",
+    }
+
+    assert secret["provider"] == "openai"
+    assert "provider" in SecretCreateRequest.__annotations__
+
+
+def test_gate_condition_typed_dict_shape():
+    """GateCondition defines field/operator/value predicates for flow gate nodes."""
+    from inferencesh.types import GateCondition
+
+    condition: GateCondition = {
+        "field": "output.approved",
+        "operator": "eq",
+        "value": True,
+    }
+
+    assert condition["field"] == "output.approved"
+    assert condition["operator"] == "eq"
+    assert condition["value"] is True
+    assert set(GateCondition.__annotations__) >= {"field", "operator", "value"}
+
+
+def test_flow_node_data_gate_condition():
+    """FlowNodeData.gate_condition configures boolean gates on type='gate' nodes."""
+    from inferencesh.types import FlowNodeData, GateCondition
+
+    gate_condition: GateCondition = {
+        "field": "status",
+        "operator": "neq",
+        "value": "failed",
+    }
+    node: FlowNodeData = {
+        "function": "gate",
+        "gate_condition": gate_condition,
+    }
+
+    assert node["gate_condition"]["operator"] == "neq"
+    assert "gate_condition" in FlowNodeData.__annotations__

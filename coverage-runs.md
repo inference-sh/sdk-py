@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
+
+**Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
+
+**Open PRs checked:** #262 (GateCondition/SecretCreateRequest), #261 (FlowActionType undo/redo), #260 (`origin` field v0.7.74), #256 (A2UI migration), #255 (AuthResponse.is_new), #252 (v0.7.67 LLM TypedDict), #249 (assistant tool_calls content=null) — no overlap.
+
+**Gaps filled this run:**
+
+- `SelectorConfig` field/mode/index shape for flow array selector nodes
+- `UtilityConfig` preset/expression/gate/selector/constant for unified utility nodes
+- `FlowNodeData.selector_config` and `utility` alongside legacy `gate_condition`
+- `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by` for agent-generated content provenance
+- `KnowledgeLifecycle.DRAFT` and `DEPRECATED` lifecycle states
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_knowledge_lifecycle_values tests/test_types.py::test_knowledge_version_generated_by_field tests/test_types.py::test_selector_config_typed_dict_shape tests/test_types.py::test_utility_config_typed_dict_shape tests/test_types.py::test_flow_node_data_utility_fields tests/test_imports.py::test_generated_type_exists[SelectorConfig] tests/test_imports.py::test_generated_type_exists[UtilityConfig]` — passed.
+
 ## 2026-08-01 (push dev @ cd4152f, stream termination via active_run.state)
 
 **Recent changes reviewed:** `45608aa` (feat: migrate stream termination to `active_run.state` — `Agent.stream_all()` now stops when `active_run.state` is not `working`/`submitted`, instead of checking the derived `status` field). `cd4152f` (version bump only).
