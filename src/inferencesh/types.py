@@ -1410,6 +1410,18 @@ class ShareRequest(TypedDict, total=False):
 class SDKTypes(TypedDict, total=False):
     pass
 
+# MeStatsResponse is returned by GET /me/stats.
+class MeStatsResponse(TypedDict, total=False):
+    knowledge_count: int
+    skills_count: int
+    extracted: StatBuckets
+
+# StatBuckets holds time-windowed counts.
+class StatBuckets(TypedDict, total=False):
+    today: int
+    this_week: int
+    all_time: int
+
 # Hardware/System related types
 class SystemInfo(TypedDict, total=False):
     hostname: str
@@ -1615,6 +1627,9 @@ class TeamInviteDTO(TypedDict, total=False):
 class TeamInviteCreateRequest(TypedDict, total=False):
     email: str
     role: TeamRole
+
+class SubmitTelemetryRequest(TypedDict, total=False):
+    payload: Dict[str, Any]
 
 # ToolInvocationFunction contains the function details for a tool invocation
 class ToolInvocationFunction(TypedDict, total=False):
@@ -2372,6 +2387,8 @@ class FlowRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     fail_on_error: bool
     output: Any
     node_tasks: Dict[str, Optional[NodeTaskDTO]]
+    node_statuses: Dict[str, GraphNodeStatus]
+    node_outputs: Any
 
 # InstanceDTO is the API representation of a cloud instance.
 class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2578,6 +2595,11 @@ class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     usage_events: List[Optional[UsageEventDTO]]
     session_id: Optional[str]
     session_timeout: Optional[int]
+
+class TelemetryReportDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    ip: str
+    level: int
+    payload: Dict[str, Any]
 
 # ToolInvocationDTO for API responses
 class ToolInvocationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
