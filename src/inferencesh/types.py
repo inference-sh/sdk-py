@@ -1363,6 +1363,7 @@ class SuggestRequest(TypedDict, total=False):
 class SuggestResponse(TypedDict, total=False):
     query: str
     results: List[SuggestResult]
+    impression_id: str
 
 # SuggestResult is a single result item from the suggest endpoint.
 class SuggestResult(TypedDict, total=False):
