@@ -21,6 +21,29 @@ class LLMOutput(BaseModel):
     tool_calls: Optional[List[ToolCall]] = None
     usage: Optional[LLMUsage] = None
 
+# LLMDelta is a streaming delta for LLMOutput with append semantics.
+# response/reasoning: concatenate. tool_calls: index-based, arguments append.
+class LLMDelta(BaseModel):
+    response: str = ""
+    reasoning: Optional[str] = None
+    tool_calls: Optional[List[ToolCallDelta]] = None
+    usage: Optional[LLMUsage] = None
+
+# ToolCallDelta is an incremental update to a tool call, identified by index.
+# First delta for an index carries ID, Type, and Function.Name.
+# Subsequent deltas carry only Function.Arguments fragments.
+class ToolCallDelta(BaseModel):
+    index: int = 0
+    id: Optional[str] = None
+    type: Optional[ToolCallType] = None
+    function: Optional[ToolCallFunctionDelta] = None
+
+# ToolCallFunctionDelta carries partial tool call function data.
+# Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
+class ToolCallFunctionDelta(BaseModel):
+    name: str = ""
+    arguments: str = ""
+
 # LLMInput is the input envelope for an LLM provider task.
 class LLMInput(BaseModel):
     model: Optional[str] = None
@@ -146,6 +169,9 @@ class ToolParamType(str, Enum):
 
 # Resolve forward references
 LLMOutput.model_rebuild()
+LLMDelta.model_rebuild()
+ToolCallDelta.model_rebuild()
+ToolCallFunctionDelta.model_rebuild()
 LLMInput.model_rebuild()
 LLMContextMessage.model_rebuild()
 ToolCall.model_rebuild()

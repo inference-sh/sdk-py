@@ -1193,6 +1193,7 @@ class MCPServerDTO(TypedDict, total=False):
     oauth_client_id: str
     default_scopes: StringSlice
     documentation_url: str
+    connection_status: str
 
 # UpdateNotificationPreferencesRequest is the request to update preferences
 class UpdateNotificationPreferencesRequest(TypedDict, total=False):
@@ -1879,6 +1880,29 @@ class LLMOutput(TypedDict, total=False):
     reasoning: Optional[str]
     tool_calls: Optional[List[ToolCall]]
     usage: Optional[LLMUsage]
+
+# LLMDelta is a streaming delta for LLMOutput with append semantics.
+# response/reasoning: concatenate. tool_calls: index-based, arguments append.
+class LLMDelta(TypedDict, total=False):
+    response: str
+    reasoning: Optional[str]
+    tool_calls: Optional[List[ToolCallDelta]]
+    usage: Optional[LLMUsage]
+
+# ToolCallDelta is an incremental update to a tool call, identified by index.
+# First delta for an index carries ID, Type, and Function.Name.
+# Subsequent deltas carry only Function.Arguments fragments.
+class ToolCallDelta(TypedDict, total=False):
+    index: int
+    id: Optional[str]
+    type: Optional[ToolCallType]
+    function: Optional[ToolCallFunctionDelta]
+
+# ToolCallFunctionDelta carries partial tool call function data.
+# Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
+class ToolCallFunctionDelta(TypedDict, total=False):
+    name: str
+    arguments: str
 
 # ModelSettings groups sampling and generation parameters as a passable unit.
 class ModelSettings(TypedDict, total=False):
