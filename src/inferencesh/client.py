@@ -878,6 +878,9 @@ class Inference:
         task: Dict[str, Any],
     ) -> Generator[Union[Dict[str, Any], Exception], None, None]:
         """Internal method to stream task updates."""
+        from .delta import DeltaAccumulator
+        from .llm_types_gen import LLMDelta
+
         url = f"/tasks/{task_id}/stream"
         resp = self._request(
             "get",
@@ -891,9 +894,24 @@ class Inference:
             stream=True,
             timeout=60,
         )
+        accumulator = DeltaAccumulator()
         try:
             for evt in self._iter_ndjson(resp):
                 try:
+                    # Handle delta events — accumulate and yield synthetic task update
+                    if isinstance(evt, dict) and evt.get("event") == "delta":
+                        delta_data = (evt.get("data") or {}).get("delta")
+                        if delta_data:
+                            accumulator.apply(LLMDelta(**delta_data))
+                            output = accumulator.to_output()
+                            yield {
+                                "id": task_id,
+                                "status": task.get("status"),
+                                "output": output.model_dump(exclude_none=True),
+                                "_delta": True,
+                            }
+                        continue
+
                     # Process the event to check for completion/errors
                     result = _process_stream_event(
                         evt,
@@ -901,6 +919,10 @@ class Inference:
                         stopper=None,  # We'll handle stopping via the iterator
                     )
                     if result is not None:
+                        # Merge accumulated delta output into final result
+                        if accumulator.response or accumulator.reasoning or accumulator._tool_calls:
+                            output = accumulator.to_output()
+                            result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
                         yield result
                         break
                     yield _strip_task(evt)
@@ -960,6 +982,11 @@ class Inference:
                 continue
 
             last_real_event = time.monotonic()
+
+            # Delta events — yield as-is so consumers can detect them
+            if isinstance(parsed, dict) and parsed.get("event") == "delta":
+                yield parsed
+                continue
 
             # Unwrap data if present (partial update format)
             if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
@@ -1478,6 +1505,9 @@ class AsyncInference:
         task: Dict[str, Any],
     ) -> AsyncIterator[Union[Dict[str, Any], Exception]]:
         """Internal method to stream task updates asynchronously."""
+        from .delta import DeltaAccumulator
+        from .llm_types_gen import LLMDelta
+
         aiohttp = await _require_aiohttp()
         url = f"{self._base_url}/tasks/{task_id}/stream"
         headers = {
@@ -1488,11 +1518,26 @@ class AsyncInference:
             "Connection": "keep-alive",
         }
         timeout_cfg = aiohttp.ClientTimeout(total=60)
+        accumulator = DeltaAccumulator()
 
         async with aiohttp.ClientSession(timeout=timeout_cfg) as session:
             async with session.get(url, headers=headers) as resp:
                 async for evt in self._aiter_ndjson(resp):
                     try:
+                        # Handle delta events — accumulate and yield synthetic task update
+                        if isinstance(evt, dict) and evt.get("event") == "delta":
+                            delta_data = (evt.get("data") or {}).get("delta")
+                            if delta_data:
+                                accumulator.apply(LLMDelta(**delta_data))
+                                output = accumulator.to_output()
+                                yield {
+                                    "id": task_id,
+                                    "status": task.get("status"),
+                                    "output": output.model_dump(exclude_none=True),
+                                    "_delta": True,
+                                }
+                            continue
+
                         # Process the event to check for completion/errors
                         result = _process_stream_event(
                             evt,
@@ -1500,6 +1545,10 @@ class AsyncInference:
                             stopper=None,  # We'll handle stopping via the iterator
                         )
                         if result is not None:
+                            # Merge accumulated delta output into final result
+                            if accumulator.response or accumulator.reasoning or accumulator._tool_calls:
+                                output = accumulator.to_output()
+                                result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
                             yield result
                             return
                         yield _strip_task(evt)
@@ -1535,6 +1584,11 @@ class AsyncInference:
                 continue
 
             last_real_event = time.monotonic()
+
+            # Delta events — yield as-is so consumers can detect them
+            if isinstance(parsed, dict) and parsed.get("event") == "delta":
+                yield parsed
+                continue
 
             # Unwrap data if present (partial update format)
             if isinstance(parsed, dict) and "data" in parsed and "fields" in parsed:
