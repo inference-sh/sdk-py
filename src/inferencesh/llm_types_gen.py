@@ -38,6 +38,11 @@ class ToolCallDelta(BaseModel):
     type: Optional[ToolCallType] = None
     function: Optional[ToolCallFunctionDelta] = None
 
+# LLMDeltaEvent is the streaming envelope for a delta on the NDJSON wire.
+class LLMDeltaEvent(BaseModel):
+    delta: LLMDelta
+    seq: int = 0
+
 # ToolCallFunctionDelta carries partial tool call function data.
 # Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
 class ToolCallFunctionDelta(BaseModel):
@@ -171,6 +176,7 @@ class ToolParamType(str, Enum):
 LLMOutput.model_rebuild()
 LLMDelta.model_rebuild()
 ToolCallDelta.model_rebuild()
+LLMDeltaEvent.model_rebuild()
 ToolCallFunctionDelta.model_rebuild()
 LLMInput.model_rebuild()
 LLMContextMessage.model_rebuild()
