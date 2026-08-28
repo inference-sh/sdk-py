@@ -555,6 +555,33 @@ def test_instance_type_dto_cloud_logo_url():
     assert dto["cloud_logo_url"].endswith("aws.svg")
 
 
+def test_llm_delta_typeddict_shape():
+    """Streaming LLMDelta TypedDict mirrors LLMOutput with append semantics."""
+    from inferencesh.types import LLMDelta, ToolCallDelta, ToolCallFunctionDelta, ToolCallType
+
+    delta: LLMDelta = {
+        "response": "hel",
+        "reasoning": "think",
+        "tool_calls": [
+            {
+                "index": 0,
+                "id": "call_1",
+                "type": ToolCallType.TOOL_TYPE_FUNCTION,
+                "function": {
+                    "name": "search",
+                    "arguments": '{"q": "wea',
+                },
+            },
+        ],
+    }
+    func: ToolCallFunctionDelta = {"arguments": 'ther"}'}
+    fragment: ToolCallDelta = {"index": 0, "function": func}
+
+    assert delta["response"] == "hel"
+    assert delta["tool_calls"][0]["function"]["arguments"] == '{"q": "wea'
+    assert fragment["function"]["arguments"] == 'ther"}'
+
+
 def test_suggest_types_shape():
     """Suggest endpoint TypedDicts must accept tag/command on results (fb75385 regen)."""
     from inferencesh.types import SuggestRequest, SuggestResponse, SuggestResult
@@ -574,9 +601,14 @@ def test_suggest_types_shape():
         "command": "inference run flux",
         "score": 0.92,
     }
-    resp: SuggestResponse = {"query": req["query"], "results": [result]}
+    resp: SuggestResponse = {
+        "query": req["query"],
+        "results": [result],
+        "impression_id": "imp_abc123",
+    }
 
     assert req["context"] == "building an image generation pipeline"
+    assert resp["impression_id"] == "imp_abc123"
     assert resp["results"][0]["tag"] == "image-generation"
     assert req["scope"] == ["team", "public"]
     assert resp["results"][0]["name"] == "flux"

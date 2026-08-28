@@ -491,6 +491,44 @@ class TestGeneratedTypeConsumption:
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
 
+    def test_llm_delta_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+        gen_fields = set(llm_contract.LLMDelta.model_fields)
+        assert gen_fields.issubset(set(LLMDelta.model_fields))
+
+    def test_llm_delta_model_dump_includes_delta_marker(self):
+        """Engine routing depends on _delta marker in serialized output."""
+        from inferencesh.models.llm import LLMDelta
+        delta = LLMDelta(response="hel")
+        dumped = delta.model_dump()
+        assert dumped["_delta"] is True
+        assert dumped["response"] == "hel"
+
+    def test_llm_delta_construction(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+        delta = LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q":',
+                    ),
+                ),
+            ],
+            usage=llm_contract.LLMUsage(completion_tokens=1),
+        )
+        assert delta.response == "hel"
+        assert delta.reasoning == "think"
+        assert delta.tool_calls[0].function.arguments == '{"q":'
+        assert delta.usage.completion_tokens == 1
+
 
 class TestLLMWireContract:
     """Guard generated llm_types_gen Pydantic wire models (apitypes BaseModel migration)."""
@@ -500,7 +538,8 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         for name in [
-            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "LLMOutput", "LLMDelta", "LLMInput", "LLMContextMessage", "ToolCall",
+            "ToolCallDelta", "ToolCallFunctionDelta",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
             "ToolParameters", "ToolParameterProperty",
         ]:
@@ -551,6 +590,43 @@ class TestLLMWireContract:
         restored = llm_contract.LLMOutput.model_validate_json(original.model_dump_json())
         assert restored.response == "hello"
         assert restored.usage.total_tokens == 8
+
+    def test_tool_call_delta_nested_in_llm_delta_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so tool_calls validate on LLMDelta."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        delta = llm_contract.LLMDelta(
+            response="hel",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q": "wea',
+                    ),
+                ),
+            ],
+        )
+        assert delta.tool_calls[0].function.arguments == '{"q": "wea'
+
+    def test_llm_delta_json_round_trip(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    function=llm_contract.ToolCallFunctionDelta(arguments="ther"),
+                ),
+            ],
+        )
+        restored = llm_contract.LLMDelta.model_validate_json(original.model_dump_json())
+        assert restored.response == "hel"
+        assert restored.tool_calls[0].function.arguments == "ther"
 
     def test_llm_input_requires_wire_required_fields(self):
         from inferencesh import llm_types_gen as llm_contract
