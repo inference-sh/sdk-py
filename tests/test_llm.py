@@ -559,6 +559,56 @@ class TestLLMWireContract:
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
 
+    def test_llm_delta_event_is_pydantic_model(self):
+        from pydantic import BaseModel
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert issubclass(llm_contract.LLMDeltaEvent, BaseModel)
+
+    def test_llm_delta_event_nested_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so delta validates on LLMDeltaEvent."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.LLMDeltaEvent(
+            seq=2,
+            delta=llm_contract.LLMDelta(
+                response="wo",
+                tool_calls=[
+                    llm_contract.ToolCallDelta(
+                        index=0,
+                        function=llm_contract.ToolCallFunctionDelta(arguments="rld"),
+                    ),
+                ],
+            ),
+        )
+        assert event.seq == 2
+        assert event.delta.response == "wo"
+        assert event.delta.tool_calls[0].function.arguments == "rld"
+
+    def test_llm_delta_event_seq_defaults_to_zero(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.LLMDeltaEvent(
+            delta=llm_contract.LLMDelta(response="hel"),
+        )
+        assert event.seq == 0
+
+    def test_llm_delta_event_json_round_trip(self):
+        """NDJSON wire lines must round-trip the delta envelope with seq ordering."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMDeltaEvent(
+            seq=7,
+            delta=llm_contract.LLMDelta(
+                response="chunk",
+                reasoning="think",
+            ),
+        )
+        restored = llm_contract.LLMDeltaEvent.model_validate_json(original.model_dump_json())
+        assert restored.seq == 7
+        assert restored.delta.response == "chunk"
+        assert restored.delta.reasoning == "think"
+
 
 class TestDeprecatedMixins:
     """Deprecated mixins emit warnings but don't break grid apps."""

@@ -584,6 +584,32 @@ def test_suggest_types_shape():
     assert resp["results"][0]["score"] == 0.92
 
 
+def test_llm_delta_event_typeddict_shape():
+    """LLMDeltaEvent wraps incremental LLMDelta payloads with monotonic seq on NDJSON wire."""
+    from inferencesh.types import LLMDelta, LLMDeltaEvent, ToolCallDelta, ToolCallFunctionDelta
+
+    event: LLMDeltaEvent = {
+        "seq": 3,
+        "delta": {
+            "response": "lo",
+            "tool_calls": [
+                {
+                    "index": 0,
+                    "function": ToolCallFunctionDelta(arguments='{"q":'),
+                },
+            ],
+        },
+    }
+
+    assert event["seq"] == 3
+    assert event["delta"]["response"] == "lo"
+    assert event["delta"]["tool_calls"][0]["index"] == 0
+    assert event["delta"]["tool_calls"][0]["function"]["arguments"] == '{"q":'
+
+    minimal: LLMDeltaEvent = {"delta": LLMDelta(response="x")}
+    assert minimal["delta"]["response"] == "x"
+
+
 def test_device_auth_response_init_shape():
     """Device auth init returns codes and polling URLs for CLI login flows."""
     from inferencesh.types import DeviceAuthResponse
