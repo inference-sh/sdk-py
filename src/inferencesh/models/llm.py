@@ -138,11 +138,7 @@ class LLMOutput(BaseLLMOutput): pass
 class LLMDelta(llm_contract.LLMDelta):
     """Streaming delta with append semantics. Yield during streaming,
     yield LLMOutput at the end for the final DB write."""
-
-    def model_dump(self, **kwargs):
-        d = super().model_dump(**kwargs)
-        d["_delta"] = True
-        return d
+    pass
 
 _DEPRECATED_MIXIN_NAMES = frozenset({"LLMUsageMixin", "ReasoningMixin", "ToolCallsMixin", "ImagesMixin"})
 
