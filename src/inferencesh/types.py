@@ -1898,6 +1898,11 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
+# LLMDeltaEvent is the streaming envelope for a delta on the NDJSON wire.
+class LLMDeltaEvent(TypedDict, total=False):
+    delta: LLMDelta
+    seq: int
+
 # ToolCallFunctionDelta carries partial tool call function data.
 # Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
 class ToolCallFunctionDelta(TypedDict, total=False):
