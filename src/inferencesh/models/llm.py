@@ -13,6 +13,11 @@ from .file import File
 
 from inferencesh import llm_types_gen as llm_contract
 
+try:
+    from inferencesh_app.stream_delta import StreamDelta as _StreamDelta
+except ImportError:
+    from pydantic import BaseModel as _StreamDelta
+
 ContextMessageRole = llm_contract.ChatMessageRole
 
 
@@ -135,7 +140,7 @@ class BaseLLMOutput(BaseAppOutput):
 class LLMOutput(BaseLLMOutput): pass
 
 
-class LLMDelta(llm_contract.LLMDelta):
+class LLMDelta(_StreamDelta, llm_contract.LLMDelta):
     """Streaming delta with append semantics. Yield during streaming,
     yield LLMOutput at the end for the final DB write."""
     pass
