@@ -32,6 +32,7 @@ from .models import (
     probe_video,
 )
 
+from .stream_delta import StreamDelta
 from .delta import DeltaAccumulator
 from .utils import StorageDir, download
 from .client import (
@@ -282,6 +283,8 @@ __all__ = [
     "AsyncSessionsAPI",
     "SessionHandle",
     "AsyncSessionHandle",
+    # StreamDelta base class
+    "StreamDelta",
     # Delta accumulator
     "DeltaAccumulator",
     # Streamable HTTP
