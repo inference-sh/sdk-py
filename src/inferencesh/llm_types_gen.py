@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum, IntEnum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, ClassVar, Dict, List, Optional, Union
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -13,20 +13,17 @@ from datetime import datetime
 
 StringEncodedMap = Dict[str, Any]
 
+# StreamDelta is the marker base for all streaming delta types.
+# Types embedding StreamDelta are routed through the delta channel.
+class StreamDelta(BaseModel):
+    pass
+
 # LLMOutput is the output envelope from an LLM provider task.
 # This is the contract between chat apps (sdk-py) and the agent runtime (go/api).
 class LLMOutput(BaseModel):
     response: str = ""
     reasoning: Optional[str] = None
     tool_calls: Optional[List[ToolCall]] = None
-    usage: Optional[LLMUsage] = None
-
-# LLMDelta is a streaming delta for LLMOutput with append semantics.
-# response/reasoning: concatenate. tool_calls: index-based, arguments append.
-class LLMDelta(BaseModel):
-    response: str = ""
-    reasoning: Optional[str] = None
-    tool_calls: Optional[List[ToolCallDelta]] = None
     usage: Optional[LLMUsage] = None
 
 # ToolCallDelta is an incremental update to a tool call, identified by index.
@@ -38,9 +35,10 @@ class ToolCallDelta(BaseModel):
     type: Optional[ToolCallType] = None
     function: Optional[ToolCallFunctionDelta] = None
 
-# LLMDeltaEvent is the streaming envelope for a delta on the NDJSON wire.
-class LLMDeltaEvent(BaseModel):
-    delta: LLMDelta
+# DeltaEvent is the generic streaming envelope on the NDJSON wire.
+# Delta is raw bytes — consumers parse based on context.
+class DeltaEvent(BaseModel):
+    delta: Any
     seq: int = 0
 
 # ToolCallFunctionDelta carries partial tool call function data.
@@ -146,6 +144,20 @@ class ToolParameterProperty(BaseModel):
     items: Optional[ToolParameterProperty] = None
     required: Optional[List[str]] = None
 
+# LLMDelta is a streaming delta for LLMOutput.
+class LLMDelta(StreamDelta, BaseModel):
+    response: str = ""
+    reasoning: Optional[str] = None
+    tool_calls: Optional[List[ToolCallDelta]] = None
+    usage: Optional[LLMUsage] = None
+
+    _field_tags: ClassVar[dict] = {
+        "response": {"merge": "concat"},
+        "reasoning": {"merge": "concat"},
+        "tool_calls": {"merge": "indexed"},
+        "usage": {"merge": "replace"},
+    }
+
 class ChatMessageRole(str, Enum):
     # LLM wire-protocol roles
     SYSTEM = "system"
@@ -156,6 +168,11 @@ class ChatMessageRole(str, Enum):
     # BuildContext converts these to system messages or skips them.
     INJECTION = "injection"
     COMPACTION = "compaction"
+
+class MergeStrategy(str, Enum):
+    CONCAT = "concat"
+    REPLACE = "replace"
+    INDEXED = "indexed"
 
 # Tool call types
 class ToolCallType(str, Enum):
@@ -173,10 +190,10 @@ class ToolParamType(str, Enum):
 
 
 # Resolve forward references
+StreamDelta.model_rebuild()
 LLMOutput.model_rebuild()
-LLMDelta.model_rebuild()
 ToolCallDelta.model_rebuild()
-LLMDeltaEvent.model_rebuild()
+DeltaEvent.model_rebuild()
 ToolCallFunctionDelta.model_rebuild()
 LLMInput.model_rebuild()
 LLMContextMessage.model_rebuild()
@@ -188,4 +205,5 @@ Tool.model_rebuild()
 ToolFunction.model_rebuild()
 ToolParameters.model_rebuild()
 ToolParameterProperty.model_rebuild()
+LLMDelta.model_rebuild()
 

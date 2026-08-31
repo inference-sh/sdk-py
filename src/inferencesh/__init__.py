@@ -32,7 +32,7 @@ from .models import (
     probe_video,
 )
 
-from .stream_delta import StreamDelta
+from .llm_types_gen import StreamDelta
 from .delta import DeltaAccumulator
 from .utils import StorageDir, download
 from .client import (

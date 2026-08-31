@@ -1873,20 +1873,17 @@ class HookEventDefinition(TypedDict, total=False):
     description: str
     can_gate: bool
 
+# StreamDelta is the marker base for all streaming delta types.
+# Types embedding StreamDelta are routed through the delta channel.
+class StreamDelta(TypedDict, total=False):
+    pass
+
 # LLMOutput is the output envelope from an LLM provider task.
 # This is the contract between chat apps (sdk-py) and the agent runtime (go/api).
 class LLMOutput(TypedDict, total=False):
     response: str
     reasoning: Optional[str]
     tool_calls: Optional[List[ToolCall]]
-    usage: Optional[LLMUsage]
-
-# LLMDelta is a streaming delta for LLMOutput with append semantics.
-# response/reasoning: concatenate. tool_calls: index-based, arguments append.
-class LLMDelta(TypedDict, total=False):
-    response: str
-    reasoning: Optional[str]
-    tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
 
 # ToolCallDelta is an incremental update to a tool call, identified by index.
@@ -1898,9 +1895,10 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-# LLMDeltaEvent is the streaming envelope for a delta on the NDJSON wire.
-class LLMDeltaEvent(TypedDict, total=False):
-    delta: LLMDelta
+# DeltaEvent is the generic streaming envelope on the NDJSON wire.
+# Delta is raw bytes — consumers parse based on context.
+class DeltaEvent(TypedDict, total=False):
+    delta: Any
     seq: int
 
 # ToolCallFunctionDelta carries partial tool call function data.
@@ -2666,6 +2664,23 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
 # Widget is an A2UI surface stored on a ToolInvocation.
 # Alias of shared.A2UISurface so the type generation pipeline picks it up.
 Widget = A2UISurface
+
+# LLMDelta is a streaming delta for LLMOutput.
+class LLMDelta(StreamDelta, TypedDict, total=False):
+    response: str
+    reasoning: Optional[str]
+    tool_calls: Optional[List[ToolCallDelta]]
+    usage: Optional[LLMUsage]
+
+    _field_tags = {
+        "response": {"merge": "concat"},
+        "reasoning": {"merge": "concat"},
+        "tool_calls": {"merge": "indexed"},
+        "usage": {"merge": "replace"},
+    }
+
+# LLMDeltaEvent is a typed alias for backward compatibility.
+LLMDeltaEvent = DeltaEvent
 
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
