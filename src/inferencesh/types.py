@@ -3071,6 +3071,11 @@ class HookHandlerType(str, Enum):
     HOOK_HANDLER_TASK = "task"
     HOOK_HANDLER_GATE = "gate"
 
+class MergeStrategy(str, Enum):
+    CONCAT = "concat"
+    REPLACE = "replace"
+    INDEXED = "indexed"
+
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
     TEAM = "team"
