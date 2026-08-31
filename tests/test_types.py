@@ -2450,3 +2450,59 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_merge_strategy_enum_values():
+    """MergeStrategy tokens must match Go merge engine (v0.8.0 typegen)."""
+    from inferencesh.types import MergeStrategy
+
+    assert MergeStrategy.CONCAT.value == "concat"
+    assert MergeStrategy.REPLACE.value == "replace"
+    assert MergeStrategy.INDEXED.value == "indexed"
+    assert MergeStrategy.NESTED.value == "nested"
+
+
+def test_stream_delta_marker_typed_dict():
+    """StreamDelta marks delta-channel types; LLMDelta is the LLM streaming delta."""
+    from inferencesh.types import LLMDelta, StreamDelta
+
+    assert StreamDelta.__annotations__ == {}
+    assert set(LLMDelta.__annotations__) >= {"response", "reasoning", "tool_calls", "usage"}
+    assert LLMDelta._field_tags["tool_calls"]["merge"] == "indexed"
+
+
+def test_llm_delta_field_tags_on_typed_dict():
+    """_field_tags on LLMDelta declare per-field merge semantics for streaming."""
+    from inferencesh.types import LLMDelta
+
+    tags = LLMDelta._field_tags
+    assert tags["response"]["merge"] == "concat"
+    assert tags["reasoning"]["merge"] == "concat"
+    assert tags["tool_calls"]["merge"] == "indexed"
+    assert tags["usage"]["merge"] == "replace"
+
+
+def test_tool_call_delta_field_tags_on_typed_dict():
+    from inferencesh.types import ToolCallDelta
+
+    tags = ToolCallDelta._field_tags
+    assert tags["function"]["merge"] == "nested"
+    assert tags["id"]["merge"] == "replace"
+
+
+def test_delta_event_typed_dict_shape():
+    """DeltaEvent is the generic NDJSON envelope; delta is context-dependent."""
+    from typing import get_type_hints
+
+    from inferencesh.types import DeltaEvent
+
+    hints = get_type_hints(DeltaEvent)
+    assert "delta" in hints
+    assert hints["seq"] is int
+
+
+def test_llm_delta_event_alias_points_to_delta_event():
+    """LLMDeltaEvent remains as a backward-compatible alias after v0.8.0 rename."""
+    from inferencesh.types import DeltaEvent, LLMDeltaEvent
+
+    assert LLMDeltaEvent is DeltaEvent
