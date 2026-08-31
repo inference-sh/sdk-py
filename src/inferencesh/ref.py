@@ -6,7 +6,7 @@ Mirrors apitypes.Ref.Parse in Go — the single source of truth for the
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Tuple
 
 _REF_TYPES = frozenset({"knowledge", "skill", "app", "agent"})
