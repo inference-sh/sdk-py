@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-31 (push dev @ b8a5c74, streaming delta merge metadata v0.8.0)
+
+**Recent changes reviewed:** `b8a5c74` / `e384208` (typegen v0.8.0: `StreamDelta` marker base, `LLMDelta` embeds `StreamDelta`, `LLMDeltaEvent` → `DeltaEvent` with generic `delta: Any`, `_field_tags` merge metadata on delta types, `MergeStrategy` enum).
+
+**Open PRs checked:** #272 (LLMDeltaEvent v0.7.104 — superseded by `DeltaEvent`), #270 (LLMDelta core v0.7.104 — partial overlap, extended for v0.8.0), #269 (v0.7.97 stats/telemetry), #267 (batch-merge gaps) — no overlap on v0.8.0 merge metadata.
+
+**Gaps filled this run:**
+
+- `StreamDelta` marker base and `LLMDelta` inheritance on wire + SDK models
+- `DeltaEvent` generic NDJSON envelope (`delta: Any`) with `seq` ordering
+- `LLMDeltaEvent = DeltaEvent` backward-compat alias in `types.py`
+- `_field_tags` merge strategies on `LLMDelta`, `ToolCallDelta`, `ToolCallFunctionDelta`
+- `MergeStrategy` enum (`concat`, `replace`, `indexed`, `nested`)
+- SDK `LLMDelta.model_dump()` `_delta` routing marker regression guard
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_llm.py::TestGeneratedTypeConsumption tests/test_llm.py::TestLLMWireContract tests/test_types.py::test_merge_strategy_enum_values tests/test_types.py::test_stream_delta_marker_typed_dict tests/test_types.py::test_llm_delta_field_tags_on_typed_dict tests/test_types.py::test_tool_call_delta_field_tags_on_typed_dict tests/test_types.py::test_delta_event_typed_dict_shape tests/test_types.py::test_llm_delta_event_alias_points_to_delta_event tests/test_imports.py -k "StreamDelta or LLMDelta or DeltaEvent or MergeStrategy"` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

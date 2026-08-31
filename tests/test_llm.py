@@ -491,6 +491,55 @@ class TestGeneratedTypeConsumption:
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
 
+    def test_llm_delta_inherits_stream_delta_marker(self):
+        """v0.8.0: LLMDelta embeds StreamDelta so the runtime routes deltas correctly."""
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+
+        assert issubclass(llm_contract.LLMDelta, llm_contract.StreamDelta)
+        assert issubclass(LLMDelta, llm_contract.StreamDelta)
+
+    def test_llm_delta_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+
+        gen_fields = set(llm_contract.LLMDelta.model_fields)
+        assert gen_fields.issubset(set(LLMDelta.model_fields))
+
+    def test_llm_delta_model_dump_includes_delta_marker(self):
+        """Engine routing depends on _delta marker in serialized output."""
+        from inferencesh.models.llm import LLMDelta
+
+        delta = LLMDelta(response="hel")
+        dumped = delta.model_dump()
+        assert dumped["_delta"] is True
+        assert dumped["response"] == "hel"
+
+    def test_llm_delta_construction(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+
+        delta = LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q":',
+                    ),
+                ),
+            ],
+            usage=llm_contract.LLMUsage(completion_tokens=1),
+        )
+        assert delta.response == "hel"
+        assert delta.reasoning == "think"
+        assert delta.tool_calls[0].function.arguments == '{"q":'
+        assert delta.usage.completion_tokens == 1
+
 
 class TestLLMWireContract:
     """Guard generated llm_types_gen Pydantic wire models (apitypes BaseModel migration)."""
@@ -500,7 +549,9 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         for name in [
-            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "StreamDelta", "LLMOutput", "LLMDelta", "DeltaEvent",
+            "LLMInput", "LLMContextMessage", "ToolCall",
+            "ToolCallDelta", "ToolCallFunctionDelta",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
             "ToolParameters", "ToolParameterProperty",
         ]:
@@ -551,6 +602,109 @@ class TestLLMWireContract:
         restored = llm_contract.LLMOutput.model_validate_json(original.model_dump_json())
         assert restored.response == "hello"
         assert restored.usage.total_tokens == 8
+
+    def test_delta_event_accepts_untyped_delta_payload(self):
+        """v0.8.0: DeltaEvent.delta is Any — consumers parse based on stream context."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.DeltaEvent(seq=1, delta={"response": "chunk"})
+        assert event.delta == {"response": "chunk"}
+
+    def test_delta_event_seq_defaults_to_zero(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.DeltaEvent(delta={"response": "hel"})
+        assert event.seq == 0
+
+    def test_delta_event_json_round_trip_with_llm_delta_payload(self):
+        """NDJSON wire lines round-trip the generic envelope; delta stays as parsed JSON."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.DeltaEvent(
+            seq=7,
+            delta=llm_contract.LLMDelta(
+                response="chunk",
+                reasoning="think",
+            ),
+        )
+        restored = llm_contract.DeltaEvent.model_validate_json(original.model_dump_json())
+        assert restored.seq == 7
+        assert restored.delta["response"] == "chunk"
+        assert restored.delta["reasoning"] == "think"
+
+        # Consumers with LLM stream context re-validate the delta payload.
+        parsed_delta = llm_contract.LLMDelta.model_validate(restored.delta)
+        assert parsed_delta.response == "chunk"
+
+    def test_tool_call_delta_nested_in_llm_delta_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so tool_calls validate on LLMDelta."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        delta = llm_contract.LLMDelta(
+            response="hel",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q": "wea',
+                    ),
+                ),
+            ],
+        )
+        assert delta.tool_calls[0].function.arguments == '{"q": "wea'
+
+    def test_llm_delta_json_round_trip(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    function=llm_contract.ToolCallFunctionDelta(arguments="ther"),
+                ),
+            ],
+        )
+        restored = llm_contract.LLMDelta.model_validate_json(original.model_dump_json())
+        assert restored.response == "hel"
+        assert restored.tool_calls[0].function.arguments == "ther"
+
+    def test_llm_delta_field_tags_declare_merge_strategies(self):
+        """v0.8.0: _field_tags drive runtime delta merge (concat/indexed/replace)."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        tags = llm_contract.LLMDelta._field_tags
+        assert tags["response"]["merge"] == "concat"
+        assert tags["reasoning"]["merge"] == "concat"
+        assert tags["tool_calls"]["merge"] == "indexed"
+        assert tags["usage"]["merge"] == "replace"
+
+    def test_tool_call_delta_field_tags_declare_merge_strategies(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        tags = llm_contract.ToolCallDelta._field_tags
+        assert tags["id"]["merge"] == "replace"
+        assert tags["type"]["merge"] == "replace"
+        assert tags["function"]["merge"] == "nested"
+
+    def test_tool_call_function_delta_field_tags_declare_merge_strategies(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        tags = llm_contract.ToolCallFunctionDelta._field_tags
+        assert tags["name"]["merge"] == "replace"
+        assert tags["arguments"]["merge"] == "concat"
+
+    def test_merge_strategy_enum_values(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert llm_contract.MergeStrategy.CONCAT.value == "concat"
+        assert llm_contract.MergeStrategy.REPLACE.value == "replace"
+        assert llm_contract.MergeStrategy.INDEXED.value == "indexed"
+        assert llm_contract.MergeStrategy.NESTED.value == "nested"
 
     def test_llm_input_requires_wire_required_fields(self):
         from inferencesh import llm_types_gen as llm_contract
