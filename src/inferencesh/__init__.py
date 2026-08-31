@@ -52,6 +52,7 @@ from .api import (
     SessionHandle,
     AsyncSessionHandle,
 )
+from .ref import Ref
 from .types import TaskStatus, ChatMessageStatus
 from .models.errors import (
     APIError,
@@ -283,6 +284,8 @@ __all__ = [
     "AsyncSessionsAPI",
     "SessionHandle",
     "AsyncSessionHandle",
+    # Ref parsing
+    "Ref",
     # StreamDelta base class
     "StreamDelta",
     # Delta accumulator
