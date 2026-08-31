@@ -35,6 +35,12 @@ class ToolCallDelta(BaseModel):
     type: Optional[ToolCallType] = None
     function: Optional[ToolCallFunctionDelta] = None
 
+    _field_tags: ClassVar[dict] = {
+        "id": {"merge": "replace"},
+        "type": {"merge": "replace"},
+        "function": {"merge": "nested"},
+    }
+
 # DeltaEvent is the generic streaming envelope on the NDJSON wire.
 # Delta is raw bytes — consumers parse based on context.
 class DeltaEvent(BaseModel):
@@ -46,6 +52,11 @@ class DeltaEvent(BaseModel):
 class ToolCallFunctionDelta(BaseModel):
     name: str = ""
     arguments: str = ""
+
+    _field_tags: ClassVar[dict] = {
+        "name": {"merge": "replace"},
+        "arguments": {"merge": "concat"},
+    }
 
 # LLMInput is the input envelope for an LLM provider task.
 class LLMInput(BaseModel):
@@ -173,6 +184,7 @@ class MergeStrategy(str, Enum):
     CONCAT = "concat"
     REPLACE = "replace"
     INDEXED = "indexed"
+    NESTED = "nested"
 
 # Tool call types
 class ToolCallType(str, Enum):
