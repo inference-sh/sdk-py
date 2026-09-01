@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-08-28 (push dev @ c18c323, LLMDeltaEvent NDJSON envelope v0.7.104)
+
+**Recent changes reviewed:** `c18c323` (typegen v0.7.104: `LLMDeltaEvent` streaming envelope with nested `LLMDelta` and monotonic `seq` on NDJSON wire). `fd0ac4e`/`04bfabe` (LLMDelta streaming delta — open PR #270).
+
+**Open PRs checked:** #270 (LLMDelta `_delta` marker, ToolCallDelta wire validation, SuggestResponse.impression_id on `cursor/missing-test-coverage-1a17`), #269 (v0.7.97 stats/flow/telemetry), #267 (batch-merge coverage gaps) — no overlap with `LLMDeltaEvent`.
+
+**Gaps filled this run:**
+
+- `LLMDeltaEvent` TypedDict wire shape with nested `LLMDelta` and `seq` ordering field
+- Generated `llm_types_gen.LLMDeltaEvent` Pydantic model after `model_rebuild()` (nested delta + tool-call fragments)
+- `seq` defaults to `0` when omitted on the wire envelope
+- NDJSON JSON round-trip for delta envelope lines
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `tests/test_llm.py`
+
+**Validation:** `pytest tests/test_types.py::test_llm_delta_event_typeddict_shape tests/test_imports.py::test_generated_type_exists[LLMDeltaEvent] tests/test_llm.py::TestLLMWireContract::test_llm_delta_event_is_pydantic_model tests/test_llm.py::TestLLMWireContract::test_llm_delta_event_nested_after_model_rebuild tests/test_llm.py::TestLLMWireContract::test_llm_delta_event_seq_defaults_to_zero tests/test_llm.py::TestLLMWireContract::test_llm_delta_event_json_round_trip` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
