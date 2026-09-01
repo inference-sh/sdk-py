@@ -106,6 +106,7 @@ def test_submodule_importable(module):
     "ChatInput",
     "ModelSettings",
     "ModelSettingsCapabilityMixin",
+    "LLMDelta",
 ])
 def test_models_llm_export_exists(name):
     """New LLM input types from v0.7.9 must be exported from models."""
@@ -134,6 +135,7 @@ def test_models_llm_export_exists(name):
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
+    "ToolCallDelta", "ToolCallFunctionDelta", "LLMDelta",
     "ToolCallType", "ToolParamType",
     # Integrations
     "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",

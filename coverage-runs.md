@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-08-28 (push dev @ fd0ac4e, LLMDelta streaming delta yield)
+
+**Recent changes reviewed:** `fd0ac4e` (feat: `LLMDelta` app model with `_delta` serialization marker for engine routing). `04bfabe` (typegen: `LLMDelta`, `ToolCallDelta`, `ToolCallFunctionDelta` wire models). `0e08933` (`SuggestResponse.impression_id`).
+
+**Open PRs checked:** #269 (`cursor/missing-test-coverage-39e6`, v0.7.97 stats/telemetry), #267 (`cursor/missing-test-coverage-aa48`, batch-merge gaps) — no overlap.
+
+**Gaps filled this run:**
+
+- `LLMDelta.model_dump()` injects `_delta: True` for engine streaming routing
+- `LLMDelta` app model covers generated contract fields (mirrors `LLMOutput`)
+- `ToolCallDelta` / `ToolCallFunctionDelta` nested validation after `model_rebuild()`
+- `LLMDelta` wire model JSON round-trip with partial tool-call argument fragments
+- `SuggestResponse.impression_id` TypedDict field for analytics tracking
+- `LLMDelta` / `ToolCallDelta` / `ToolCallFunctionDelta` import smoke
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_llm.py::TestGeneratedTypeConsumption tests/test_llm.py::TestLLMWireContract tests/test_types.py::test_llm_delta_typeddict_shape tests/test_types.py::test_suggest_types_shape tests/test_imports.py::test_models_llm_export_exists[LLMDelta] tests/test_imports.py::test_generated_type_exists[LLMDelta]` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
