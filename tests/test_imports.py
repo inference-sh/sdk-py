@@ -174,6 +174,9 @@ def test_models_llm_export_exists(name):
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
     "SelectorConfig", "UtilityConfig",
+    # User stats, flow run node state, telemetry (v0.7.97 typegen regen)
+    "MeStatsResponse", "StatBuckets",
+    "SubmitTelemetryRequest", "TelemetryReportDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

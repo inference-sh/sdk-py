@@ -2450,3 +2450,88 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_me_stats_response_shape():
+    """MeStatsResponse from GET /me/stats exposes catalog counts and time-windowed buckets."""
+    from inferencesh.types import MeStatsResponse, StatBuckets
+
+    extracted: StatBuckets = {"today": 2, "this_week": 5, "all_time": 42}
+    stats: MeStatsResponse = {
+        "knowledge_count": 10,
+        "skills_count": 3,
+        "extracted": extracted,
+    }
+
+    assert stats["knowledge_count"] == 10
+    assert stats["skills_count"] == 3
+    assert stats["extracted"]["all_time"] == 42
+    assert set(MeStatsResponse.__annotations__) >= {
+        "knowledge_count",
+        "skills_count",
+        "extracted",
+    }
+
+
+def test_stat_buckets_time_windows():
+    """StatBuckets holds today/this_week/all_time counters for dashboard rollups."""
+    from inferencesh.types import StatBuckets
+
+    buckets: StatBuckets = {"today": 1, "this_week": 4, "all_time": 99}
+
+    assert buckets["this_week"] == 4
+    assert set(StatBuckets.__annotations__) == {"today", "this_week", "all_time"}
+
+
+def test_submit_telemetry_request_shape():
+    """SubmitTelemetryRequest wraps opaque telemetry payloads for client reporting."""
+    from inferencesh.types import SubmitTelemetryRequest
+
+    request: SubmitTelemetryRequest = {
+        "payload": {"event": "sdk_init", "version": "0.7.97"},
+    }
+
+    assert request["payload"]["event"] == "sdk_init"
+    assert "payload" in SubmitTelemetryRequest.__annotations__
+
+
+def test_flow_run_dto_node_statuses_and_outputs():
+    """FlowRunDTO.node_statuses/node_outputs expose per-node workflow progress and results."""
+    from inferencesh.types import FlowRunDTO, FlowRunStatus, GraphNodeStatus
+
+    run: FlowRunDTO = {
+        "flow_id": "flow_abc",
+        "status": FlowRunStatus.RUNNING,
+        "fail_on_error": True,
+        "node_tasks": {},
+        "node_statuses": {
+            "node_a": GraphNodeStatus.COMPLETED,
+            "node_b": GraphNodeStatus.RUNNING,
+        },
+        "node_outputs": {
+            "node_a": {"image_url": "https://cdn.example/out.png"},
+            "node_b": None,
+        },
+    }
+
+    assert run["node_statuses"]["node_a"] == GraphNodeStatus.COMPLETED
+    assert run["node_statuses"]["node_b"] == GraphNodeStatus.RUNNING
+    assert run["node_outputs"]["node_a"]["image_url"].endswith("out.png")
+    assert "node_statuses" in FlowRunDTO.__annotations__
+    assert "node_outputs" in FlowRunDTO.__annotations__
+
+
+def test_telemetry_report_dto_shape():
+    """TelemetryReportDTO stores ingested client telemetry with severity and payload."""
+    from inferencesh.types import TelemetryReportDTO
+
+    report: TelemetryReportDTO = {
+        "id": "tel_abc",
+        "ip": "203.0.113.10",
+        "level": 2,
+        "payload": {"sdk_version": "0.7.97", "platform": "linux"},
+    }
+
+    assert report["level"] == 2
+    assert report["payload"]["platform"] == "linux"
+    assert set(TelemetryReportDTO.__annotations__) >= {"ip", "level", "payload"}
