@@ -450,6 +450,11 @@ def test_notification_priority_values(member, value):
         ("AUTO_RECHARGE", "auto_recharge"),
         ("PAYMENT_SUCCESS", "payment_success"),
         ("PAYMENT_FAILED", "payment_failed"),
+        ("SUBSCRIPTION_CREATED", "subscription_created"),
+        ("SUBSCRIPTION_CREDIT", "subscription_credit"),
+        ("SUBSCRIPTION_CANCELED", "subscription_canceled"),
+        ("SUBSCRIPTION_PAYMENT_FAILED", "subscription_payment_failed"),
+        ("SUBSCRIPTION_TRIAL_ENDING", "subscription_trial_ending"),
         ("USAGE_SUMMARY", "usage_summary"),
         ("SPENDING_LIMIT", "spending_limit"),
         ("INVOICE", "invoice"),
@@ -563,6 +568,7 @@ def test_suggest_types_shape():
         "query": "flux image",
         "context": "building an image generation pipeline",
         "scope": ["team", "public"],
+        "origin": "cli",
         "limit": 5,
         "agent": True,
     }
@@ -579,6 +585,8 @@ def test_suggest_types_shape():
     assert req["context"] == "building an image generation pipeline"
     assert resp["results"][0]["tag"] == "image-generation"
     assert req["scope"] == ["team", "public"]
+    assert req["origin"] == "cli"
+    assert "origin" in SuggestRequest.__annotations__
     assert resp["results"][0]["name"] == "flux"
     assert resp["results"][0]["command"] == "inference run flux"
     assert resp["results"][0]["score"] == 0.92
@@ -2076,17 +2084,23 @@ def test_knowledge_version_scope_fields():
     version_input: KnowledgeVersionInput = {
         "description": "Team onboarding docs",
         "scope": ["team:acme", "catalog:internal"],
+        "origin": "import",
         "tags": ["onboarding"],
     }
     version: KnowledgeVersionDTO = {
         "knowledge_id": "know_abc",
         "description": version_input["description"],
         "scope": version_input["scope"],
+        "origin": version_input["origin"],
         "tags": version_input["tags"],
         "content_hash": "sha256:abc123",
     }
 
     assert version_input["scope"] == ["team:acme", "catalog:internal"]
+    assert version_input["origin"] == "import"
+    assert version["origin"] == version_input["origin"]
+    assert "origin" in KnowledgeVersionInput.__annotations__
+    assert "origin" in KnowledgeVersionDTO.__annotations__
     assert version["scope"] == version_input["scope"]
 
 
@@ -2450,3 +2464,369 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_auth_response_is_new_flag():
+    """AuthResponse.is_new distinguishes first-time signups from returning logins."""
+    from inferencesh.types import AuthResponse
+
+    new_user: AuthResponse = {
+        "session_id": "sess_new",
+        "is_new": True,
+        "otp_required": False,
+        "provider": "google",
+    }
+    returning: AuthResponse = {
+        "session_id": "sess_existing",
+        "is_new": False,
+        "otp_required": False,
+        "provider": "github",
+    }
+
+    assert new_user["is_new"] is True
+    assert returning["is_new"] is False
+    assert "is_new" in AuthResponse.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ACTION_NODE_ADD", "node.add"),
+        ("ACTION_NODE_REMOVE", "node.remove"),
+        ("ACTION_NODE_MOVE", "node.move"),
+        ("ACTION_NODE_MOVE_MANY", "node.move_many"),
+        ("ACTION_NODE_DUPLICATE", "node.duplicate"),
+        ("ACTION_NODE_RENAME", "node.rename"),
+        ("ACTION_NODE_SET_APP", "node.set_app"),
+        ("ACTION_NODE_UPDATE", "node.update"),
+        ("ACTION_NODE_SET_INPUT", "node.set_input"),
+        ("ACTION_NODE_CLEAR_INPUT", "node.clear_input"),
+        ("ACTION_EDGE_ADD", "edge.add"),
+        ("ACTION_EDGE_REMOVE", "edge.remove"),
+        ("ACTION_FLOW_SET_INPUT_SCHEMA", "flow.set_input_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_SCHEMA", "flow.set_output_schema"),
+        ("ACTION_FLOW_SET_OUTPUT_MAPPING", "flow.set_output_mapping"),
+        ("ACTION_FLOW_REMOVE_OUTPUT_MAPPING", "flow.remove_output_mapping"),
+        ("ACTION_FLOW_RENAME_OUTPUT_FIELD", "flow.rename_output_field"),
+        ("ACTION_UNDO", "undo"),
+        ("ACTION_REDO", "redo"),
+    ],
+)
+def test_flow_action_type_values(member, value):
+    """Flow graph mutation kinds must stay stable for POST /flows/{id}/actions."""
+    from inferencesh.types import FlowActionType
+
+    assert hasattr(FlowActionType, member)
+    assert getattr(FlowActionType, member).value == value
+
+
+def test_flow_actions_request_undo_redo():
+    """Undo/redo actions use top-level tokens, not dotted node/edge prefixes."""
+    from inferencesh.types import (
+        FlowAction,
+        FlowActionError,
+        FlowActionsRequest,
+        FlowActionsResponse,
+        FlowActionType,
+    )
+
+    undo: FlowAction = {"type": FlowActionType.ACTION_UNDO}
+    redo: FlowAction = {"type": FlowActionType.ACTION_REDO}
+    request: FlowActionsRequest = {"actions": [undo, redo]}
+    response: FlowActionsResponse = {
+        "version": 7,
+        "actions": [undo],
+        "errors": [{"type": "redo", "message": "nothing to redo"}],
+    }
+    error: FlowActionError = response["errors"][0]
+
+    assert request["actions"][0]["type"] == FlowActionType.ACTION_UNDO
+    assert request["actions"][1]["type"].value == "redo"
+    assert response["version"] == 7
+    assert error["type"] == "redo"
+    assert "type" in FlowAction.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("A2UI_ROW", "Row"),
+        ("A2UI_COLUMN", "Column"),
+        ("A2UI_LIST", "List"),
+        ("A2UI_TEXT", "Text"),
+        ("A2UI_IMAGE", "Image"),
+        ("A2UI_ICON", "Icon"),
+        ("A2UI_DIVIDER", "Divider"),
+        ("A2UI_BUTTON", "Button"),
+        ("A2UI_TEXT_FIELD", "TextField"),
+        ("A2UI_CHECK_BOX", "CheckBox"),
+        ("A2UI_SLIDER", "Slider"),
+        ("A2UI_DATE_TIME_INPUT", "DateTimeInput"),
+        ("A2UI_CHOICE_PICKER", "ChoicePicker"),
+        ("A2UI_CARD", "Card"),
+        ("A2UI_MODAL", "Modal"),
+        ("A2UI_TABS", "Tabs"),
+        ("A2UI_BADGE", "Badge"),
+        ("A2UI_SPACER", "Spacer"),
+        ("A2UI_CHART", "Chart"),
+        ("A2UI_FORM", "Form"),
+    ],
+)
+def test_a2ui_component_type_values(member, value):
+    """A2UI surfaces serialize A2UIComponentType discriminators (ff42d25 regen)."""
+    from inferencesh.types import A2UIComponentType
+
+    assert hasattr(A2UIComponentType, member)
+    assert getattr(A2UIComponentType, member).value == value
+
+
+def test_a2ui_html_extension_removed():
+    """A2UIHTML and htmlContent were removed from the inferencesh/v1 catalog (c601ad4)."""
+    from inferencesh.types import A2UIComponent, A2UIComponentType
+
+    assert not hasattr(A2UIComponentType, "A2UIHTML")
+    assert "htmlContent" not in A2UIComponent.__annotations__
+
+
+def test_widget_is_a2ui_surface_alias():
+    """Widget is an alias of A2UISurface on ToolInvocationDTO (ff42d25 regen)."""
+    from inferencesh.types import A2UISurface, Widget
+
+    assert Widget is A2UISurface
+
+
+def test_a2ui_surface_flat_adjacency_shape():
+    """A2UI surfaces use flat adjacency lists; children are component IDs, not nested objects."""
+    from inferencesh.types import A2UIComponent, A2UIComponentType, A2UISurface
+
+    surface: A2UISurface = {
+        "version": "1.0",
+        "surfaceId": "confirm-deploy",
+        "catalogId": "inferencesh/v1",
+        "components": [
+            {
+                "id": "root",
+                "component": A2UIComponentType.A2UI_COLUMN,
+                "children": ["title", "actions"],
+            },
+            {
+                "id": "title",
+                "component": A2UIComponentType.A2UI_TEXT,
+                "text": {"path": "/prompt"},
+            },
+            {
+                "id": "actions",
+                "component": A2UIComponentType.A2UI_ROW,
+                "children": ["approve", "cancel"],
+            },
+            {
+                "id": "approve",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "text": {"path": "/labels/approve"},
+                "primary": True,
+                "action": {"type": "approve", "payload": {"confirm": True}},
+            },
+            {
+                "id": "cancel",
+                "component": A2UIComponentType.A2UI_BUTTON,
+                "text": {"path": "/labels/cancel"},
+                "action": {"type": "cancel", "payload": "dismiss"},
+            },
+        ],
+        "dataModel": {"prompt": "Deploy to production?", "labels": {"approve": "Deploy", "cancel": "Cancel"}},
+    }
+
+    root: A2UIComponent = surface["components"][0]
+    assert root["children"] == ["title", "actions"]
+    assert isinstance(root["children"][0], str)
+    assert surface["components"][4]["action"]["payload"] == "dismiss"
+
+
+def test_tool_invocation_dto_widget_field():
+    """ToolInvocationDTO.widget carries an A2UI surface for interactive client tools."""
+    from inferencesh.types import (
+        A2UIComponentType,
+        ToolInvocationDTO,
+        ToolInvocationFunction,
+        ToolInvocationStatus,
+        ToolType,
+        Widget,
+    )
+
+    widget: Widget = {
+        "surfaceId": "pick-region",
+        "components": [
+            {
+                "id": "picker",
+                "component": A2UIComponentType.A2UI_CHOICE_PICKER,
+                "options": [{"label": "US East", "value": "us-east-1"}],
+            },
+        ],
+    }
+    invocation: ToolInvocationDTO = {
+        "tool_invocation_id": "ti_abc",
+        "type": ToolType.CLIENT,
+        "display_name": "Pick region",
+        "function": ToolInvocationFunction(name="pick_region", arguments={}),
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "widget": widget,
+    }
+
+    assert invocation["widget"]["surfaceId"] == "pick-region"
+    assert "widget" in ToolInvocationDTO.__annotations__
+
+
+def test_public_app_store_dto_pricing_description():
+    """PublicAppStoreDTO.pricing_description renders human-readable pricing in catalog listings."""
+    from inferencesh.types import PublicAppStoreDTO
+
+    listing: PublicAppStoreDTO = {
+        "namespace": "acme",
+        "name": "flux",
+        "description": "Image generation",
+        "pricing_description": "From $0.05 per image",
+    }
+
+    assert listing["pricing_description"] == "From $0.05 per image"
+    assert "pricing_description" in PublicAppStoreDTO.__annotations__
+
+
+def test_internal_tools_config_meta_field():
+    """InternalToolsConfig.meta toggles metadata introspection tools for agents."""
+    from inferencesh.types import InternalToolsConfig
+
+    config: InternalToolsConfig = {
+        "plan": True,
+        "memory": False,
+        "meta": True,
+    }
+
+    assert config["meta"] is True
+    assert "meta" in InternalToolsConfig.__annotations__
+
+
+def test_lifecycle_hook_config_default_resolution():
+    """Gate hooks can specify a default resolution when the handler times out."""
+    from inferencesh.types import HookEvent, HookHandlerType, InterruptResolution, LifecycleHookConfig
+
+    hook: LifecycleHookConfig = {
+        "event": HookEvent.TOOL_CALL,
+        "type": HookHandlerType.HOOK_HANDLER_GATE,
+        "handler": "acme/policy-gate@v1",
+        "default_resolution": InterruptResolution.DENY,
+        "timeout": 30,
+    }
+
+    assert hook["default_resolution"] == InterruptResolution.DENY
+    assert "default_resolution" in LifecycleHookConfig.__annotations__
+
+
+def test_hook_event_definition_shape():
+    """HookEventDefinition advertises which lifecycle events support gating."""
+    from inferencesh.types import HookEvent, HookEventDefinition
+
+    definition: HookEventDefinition = {
+        "event": HookEvent.TOOL_CALL,
+        "description": "Before a tool is invoked",
+        "can_gate": True,
+    }
+
+    assert definition["can_gate"] is True
+    assert set(HookEventDefinition.__annotations__) >= {"event", "description", "can_gate"}
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PENDING", "pending"),
+        ("RESOLVED", "resolved"),
+        ("EXPIRED", "expired"),
+        ("CANCELLED", "cancelled"),
+    ],
+)
+def test_interrupt_status_values(member, value):
+    """Interrupt lifecycle states must stay stable for agent run pause/resume APIs."""
+    from inferencesh.types import InterruptStatus
+
+    assert hasattr(InterruptStatus, member)
+    assert getattr(InterruptStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ALLOW", "allow"),
+        ("DENY", "deny"),
+    ],
+)
+def test_interrupt_resolution_values(member, value):
+    """Gate hook resolutions map to allow/deny decisions on pending interrupts."""
+    from inferencesh.types import InterruptResolution
+
+    assert hasattr(InterruptResolution, member)
+    assert getattr(InterruptResolution, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("INTERRUPT_RESOURCE_TOOL_INVOCATION", "tool_invocation"),
+        ("INTERRUPT_RESOURCE_HOOK_EVENT", "hook_event"),
+    ],
+)
+def test_interrupt_resource_type_values(member, value):
+    """InterruptResourceType discriminates tool vs hook-gate interrupt sources."""
+    from inferencesh.types import InterruptResourceType
+
+    assert hasattr(InterruptResourceType, member)
+    assert getattr(InterruptResourceType, member).value == value
+
+
+def test_interrupt_dto_shape():
+    """InterruptDTO captures hook-gate and client-tool pause state for agent runs."""
+    from inferencesh.types import (
+        InterruptDTO,
+        InterruptReason,
+        InterruptResolution,
+        InterruptResourceType,
+        InterruptStatus,
+    )
+
+    interrupt: InterruptDTO = {
+        "run_id": "run_abc",
+        "chat_id": "chat_xyz",
+        "reason": InterruptReason.HOOK_GATE,
+        "source": "acme/policy-gate@v1",
+        "resource_id": "hook_evt_123",
+        "resource_type": InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT,
+        "status": InterruptStatus.PENDING,
+        "resolution": InterruptResolution.ALLOW,
+        "resolved_at": None,
+        "resolved_data": {"approved_by": "admin"},
+        "expires_at": "2026-08-20T13:00:00Z",
+        "meta": {"policy": "deploy-approval"},
+    }
+
+    assert interrupt["reason"] == InterruptReason.HOOK_GATE
+    assert interrupt["resource_type"] == InterruptResourceType.INTERRUPT_RESOURCE_HOOK_EVENT
+    assert interrupt["status"] == InterruptStatus.PENDING
+    assert "reason" in InterruptDTO.__annotations__
+    assert "resource_type" in InterruptDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "enum_cls,member,value",
+    [
+        ("HookDecision", "SUSPEND", "suspend"),
+        ("HookHandlerType", "HOOK_HANDLER_GATE", "gate"),
+        ("InterruptReason", "HOOK_GATE", "hook_gate"),
+    ],
+)
+def test_hook_gate_enum_values(enum_cls, member, value):
+    """Gate hook typegen must expose suspend/gate tokens for lifecycle interrupt flows."""
+    from inferencesh import types
+
+    cls = getattr(types, enum_cls)
+    assert hasattr(cls, member)
+    assert getattr(cls, member).value == value
+
