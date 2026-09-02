@@ -118,22 +118,4 @@ class DeltaAccumulator:
         return dict(self._state)
 
     def to_output(self) -> LLMOutput:
-        s = self._state
-        output = LLMOutput(response=s.get("response", ""))
-        if s.get("reasoning"):
-            output.reasoning = s["reasoning"]
-        if s.get("tool_calls"):
-            output.tool_calls = [
-                {
-                    "id": tc.get("id", ""),
-                    "type": tc.get("type", "function"),
-                    "function": {
-                        "name": tc.get("function", {}).get("name", ""),
-                        "arguments": tc.get("function", {}).get("arguments", ""),
-                    },
-                }
-                for tc in s["tool_calls"]
-            ]
-        if s.get("usage"):
-            output.usage = s["usage"]
-        return output
+        return LLMOutput(**self._state)
