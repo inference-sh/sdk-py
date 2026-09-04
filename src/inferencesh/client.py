@@ -920,7 +920,7 @@ class Inference:
                     )
                     if result is not None:
                         # Merge accumulated delta output into final result
-                        if accumulator.response or accumulator.reasoning or accumulator._tool_calls:
+                        if accumulator.to_dict():
                             output = accumulator.to_output()
                             result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
                         yield result
@@ -1546,7 +1546,7 @@ class AsyncInference:
                         )
                         if result is not None:
                             # Merge accumulated delta output into final result
-                            if accumulator.response or accumulator.reasoning or accumulator._tool_calls:
+                            if accumulator.to_dict():
                                 output = accumulator.to_output()
                                 result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
                             yield result

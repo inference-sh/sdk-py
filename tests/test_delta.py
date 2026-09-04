@@ -178,3 +178,43 @@ class TestDeltaAccumulator:
         d = acc.to_dict()
         assert d["content"] == "ab"
         assert d["count"] == 5
+
+
+# ── nested types two levels deep keep their tags ──────────────────────
+
+class Leaf(BaseModel):
+    parts: Optional[List[dict]] = None   # list → default would be replace
+    label: str = ""                       # str → default would be concat
+
+    _field_tags: ClassVar[dict] = {
+        "parts": {"merge": "indexed"},
+        "label": {"merge": "replace"},
+    }
+
+
+class Mid(BaseModel):
+    leaf: Optional[Leaf] = None
+
+    _field_tags: ClassVar[dict] = {"leaf": {"merge": "nested"}}
+
+
+class DeepDelta(StreamDelta):
+    mid: Optional[Mid] = None
+
+    _field_tags: ClassVar[dict] = {"mid": {"merge": "nested"}}
+
+
+class TestDeepNested:
+    def test_leaf_tags_survive_two_levels_of_nesting(self):
+        acc = DeltaAccumulator()
+        acc.apply(DeepDelta(mid=Mid(leaf=Leaf(parts=[{"index": 0, "v": "a"}], label="one"))))
+        acc.apply(DeepDelta(mid=Mid(leaf=Leaf(parts=[{"index": 1, "v": "b"}], label="two"))))
+        leaf = acc.to_dict()["mid"]["leaf"]
+        assert [p["v"] for p in leaf["parts"]] == ["a", "b"]   # indexed, not replaced
+        assert leaf["label"] == "two"                          # replace, not "onetwo"
+
+    def test_nested_defaults_do_not_shadow_later_values(self):
+        acc = DeltaAccumulator()
+        acc.apply(DeepDelta(mid=Mid(leaf=Leaf(parts=[{"index": 0}]))))   # label unset
+        acc.apply(DeepDelta(mid=Mid(leaf=Leaf(label="real"))))
+        assert acc.to_dict()["mid"]["leaf"]["label"] == "real"

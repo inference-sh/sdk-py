@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from .llm_types_gen import LLMDelta, LLMOutput, StreamDelta
+from .llm_types_gen import LLMDelta, LLMOutput, MergeStrategy, StreamDelta
 
 
 def _get_field_tags(obj: Any) -> dict:
@@ -19,22 +19,24 @@ def _get_field_tags(obj: Any) -> dict:
     return {}
 
 
-def _merge_value(current: Any, incoming: Any, strategy: str) -> Any:
+def _merge_value(current: Any, incoming: Any, strategy: MergeStrategy) -> Any:
     if incoming is None:
         return current
-    if strategy == "concat":
+    if strategy is MergeStrategy.CONCAT:
         if current is None:
             return incoming
         if isinstance(current, str) and isinstance(incoming, str):
             return current + incoming
         return incoming
-    if strategy == "replace":
+    if strategy is MergeStrategy.REPLACE:
         return incoming
-    if strategy == "indexed":
+    if strategy is MergeStrategy.INDEXED:
         return _merge_indexed(current, incoming)
-    if strategy == "nested":
+    if strategy is MergeStrategy.NESTED:
+        # Start from the delta's set fields only; model defaults (e.g. "")
+        # must not be recorded as state or they overwrite later real values.
         if current is None:
-            return _to_dict(incoming)
+            return merge_delta({}, incoming)
         return merge_delta(_to_dict(current), incoming)
     return incoming
 
@@ -72,6 +74,14 @@ def _to_delta_dict(obj: Any) -> dict:
     return dict(obj)
 
 
+def _strategy_for(tags: dict, field_name: str, value: Any) -> MergeStrategy:
+    """Strategy from the type's _field_tags; untagged strings concat, others replace."""
+    tag = tags.get(field_name, {}).get("merge")
+    if tag:
+        return MergeStrategy(tag)
+    return MergeStrategy.CONCAT if isinstance(value, str) else MergeStrategy.REPLACE
+
+
 def merge_delta(current: dict, delta: Any) -> dict:
     """Merge a delta into accumulated state using _field_tags.
 
@@ -81,23 +91,19 @@ def merge_delta(current: dict, delta: Any) -> dict:
     tags = _get_field_tags(delta)
     delta_dict = _to_delta_dict(delta)
 
-    # For indexed fields, we need the raw pydantic objects (not serialized dicts)
-    # so nested types retain their _field_tags during recursive merge.
+    # Recursive strategies (indexed, nested) must receive the raw pydantic
+    # value, not its serialized dict, so the child type's _field_tags are
+    # still available at the next level.
     raw_delta = delta if not isinstance(delta, dict) else None
 
     for field_name, value in delta_dict.items():
         if value is None:
             continue
-        field_tags = tags.get(field_name, {})
-        strategy = field_tags.get("merge", "")
-        if not strategy:
-            strategy = "concat" if isinstance(value, str) else "replace"
+        strategy = _strategy_for(tags, field_name, value)
 
-        if strategy == "indexed" and raw_delta is not None:
-            raw_value = getattr(raw_delta, field_name, value)
-            current[field_name] = _merge_indexed(current.get(field_name), raw_value)
-        else:
-            current[field_name] = _merge_value(current.get(field_name), value, strategy)
+        if strategy in (MergeStrategy.INDEXED, MergeStrategy.NESTED) and raw_delta is not None:
+            value = getattr(raw_delta, field_name, value)
+        current[field_name] = _merge_value(current.get(field_name), value, strategy)
 
     return current
 
