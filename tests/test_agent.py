@@ -622,3 +622,57 @@ def test_agent_send_message_invokes_streaming_callbacks(monkeypatch, patch_agent
     assert streamed["called"] is True
     assert streamed["on_message"] is True
     assert streamed["on_tool_call"] is True
+
+
+def test_approve_tool_posts_invoke(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.approve_tool("inv_9")
+
+    call = patch_agent_requests[-1]
+    assert call["method"] == "POST"
+    assert call["url"].endswith("/tools/inv_9/invoke")
+
+
+def test_reject_tool_posts_reason(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.reject_tool("inv_9", reason="wrong env")
+
+    call = patch_agent_requests[-1]
+    assert call["url"].endswith("/tools/inv_9/reject")
+    assert call["data"] == {"reason": "wrong env"}
+
+
+def test_pending_approvals_projects_tool_approval_interrupts():
+    from inferencesh import pending_approvals, PendingApproval
+    from inferencesh.types import InterruptReason, InterruptStatus
+
+    chat = {
+        "id": "chat_1",
+        "pending_interrupts": [
+            {
+                "id": "int_1",
+                "chat_id": "chat_1",
+                "reason": InterruptReason.TOOL_APPROVAL.value,
+                "status": InterruptStatus.PENDING.value,
+                "resource_id": "inv_1",
+                "meta": {"tool_invocation_id": "inv_1", "tool_name": "deploy", "arguments": {"env": "prod"}},
+            },
+            {"id": "int_2", "reason": InterruptReason.TOOL_APPROVAL.value, "status": InterruptStatus.RESOLVED.value, "resource_id": "inv_2"},
+            {"id": "int_3", "reason": InterruptReason.WIDGET.value, "status": InterruptStatus.PENDING.value, "resource_id": "inv_3"},
+            {"id": "int_4", "reason": InterruptReason.TOOL_APPROVAL.value, "status": InterruptStatus.PENDING.value, "resource_id": "inv_4"},
+        ],
+    }
+
+    got = pending_approvals(chat)
+
+    assert got[0] == PendingApproval(
+        interrupt_id="int_1", tool_invocation_id="inv_1", chat_id="chat_1", tool_name="deploy", arguments={"env": "prod"},
+    )
+    assert [p.tool_invocation_id for p in got] == ["inv_1", "inv_4"]
+    assert got[1].tool_name == ""
+    assert pending_approvals(None) == []
+    assert pending_approvals({"id": "x"}) == []

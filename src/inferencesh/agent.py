@@ -7,7 +7,7 @@ Chat with AI agents without UI dependencies.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .types import (
@@ -16,6 +16,8 @@ from .types import (
     AgentConfigInput as AgentConfig,
     AgentRunState,
     FileRef,
+    InterruptReason,
+    InterruptStatus,
     ToolType,
     ToolInvocationStatus,
 )
@@ -35,6 +37,47 @@ class ToolCallInfo:
     id: str
     name: str
     args: Dict[str, Any]
+
+
+@dataclass
+class PendingApproval:
+    """A tool invocation gated on human approval, projected from the chat's pending interrupts."""
+    interrupt_id: str
+    tool_invocation_id: str
+    chat_id: str
+    tool_name: str
+    arguments: Dict[str, Any]
+
+
+def pending_approvals(chat: Optional[ChatDTO]) -> List[PendingApproval]:
+    """
+    Tool approvals the chat is currently waiting on.
+
+    Reads ``chat["pending_interrupts"]``, which the API projects onto the chat,
+    so no message scan is needed. Approve with ``agent.approve_tool(item.tool_invocation_id)``.
+    """
+    if not chat:
+        return []
+    out: List[PendingApproval] = []
+    for interrupt in chat.get("pending_interrupts") or []:
+        if interrupt.get("reason") != InterruptReason.TOOL_APPROVAL:
+            continue
+        if interrupt.get("status") != InterruptStatus.PENDING:
+            continue
+        meta = interrupt.get("meta") or {}
+        if isinstance(meta, str):
+            try:
+                meta = json.loads(meta)
+            except ValueError:
+                meta = {}
+        out.append(PendingApproval(
+            interrupt_id=interrupt.get("id", ""),
+            tool_invocation_id=interrupt.get("resource_id") or meta.get("tool_invocation_id", ""),
+            chat_id=interrupt.get("chat_id") or chat.get("id", ""),
+            tool_name=meta.get("tool_name", ""),
+            arguments=meta.get("arguments") or {},
+        ))
+    return out
 
 
 class Agent:
@@ -175,6 +218,14 @@ class Agent:
         else:
             result = json.dumps(result_or_action)
         self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
+
+    def approve_tool(self, tool_invocation_id: str) -> None:
+        """Approve a tool invocation that is awaiting human approval."""
+        self._request("post", f"/tools/{tool_invocation_id}/invoke")
+
+    def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
+        """Reject a tool invocation that is awaiting human approval."""
+        self._request("post", f"/tools/{tool_invocation_id}/reject", data={"reason": reason or ""})
 
     def stream_messages(
         self,
@@ -642,6 +693,12 @@ class AsyncAgent:
         else:
             result = json.dumps(result_or_action)
         await self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
+
+    async def approve_tool(self, tool_invocation_id: str) -> None:
+        await self._request("post", f"/tools/{tool_invocation_id}/invoke")
+
+    async def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
+        await self._request("post", f"/tools/{tool_invocation_id}/reject", data={"reason": reason or ""})
 
     async def stream_messages(self) -> AsyncIterator[ChatMessageDTO]:
         """Stream messages from the unified stream endpoint with TypedEvents."""
