@@ -33,6 +33,7 @@ from typing import (
     get_type_hints,
 )
 
+from ..delta import OutputDiffer
 from ..llm_types_gen import (
     ResponseFormat,
     ResponseFormatType,
@@ -376,17 +377,6 @@ class _ChunkStream:
             return None
         return self._chunk(cd)
 
-    def from_text(self, content: str = "", reasoning: str = "") -> Optional[ChatCompletionChunk]:
-        """Chunk from diffed progress text, for apps that do not yield deltas."""
-        cd = ChoiceDelta()
-        if content:
-            cd.content = content
-        if reasoning:
-            cd.reasoning = reasoning
-        if not cd.model_fields_set and not self._first:
-            return None
-        return self._chunk(cd)
-
     def finish(self, out: BaseLLMOutput, include_usage: bool) -> List[ChatCompletionChunk]:
         chunks = [self._chunk(ChoiceDelta(), finish_reason=_finish_reason(out))]
         if include_usage:
@@ -430,24 +420,6 @@ def _as_llm_output(out: Any) -> BaseLLMOutput:
     if not isinstance(out, BaseLLMOutput):
         raise TypeError(f"OpenAIChatMixin requires run() to yield LLMOutput, got {type(out).__name__}")
     return out
-
-
-class _ProgressDiffer:
-    """Turn cumulative progress outputs into (content, reasoning) increments."""
-
-    def __init__(self) -> None:
-        self._response = ""
-        self._reasoning = ""
-
-    @staticmethod
-    def _increment(prev: str, cur: str) -> str:
-        return cur[len(prev):] if cur.startswith(prev) else cur
-
-    def step(self, out: BaseLLMOutput) -> tuple[str, str]:
-        response, reasoning = out.response or "", out.reasoning or ""
-        inc = (self._increment(self._response, response), self._increment(self._reasoning, reasoning))
-        self._response, self._reasoning = response, reasoning
-        return inc
 
 
 def _default_model_name(app: Any) -> str:
@@ -495,7 +467,7 @@ class OpenAIChatMixin:
 
         final: Optional[BaseLLMOutput] = None
         saw_delta = False
-        diff = _ProgressDiffer()
+        diff = OutputDiffer()
 
         if inspect.isasyncgen(result) or hasattr(result, "__aiter__"):
             async for out in result:
@@ -508,13 +480,15 @@ class OpenAIChatMixin:
                 final = _as_llm_output(out)
                 if saw_delta:
                     continue
-                # No deltas from this app: derive chunks by diffing progress.
-                chunk = stream.from_text(*diff.step(final))
+                # No deltas from this app: derive them by diffing progress.
+                derived = diff.step(final)
+                chunk = stream.from_delta(derived) if derived is not None else None
                 if chunk is not None:
                     yield chunk
         else:
             final = _as_llm_output(await result if inspect.iscoroutine(result) else result)
-            chunk = stream.from_text(*diff.step(final))
+            derived = diff.step(final)
+            chunk = stream.from_delta(derived) if derived is not None else None
             if chunk is not None:
                 yield chunk
 

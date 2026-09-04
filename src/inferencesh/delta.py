@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Optional
 
 from .llm_types_gen import LLMDelta, LLMOutput, MergeStrategy, StreamDelta
@@ -125,3 +126,65 @@ class DeltaAccumulator:
 
     def to_output(self) -> LLMOutput:
         return LLMOutput(**self._state)
+
+
+class OutputDiffer:
+    """Turn cumulative LLM outputs into LLMDelta increments.
+
+    For producers that only expose accumulated state (llama.cpp's transformer,
+    legacy progress-yielding apps). Text fields must grow by appending; a
+    non-append change (the transformer moving text between reasoning and
+    response as a </think> tag arrives) cannot be expressed as a concat delta,
+    so that field is skipped for the step and the final output corrects it.
+    Tool calls are keyed by position; argument fragments are diffed the same way.
+    """
+
+    def __init__(self) -> None:
+        self._response = ""
+        self._reasoning = ""
+        self._tool_args: List[str] = []
+
+    @staticmethod
+    def _increment(prev: str, cur: str) -> Optional[str]:
+        if cur == prev:
+            return None
+        if cur.startswith(prev):
+            return cur[len(prev):]
+        return None  # not append-only; cannot be a concat delta
+
+    def step(self, out: Any) -> Optional[LLMDelta]:
+        response = out.response or ""
+        reasoning = out.reasoning or ""
+        fields: Dict[str, Any] = {}
+
+        inc = self._increment(self._response, response)
+        if inc:
+            fields["response"] = inc
+        inc = self._increment(self._reasoning, reasoning)
+        if inc:
+            fields["reasoning"] = inc
+
+        tool_calls = out.tool_calls or []
+        tc_deltas = []
+        for i, tc in enumerate(tool_calls):
+            tc_d = tc if isinstance(tc, dict) else tc.model_dump()
+            fn = tc_d.get("function") or {}
+            args = fn.get("arguments") or ""
+            if not isinstance(args, str):
+                args = json.dumps(args)
+            if i >= len(self._tool_args):
+                self._tool_args.append("")
+                tc_deltas.append({
+                    "index": i, "id": tc_d.get("id"), "type": tc_d.get("type") or "function",
+                    "function": {"name": fn.get("name") or "", "arguments": args},
+                })
+            else:
+                inc = self._increment(self._tool_args[i], args)
+                if inc:
+                    tc_deltas.append({"index": i, "function": {"arguments": inc}})
+            self._tool_args[i] = args
+        if tc_deltas:
+            fields["tool_calls"] = tc_deltas
+
+        self._response, self._reasoning = response, reasoning
+        return LLMDelta(**fields) if fields else None

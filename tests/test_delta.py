@@ -218,3 +218,33 @@ class TestDeepNested:
         acc.apply(DeepDelta(mid=Mid(leaf=Leaf(parts=[{"index": 0}]))))   # label unset
         acc.apply(DeepDelta(mid=Mid(leaf=Leaf(label="real"))))
         assert acc.to_dict()["mid"]["leaf"]["label"] == "real"
+
+
+# ── OutputDiffer: cumulative outputs → deltas ─────────────────────────
+
+from inferencesh.delta import OutputDiffer
+from inferencesh.models.llm import LLMOutput as ContractOutput  # app-layer: tool_calls are dicts, arguments may be fragments
+
+
+class TestOutputDiffer:
+    def test_text_increments(self):
+        d = OutputDiffer()
+        assert d.step(ContractOutput(response="Hel")).response == "Hel"
+        delta = d.step(ContractOutput(response="Hello", reasoning="why"))
+        assert (delta.response, delta.reasoning) == ("lo", "why")
+        assert d.step(ContractOutput(response="Hello", reasoning="why")) is None
+
+    def test_non_append_change_is_skipped_not_corrupted(self):
+        d = OutputDiffer()
+        d.step(ContractOutput(response="abc"))
+        assert d.step(ContractOutput(response="xyz")) is None       # replaced, not appended
+        assert d.step(ContractOutput(response="xyz!")).response == "!"  # resumes from new base
+
+    def test_tool_call_argument_fragments(self):
+        d = OutputDiffer()
+        first = d.step(ContractOutput(tool_calls=[{"id": "c1", "type": "function", "function": {"name": "f", "arguments": '{"a"'}}]))
+        tc = first.tool_calls[0]
+        assert (tc.index, tc.id, tc.function.name, tc.function.arguments) == (0, "c1", "f", '{"a"')
+        second = d.step(ContractOutput(tool_calls=[{"id": "c1", "type": "function", "function": {"name": "f", "arguments": '{"a":1}'}}]))
+        assert second.tool_calls[0].function.arguments == ":1}"
+        assert "id" not in second.tool_calls[0].model_fields_set

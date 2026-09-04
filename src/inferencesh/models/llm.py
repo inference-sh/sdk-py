@@ -1,4 +1,4 @@
-from typing import Optional, List, Any, Callable, Dict, Generator
+from typing import Optional, List, Any, Callable, Dict, Generator, Union
 from enum import Enum
 from pydantic import Field, BaseModel
 from queue import Queue, Empty
@@ -12,6 +12,7 @@ from .base import BaseAppInput, BaseAppOutput
 from .file import File
 
 from inferencesh import llm_types_gen as llm_contract
+from inferencesh.delta import OutputDiffer
 
 ContextMessageRole = llm_contract.ChatMessageRole
 
@@ -425,6 +426,41 @@ def build_openai_messages(
 build_messages = build_openai_messages
 
 
+def openai_tool_choice(choice: Optional[llm_contract.ToolChoice]) -> Any:
+    """LLMInput.tool_choice -> OpenAI-spelled tool_choice (also OpenRouter,
+    llama.cpp, MiniMax, and other OpenAI-compatible APIs)."""
+    if choice is None:
+        return "auto"
+    if choice.mode == llm_contract.ToolChoiceMode.FUNCTION:
+        return {"type": "function", "function": {"name": choice.name}}
+    return choice.mode.value  # none | auto | required
+
+
+def openai_response_format(fmt: Optional[llm_contract.ResponseFormat]) -> Optional[Dict[str, Any]]:
+    """LLMInput.response_format -> OpenAI-spelled response_format. None for text."""
+    if fmt is None or fmt.type == llm_contract.ResponseFormatType.TEXT:
+        return None
+    if fmt.type == llm_contract.ResponseFormatType.JSON_OBJECT:
+        return {"type": "json_object"}
+    spec: Dict[str, Any] = {"name": fmt.name or "response", "schema": fmt.json_schema}
+    if fmt.strict is not None:
+        spec["strict"] = fmt.strict
+    return {"type": "json_schema", "json_schema": spec}
+
+
+def llamacpp_response_format(fmt: Optional[llm_contract.ResponseFormat]) -> Optional[Dict[str, Any]]:
+    """LLMInput.response_format -> llama-cpp-python response_format.
+
+    llama.cpp compiles the schema to a grammar; its spelling is
+    {"type": "json_object", "schema": {...}} for both json modes.
+    """
+    if fmt is None or fmt.type == llm_contract.ResponseFormatType.TEXT:
+        return None
+    if fmt.type == llm_contract.ResponseFormatType.JSON_OBJECT:
+        return {"type": "json_object"}
+    return {"type": "json_object", "schema": fmt.json_schema}
+
+
 def build_tools(tools: Optional[List[Dict[str, Any]]]) -> Optional[List[Dict[str, Any]]]:
     """Build tools in OpenAI API format.
 
@@ -775,15 +811,29 @@ def stream_generate(
     messages: List[Dict[str, Any]],
     transformer: ResponseTransformer = ResponseTransformer(),
     tools: Optional[List[Dict[str, Any]]] = None,
-    tool_choice: Optional[Dict[str, Any]] = None,
+    tool_choice: Optional[Union[llm_contract.ToolChoice, Dict[str, Any], str]] = None,
     temperature: float = 0.7,
     top_p: float = 0.95,
     stop: Optional[List[str]] = None,
     verbose: bool = False,
     output_cls: type[BaseLLMOutput] = LLMOutput,
     kwargs: Optional[Dict[str, Any]] = None,
-) -> Generator[BaseLLMOutput, None, None]:
-    """Stream generate from LLaMA.cpp model with timing and usage tracking."""
+    response_format: Optional[Union[llm_contract.ResponseFormat, Dict[str, Any]]] = None,
+    with_deltas: bool = False,
+) -> Generator[Any, None, None]:
+    """Stream generate from a llama.cpp model with timing and usage tracking.
+
+    tool_choice / response_format accept the LLMInput types (translated to
+    llama.cpp's OpenAI-shaped spelling) or already-shaped dicts.
+
+    with_deltas=False (default): yields cumulative output objects.
+    with_deltas=True: yields (output, LLMDelta | None) tuples; the delta is
+    derived after the transformer runs so <think> extraction is respected.
+    """
+    if isinstance(tool_choice, llm_contract.ToolChoice):
+        tool_choice = openai_tool_choice(tool_choice)
+    if isinstance(response_format, llm_contract.ResponseFormat):
+        response_format = llamacpp_response_format(response_format)
 
     # Create queues for communication between threads
     response_queue: Queue[Any] = Queue()
@@ -810,6 +860,8 @@ def stream_generate(
                 completion_kwargs["tools"] = tools
             if tool_choice is not None:
                 completion_kwargs["tool_choice"] = tool_choice
+            if response_format is not None:
+                completion_kwargs["response_format"] = response_format
 
             # Signal that we're starting
             keep_alive_queue.put(("init", time.time()))
@@ -840,6 +892,7 @@ def stream_generate(
         # Initialize response state
         response = StreamResponse()
         buffer = ""
+        differ = OutputDiffer() if with_deltas else None
 
         # Keep-alive tracking
         last_activity = time.time()
@@ -909,7 +962,7 @@ def stream_generate(
                 # Yield output if we have updates
                 if response.has_updates():
                     output, buffer = response.to_output(buffer, transformer)
-                    yield output
+                    yield (output, differ.step(output)) if differ is not None else output
 
                 # Break if we're done
                 if response.finish_reason:
