@@ -9,7 +9,7 @@ from pydantic import Field
 from inferencesh import BaseApp, BaseAppOutput
 from inferencesh.delta import DeltaAccumulator
 from inferencesh.models.llm import LLMDelta, LLMInput, LLMOutput, LLMUsage
-from inferencesh.llm_types_gen import ToolCallDelta, ToolCallFunctionDelta
+from inferencesh.llm_types_gen import ResponseFormatType, ToolCallDelta, ToolCallFunctionDelta, ToolChoiceMode
 from inferencesh.openai import (
     ChatCompletion,
     ChatCompletionChunk,
@@ -106,15 +106,42 @@ class TestToLLMInput:
         ({"n": 2}, "n"),
         ({"logprobs": True}, "logprobs"),
         ({"logit_bias": {"1": 1.0}}, "logit_bias"),
-        ({"response_format": {"type": "json_object"}}, "response_format"),
         ({"modalities": ["audio"]}, "modalities"),
-        ({"tool_choice": "required"}, "tool_choice"),
-        ({"functions": [{"name": "f"}]}, "functions"),
+        ({"functions": [{"name": "f"}], "tools": [{"type": "function", "function": {"name": "g"}}]}, "functions"),
     ])
     def test_unsupported_rejected(self, kw, param):
         with pytest.raises(UnsupportedParameterError) as e:
             to_llm_input(req(**kw))
         assert e.value.param == param
+
+    def test_tool_choice_modes(self):
+        tools = [{"type": "function", "function": {"name": "f"}}]
+        assert to_llm_input(req(tools=tools)).tool_choice is None
+        assert to_llm_input(req(tools=tools, tool_choice="auto")).tool_choice.mode == ToolChoiceMode.AUTO
+        assert to_llm_input(req(tools=tools, tool_choice="required")).tool_choice.mode == ToolChoiceMode.REQUIRED
+        named = to_llm_input(req(tools=tools, tool_choice={"type": "function", "function": {"name": "f"}})).tool_choice
+        assert (named.mode, named.name) == (ToolChoiceMode.FUNCTION, "f")
+
+    def test_deprecated_functions_api_lifted_to_tools(self):
+        i = to_llm_input(req(functions=[{"name": "f", "parameters": {"type": "object"}}], function_call={"name": "f"}))
+        assert i.tools == [{"type": "function", "function": {"name": "f", "parameters": {"type": "object"}}}]
+        assert (i.tool_choice.mode, i.tool_choice.name) == (ToolChoiceMode.FUNCTION, "f")
+
+    def test_response_format_json_object(self):
+        rf = to_llm_input(req(response_format={"type": "json_object"})).response_format
+        assert rf.type == ResponseFormatType.JSON_OBJECT and rf.json_schema is None
+
+    def test_response_format_json_schema_flattened(self):
+        rf = to_llm_input(req(response_format={"type": "json_schema", "json_schema": {
+            "name": "answer", "strict": True, "schema": {"type": "object", "properties": {"x": {"type": "integer"}}},
+        }})).response_format
+        assert rf.type == ResponseFormatType.JSON_SCHEMA
+        assert rf.name == "answer" and rf.strict is True
+        assert rf.json_schema["properties"]["x"]["type"] == "integer"
+
+    def test_response_format_json_schema_requires_spec(self):
+        with pytest.raises(ValueError, match="json_schema is required"):
+            to_llm_input(req(response_format={"type": "json_schema"}))
 
     def test_ignored_params_accepted(self):
         to_llm_input(req(user="u", metadata={"k": "v"}, store=True, parallel_tool_calls=False, n=1))

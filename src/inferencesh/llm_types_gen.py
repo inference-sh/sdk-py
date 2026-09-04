@@ -58,6 +58,21 @@ class ToolCallFunctionDelta(BaseModel):
         "arguments": {"merge": "concat"},
     }
 
+# ToolChoice constrains tool calling for a turn. Providers spell this
+# differently (OpenAI tool_choice, Anthropic tool_choice.type any/tool,
+# Gemini functionCallingConfig); apps translate at the provider boundary.
+class ToolChoice(BaseModel):
+    mode: ToolChoiceMode
+    name: Optional[str] = None
+
+# ResponseFormat constrains the shape of the model's response.
+# JSONSchema is required when Type is json_schema.
+class ResponseFormat(BaseModel):
+    type: ResponseFormatType
+    name: Optional[str] = None
+    json_schema: Optional[Any] = None
+    strict: Optional[bool] = None
+
 # LLMInput is the input envelope for an LLM provider task.
 class LLMInput(BaseModel):
     model: Optional[str] = None
@@ -83,6 +98,8 @@ class LLMInput(BaseModel):
     images: Optional[List[str]] = None
     files: Optional[List[str]] = None
     tools: Optional[List[Tool]] = None
+    tool_choice: Optional[ToolChoice] = None
+    response_format: Optional[ResponseFormat] = None
     tool_call_id: Optional[str] = None
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
@@ -186,6 +203,17 @@ class MergeStrategy(str, Enum):
     INDEXED = "indexed"
     NESTED = "nested"
 
+class ToolChoiceMode(str, Enum):
+    NONE = "none"
+    AUTO = "auto"
+    REQUIRED = "required"
+    FUNCTION = "function"
+
+class ResponseFormatType(str, Enum):
+    TEXT = "text"
+    JSON_OBJECT = "json_object"
+    JSON_SCHEMA = "json_schema"
+
 # Tool call types
 class ToolCallType(str, Enum):
     TOOL_TYPE_FUNCTION = "function"
@@ -207,6 +235,8 @@ LLMOutput.model_rebuild()
 ToolCallDelta.model_rebuild()
 DeltaEvent.model_rebuild()
 ToolCallFunctionDelta.model_rebuild()
+ToolChoice.model_rebuild()
+ResponseFormat.model_rebuild()
 LLMInput.model_rebuild()
 LLMContextMessage.model_rebuild()
 ToolCall.model_rebuild()

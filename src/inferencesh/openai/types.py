@@ -97,13 +97,26 @@ class NamedToolChoice(BaseModel):
 ToolChoice = Union[Literal["none", "auto", "required"], NamedToolChoice]
 
 
+class FunctionCallByName(BaseModel):
+    name: str
+
+
 class StreamOptions(BaseModel):
     include_usage: Optional[bool] = None
 
 
+class JSONSchemaSpec(BaseModel):
+    name: str
+    schema_: Dict[str, Any] = Field(alias="schema")
+    description: Optional[str] = None
+    strict: Optional[bool] = None
+
+    model_config = {"populate_by_name": True}
+
+
 class ResponseFormat(BaseModel):
     type: Literal["text", "json_object", "json_schema"]
-    json_schema: Optional[Dict[str, Any]] = None
+    json_schema: Optional[JSONSchemaSpec] = None
 
 
 class ChatCompletionInput(BaseAppInput):
@@ -127,6 +140,10 @@ class ChatCompletionInput(BaseAppInput):
 
     tools: Optional[List[ToolDefinition]] = None
     tool_choice: Optional[ToolChoice] = None
+    response_format: Optional[ResponseFormat] = None
+    # Deprecated functions API — lifted onto tools / tool_choice.
+    functions: Optional[List[Dict[str, Any]]] = None
+    function_call: Optional[Union[Literal["none", "auto"], FunctionCallByName]] = None
 
     stream: Optional[bool] = None
     stream_options: Optional[StreamOptions] = None
@@ -148,13 +165,10 @@ class ChatCompletionInput(BaseAppInput):
     logprobs: Optional[bool] = None
     top_logprobs: Optional[int] = None
     logit_bias: Optional[Dict[str, float]] = None
-    response_format: Optional[ResponseFormat] = None
     audio: Optional[Dict[str, Any]] = None
     modalities: Optional[List[str]] = None
     prediction: Optional[Dict[str, Any]] = None
     web_search_options: Optional[Dict[str, Any]] = None
-    functions: Optional[List[Dict[str, Any]]] = None
-    function_call: Optional[Any] = None
 
 
 # ── Response (shared) ────────────────────────────────────────────────

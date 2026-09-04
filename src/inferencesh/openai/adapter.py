@@ -33,7 +33,13 @@ from typing import (
     get_type_hints,
 )
 
-from ..llm_types_gen import StreamDelta
+from ..llm_types_gen import (
+    ResponseFormat,
+    ResponseFormatType,
+    StreamDelta,
+    ToolChoice,
+    ToolChoiceMode,
+)
 from ..models.file import File
 from ..models.output_meta import TextMeta
 from ..models.llm import (
@@ -58,6 +64,8 @@ from .types import (
     CompletionTokensDetails,
     CompletionUsage,
     FinishReason,
+    FunctionCallByName,
+    NamedToolChoice,
     ResponseFunctionCall,
     ResponseToolCall,
 )
@@ -101,8 +109,6 @@ def _reject_unsupported(req: ChatCompletionInput) -> None:
         raise UnsupportedParameterError("top_logprobs")
     if req.logit_bias:
         raise UnsupportedParameterError("logit_bias")
-    if req.response_format is not None and req.response_format.type != "text":
-        raise UnsupportedParameterError("response_format", f"type={req.response_format.type}")
     if req.audio is not None:
         raise UnsupportedParameterError("audio")
     if req.modalities not in (None, ["text"]):
@@ -111,10 +117,52 @@ def _reject_unsupported(req: ChatCompletionInput) -> None:
         raise UnsupportedParameterError("prediction")
     if req.web_search_options is not None:
         raise UnsupportedParameterError("web_search_options")
-    if req.functions is not None or req.function_call is not None:
-        raise UnsupportedParameterError("functions", "use tools / tool_choice")
-    if req.tool_choice is not None and req.tool_choice not in ("none", "auto"):
-        raise UnsupportedParameterError("tool_choice", "only none / auto are supported")
+    if req.functions is not None and req.tools is not None:
+        raise UnsupportedParameterError("functions", "cannot be combined with tools")
+
+
+def _tool_choice(req: ChatCompletionInput) -> Optional[ToolChoice]:
+    """OpenAI tool_choice (string | named object) -> flat ToolChoice.
+
+    The deprecated function_call carries the same meaning for the
+    functions API and maps identically.
+    """
+    choice: Any = req.tool_choice if req.tool_choice is not None else req.function_call
+    if choice is None:
+        return None
+    if isinstance(choice, str):
+        return ToolChoice(mode=ToolChoiceMode(choice))
+    if isinstance(choice, NamedToolChoice):
+        return ToolChoice(mode=ToolChoiceMode.FUNCTION, name=choice.function.name)
+    if isinstance(choice, FunctionCallByName):
+        return ToolChoice(mode=ToolChoiceMode.FUNCTION, name=choice.name)
+    raise UnsupportedParameterError("tool_choice", f"unrecognised value {choice!r}")
+
+
+def _response_format(req: ChatCompletionInput) -> Optional[ResponseFormat]:
+    """OpenAI response_format -> flat ResponseFormat (json_schema un-nested)."""
+    rf = req.response_format
+    if rf is None:
+        return None
+    if rf.type == "json_schema":
+        if rf.json_schema is None:
+            raise ValueError("response_format.json_schema is required for type json_schema")
+        return ResponseFormat(
+            type=ResponseFormatType.JSON_SCHEMA,
+            name=rf.json_schema.name,
+            json_schema=rf.json_schema.schema_,
+            strict=rf.json_schema.strict,
+        )
+    return ResponseFormat(type=ResponseFormatType(rf.type))
+
+
+def _tools(req: ChatCompletionInput) -> Optional[List[Dict[str, Any]]]:
+    """tools, or the deprecated functions list lifted into tool shape."""
+    if req.tools:
+        return [t.model_dump(exclude_none=True) for t in req.tools]
+    if req.functions:
+        return [{"type": "function", "function": f} for f in req.functions]
+    return None
 
 
 def _render_content(msg: ChatMessage) -> tuple[str, List[File], List[File]]:
@@ -229,8 +277,15 @@ def to_llm_input(req: ChatCompletionInput, input_cls: Type[LLMInput] = LLMInput)
     if req.reasoning_effort is not None:
         kwargs["reasoning_effort"] = _REASONING_EFFORT[req.reasoning_effort]
 
-    if req.tools and req.tool_choice != "none":
-        kwargs["tools"] = [t.model_dump(exclude_none=True) for t in req.tools]
+    tools = _tools(req)
+    tool_choice = _tool_choice(req)
+    if tools and not (tool_choice and tool_choice.mode is ToolChoiceMode.NONE):
+        kwargs["tools"] = tools
+        if tool_choice is not None:
+            kwargs["tool_choice"] = tool_choice
+    response_format = _response_format(req)
+    if response_format is not None:
+        kwargs["response_format"] = response_format
 
     return input_cls(**kwargs)
 

@@ -1919,6 +1919,21 @@ class ToolCallFunctionDelta(TypedDict, total=False):
         "arguments": {"merge": "concat"},
     }
 
+# ToolChoice constrains tool calling for a turn. Providers spell this
+# differently (OpenAI tool_choice, Anthropic tool_choice.type any/tool,
+# Gemini functionCallingConfig); apps translate at the provider boundary.
+class ToolChoice(TypedDict, total=False):
+    mode: ToolChoiceMode
+    name: Optional[str]
+
+# ResponseFormat constrains the shape of the model's response.
+# JSONSchema is required when Type is json_schema.
+class ResponseFormat(TypedDict, total=False):
+    type: ResponseFormatType
+    name: Optional[str]
+    json_schema: Optional[Any]
+    strict: Optional[bool]
+
 # ModelSettings groups sampling and generation parameters as a passable unit.
 class ModelSettings(TypedDict, total=False):
     temperature: Optional[float]
@@ -1959,6 +1974,8 @@ class LLMInput(TypedDict, total=False):
     images: Optional[List[str]]
     files: Optional[List[str]]
     tools: Optional[List[Tool]]
+    tool_choice: Optional[ToolChoice]
+    response_format: Optional[ResponseFormat]
     tool_call_id: Optional[str]
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
@@ -3093,6 +3110,17 @@ class MergeStrategy(str, Enum):
     REPLACE = "replace"
     INDEXED = "indexed"
     NESTED = "nested"
+
+class ToolChoiceMode(str, Enum):
+    NONE = "none"
+    AUTO = "auto"
+    REQUIRED = "required"
+    FUNCTION = "function"
+
+class ResponseFormatType(str, Enum):
+    TEXT = "text"
+    JSON_OBJECT = "json_object"
+    JSON_SCHEMA = "json_schema"
 
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
