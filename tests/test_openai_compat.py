@@ -107,6 +107,7 @@ class TestToLLMInput:
         ({"logprobs": True}, "logprobs"),
         ({"logit_bias": {"1": 1.0}}, "logit_bias"),
         ({"modalities": ["audio"]}, "modalities"),
+        ({"moderation": {"model": "omni-moderation-latest"}}, "moderation"),
         ({"functions": [{"name": "f"}], "tools": [{"type": "function", "function": {"name": "g"}}]}, "functions"),
     ])
     def test_unsupported_rejected(self, kw, param):
@@ -144,7 +145,8 @@ class TestToLLMInput:
             to_llm_input(req(response_format={"type": "json_schema"}))
 
     def test_ignored_params_accepted(self):
-        to_llm_input(req(user="u", metadata={"k": "v"}, store=True, parallel_tool_calls=False, n=1))
+        to_llm_input(req(user="u", metadata={"k": "v"}, store=True, parallel_tool_calls=False, n=1,
+                         prompt_cache_options={"mode": "implicit", "ttl": "30m"}))
 
     def test_unknown_extra_field_tolerated(self):
         to_llm_input(ChatCompletionInput(messages=[{"role": "user", "content": "hi"}], some_future_param=1))

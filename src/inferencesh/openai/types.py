@@ -156,6 +156,7 @@ class ChatCompletionInput(BaseAppInput):
     parallel_tool_calls: Optional[bool] = None
     prompt_cache_key: Optional[str] = None
     prompt_cache_retention: Optional[str] = None
+    prompt_cache_options: Optional[Dict[str, Any]] = None
     safety_identifier: Optional[str] = None
     verbosity: Optional[str] = None
 
@@ -169,6 +170,7 @@ class ChatCompletionInput(BaseAppInput):
     modalities: Optional[List[str]] = None
     prediction: Optional[Dict[str, Any]] = None
     web_search_options: Optional[Dict[str, Any]] = None
+    moderation: Optional[Dict[str, Any]] = None
 
 
 # ── Response (shared) ────────────────────────────────────────────────

@@ -117,6 +117,8 @@ def _reject_unsupported(req: ChatCompletionInput) -> None:
         raise UnsupportedParameterError("prediction")
     if req.web_search_options is not None:
         raise UnsupportedParameterError("web_search_options")
+    if req.moderation is not None:
+        raise UnsupportedParameterError("moderation")
     if req.functions is not None and req.tools is not None:
         raise UnsupportedParameterError("functions", "cannot be combined with tools")
 
