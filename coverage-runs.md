@@ -1,5 +1,25 @@
 # Coverage automation runs
 
+## 2026-09-04 (push dev @ 7a18c53, v0.8.3 typegen)
+
+**Recent changes reviewed:** `7a18c53` (typegen v0.8.3: `ToolChoice`/`ToolChoiceMode`, `ResponseFormat`/`ResponseFormatType` on `LLMInput`; `AuthResponse.otp_method`; `UserDTO.totp_enabled`; `Scope.KNOWLEDGE_READ`/`KNOWLEDGE_WRITE`; `ScopeGroup.KNOWLEDGE`). `86ed174` (security dep bumps only).
+
+**Open PRs checked:** #273 (v0.8.0 StreamDelta/DeltaEvent/MergeStrategy), #272 (v0.7.104 LLMDeltaEvent envelope), #270 (LLMDelta streaming), #269 (v0.7.97 stats/telemetry), #267 (batch-merge gaps) — no overlap with v0.8.3.
+
+**Gaps filled this run:**
+
+- `ToolChoiceMode` enum (`none`, `auto`, `required`, `function`) for provider tool-calling constraints
+- `ResponseFormatType` enum (`text`, `json_object`, `json_schema`) for structured output modes
+- `ToolChoice` / `ResponseFormat` TypedDict shapes on `LLMInput`
+- `llm_types_gen` wire-model validation for `tool_choice` and `response_format` on `LLMInput`
+- `AuthResponse.otp_method` for OTP delivery channel when `otp_required` is true
+- `UserDTO.totp_enabled` for TOTP 2FA status on user profiles
+- `Scope.KNOWLEDGE_READ` / `KNOWLEDGE_WRITE` and `ScopeGroup.KNOWLEDGE` for knowledge/skills API key permissions
+
+**Files:** `tests/test_types.py`, `tests/test_llm.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py -k "tool_choice or response_format or otp_method or totp_enabled or KNOWLEDGE" tests/test_llm.py::TestLLMWireContract tests/test_imports.py -k "ToolChoice or ResponseFormat or AuthResponse or UserDTO"` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

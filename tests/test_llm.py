@@ -502,7 +502,7 @@ class TestLLMWireContract:
         for name in [
             "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
-            "ToolParameters", "ToolParameterProperty",
+            "ToolParameters", "ToolParameterProperty", "ToolChoice", "ResponseFormat",
         ]:
             cls = getattr(llm_contract, name)
             assert issubclass(cls, BaseModel), f"{name} must be a Pydantic BaseModel"
@@ -517,6 +517,7 @@ class TestLLMWireContract:
             "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
             "system_prompt", "context", "role", "text", "reasoning",
             "attachments", "images", "files", "tools", "tool_call_id",
+            "tool_choice", "response_format",
         ]:
             assert field in fields, f"missing {field} on LLMInput wire contract"
 
@@ -558,6 +559,57 @@ class TestLLMWireContract:
 
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
+
+    def test_tool_choice_mode_values(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert llm_contract.ToolChoiceMode.NONE.value == "none"
+        assert llm_contract.ToolChoiceMode.AUTO.value == "auto"
+        assert llm_contract.ToolChoiceMode.REQUIRED.value == "required"
+        assert llm_contract.ToolChoiceMode.FUNCTION.value == "function"
+
+    def test_response_format_type_values(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert llm_contract.ResponseFormatType.TEXT.value == "text"
+        assert llm_contract.ResponseFormatType.JSON_OBJECT.value == "json_object"
+        assert llm_contract.ResponseFormatType.JSON_SCHEMA.value == "json_schema"
+
+    def test_tool_choice_on_llm_input_wire_model(self):
+        """ToolChoice on LLMInput constrains provider tool-calling for a turn."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput(
+            text="find weather",
+            context=[],
+            system_prompt="",
+            tool_choice=llm_contract.ToolChoice(
+                mode=llm_contract.ToolChoiceMode.FUNCTION,
+                name="get_weather",
+            ),
+        )
+        assert inp.tool_choice.mode == llm_contract.ToolChoiceMode.FUNCTION
+        assert inp.tool_choice.name == "get_weather"
+
+    def test_response_format_on_llm_input_wire_model(self):
+        """ResponseFormat on LLMInput selects structured JSON output modes."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
+        inp = llm_contract.LLMInput(
+            text="respond in json",
+            context=[],
+            system_prompt="",
+            response_format=llm_contract.ResponseFormat(
+                type=llm_contract.ResponseFormatType.JSON_SCHEMA,
+                name="answer",
+                json_schema=schema,
+                strict=True,
+            ),
+        )
+        assert inp.response_format.type == llm_contract.ResponseFormatType.JSON_SCHEMA
+        assert inp.response_format.json_schema == schema
+        assert inp.response_format.strict is True
 
 
 class TestDeprecatedMixins:

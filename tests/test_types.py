@@ -1073,6 +1073,8 @@ def test_entitlement_dto_carries_source_and_enforcement():
         ("FLOWS_EXECUTE", "flows:execute"),
         ("SECRETS_READ", "secrets:read"),
         ("API_KEYS_WRITE", "apikeys:write"),
+        ("KNOWLEDGE_READ", "knowledge:read"),
+        ("KNOWLEDGE_WRITE", "knowledge:write"),
         ("SETTINGS_READ", "settings:read"),
     ],
 )
@@ -1092,6 +1094,7 @@ def test_scope_permission_values(member, value):
         ("INTEGRATIONS", "integrations"),
         ("ENGINES", "engines"),
         ("API_KEYS", "apikeys"),
+        ("KNOWLEDGE", "knowledge"),
         ("SETTINGS", "settings"),
     ],
 )
@@ -2450,3 +2453,96 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_auth_response_otp_method_field():
+    """AuthResponse.otp_method indicates how OTP is delivered (email, sms, totp)."""
+    from inferencesh.types import AuthResponse
+
+    resp: AuthResponse = {
+        "session_id": "sess_otp",
+        "otp_required": True,
+        "otp_method": "email",
+    }
+
+    assert resp["otp_method"] == "email"
+    assert resp["otp_required"] is True
+    assert "otp_method" in AuthResponse.__annotations__
+
+
+def test_user_dto_totp_enabled_field():
+    """UserDTO.totp_enabled surfaces whether the user has TOTP 2FA enabled."""
+    from inferencesh.types import UserDTO
+
+    user: UserDTO = {
+        "id": "user_abc",
+        "email": "dev@example.com",
+        "totp_enabled": True,
+    }
+
+    assert user["totp_enabled"] is True
+    assert "totp_enabled" in UserDTO.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("NONE", "none"),
+        ("AUTO", "auto"),
+        ("REQUIRED", "required"),
+        ("FUNCTION", "function"),
+    ],
+)
+def test_tool_choice_mode_values(member, value):
+    """ToolChoiceMode constrains provider tool-calling behavior at the LLM boundary."""
+    from inferencesh.types import ToolChoiceMode
+
+    assert hasattr(ToolChoiceMode, member)
+    assert getattr(ToolChoiceMode, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("TEXT", "text"),
+        ("JSON_OBJECT", "json_object"),
+        ("JSON_SCHEMA", "json_schema"),
+    ],
+)
+def test_response_format_type_values(member, value):
+    """ResponseFormatType selects text, json_object, or json_schema output modes."""
+    from inferencesh.types import ResponseFormatType
+
+    assert hasattr(ResponseFormatType, member)
+    assert getattr(ResponseFormatType, member).value == value
+
+
+def test_llm_input_tool_choice_and_response_format():
+    """LLMInput.tool_choice and response_format constrain tool use and output shape."""
+    from inferencesh.types import (
+        LLMInput,
+        ResponseFormat,
+        ResponseFormatType,
+        ToolChoice,
+        ToolChoiceMode,
+    )
+
+    inp: LLMInput = {
+        "text": "Summarize this",
+        "context": [],
+        "system_prompt": "",
+        "tool_choice": ToolChoice(mode=ToolChoiceMode.FUNCTION, name="search"),
+        "response_format": ResponseFormat(
+            type=ResponseFormatType.JSON_SCHEMA,
+            name="summary",
+            json_schema={"type": "object", "properties": {"summary": {"type": "string"}}},
+            strict=True,
+        ),
+    }
+
+    assert inp["tool_choice"]["mode"] == ToolChoiceMode.FUNCTION
+    assert inp["tool_choice"]["name"] == "search"
+    assert inp["response_format"]["type"] == ResponseFormatType.JSON_SCHEMA
+    assert inp["response_format"]["strict"] is True
+    assert "tool_choice" in LLMInput.__annotations__
+    assert "response_format" in LLMInput.__annotations__
