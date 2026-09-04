@@ -35,6 +35,7 @@ from typing import (
 
 from ..delta import OutputDiffer
 from ..llm_types_gen import (
+    LLMDelta,
     ResponseFormat,
     ResponseFormatType,
     StreamDelta,
@@ -47,7 +48,6 @@ from ..models.llm import (
     BaseLLMOutput,
     ContextMessage,
     ContextMessageRole,
-    LLMDelta,
     LLMInput,
     ReasoningEffortEnum,
 )
@@ -473,6 +473,8 @@ class OpenAIChatMixin:
             async for out in result:
                 if isinstance(out, StreamDelta):
                     saw_delta = True
+                    # Contract type: covers the app-layer subclass and deltas
+                    # built inside the SDK (stream_generate, OutputDiffer).
                     chunk = stream.from_delta(out) if isinstance(out, LLMDelta) else None
                     if chunk is not None:
                         yield chunk

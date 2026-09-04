@@ -263,3 +263,23 @@ class TestProgressApp:
     async def test_model_falls_back_to_request(self):
         outs = [o async for o in ProgressApp().openai(req(model="req/model"))]
         assert outs[-1].model == "req/model"
+
+
+class ContractDeltaApp(OpenAIChatMixin, BaseApp):
+    """Yields the generated-contract LLMDelta (what stream_generate / OutputDiffer build),
+    not the app-layer subclass. Both must become chunks."""
+
+    async def run(self, input_data: AppInput) -> AsyncGenerator[Union[LLMDelta, AppOutput], None]:
+        from inferencesh.llm_types_gen import LLMDelta as ContractDelta
+        yield ContractDelta(response="Hel")
+        yield ContractDelta(response="lo")
+        yield AppOutput(response="Hello")
+
+
+class TestContractDeltaApp:
+    @pytest.mark.asyncio
+    async def test_contract_deltas_become_chunks(self):
+        chunks, finals = await collect(ContractDeltaApp())
+        contents = [c.choices[0].delta.content for c in chunks if c.choices and c.choices[0].delta.content]
+        assert contents == ["Hel", "lo"]
+        assert finals[0].choices[0].message.content == "Hello"
