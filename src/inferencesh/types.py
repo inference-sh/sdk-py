@@ -1774,6 +1774,88 @@ class A2UISurface(TypedDict, total=False):
     components: List[A2UIComponent]
     dataModel: Any
 
+# AgentEvent is the backbone protocol event for agent runs.
+# Published to "runs:<runID>" and "chats:<chatID>" keys on the event bus.
+class AgentEvent(TypedDict, total=False):
+    id: str
+    type: AgentEventType
+    run_id: str
+    chat_id: str
+    agent_id: str
+    timestamp: str
+    payload: Any
+
+class RunStartedPayload(TypedDict, total=False):
+    agent_id: str
+    agent_version_id: str
+    user_message_id: str
+
+class RunStateChangedPayload(TypedDict, total=False):
+    from_state: AgentRunState
+    to_state: AgentRunState
+    error: str
+
+class TurnStartedPayload(TypedDict, total=False):
+    turn_index: int
+    model: str
+
+class TurnCompletedPayload(TypedDict, total=False):
+    turn_index: int
+    tool_count: int
+    has_output: bool
+    stop_reason: str
+
+class ContentDeltaPayload(TypedDict, total=False):
+    kind: ContentDeltaKind
+    delta: str
+
+class ToolStartedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    tool_type: ToolType
+    display_name: str
+    arguments: StringEncodedMap
+
+class ToolCompletedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    status: ToolInvocationStatus
+    result: str
+    duration_ms: int
+
+class ApprovalRequiredPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    arguments: StringEncodedMap
+    reason: InterruptReason
+
+class ApprovalResolvedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    decision: str
+    reason: str
+
+class HookExecutedPayload(TypedDict, total=False):
+    hook_event: HookEvent
+    decision: HookDecision
+    reason: str
+    duration_ms: int
+
+class UsageUpdatedPayload(TypedDict, total=False):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    reasoning_tokens: int
+    cost_usd: float
+
+class ContextCompactedPayload(TypedDict, total=False):
+    before_tokens: int
+    after_tokens: int
+
+class ErrorPayload(TypedDict, total=False):
+    message: str
+    code: str
+
 # ChatData contains agent-specific data for a chat session
 class ChatData(TypedDict, total=False):
     plan_steps: List[PlanStep]
@@ -2363,6 +2445,7 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     chat_messages: List[ChatMessageDTO]
     agent_data: ChatData
     active_run: Optional[AgentRunDTO]
+    pending_interrupts: List[InterruptDTO]
 
 # ChatMessageDTO for API responses
 class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2879,6 +2962,35 @@ class A2UIComponentType(str, Enum):
     A2UI_SPACER = "Spacer"
     A2UI_CHART = "Chart"
     A2UI_FORM = "Form"
+
+class AgentEventType(str, Enum):
+    # Run lifecycle
+    AGENT_EVENT_RUN_STARTED = "run.started"
+    AGENT_EVENT_RUN_STATE_CHANGED = "run.state_changed"
+    # Turn lifecycle
+    AGENT_EVENT_TURN_STARTED = "turn.started"
+    AGENT_EVENT_TURN_COMPLETED = "turn.completed"
+    # Content streaming — structural wrapper; high-frequency token deltas
+    # still flow via the existing DeltaEvent channel for efficiency.
+    AGENT_EVENT_CONTENT_DELTA = "content.delta"
+    # Tool lifecycle
+    AGENT_EVENT_TOOL_STARTED = "tool.started"
+    AGENT_EVENT_TOOL_COMPLETED = "tool.completed"
+    # Approval flow
+    AGENT_EVENT_APPROVAL_REQUIRED = "approval.required"
+    AGENT_EVENT_APPROVAL_RESOLVED = "approval.resolved"
+    # Hook lifecycle
+    AGENT_EVENT_HOOK_EXECUTED = "hook.executed"
+    # Usage
+    AGENT_EVENT_USAGE_UPDATED = "usage.updated"
+    # Context management
+    AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
+    # Errors
+    AGENT_EVENT_ERROR = "error"
+
+class ContentDeltaKind(str, Enum):
+    CONTENT_DELTA_TEXT = "text"
+    CONTENT_DELTA_REASONING = "reasoning"
 
 class AgentRunState(str, Enum):
     SUBMITTED = "submitted"
