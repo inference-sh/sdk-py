@@ -16,32 +16,18 @@ from inferencesh import llm_types_gen as llm_contract
 ContextMessageRole = llm_contract.ChatMessageRole
 
 
-class LLMUsage(BaseAppInput):
-    stop_reason: str = ""
-    time_to_first_token: float = 0.0
-    tokens_per_second: float = 0.0
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
-    reasoning_tokens: int = 0
-    reasoning_time: float = 0.0
-
+LLMUsage = llm_contract.LLMUsage
 
 class Message(BaseAppInput):
     role: ContextMessageRole
     content: str
 
-class ContextMessage(BaseAppInput):
-    role: ContextMessageRole
-    text: Optional[str] = None
-    reasoning: Optional[str] = None
+class ContextMessage(llm_contract.LLMContextMessage, BaseAppInput):
     # App-layer File types instead of wire URL strings
     images: Optional[List[File]] = None
     files: Optional[List[File]] = None
-    tools: Optional[List[Dict[str, Any]]] = None
     # Dict access for backward compat with build_openai_messages
     tool_calls: Optional[List[Dict[str, Any]]] = None
-    tool_call_id: Optional[str] = None
 
 class ReasoningEffortEnum(str, Enum):
     LOW = "low"
@@ -65,23 +51,14 @@ class ModelSettings(BaseModel):
     reasoning_max_tokens: Optional[int] = Field(default=None)
 
 
-class LLMInput(BaseAppInput):
-    model: Optional[str] = None
+class LLMInput(llm_contract.LLMInput, BaseAppInput):
     # App-layer types (File objects, not wire strings/refs)
     context: List[ContextMessage] = Field(default=[])
     images: Optional[List[File]] = Field(default=None)
     files: Optional[List[File]] = Field(default=None)
     attachments: Optional[List[File]] = Field(default=None)
+    # Dict for backward compat with build_openai_messages/build_tools
     tools: Optional[List[Dict[str, Any]]] = Field(default=None)
-    reasoning: Optional[str] = None
-    tool_call_id: Optional[str] = None
-    top_k: Optional[int] = None
-    min_p: Optional[float] = None
-    frequency_penalty: Optional[float] = None
-    presence_penalty: Optional[float] = None
-    repetition_penalty: Optional[float] = None
-    seed: Optional[int] = None
-    reasoning_max_tokens: Optional[int] = None
 
     # App defaults and validation (Go has no annotations for these)
     system_prompt: str = Field(
@@ -126,11 +103,10 @@ class ReasoningCapabilityMixin(_DeprecatedInputMixin): pass
 class ToolsCapabilityMixin(_DeprecatedInputMixin): pass
 class ModelSettingsCapabilityMixin(_DeprecatedInputMixin): pass
 
-class BaseLLMOutput(BaseAppOutput):
-    response: str = ""
-    reasoning: Optional[str] = None
+class BaseLLMOutput(llm_contract.LLMOutput, BaseAppOutput):
+    # Dict for backward compat: apps build tool_calls as dicts and
+    # build_openai_messages reads them dict-style.
     tool_calls: Optional[List[Dict[str, Any]]] = None
-    usage: Optional[LLMUsage] = None
 
 class LLMOutput(BaseLLMOutput): pass
 
