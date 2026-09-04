@@ -1,5 +1,26 @@
 # Coverage automation runs
 
+## 2026-09-04 (push dev @ 96124ca, agent event bus protocol v0.8.4)
+
+**Recent changes reviewed:** `96124ca` (typegen v0.8.4: `AgentEvent` envelope + 12 payload TypedDicts; `AgentEventType` enum; `ContentDeltaKind`; `ChatDTO.pending_interrupts`).
+
+**Open PRs checked:** #275 (v0.8.3 ToolChoice/ResponseFormat/knowledge scopes), #273 (v0.8.0 StreamDelta/DeltaEvent), #272 (LLMDeltaEvent envelope), #270 (LLMDelta streaming), #269 (v0.7.97 stats/telemetry), #267 (gate/interrupt types) — no overlap with v0.8.4.
+
+**Gaps filled this run:**
+
+- `AgentEventType` all 13 event-bus protocol tokens (`run.started` through `error`)
+- `ContentDeltaKind` text vs reasoning discrimination
+- `AgentEvent` envelope shape (`type`, `payload`, run/chat IDs)
+- `RunStateChangedPayload` with `AgentRunState` transitions
+- `ToolStartedPayload` / `ToolCompletedPayload` tool lifecycle shapes
+- `ApprovalRequiredPayload` with `InterruptReason` for approval flow
+- `ContentDeltaPayload` for structural content streaming wrapper
+- `ChatDTO.pending_interrupts` for hook-gate and client-tool pause state
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py -k "agent_event or content_delta or chat_dto_pending"` — 21 passed; `pytest tests/test_imports.py -k "AgentEvent or ContentDelta or RunStateChanged or ToolStarted or ToolCompleted or ApprovalRequired"` — 8 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

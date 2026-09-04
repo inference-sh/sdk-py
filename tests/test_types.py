@@ -2450,3 +2450,180 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("AGENT_EVENT_RUN_STARTED", "run.started"),
+        ("AGENT_EVENT_RUN_STATE_CHANGED", "run.state_changed"),
+        ("AGENT_EVENT_TURN_STARTED", "turn.started"),
+        ("AGENT_EVENT_TURN_COMPLETED", "turn.completed"),
+        ("AGENT_EVENT_CONTENT_DELTA", "content.delta"),
+        ("AGENT_EVENT_TOOL_STARTED", "tool.started"),
+        ("AGENT_EVENT_TOOL_COMPLETED", "tool.completed"),
+        ("AGENT_EVENT_APPROVAL_REQUIRED", "approval.required"),
+        ("AGENT_EVENT_APPROVAL_RESOLVED", "approval.resolved"),
+        ("AGENT_EVENT_HOOK_EXECUTED", "hook.executed"),
+        ("AGENT_EVENT_USAGE_UPDATED", "usage.updated"),
+        ("AGENT_EVENT_CONTEXT_COMPACTED", "context.compacted"),
+        ("AGENT_EVENT_ERROR", "error"),
+    ],
+)
+def test_agent_event_type_values(member, value):
+    """AgentEventType tokens are the event-bus protocol for agent run streaming."""
+    from inferencesh.types import AgentEventType
+
+    assert hasattr(AgentEventType, member)
+    assert getattr(AgentEventType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("CONTENT_DELTA_TEXT", "text"),
+        ("CONTENT_DELTA_REASONING", "reasoning"),
+    ],
+)
+def test_content_delta_kind_values(member, value):
+    """ContentDeltaKind discriminates text vs reasoning in content.delta events."""
+    from inferencesh.types import ContentDeltaKind
+
+    assert hasattr(ContentDeltaKind, member)
+    assert getattr(ContentDeltaKind, member).value == value
+
+
+def test_agent_event_envelope_shape():
+    """AgentEvent is the backbone protocol event for runs:<runID> and chats:<chatID>."""
+    from typing import get_type_hints
+
+    from inferencesh.types import AgentEvent, AgentEventType
+
+    hints = get_type_hints(AgentEvent)
+    assert hints["type"] is AgentEventType
+    assert "payload" in hints
+    assert set(AgentEvent.__annotations__) >= {
+        "id",
+        "type",
+        "run_id",
+        "chat_id",
+        "agent_id",
+        "timestamp",
+        "payload",
+    }
+
+
+def test_agent_event_run_state_changed_payload():
+    """RunStateChangedPayload tracks agent run state transitions on the event bus."""
+    from inferencesh.types import (
+        AgentEvent,
+        AgentEventType,
+        AgentRunState,
+        RunStateChangedPayload,
+    )
+
+    payload: RunStateChangedPayload = {
+        "from_state": AgentRunState.WORKING,
+        "to_state": AgentRunState.INPUT_REQUIRED,
+        "error": "",
+    }
+    event: AgentEvent = {
+        "id": "evt_state_1",
+        "type": AgentEventType.AGENT_EVENT_RUN_STATE_CHANGED,
+        "run_id": "run_abc",
+        "chat_id": "chat_xyz",
+        "payload": payload,
+    }
+
+    assert event["type"] == AgentEventType.AGENT_EVENT_RUN_STATE_CHANGED
+    assert event["payload"]["from_state"] == AgentRunState.WORKING
+    assert event["payload"]["to_state"] == AgentRunState.INPUT_REQUIRED
+    assert set(RunStateChangedPayload.__annotations__) >= {"from_state", "to_state", "error"}
+
+
+def test_agent_event_tool_lifecycle_payloads():
+    """Tool started/completed payloads carry invocation IDs and status for agent UIs."""
+    from inferencesh.types import (
+        ToolCompletedPayload,
+        ToolInvocationStatus,
+        ToolStartedPayload,
+        ToolType,
+    )
+
+    started: ToolStartedPayload = {
+        "tool_invocation_id": "tinv_1",
+        "tool_name": "search",
+        "tool_type": ToolType.HTTP,
+        "display_name": "Web Search",
+        "arguments": {"query": "sdk-py tests"},
+    }
+    completed: ToolCompletedPayload = {
+        "tool_invocation_id": "tinv_1",
+        "tool_name": "search",
+        "status": ToolInvocationStatus.COMPLETED,
+        "result": "Found 3 results",
+        "duration_ms": 420,
+    }
+
+    assert started["tool_type"] == ToolType.HTTP
+    assert completed["status"] == ToolInvocationStatus.COMPLETED
+    assert completed["duration_ms"] == 420
+    assert "tool_invocation_id" in ToolStartedPayload.__annotations__
+    assert "status" in ToolCompletedPayload.__annotations__
+
+
+def test_agent_event_approval_required_payload():
+    """ApprovalRequiredPayload links tool approval interrupts to the event bus."""
+    from inferencesh.types import ApprovalRequiredPayload, InterruptReason
+
+    payload: ApprovalRequiredPayload = {
+        "tool_invocation_id": "tinv_approve",
+        "tool_name": "deploy",
+        "arguments": {"region": "us-east-1"},
+        "reason": InterruptReason.TOOL_APPROVAL,
+    }
+
+    assert payload["reason"] == InterruptReason.TOOL_APPROVAL
+    assert payload["arguments"]["region"] == "us-east-1"
+    assert set(ApprovalRequiredPayload.__annotations__) >= {
+        "tool_invocation_id",
+        "tool_name",
+        "arguments",
+        "reason",
+    }
+
+
+def test_agent_event_content_delta_payload():
+    """ContentDeltaPayload wraps token deltas; high-frequency streams use DeltaEvent."""
+    from inferencesh.types import AgentEventType, ContentDeltaKind, ContentDeltaPayload
+
+    payload: ContentDeltaPayload = {
+        "kind": ContentDeltaKind.CONTENT_DELTA_REASONING,
+        "delta": "Let me think...",
+    }
+
+    assert payload["kind"] == ContentDeltaKind.CONTENT_DELTA_REASONING
+    assert payload["delta"] == "Let me think..."
+    assert AgentEventType.AGENT_EVENT_CONTENT_DELTA.value == "content.delta"
+
+
+def test_chat_dto_pending_interrupts():
+    """ChatDTO.pending_interrupts surfaces hook-gate and client-tool pauses on chat fetch."""
+    from inferencesh.types import ChatDTO, InterruptDTO, InterruptReason, InterruptStatus
+
+    interrupt: InterruptDTO = {
+        "run_id": "run_abc",
+        "chat_id": "chat_xyz",
+        "reason": InterruptReason.CLIENT_TOOL,
+        "source": "browser_action",
+        "resource_id": "tinv_42",
+        "status": InterruptStatus.PENDING,
+    }
+    chat: ChatDTO = {
+        "id": "chat_xyz",
+        "pending_interrupts": [interrupt],
+    }
+
+    assert chat["pending_interrupts"][0]["reason"] == InterruptReason.CLIENT_TOOL
+    assert chat["pending_interrupts"][0]["status"] == InterruptStatus.PENDING
+    assert "pending_interrupts" in ChatDTO.__annotations__
