@@ -382,7 +382,7 @@ class TestModelSettingsAndSamplingParams:
                       "frequency_penalty", "presence_penalty", "repetition_penalty",
                       "seed", "stop", "max_tokens",
                       "reasoning_effort", "reasoning_max_tokens",
-                      "images", "tools"]:
+                      "images", "tools", "tool_choice", "response_format"]:
             assert field in props, f"missing {field}"
         assert ChatInput is LLMInput
         assert BaseLLMInput is LLMInput
@@ -502,7 +502,8 @@ class TestLLMWireContract:
         for name in [
             "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
-            "ToolParameters", "ToolParameterProperty",
+            "ToolParameters", "ToolParameterProperty", "ModelSettings", "LLMSettings",
+            "ToolChoice", "ResponseFormat",
         ]:
             cls = getattr(llm_contract, name)
             assert issubclass(cls, BaseModel), f"{name} must be a Pydantic BaseModel"
@@ -515,10 +516,43 @@ class TestLLMWireContract:
             "model", "context_size", "temperature", "top_p", "top_k", "min_p",
             "frequency_penalty", "presence_penalty", "repetition_penalty",
             "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
-            "system_prompt", "context", "role", "text", "reasoning",
-            "attachments", "images", "files", "tools", "tool_call_id",
+            "system_prompt", "tools", "tool_choice", "response_format",
+            "context", "role", "text", "reasoning",
+            "attachments", "images", "files", "tool_call_id",
         ]:
             assert field in fields, f"missing {field} on LLMInput wire contract"
+
+    def test_llm_settings_wire_model_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.LLMSettings.model_fields.keys())
+        for field in [
+            "model", "temperature", "system_prompt", "tools",
+            "tool_choice", "response_format", "stop",
+        ]:
+            assert field in fields, f"missing {field} on LLMSettings wire contract"
+
+    def test_llm_input_wire_settings_precede_conversation(self):
+        """Wire LLMInput must group tool/output constraints before context messages."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        keys = list(llm_contract.LLMInput.model_fields.keys())
+        context_idx = keys.index("context")
+        for field in ("tools", "tool_choice", "response_format"):
+            assert keys.index(field) < context_idx
+
+    def test_model_settings_wire_model_sampling_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        ms = llm_contract.ModelSettings(
+            temperature=0.3,
+            top_k=20,
+            stop=["END"],
+            reasoning_effort="medium",
+        )
+        assert ms.temperature == 0.3
+        assert ms.top_k == 20
+        assert ms.stop == ["END"]
 
     def test_llm_context_message_model_fields(self):
         from inferencesh import llm_types_gen as llm_contract

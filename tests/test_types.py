@@ -2450,3 +2450,117 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_auth_response_challenge_token_field():
+    """AuthResponse.challenge_token correlates OTP verification with the login session."""
+    from inferencesh.types import AuthResponse
+
+    resp: AuthResponse = {
+        "otp_required": True,
+        "otp_method": "email",
+        "challenge_token": "ch_abc123",
+    }
+
+    assert resp["challenge_token"] == "ch_abc123"
+    assert "challenge_token" in AuthResponse.__annotations__
+
+
+def test_mcp_server_dto_ownership_and_visibility():
+    """MCPServerDTO exposes owner, team, and visibility for access-control UIs."""
+    from inferencesh.types import (
+        MCPServerAuthType,
+        MCPServerDTO,
+        Role,
+        TeamRelationDTO,
+        TeamType,
+        UserRelationDTO,
+        Visibility,
+    )
+
+    user: UserRelationDTO = {"id": "user_1", "role": Role.USER}
+    team: TeamRelationDTO = {"id": "team_1", "type": TeamType.TEAM}
+    dto: MCPServerDTO = {
+        "id": "mcp_1",
+        "user_id": "user_1",
+        "user": user,
+        "team_id": "team_1",
+        "team": team,
+        "visibility": Visibility.PRIVATE,
+        "slug": "my-mcp",
+        "name": "My MCP",
+        "server_url": "https://mcp.example.com",
+        "auth_type": MCPServerAuthType.MCP_SERVER_AUTH_API_KEY,
+    }
+
+    assert dto["visibility"] == Visibility.PRIVATE
+    assert dto["team"]["type"] == TeamType.TEAM
+    assert dto["user"]["role"] == Role.USER
+    assert set(MCPServerDTO.__annotations__) >= {
+        "user_id",
+        "user",
+        "team_id",
+        "team",
+        "visibility",
+    }
+
+
+def test_llm_settings_typed_dict_shape():
+    """LLMSettings groups generation config shared by agent storage and single calls."""
+    from inferencesh.types import (
+        LLMSettings,
+        ResponseFormat,
+        ResponseFormatType,
+        Tool,
+        ToolCallType,
+        ToolChoice,
+        ToolChoiceMode,
+        ToolFunction,
+        ToolParamType,
+        ToolParameters,
+    )
+
+    settings: LLMSettings = {
+        "model": "gpt-4",
+        "temperature": 0.2,
+        "system_prompt": "You are helpful.",
+        "tools": [
+            Tool(
+                type=ToolCallType.TOOL_TYPE_FUNCTION,
+                function=ToolFunction(
+                    name="search",
+                    description="Search the web",
+                        parameters=ToolParameters(
+                            type=ToolParamType.OBJECT,
+                            properties={},
+                        ),
+                ),
+            )
+        ],
+        "tool_choice": ToolChoice(mode=ToolChoiceMode.AUTO),
+        "response_format": ResponseFormat(type=ResponseFormatType.JSON_OBJECT),
+    }
+
+    assert settings["model"] == "gpt-4"
+    assert settings["tool_choice"]["mode"] == ToolChoiceMode.AUTO
+    assert settings["response_format"]["type"] == ResponseFormatType.JSON_OBJECT
+    assert set(LLMSettings.__annotations__) >= {
+        "model",
+        "system_prompt",
+        "tools",
+        "tool_choice",
+        "response_format",
+        "temperature",
+        "stop",
+    }
+
+
+def test_llm_input_settings_fields_precede_conversation():
+    """LLMInput keeps tools/response_format with settings before context (v0.8.6 regen)."""
+    from inferencesh.types import LLMInput
+
+    keys = list(LLMInput.__annotations__)
+    context_idx = keys.index("context")
+    for field in ("tools", "tool_choice", "response_format"):
+        assert field in keys
+        assert keys.index(field) < context_idx, f"{field} must precede context on LLMInput"
