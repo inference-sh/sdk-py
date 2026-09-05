@@ -500,7 +500,7 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         for name in [
-            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "LLMSettings", "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
             "ToolParameters", "ToolParameterProperty",
         ]:
@@ -558,6 +558,34 @@ class TestLLMWireContract:
 
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
+
+    def test_model_settings_absent_from_llm_types_gen(self):
+        """v0.8.8 merges sampling into LLMSettings; wire contract must not expose ModelSettings."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert not hasattr(llm_contract, "ModelSettings")
+
+    def test_llm_settings_wire_model_has_unified_fields(self):
+        """LLMSettings wire model carries generation params and agent config in one type."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.LLMSettings.model_fields.keys())
+        for field in [
+            "model", "context_size", "temperature", "top_p", "top_k", "min_p",
+            "frequency_penalty", "presence_penalty", "repetition_penalty",
+            "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
+            "system_prompt", "tools", "tool_choice", "response_format",
+        ]:
+            assert field in fields, f"missing {field} on LLMSettings wire contract"
+
+    def test_llm_input_inherits_llm_settings_wire_fields(self):
+        """LLMInput must include every LLMSettings field for one-assignment config copy."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        settings_fields = set(llm_contract.LLMSettings.model_fields.keys())
+        input_fields = set(llm_contract.LLMInput.model_fields.keys())
+        missing = settings_fields - input_fields
+        assert not missing, f"LLMInput missing inherited LLMSettings fields: {missing}"
 
 
 class TestDeprecatedMixins:

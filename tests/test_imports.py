@@ -174,6 +174,8 @@ def test_models_llm_export_exists(name):
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
     "SelectorConfig", "UtilityConfig",
+    # LLM settings envelope + integration credential scope (v0.8.7+ typegen regen)
+    "LLMSettings", "LLMInput", "CredentialScope", "IntegrationConnectRequest",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
