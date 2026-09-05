@@ -3501,6 +3501,11 @@ class IntegrationGrant(str, Enum):
 
 class CredentialScope(str, Enum):
     PLATFORM = "platform"
+    # CredentialScopeOrg: shared across all teams of an org. In the enum for
+    # end-to-end typing (connect-level pickers); connects with it are refused
+    # until the org domain lands (INF-795 Phase 2). Resolution order once
+    # live: agent > user > team > org > platform.
+    ORG = "org"
     TEAM = "team"
     USER = "user"
     AGENT = "agent"
