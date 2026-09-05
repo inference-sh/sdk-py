@@ -73,7 +73,48 @@ class ResponseFormat(BaseModel):
     json_schema: Optional[Any] = None
     strict: Optional[bool] = None
 
-# LLMInput is the input envelope for an LLM provider task.
+# ModelSettings groups sampling and generation parameters as a passable unit.
+class ModelSettings(BaseModel):
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    min_p: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    repetition_penalty: Optional[float] = None
+    seed: Optional[int] = None
+    stop: List[str]
+    max_tokens: Optional[int] = None
+    reasoning_effort: Optional[str] = None
+    reasoning_max_tokens: Optional[int] = None
+
+# LLMSettings is everything that configures a generation independent of the
+# conversation: model, sampling, system prompt, tools and output constraints.
+# Embedded by both BaseLLMInput (an agent's stored configuration) and
+# LLMInput (a single call), so a field added here reaches both and the call
+# is built from the configuration by one assignment.
+class LLMSettings(BaseModel):
+    model: Optional[str] = None
+    context_size: int = 0
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    min_p: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    repetition_penalty: Optional[float] = None
+    seed: Optional[int] = None
+    stop: List[str]
+    max_tokens: Optional[int] = None
+    reasoning_effort: Optional[str] = None
+    reasoning_max_tokens: Optional[int] = None
+    system_prompt: str = ""
+    tools: Optional[List[Tool]] = None
+    tool_choice: Optional[ToolChoice] = None
+    response_format: Optional[ResponseFormat] = None
+
+# LLMInput is the input envelope for an LLM provider task: the settings plus
+# the conversation, with the current turn split out of the context.
 class LLMInput(BaseModel):
     model: Optional[str] = None
     context_size: int = 0
@@ -90,6 +131,9 @@ class LLMInput(BaseModel):
     reasoning_effort: Optional[str] = None
     reasoning_max_tokens: Optional[int] = None
     system_prompt: str = ""
+    tools: Optional[List[Tool]] = None
+    tool_choice: Optional[ToolChoice] = None
+    response_format: Optional[ResponseFormat] = None
     context: List[LLMContextMessage]
     role: ChatMessageRole
     text: Optional[str] = None
@@ -97,9 +141,6 @@ class LLMInput(BaseModel):
     attachments: Optional[List[FileRef]] = None
     images: Optional[List[str]] = None
     files: Optional[List[str]] = None
-    tools: Optional[List[Tool]] = None
-    tool_choice: Optional[ToolChoice] = None
-    response_format: Optional[ResponseFormat] = None
     tool_call_id: Optional[str] = None
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
@@ -237,6 +278,8 @@ DeltaEvent.model_rebuild()
 ToolCallFunctionDelta.model_rebuild()
 ToolChoice.model_rebuild()
 ResponseFormat.model_rebuild()
+ModelSettings.model_rebuild()
+LLMSettings.model_rebuild()
 LLMInput.model_rebuild()
 LLMContextMessage.model_rebuild()
 ToolCall.model_rebuild()
