@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-09-05 (push dev @ bcd3828, LLMSettings inheritance + CredentialScope v0.8.7)
+
+**Recent changes reviewed:** `bcd3828` / `6c12008` (typegen v0.8.7: `LLMSettings(ModelSettings)` and `LLMInput(LLMSettings)` inheritance refactor; `CredentialScope` enum; `IntegrationConnectRequest.connection_scope`). `61d594a` (v0.8.6 `LLMSettings` envelope — open PR #277).
+
+**Open PRs checked:** #277 (v0.8.6 LLMSettings envelope, MCP ownership, auth challenge), #276 (v0.8.4), #275 (v0.8.3), #273/#272/#270/#269/#267 — no overlap with v0.8.7 inheritance or CredentialScope.
+
+**Gaps filled this run:**
+
+- `LLMSettings` / `LLMInput` TypedDict inheritance from `ModelSettings` / `LLMSettings` (sampling fields not duplicated)
+- Wire Pydantic `issubclass` hierarchy: `LLMSettings(ModelSettings)`, `LLMInput(LLMSettings)`
+- `LLMInput` settings field order: `tools` / `tool_choice` / `response_format` precede `context`
+- `CredentialScope` enum (`platform`, `team`, `user`, `agent`) for credential ownership
+- `IntegrationConnectRequest.connection_scope` distinct from OAuth `scopes`
+
+**Files:** `tests/test_types.py`, `tests/test_llm.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_credential_scope_values tests/test_types.py::test_integration_connect_request_connection_scope tests/test_types.py::test_llm_settings_extends_model_settings tests/test_types.py::test_llm_input_extends_llm_settings tests/test_types.py::test_llm_input_settings_fields_precede_conversation tests/test_llm.py::TestLLMWireContract` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

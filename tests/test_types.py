@@ -2450,3 +2450,88 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PLATFORM", "platform"),
+        ("TEAM", "team"),
+        ("USER", "user"),
+        ("AGENT", "agent"),
+    ],
+)
+def test_credential_scope_values(member, value):
+    """CredentialScope distinguishes who owns an integration credential (v0.8.7)."""
+    from inferencesh.types import CredentialScope
+
+    assert hasattr(CredentialScope, member)
+    assert getattr(CredentialScope, member).value == value
+
+
+def test_integration_connect_request_connection_scope():
+    """IntegrationConnectRequest.connection_scope selects user vs team credential ownership."""
+    from inferencesh.types import CredentialScope, IntegrationConnectRequest
+
+    req: IntegrationConnectRequest = {
+        "provider": "google",
+        "type": "oauth",
+        "scopes": ["https://www.googleapis.com/auth/drive.readonly"],
+        "connection_scope": CredentialScope.TEAM,
+    }
+
+    assert req["connection_scope"] == CredentialScope.TEAM
+    assert "connection_scope" in IntegrationConnectRequest.__annotations__
+
+
+def test_llm_settings_extends_model_settings():
+    """LLMSettings inherits ModelSettings sampling fields instead of duplicating them (v0.8.7)."""
+    from inferencesh.types import LLMSettings, ModelSettings
+
+    settings: LLMSettings = {
+        "model": "gpt-4",
+        "temperature": 0.2,
+        "top_k": 40,
+        "stop": ["END"],
+        "system_prompt": "Be concise.",
+    }
+
+    assert settings["temperature"] == 0.2
+    assert settings["top_k"] == 40
+    assert set(ModelSettings.__annotations__) <= set(LLMSettings.__annotations__)
+    assert set(LLMSettings.__annotations__) >= {
+        "model",
+        "system_prompt",
+        "tools",
+        "tool_choice",
+        "response_format",
+    }
+
+
+def test_llm_input_extends_llm_settings():
+    """LLMInput inherits LLMSettings so agent config copies to a call in one assignment."""
+    from inferencesh.types import LLMInput, LLMSettings
+
+    inp: LLMInput = {
+        "model": "gpt-4",
+        "temperature": 0.5,
+        "system_prompt": "Helpful assistant.",
+        "context": [],
+        "role": "user",
+        "text": "hello",
+    }
+
+    assert inp["temperature"] == 0.5
+    assert set(LLMSettings.__annotations__) <= set(LLMInput.__annotations__)
+    assert {"context", "role", "text"} <= set(LLMInput.__annotations__)
+
+
+def test_llm_input_settings_fields_precede_conversation():
+    """LLMInput keeps tools/response_format with settings before context (v0.8.6+ regen)."""
+    from inferencesh.types import LLMInput
+
+    keys = list(LLMInput.__annotations__)
+    context_idx = keys.index("context")
+    for field in ("tools", "tool_choice", "response_format"):
+        assert field in keys
+        assert keys.index(field) < context_idx, f"{field} must precede context on LLMInput"
