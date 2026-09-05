@@ -1,5 +1,23 @@
 # Coverage automation runs
 
+## 2026-09-05 (push dev @ d541901, v0.8.8 LLMSettings flatten + CredentialScope.ORG)
+
+**Recent changes reviewed:** `d541901` (typegen v0.8.8: `ModelSettings` removed from `types.py`/`llm_types_gen.py`; sampling + agent-config fields unified on `LLMSettings`; `CredentialScope.ORG` for future org-wide credentials). `bcd3828` (v0.8.7 `LLMSettings(ModelSettings)` inheritance — superseded by v0.8.8 flatten).
+
+**Open PRs checked:** #278 (v0.8.7 ModelSettings inheritance — superseded by this run's flattened `LLMSettings` tests). #277/#276/#275/#273/#272/#270/#269/#267 — no overlap with v0.8.8.
+
+**Gaps filled this run:**
+
+- `ModelSettings` removed from generated types — regression guard on `types.py` and `llm_types_gen`
+- `LLMSettings` unified TypedDict with model, sampling, tools, and output-constraint fields
+- `LLMInput` still inherits `LLMSettings`; settings fields precede conversation fields
+- `LLMSettings` / `LLMInput` wire Pydantic models in `llm_types_gen` carry the unified field set
+- `CredentialScope.ORG` enum value and `IntegrationConnectRequest.connection_scope`
+
+**Files:** `tests/test_types.py`, `tests/test_llm.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_credential_scope_values tests/test_types.py::test_integration_connect_request_connection_scope tests/test_types.py::test_model_settings_removed_from_generated_types tests/test_types.py::test_llm_settings_unified_fields tests/test_types.py::test_llm_input_extends_llm_settings tests/test_types.py::test_llm_input_settings_fields_precede_conversation tests/test_llm.py::TestLLMWireContract tests/test_imports.py::test_generated_type_exists` — 167 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
