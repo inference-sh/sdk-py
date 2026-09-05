@@ -2323,6 +2323,9 @@ class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
 class UserDTO(BaseModelDTO, TypedDict, total=False):
     default_team_id: str
     role: Role
+    # ManagedByOrgID: set for enterprise-managed accounts (no personal team,
+    # cannot create teams/orgs).
+    managed_by_org_id: str
     email: str
     name: str
     full_name: str
