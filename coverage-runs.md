@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-09-05 (push dev @ 61d594a, LLMSettings envelope + MCP ownership + auth challenge v0.8.6)
+
+**Recent changes reviewed:** `61d594a` (typegen v0.8.6: `LLMSettings` TypedDict/BaseModel; `ModelSettings` wire model; `LLMInput` tools/tool_choice/response_format grouped before context; `AuthResponse.challenge_token`; `MCPServerDTO` user/team/visibility). `96124ca` (v0.8.4 AgentEvent — open PR #276).
+
+**Open PRs checked:** #276 (v0.8.4 agent event bus), #275 (v0.8.3 ToolChoice/ResponseFormat/knowledge scopes), #273/#272/#270/#269/#267 — no overlap with v0.8.6.
+
+**Gaps filled this run:**
+
+- `LLMSettings` TypedDict shape for shared agent/call generation config (model, sampling, tools, output constraints)
+- `LLMInput` field order regression: tools/tool_choice/response_format precede context
+- `llm_types_gen.LLMSettings` / `ModelSettings` Pydantic wire models and LLMInput wire field order
+- SDK `LLMInput.tool_choice` / `response_format` optional fields for generated-contract parity
+- `AuthResponse.challenge_token` for OTP challenge correlation
+- `MCPServerDTO` ownership and visibility fields for access-control UIs
+
+**Files:** `tests/test_types.py`, `tests/test_llm.py`, `tests/test_imports.py`, `src/inferencesh/models/llm.py`
+
+**Validation:** `pytest tests/test_types.py::test_auth_response_challenge_token_field tests/test_types.py::test_mcp_server_dto_ownership_and_visibility tests/test_types.py::test_llm_settings_typed_dict_shape tests/test_types.py::test_llm_input_settings_fields_precede_conversation tests/test_llm.py::TestLLMWireContract tests/test_llm.py` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

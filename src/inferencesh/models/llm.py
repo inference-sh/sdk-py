@@ -73,6 +73,8 @@ class LLMInput(BaseAppInput):
     files: Optional[List[File]] = Field(default=None)
     attachments: Optional[List[File]] = Field(default=None)
     tools: Optional[List[Dict[str, Any]]] = Field(default=None)
+    tool_choice: Optional[Dict[str, Any]] = Field(default=None)
+    response_format: Optional[Dict[str, Any]] = Field(default=None)
     reasoning: Optional[str] = None
     tool_call_id: Optional[str] = None
     top_k: Optional[int] = None
