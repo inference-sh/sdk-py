@@ -2027,8 +2027,15 @@ class ResponseFormat(TypedDict, total=False):
     json_schema: Optional[Any]
     strict: Optional[bool]
 
-# ModelSettings groups sampling and generation parameters as a passable unit.
-class ModelSettings(TypedDict, total=False):
+# LLMSettings is everything that configures a generation independent of the
+# conversation: model, context, sampling, system prompt, tools and output
+# constraints. Embedded (tstype extends) by BaseLLMInput — an agent's stored
+# configuration — and LLMInput — a single call — so a field added here
+# reaches both, and the call is built from the configuration by one
+# assignment.
+class LLMSettings(TypedDict, total=False):
+    model: Optional[str]
+    context_size: int
     temperature: Optional[float]
     top_p: Optional[float]
     top_k: Optional[int]
@@ -2041,6 +2048,10 @@ class ModelSettings(TypedDict, total=False):
     max_tokens: Optional[int]
     reasoning_effort: Optional[str]
     reasoning_max_tokens: Optional[int]
+    system_prompt: str
+    tools: Optional[List[Tool]]
+    tool_choice: Optional[ToolChoice]
+    response_format: Optional[ResponseFormat]
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
 class LLMContextMessage(TypedDict, total=False):
@@ -2776,19 +2787,6 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
 
 # LLMDeltaEvent is a typed alias for backward compatibility.
 LLMDeltaEvent = DeltaEvent
-
-# LLMSettings is everything that configures a generation independent of the
-# conversation: model, sampling, system prompt, tools and output constraints.
-# Embedded by both BaseLLMInput (an agent's stored configuration) and
-# LLMInput (a single call), so a field added here reaches both and the call
-# is built from the configuration by one assignment.
-class LLMSettings(ModelSettings, TypedDict, total=False):
-    model: Optional[str]
-    context_size: int
-    system_prompt: str
-    tools: Optional[List[Tool]]
-    tool_choice: Optional[ToolChoice]
-    response_format: Optional[ResponseFormat]
 
 # LLMInput is the input envelope for an LLM provider task: the settings plus
 # the conversation, with the current turn split out of the context.

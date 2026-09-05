@@ -38,6 +38,18 @@ class ReasoningEffortEnum(str, Enum):
 
 
 class ModelSettings(BaseModel):
+    """Deprecated. Sampling settings live flat on LLMInput (which now
+    inherits the generated LLMSettings); nothing sends a nested
+    model_settings object. Kept only so existing imports do not break."""
+
+    def __init__(self, **data: Any) -> None:
+        import warnings
+        warnings.warn(
+            "ModelSettings is deprecated: sampling settings are flat fields on LLMInput",
+            DeprecationWarning, stacklevel=2,
+        )
+        super().__init__(**data)
+
     temperature: Optional[float] = Field(default=None, ge=0.0, le=2.0)
     top_p: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     top_k: Optional[int] = Field(default=None, ge=-1)
