@@ -637,6 +637,7 @@ class PermissionModelDTO(TypedDict, total=False):
     user: Optional[UserRelationDTO]
     team_id: str
     team: Optional[TeamRelationDTO]
+    org_id: str
     visibility: Visibility
 
 # ResourceStatusDTO is a lightweight status-only response for polling transports.
@@ -1195,6 +1196,7 @@ class MCPServerDTO(TypedDict, total=False):
     user: Optional[UserRelationDTO]
     team_id: str
     team: Optional[TeamRelationDTO]
+    org_id: str
     visibility: Visibility
     slug: str
     name: str
@@ -3042,6 +3044,9 @@ class GPUType(str, Enum):
 class Visibility(str, Enum):
     PRIVATE = "private"
     TEAM = "team"
+    # VisibilityOrg sits between team and public: visible to every member of
+    # every team in the owning team's org (INF-795 Phase 2).
+    ORG = "org"
     PUBLIC = "public"
     UNLISTED = "unlisted"
 
