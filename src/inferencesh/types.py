@@ -345,6 +345,7 @@ class AuthResponse(TypedDict, total=False):
     is_new: bool
     otp_required: bool
     otp_method: str
+    challenge_token: str
     redirect_to: str
     provider: str
 
