@@ -1186,6 +1186,11 @@ StringSlice = List[str]
 # MCPServerDTO is the API response shape for the resource.
 class MCPServerDTO(TypedDict, total=False):
     id: str
+    user_id: str
+    user: Optional[UserRelationDTO]
+    team_id: str
+    team: Optional[TeamRelationDTO]
+    visibility: Visibility
     slug: str
     name: str
     description: str
@@ -2032,7 +2037,33 @@ class ModelSettings(TypedDict, total=False):
     reasoning_effort: Optional[str]
     reasoning_max_tokens: Optional[int]
 
-# LLMInput is the input envelope for an LLM provider task.
+# LLMSettings is everything that configures a generation independent of the
+# conversation: model, sampling, system prompt, tools and output constraints.
+# Embedded by both BaseLLMInput (an agent's stored configuration) and
+# LLMInput (a single call), so a field added here reaches both and the call
+# is built from the configuration by one assignment.
+class LLMSettings(TypedDict, total=False):
+    model: Optional[str]
+    context_size: int
+    temperature: Optional[float]
+    top_p: Optional[float]
+    top_k: Optional[int]
+    min_p: Optional[float]
+    frequency_penalty: Optional[float]
+    presence_penalty: Optional[float]
+    repetition_penalty: Optional[float]
+    seed: Optional[int]
+    stop: List[str]
+    max_tokens: Optional[int]
+    reasoning_effort: Optional[str]
+    reasoning_max_tokens: Optional[int]
+    system_prompt: str
+    tools: Optional[List[Tool]]
+    tool_choice: Optional[ToolChoice]
+    response_format: Optional[ResponseFormat]
+
+# LLMInput is the input envelope for an LLM provider task: the settings plus
+# the conversation, with the current turn split out of the context.
 class LLMInput(TypedDict, total=False):
     model: Optional[str]
     context_size: int
@@ -2049,6 +2080,9 @@ class LLMInput(TypedDict, total=False):
     reasoning_effort: Optional[str]
     reasoning_max_tokens: Optional[int]
     system_prompt: str
+    tools: Optional[List[Tool]]
+    tool_choice: Optional[ToolChoice]
+    response_format: Optional[ResponseFormat]
     context: List[LLMContextMessage]
     role: ChatMessageRole
     text: Optional[str]
@@ -2056,9 +2090,6 @@ class LLMInput(TypedDict, total=False):
     attachments: Optional[List[FileRef]]
     images: Optional[List[str]]
     files: Optional[List[str]]
-    tools: Optional[List[Tool]]
-    tool_choice: Optional[ToolChoice]
-    response_format: Optional[ResponseFormat]
     tool_call_id: Optional[str]
 
 # LLMContextMessage represents a message in the chat context for LLM tasks
