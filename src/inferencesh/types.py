@@ -405,6 +405,11 @@ class IntegrationConnectRequest(TypedDict, total=False):
     scopes: List[str]
     api_key: str
     metadata: Dict[str, Any]
+    # ConnectionScope is who the resulting credential belongs to:
+    # "user" (just me) or "team" (shared with the team — requires team
+    # admin). Empty = the provider's default. Distinct from Scopes, which
+    # are OAuth permission scopes.
+    connection_scope: CredentialScope
 
 class IntegrationCompleteOAuthRequest(TypedDict, total=False):
     provider: str
@@ -3523,6 +3528,12 @@ class IntegrationGrant(str, Enum):
     CREDENTIALS = "credentials"
     # IntegrationGrantToken provides ready-to-use access (token, API key, etc.).
     TOKEN = "token"
+
+class CredentialScope(str, Enum):
+    PLATFORM = "platform"
+    TEAM = "team"
+    USER = "user"
+    AGENT = "agent"
 
 class NotificationChannel(str, Enum):
     EMAIL = "email"
