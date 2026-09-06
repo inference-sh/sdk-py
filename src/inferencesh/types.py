@@ -2187,7 +2187,10 @@ class WorkerDTO(BaseModelDTO, TypedDict, total=False):
 
 # EntitlementDTO for API responses
 class EntitlementDTO(BaseModelDTO, TypedDict, total=False):
+    scope: EntitlementScope
     team_id: str
+    org_id: str
+    user_id: str
     resource: EntitlementResource
     type: EntitlementType
     enabled: bool
@@ -3082,6 +3085,11 @@ class EntitlementSource(str, Enum):
 class EntitlementType(str, Enum):
     BOOLEAN = "boolean"
     LIMIT = "limit"
+
+class EntitlementScope(str, Enum):
+    ORG = "org"
+    TEAM = "team"
+    MEMBER = "member"
 
 class EnforcementMode(str, Enum):
     ENFORCEMENT_BLOCK = "block"
