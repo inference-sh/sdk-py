@@ -1438,6 +1438,23 @@ class StatBuckets(TypedDict, total=False):
     this_week: int
     all_time: int
 
+# SubmitSurveyResponse is returned when submitting a survey answer.
+# GrantedAmount is the credit reward in microcents (0 if no reward was earned).
+# RewardBlockedReason is set when the answer was recorded but the reward was
+# withheld by policy (see RewardBlockedPaymentMethodRequired).
+class SubmitSurveyResponse(TypedDict, total=False):
+    response: SurveyResponseDTO
+    granted_amount: int
+    reward_blocked_reason: str
+
+# SubmitSurveyRequest is used to submit a single survey answer.
+class SubmitSurveyRequest(TypedDict, total=False):
+    question_id: str
+    response: str
+    agent: str
+    source: str
+    context: str
+
 # Hardware/System related types
 class SystemInfo(TypedDict, total=False):
     hostname: str
@@ -2413,6 +2430,10 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
     max_per_day: int
     proof_type: str
     proof_min_length: int
+    # RequiresPaymentMethod withholds the reward until the claimant's team has
+    # a saved payment method. The claim itself is refused with 402
+    # payment_method_required (survey answers are still recorded).
+    requires_payment_method: bool
     status: str
     notice_text: str
     notice_cooldown_hours: int
@@ -2699,6 +2720,14 @@ class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     masked_value: str
     description: str
     scope: SecretScope
+
+# SurveyResponseDTO is the API representation of a survey response.
+class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    question_id: str
+    response: str
+    agent: str
+    source: str
+    context: str
 
 # TaskDTO is the full API response for a task.
 class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
