@@ -1040,17 +1040,37 @@ def test_engine_status_lifecycle_values(member, value):
     assert getattr(EngineStatus, member).value == value
 
 
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ORG", "org"),
+        ("TEAM", "team"),
+        ("MEMBER", "member"),
+    ],
+)
+def test_entitlement_scope_values(member, value):
+    """EntitlementScope discriminates org-, team-, and member-level grants."""
+    from inferencesh.types import EntitlementScope
+
+    assert hasattr(EntitlementScope, member)
+    assert getattr(EntitlementScope, member).value == value
+
+
 def test_entitlement_dto_carries_source_and_enforcement():
     """EntitlementDTO ties resource limits to source (tier/override) and enforcement."""
     from inferencesh.types import (
         EntitlementDTO,
+        EntitlementScope,
         EntitlementSource,
         EntitlementType,
         EnforcementMode,
     )
 
     ent: EntitlementDTO = {
+        "scope": EntitlementScope.TEAM,
         "team_id": "team_abc",
+        "org_id": "org_xyz",
+        "user_id": "user_123",
         "resource": EntitlementResource.RESOURCE_CONCURRENCY,
         "type": EntitlementType.LIMIT,
         "limit": 5,
@@ -1059,9 +1079,17 @@ def test_entitlement_dto_carries_source_and_enforcement():
         "team_plan_id": "plan_addon_extra_concurrency",
     }
 
+    assert ent["scope"] == EntitlementScope.TEAM
+    assert ent["org_id"] == "org_xyz"
+    assert ent["user_id"] == "user_123"
     assert ent["source"] == EntitlementSource.ADDON
     assert ent["team_plan_id"] == "plan_addon_extra_concurrency"
     assert ent["enforcement"] == EnforcementMode.ENFORCEMENT_WARN
+    assert set(EntitlementDTO.__annotations__) >= {
+        "scope",
+        "org_id",
+        "user_id",
+    }
 
 
 @pytest.mark.parametrize(
@@ -1345,6 +1373,8 @@ def test_app_category_values(member, value):
     "member,value",
     [
         ("PRIVATE", "private"),
+        ("TEAM", "team"),
+        ("ORG", "org"),
         ("PUBLIC", "public"),
         ("UNLISTED", "unlisted"),
     ],
@@ -2450,3 +2480,113 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_permission_model_org_id_field():
+    """PermissionModelDTO.org_id scopes resources to an enterprise org (INF-795)."""
+    from inferencesh.types import MCPServerDTO, Visibility
+
+    server: MCPServerDTO = {
+        "team_id": "team_abc",
+        "org_id": "org_xyz",
+        "visibility": Visibility.ORG,
+        "slug": "internal-tools",
+        "name": "Internal Tools",
+    }
+
+    assert server["org_id"] == "org_xyz"
+    assert server["visibility"] == Visibility.ORG
+    assert "org_id" in MCPServerDTO.__annotations__
+
+
+def test_user_dto_managed_by_org_id():
+    """UserDTO.managed_by_org_id marks enterprise-managed accounts without personal teams."""
+    from inferencesh.types import UserDTO
+
+    user: UserDTO = {
+        "email": "alice@acme.com",
+        "managed_by_org_id": "org_acme",
+    }
+
+    assert user["managed_by_org_id"] == "org_acme"
+    assert "managed_by_org_id" in UserDTO.__annotations__
+
+
+def test_bounty_program_requires_payment_method():
+    """BountyProgramDTO.requires_payment_method gates rewards behind saved billing."""
+    from inferencesh.types import BountyProgramDTO
+
+    program: BountyProgramDTO = {
+        "name": "Bug Bounty",
+        "requires_payment_method": True,
+        "amount_microcents": 5000000,
+    }
+
+    assert program["requires_payment_method"] is True
+    assert "requires_payment_method" in BountyProgramDTO.__annotations__
+
+
+def test_submit_survey_request_response_shape():
+    """SubmitSurvey* types model survey answers and optional reward withholding."""
+    from inferencesh.types import SubmitSurveyRequest, SubmitSurveyResponse
+
+    request: SubmitSurveyRequest = {
+        "question_id": "q_onboarding",
+        "response": "yes",
+        "agent": "cli",
+        "source": "post_signup",
+        "context": "first_run",
+    }
+    response: SubmitSurveyResponse = {
+        "response": {
+            "question_id": "q_onboarding",
+            "response": "yes",
+            "agent": "cli",
+            "source": "post_signup",
+            "context": "first_run",
+        },
+        "granted_amount": 0,
+        "reward_blocked_reason": "payment_method_required",
+    }
+
+    assert request["question_id"] == "q_onboarding"
+    assert response["granted_amount"] == 0
+    assert response["reward_blocked_reason"] == "payment_method_required"
+    assert response["response"]["agent"] == "cli"
+    assert set(SubmitSurveyRequest.__annotations__) >= {
+        "question_id",
+        "response",
+        "agent",
+        "source",
+        "context",
+    }
+    assert set(SubmitSurveyResponse.__annotations__) >= {
+        "response",
+        "granted_amount",
+        "reward_blocked_reason",
+    }
+
+
+def test_survey_response_dto_shape():
+    """SurveyResponseDTO stores a single survey answer with provenance metadata."""
+    from inferencesh.types import SurveyResponseDTO
+
+    survey: SurveyResponseDTO = {
+        "question_id": "q_feature",
+        "response": "video generation",
+        "agent": "web",
+        "source": "feedback_modal",
+        "context": "dashboard",
+        "team_id": "team_abc",
+        "org_id": "org_xyz",
+    }
+
+    assert survey["response"] == "video generation"
+    assert survey["org_id"] == "org_xyz"
+    assert set(SurveyResponseDTO.__annotations__) >= {
+        "question_id",
+        "response",
+        "agent",
+        "source",
+        "context",
+    }

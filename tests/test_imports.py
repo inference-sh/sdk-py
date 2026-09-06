@@ -153,7 +153,8 @@ def test_models_llm_export_exists(name):
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
     "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
-    "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
+    "EntitlementResource", "EntitlementSource", "EntitlementType", "EntitlementScope",
+    "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO", "PlanType", "PlanVersionDTO",
     "EntitlementErrorMeta",
@@ -174,6 +175,9 @@ def test_models_llm_export_exists(name):
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
     "SelectorConfig", "UtilityConfig",
+    # Org visibility, survey rewards, enterprise accounts (v0.8.14 typegen regen)
+    "SubmitSurveyRequest", "SubmitSurveyResponse", "SurveyResponseDTO",
+    "BountyProgramDTO", "UserDTO", "MCPServerDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

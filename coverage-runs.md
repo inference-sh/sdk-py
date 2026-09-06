@@ -1,5 +1,25 @@
 # Coverage automation runs
 
+## 2026-09-06 (push dev @ 743e4f9, org visibility + survey rewards v0.8.14)
+
+**Recent changes reviewed:** `743e4f9` (typegen v0.8.14: `Visibility.ORG`; `PermissionModelDTO.org_id` on MCPServerDTO and other permission models; `EntitlementScope` + `EntitlementDTO.scope`/`org_id`/`user_id`; `UserDTO.managed_by_org_id`; `BountyProgramDTO.requires_payment_method`; `SubmitSurveyRequest`/`SubmitSurveyResponse`/`SurveyResponseDTO`).
+
+**Open PRs checked:** #279 (v0.8.8 LLMSettings/CredentialScope.ORG), #278 (v0.8.7), #277 (v0.8.6), #276 (v0.8.4), #275 (v0.8.3), #273 (v0.8.0), #272 (v0.7.104), #270 (LLMDelta), #269 (v0.7.97), #267 (batch-merge gaps) — no overlap with v0.8.14.
+
+**Gaps filled this run:**
+
+- `Visibility.ORG` and missing `Visibility.TEAM` enum values (INF-795 Phase 2 org-wide sharing)
+- `EntitlementScope` org/team/member discriminators and `EntitlementDTO` scope/org/user fields
+- `PermissionModelDTO.org_id` on org-scoped resources (MCPServerDTO)
+- `UserDTO.managed_by_org_id` for enterprise-managed accounts
+- `BountyProgramDTO.requires_payment_method` payment gate for bounty rewards
+- `SubmitSurveyRequest`/`SubmitSurveyResponse` reward withholding (`reward_blocked_reason`, `granted_amount`)
+- `SurveyResponseDTO` answer provenance fields
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest` on new tests — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
