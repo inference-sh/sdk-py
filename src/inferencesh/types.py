@@ -527,6 +527,11 @@ class AppFunction(TypedDict, total=False):
     description: str
     input_schema: Any
     output_schema: Any
+    # Capabilities implied by the function's declared types, derived by
+    # engine discovery at deploy (e.g. "llm" when the function takes an
+    # LLMInput and returns an LLMOutput). Promoted onto the version's
+    # metadata by AppVersion.DeriveCapabilities.
+    capabilities: List[str]
 
 # AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
@@ -1223,19 +1228,6 @@ class UpdateNotificationPreferencesRequest(TypedDict, total=False):
     quiet_hours_start: Optional[str]
     quiet_hours_end: Optional[str]
     timezone: Optional[str]
-
-# OpenAIModel is one entry of GET /openai/models. ID is the app ref (namespace/name),
-# which is what clients send back as `model`.
-class OpenAIModel(TypedDict, total=False):
-    id: str
-    object: str
-    created: int
-    owned_by: str
-
-# OpenAIModelList is the GET /openai/models envelope.
-class OpenAIModelList(TypedDict, total=False):
-    object: str
-    data: List[OpenAIModel]
 
 # PageMetadata holds metadata for a page
 class PageMetadata(TypedDict, total=False):
@@ -3101,6 +3093,11 @@ class Visibility(str, Enum):
 class Permission(str, Enum):
     PERM_READ = "read"
     PERM_WRITE = "write"
+    # PermUse is execute intent: run an app, load a skill/knowledge into an
+    # agent context, invoke an MCP tool. Distinct from read — a public
+    # resource is readable by everyone, but whether this caller may USE it is
+    # governed by their team/org usage policy (reach, INF-808).
+    PERM_USE = "use"
 
 class SubscriptionStatus(str, Enum):
     TRIALING = "trialing"
