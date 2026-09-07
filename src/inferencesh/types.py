@@ -1224,6 +1224,19 @@ class UpdateNotificationPreferencesRequest(TypedDict, total=False):
     quiet_hours_end: Optional[str]
     timezone: Optional[str]
 
+# OpenAIModel is one entry of GET /openai/models. ID is the app ref (namespace/name),
+# which is what clients send back as `model`.
+class OpenAIModel(TypedDict, total=False):
+    id: str
+    object: str
+    created: int
+    owned_by: str
+
+# OpenAIModelList is the GET /openai/models envelope.
+class OpenAIModelList(TypedDict, total=False):
+    object: str
+    data: List[OpenAIModel]
+
 # PageMetadata holds metadata for a page
 class PageMetadata(TypedDict, total=False):
     title: str
