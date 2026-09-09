@@ -19,6 +19,7 @@ class InternalToolsConfig(TypedDict, total=False):
     skills: Optional[bool]
     host_context: Optional[bool]
     meta: Optional[bool]
+    artifact: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
@@ -609,6 +610,58 @@ class PublicAppStoreDTO(TypedDict, total=False):
     has_approved_version: bool
     page_id: Optional[str]
     pricing_description: str
+
+# ArtifactCreateRequest is the body for POST /artifacts. Creates the entry
+# and its first version. When an artifact with the same name already exists
+# in the caller's namespace a new version is published instead.
+class ArtifactCreateRequest(TypedDict, total=False):
+    # Name is optional; derived from Title when empty.
+    name: str
+    title: str
+    description: str
+    favicon: str
+    type: ArtifactType
+    # Content is the page source (HTML body/document or Markdown).
+    content: str
+    label: str
+    notes: str
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+
+# ArtifactUpdateRequest is the body for POST /artifacts/{id}. Metadata only;
+# content changes go through ArtifactPublishRequest.
+class ArtifactUpdateRequest(TypedDict, total=False):
+    title: Optional[str]
+    description: Optional[str]
+    favicon: Optional[str]
+    # SharedVersionID pins the version viewers see. Pass "" to share latest.
+    shared_version_id: Optional[str]
+
+# ArtifactPublishRequest is the body for POST /artifacts/{id}/versions.
+class ArtifactPublishRequest(TypedDict, total=False):
+    content: str
+    label: str
+    notes: str
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+    # Title/Favicon/Description may be refreshed alongside a publish.
+    title: str
+    description: str
+    favicon: str
+
+# ArtifactContentResponse is the JSON form of an artifact version body.
+class ArtifactContentResponse(TypedDict, total=False):
+    artifact_id: str
+    version_id: str
+    number: int
+    type: ArtifactType
+    title: str
+    content: str
+    content_hash: str
+    md5: str
+    size_bytes: int
 
 # AuthSessionDTO is a safe representation of AuthSession for API responses.
 class AuthSessionDTO(TypedDict, total=False):
@@ -1780,6 +1833,12 @@ class A2UIComponent(TypedDict, total=False):
     showTooltip: bool
     # Extension: Form
     onSubmitAction: Optional[A2UIAction]
+    # Extension: Artifact
+    artifactId: str
+    artifactVersionId: str
+    artifactTitle: str
+    artifactUrl: str
+    artifactFavicon: str
 
 # A2UIBoundValue is either a literal or a data model path reference.
 class A2UIBoundValue(TypedDict, total=False):
@@ -2190,6 +2249,28 @@ class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
     app_id: str
     license: str
 
+# ArtifactVersionDTO is one immutable publish of an artifact.
+class ArtifactVersionDTO(BaseModelDTO, TypedDict, total=False):
+    artifact_id: str
+    # Number is the 1-based publish sequence within the artifact.
+    number: int
+    # Content is the stored source file (uri/hash/size). The inline `content`
+    # field is only populated on write requests, never on reads — use the
+    # /content endpoint to fetch the body.
+    content: KnowledgeFile
+    content_hash: str
+    # MD5 is the lowercase hex MD5 of the UTF-8 source; SizeBytes its byte
+    # length. Both let a DLP consumer dedupe without downloading.
+    md5: str
+    size_bytes: int
+    label: str
+    notes: str
+    # Provenance — same conventions as knowledge versions.
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+    created_by_user_id: str
+
 # WorkerDTO is the full API response for a worker.
 class WorkerDTO(BaseModelDTO, TypedDict, total=False):
     user_id: str
@@ -2423,6 +2504,28 @@ class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     call_count: int
     last_call_at: Optional[str]
     idle_timeout: Optional[int]
+
+# ArtifactDTO is the API shape of an artifact entry.
+class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    # Namespace is the owning team's username, copied at creation. Immutable.
+    namespace: str
+    # Name is the slug within the namespace. Immutable.
+    name: str
+    title: str
+    description: str
+    favicon: str
+    type: ArtifactType
+    # VersionID points at the latest published version.
+    version_id: str
+    version: Optional[ArtifactVersionDTO]
+    # SharedVersionID pins the version viewers see. Empty = always latest.
+    shared_version_id: str
+    # Capabilities declared by the latest version (runtime features the page
+    # may use). Reserved for the artifact runtime; opaque to the API.
+    capabilities: Dict[str, Any]
+    views: int
+    # URL is the canonical viewer URL for this artifact.
+    url: str
 
 # BountyProgramDTO is the API representation of a bounty program.
 class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2903,6 +3006,10 @@ class Scope(str, Enum):
     # Action-level scopes for Knowledge (includes skills)
     KNOWLEDGE_READ = "knowledge:read"
     KNOWLEDGE_WRITE = "knowledge:write"
+    # Action-level scopes for Artifacts (published HTML/Markdown pages)
+    ARTIFACTS = "artifacts"
+    ARTIFACTS_READ = "artifacts:read"
+    ARTIFACTS_WRITE = "artifacts:write"
     # Action-level scopes for User profile
     USER_READ = "user:read"
     USER_WRITE = "user:write"
@@ -2925,6 +3032,7 @@ class ScopeGroup(str, Enum):
     ENGINES = "engines"
     API_KEYS = "apikeys"
     KNOWLEDGE = "knowledge"
+    ARTIFACTS = "artifacts"
     USER = "user"
     SETTINGS = "settings"
 
@@ -3009,6 +3117,9 @@ class A2UIComponentType(str, Enum):
     A2UI_SPACER = "Spacer"
     A2UI_CHART = "Chart"
     A2UI_FORM = "Form"
+    # Artifact embeds a published artifact (sandboxed page) with a link to
+    # the viewer. Rendered from the artifact's /render endpoint.
+    A2UI_ARTIFACT = "Artifact"
 
 class AgentEventType(str, Enum):
     # Run lifecycle
@@ -3442,6 +3553,10 @@ class KnowledgeLifecycle(str, Enum):
     DECAY = "decay"
     DRAFT = "draft"
     DEPRECATED = "deprecated"
+
+class ArtifactType(str, Enum):
+    HTML = "html"
+    MARKDOWN = "markdown"
 
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
