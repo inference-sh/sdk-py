@@ -1,5 +1,24 @@
 # Coverage automation runs
 
+## 2026-09-09 (push dev @ 6790841, llm_types_gen v0.7.103 flat LLMInput regen)
+
+**Recent changes reviewed:** `6790841` (typegen v0.7.103: flat `LLMInput` envelope in `llm_types_gen`; removed `LLMSettings`/`ToolChoice`/`ResponseFormat`/`StreamDelta`/`DeltaEvent`/`MergeStrategy` split from generated wire models; standalone `LLMDelta` + `LLMDeltaEvent` NDJSON envelope). `cde742b` (v0.8.19 typegen — open PR #281).
+
+**Open PRs checked:** #281 (v0.8.19 `PERM_USE`/`AppFunction.capabilities`), #280–#267 (prior typegen versions) — no overlap with v0.7.103 `llm_types_gen` structural rollback. Open PRs #272/#270 cover overlapping delta wire tests but are not merged onto dev.
+
+**Gaps filled this run:**
+
+- Flat `LLMInput` wire contract: single `BaseModel`, no `LLMSettings` subclass, no `tool_choice`/`response_format`
+- Regression guard: v0.8.x split types (`StreamDelta`, `DeltaEvent`, `MergeStrategy`, etc.) must not reappear in `llm_types_gen`
+- `LLMDelta` standalone model (no `_field_tags` merge metadata) and app-layer `_delta` serialization marker
+- `LLMDeltaEvent` Pydantic envelope with nested `LLMDelta`, `seq` default, and NDJSON JSON round-trip
+- `ToolCallDelta` / `ToolCallFunctionDelta` nested validation on streaming deltas
+- TypedDict shapes for `LLMDelta` and `LLMDeltaEvent`
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_llm.py::TestGeneratedTypeConsumption tests/test_llm.py::TestLLMWireContract tests/test_types.py::test_llm_delta_typeddict_shape tests/test_types.py::test_llm_delta_event_typeddict_shape tests/test_imports.py::test_models_llm_export_exists[LLMDelta] tests/test_imports.py::test_generated_type_exists[LLMDeltaEvent]` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

@@ -555,6 +555,59 @@ def test_instance_type_dto_cloud_logo_url():
     assert dto["cloud_logo_url"].endswith("aws.svg")
 
 
+def test_llm_delta_typeddict_shape():
+    """Streaming LLMDelta TypedDict mirrors LLMOutput with append semantics."""
+    from inferencesh.types import LLMDelta, ToolCallDelta, ToolCallFunctionDelta, ToolCallType
+
+    delta: LLMDelta = {
+        "response": "hel",
+        "reasoning": "think",
+        "tool_calls": [
+            {
+                "index": 0,
+                "id": "call_1",
+                "type": ToolCallType.TOOL_TYPE_FUNCTION,
+                "function": {
+                    "name": "search",
+                    "arguments": '{"q": "wea',
+                },
+            },
+        ],
+    }
+    func: ToolCallFunctionDelta = {"arguments": 'ther"}'}
+    fragment: ToolCallDelta = {"index": 0, "function": func}
+
+    assert delta["response"] == "hel"
+    assert delta["tool_calls"][0]["function"]["arguments"] == '{"q": "wea'
+    assert fragment["function"]["arguments"] == 'ther"}'
+
+
+def test_llm_delta_event_typeddict_shape():
+    """LLMDeltaEvent wraps incremental LLMDelta payloads with monotonic seq on NDJSON wire."""
+    from inferencesh.types import LLMDelta, LLMDeltaEvent, ToolCallDelta, ToolCallFunctionDelta
+
+    event: LLMDeltaEvent = {
+        "seq": 3,
+        "delta": {
+            "response": "lo",
+            "tool_calls": [
+                {
+                    "index": 0,
+                    "function": ToolCallFunctionDelta(arguments='{"q":'),
+                },
+            ],
+        },
+    }
+
+    assert event["seq"] == 3
+    assert event["delta"]["response"] == "lo"
+    assert event["delta"]["tool_calls"][0]["index"] == 0
+    assert event["delta"]["tool_calls"][0]["function"]["arguments"] == '{"q":'
+
+    minimal: LLMDeltaEvent = {"delta": LLMDelta(response="x")}
+    assert minimal["delta"]["response"] == "x"
+
+
 def test_suggest_types_shape():
     """Suggest endpoint TypedDicts must accept tag/command on results (fb75385 regen)."""
     from inferencesh.types import SuggestRequest, SuggestResponse, SuggestResult
