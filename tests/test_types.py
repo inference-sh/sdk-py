@@ -2450,3 +2450,53 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("PERM_READ", "read"),
+        ("PERM_WRITE", "write"),
+        ("PERM_USE", "use"),
+    ],
+)
+def test_permission_values(member, value):
+    """Permission tokens distinguish read, write, and execute (use) intent."""
+    from inferencesh.types import Permission
+
+    assert hasattr(Permission, member)
+    assert getattr(Permission, member).value == value
+
+
+def test_app_function_capabilities_field():
+    """AppFunction.capabilities lists engine-derived function capabilities (e.g. llm)."""
+    from inferencesh.types import AppFunction
+
+    fn: AppFunction = {
+        "name": "generate",
+        "description": "LLM completion entry point",
+        "capabilities": ["llm"],
+    }
+
+    assert fn["capabilities"] == ["llm"]
+    assert "capabilities" in AppFunction.__annotations__
+
+
+def test_share_request_and_resource_share_perm_use():
+    """Share APIs accept PERM_USE for execute-only grants distinct from read/write."""
+    from inferencesh.types import Permission, ResourceShareDTO, ShareRequest
+
+    share: ShareRequest = {
+        "user_id": "user_abc",
+        "permission": Permission.PERM_USE,
+    }
+    resource_share: ResourceShareDTO = {
+        "resource_id": "app_xyz",
+        "resource_type": "app",
+        "user_id": "user_abc",
+        "permission": Permission.PERM_USE,
+    }
+
+    assert share["permission"] == Permission.PERM_USE
+    assert share["permission"].value == "use"
+    assert resource_share["permission"] == Permission.PERM_USE

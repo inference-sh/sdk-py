@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-09 (push dev @ cde742b, v0.8.19 typegen)
+
+**Recent changes reviewed:** `cde742b` (typegen v0.8.19: `AppFunction.capabilities` for engine-derived function capabilities; `Permission.PERM_USE` for execute intent distinct from read/write). `743e4f9` (v0.8.14 — open PR #280).
+
+**Open PRs checked:** #280 (v0.8.14 org visibility/survey/entitlement scope), #279–#267 (prior typegen coverage) — no overlap with v0.8.19.
+
+**Gaps filled this run:**
+
+- `Permission.PERM_USE` execute-intent token alongside `PERM_READ`/`PERM_WRITE`
+- `ShareRequest` and `ResourceShareDTO` accept `PERM_USE` for use-only grants
+- `AppFunction.capabilities` lists engine-derived function capabilities (e.g. `"llm"`)
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py::test_permission_values tests/test_types.py::test_app_function_capabilities_field tests/test_types.py::test_share_request_and_resource_share_perm_use` — 5 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
