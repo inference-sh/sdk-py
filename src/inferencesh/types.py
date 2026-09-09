@@ -623,6 +623,9 @@ class ArtifactCreateRequest(TypedDict, total=False):
     type: ArtifactType
     # Content is the page source (HTML body/document or Markdown).
     content: str
+    # ContentEncoding is "base64" when Content is base64-encoded UTF-8. Use it
+    # from browsers and CLIs: edge firewalls reject raw <script> in JSON bodies.
+    content_encoding: str
     label: str
     notes: str
     origin: str
@@ -641,6 +644,8 @@ class ArtifactUpdateRequest(TypedDict, total=False):
 # ArtifactPublishRequest is the body for POST /artifacts/{id}/versions.
 class ArtifactPublishRequest(TypedDict, total=False):
     content: str
+    # ContentEncoding is "base64" when Content is base64-encoded UTF-8.
+    content_encoding: str
     label: str
     notes: str
     origin: str
