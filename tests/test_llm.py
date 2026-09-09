@@ -491,6 +491,20 @@ class TestGeneratedTypeConsumption:
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
 
+    def test_llm_delta_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+        gen_fields = set(llm_contract.LLMDelta.model_fields)
+        assert gen_fields.issubset(set(LLMDelta.model_fields))
+
+    def test_llm_delta_model_dump_includes_delta_marker(self):
+        """Engine routing depends on _delta marker in serialized output."""
+        from inferencesh.models.llm import LLMDelta
+        delta = LLMDelta(response="hel")
+        dumped = delta.model_dump()
+        assert dumped["_delta"] is True
+        assert dumped["response"] == "hel"
+
 
 class TestLLMWireContract:
     """Guard generated llm_types_gen Pydantic wire models (apitypes BaseModel migration)."""
@@ -500,7 +514,8 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         for name in [
-            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "LLMOutput", "LLMDelta", "LLMDeltaEvent", "LLMInput", "LLMContextMessage",
+            "ToolCall", "ToolCallDelta", "ToolCallFunctionDelta",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
             "ToolParameters", "ToolParameterProperty",
         ]:
@@ -558,6 +573,99 @@ class TestLLMWireContract:
 
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
+
+    def test_llm_input_is_flat_base_model_not_settings_subclass(self):
+        """v0.7.103 regen: LLMInput is a single envelope, not LLMSettings + turn fields."""
+        from pydantic import BaseModel
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert issubclass(llm_contract.LLMInput, BaseModel)
+        assert not hasattr(llm_contract, "LLMSettings")
+        fields = set(llm_contract.LLMInput.model_fields)
+        assert {"context", "role", "model", "temperature", "tools"} <= fields
+        assert "tool_choice" not in fields
+        assert "response_format" not in fields
+
+    def test_llm_types_gen_excludes_v08_streaming_split_types(self):
+        """v0.7.103 regen removed StreamDelta/DeltaEvent/merge-metadata from wire contract."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        for removed in (
+            "StreamDelta", "DeltaEvent", "LLMSettings",
+            "ToolChoice", "ResponseFormat", "MergeStrategy",
+            "ToolChoiceMode", "ResponseFormatType",
+        ):
+            assert not hasattr(llm_contract, removed), f"{removed} must not be in llm_types_gen"
+
+    def test_llm_delta_is_standalone_not_stream_delta_subclass(self):
+        from pydantic import BaseModel
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert issubclass(llm_contract.LLMDelta, BaseModel)
+        assert not hasattr(llm_contract.LLMDelta, "_field_tags")
+
+    def test_llm_delta_event_nested_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so delta validates on LLMDeltaEvent."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.LLMDeltaEvent(
+            seq=2,
+            delta=llm_contract.LLMDelta(
+                response="wo",
+                tool_calls=[
+                    llm_contract.ToolCallDelta(
+                        index=0,
+                        function=llm_contract.ToolCallFunctionDelta(arguments="rld"),
+                    ),
+                ],
+            ),
+        )
+        assert event.seq == 2
+        assert event.delta.response == "wo"
+        assert event.delta.tool_calls[0].function.arguments == "rld"
+
+    def test_llm_delta_event_seq_defaults_to_zero(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        event = llm_contract.LLMDeltaEvent(
+            delta=llm_contract.LLMDelta(response="hel"),
+        )
+        assert event.seq == 0
+
+    def test_llm_delta_event_json_round_trip(self):
+        """NDJSON wire lines must round-trip the delta envelope with seq ordering."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMDeltaEvent(
+            seq=7,
+            delta=llm_contract.LLMDelta(
+                response="chunk",
+                reasoning="think",
+            ),
+        )
+        restored = llm_contract.LLMDeltaEvent.model_validate_json(original.model_dump_json())
+        assert restored.seq == 7
+        assert restored.delta.response == "chunk"
+        assert restored.delta.reasoning == "think"
+
+    def test_tool_call_delta_nested_in_llm_delta_after_model_rebuild(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        delta = llm_contract.LLMDelta(
+            response="hel",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q": "wea',
+                    ),
+                ),
+            ],
+        )
+        assert delta.tool_calls[0].function.arguments == '{"q": "wea'
 
 
 class TestDeprecatedMixins:
