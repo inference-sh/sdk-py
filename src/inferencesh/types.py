@@ -527,6 +527,11 @@ class AppFunction(TypedDict, total=False):
     description: str
     input_schema: Any
     output_schema: Any
+    # Capabilities implied by the function's declared types, derived by
+    # engine discovery at deploy (e.g. "llm" when the function takes an
+    # LLMInput and returns an LLMOutput). Promoted onto the version's
+    # metadata by AppVersion.DeriveCapabilities.
+    capabilities: List[str]
 
 # AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
@@ -3088,6 +3093,11 @@ class Visibility(str, Enum):
 class Permission(str, Enum):
     PERM_READ = "read"
     PERM_WRITE = "write"
+    # PermUse is execute intent: run an app, load a skill/knowledge into an
+    # agent context, invoke an MCP tool. Distinct from read — a public
+    # resource is readable by everyone, but whether this caller may USE it is
+    # governed by their team/org usage policy (reach, INF-808).
+    PERM_USE = "use"
 
 class SubscriptionStatus(str, Enum):
     TRIALING = "trialing"
