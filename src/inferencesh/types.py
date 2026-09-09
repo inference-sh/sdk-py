@@ -611,6 +611,16 @@ class PublicAppStoreDTO(TypedDict, total=False):
     page_id: Optional[str]
     pricing_description: str
 
+# ResourceImages is the display-image set every listable resource carries:
+# a card image for grids, a thumbnail for dense rows, a banner for headers.
+# AppImages and AgentImages predate this and hold the same three fields;
+# they should collapse onto this type, but aliasing them changes what
+# gotypegen emits for existing consumers, so that migration is separate.
+class ResourceImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+
 # ArtifactCreateRequest is the body for POST /artifacts. Creates the entry
 # and its first version. When an artifact with the same name already exists
 # in the caller's namespace a new version is published instead.
@@ -621,6 +631,7 @@ class ArtifactCreateRequest(TypedDict, total=False):
     description: str
     favicon: str
     type: ArtifactType
+    images: Optional[ResourceImages]
     # Content is the page source (HTML body/document or Markdown).
     content: str
     # ContentEncoding is "base64" when Content is base64-encoded UTF-8. Use it
@@ -638,6 +649,8 @@ class ArtifactUpdateRequest(TypedDict, total=False):
     title: Optional[str]
     description: Optional[str]
     favicon: Optional[str]
+    # Images replaces the whole cover-image set when present.
+    images: Optional[ResourceImages]
     # SharedVersionID pins the version viewers see. Pass "" to share latest.
     shared_version_id: Optional[str]
 
@@ -655,6 +668,7 @@ class ArtifactPublishRequest(TypedDict, total=False):
     title: str
     description: str
     favicon: str
+    images: Optional[ResourceImages]
 
 # ArtifactContentResponse is the JSON form of an artifact version body.
 class ArtifactContentResponse(TypedDict, total=False):
@@ -1316,6 +1330,15 @@ class MenuItem(TypedDict, total=False):
     is_group: bool
     expanded: bool
     children: List[MenuItem]
+
+# ArtifactCommentCreateRequest posts a thread or a reply on an artifact.
+class ArtifactCommentCreateRequest(TypedDict, total=False):
+    content: str
+    # ParentCommentID replies into an existing thread; omit to start one.
+    parent_comment_id: Optional[str]
+    # SendToAgent activates the thread for agents in the same call, which is
+    # what a "send to agent" affordance does.
+    send_to_agent: bool
 
 # PlanLimit defines a single resource limit or feature gate within a plan.
 class PlanLimit(TypedDict, total=False):
@@ -2520,6 +2543,9 @@ class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     favicon: str
     type: ArtifactType
+    # Images are the cover images shown in galleries and headers, same as
+    # apps and agents. The favicon stays the rendered page's tab icon.
+    images: ResourceImages
     # VersionID points at the latest published version.
     version_id: str
     version: Optional[ArtifactVersionDTO]
@@ -2809,6 +2835,27 @@ class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # Surfaced here so a reader does not have to reach into the metadata blob.
     publish_at: Optional[str]
 
+# CommentDTO for API responses
+class CommentDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    # ResourceType and ResourceID address what is commented on ("artifacts",
+    # "pages"). PageID stays for the page comment API that predates them.
+    resource_type: str
+    resource_id: str
+    page_id: str
+    content: str
+    parent_comment_id: Optional[str]
+    children: List[CommentDTO]
+    status: CommentStatus
+    resolved_at: Optional[str]
+    resolved_by_user_id: str
+    # AgentActivated reports whether an agent may reply to or resolve this
+    # thread. Reading is always allowed to anyone who can read the resource.
+    agent_activated: bool
+    agent_activated_by_user_id: str
+    # AuthorAgentID attributes a reply written by an agent on a person's
+    # behalf; clients render it as "agent, via <user>".
+    author_agent_id: str
+
 # MenuDTO for API responses
 class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
@@ -2949,6 +2996,10 @@ class LLMInput(LLMSettings, TypedDict, total=False):
     images: Optional[List[str]]
     files: Optional[List[str]]
     tool_call_id: Optional[str]
+
+# ArtifactCommentThreadDTO is one thread: its root plus replies in order.
+class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
+    replies: List[CommentDTO]
 
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
@@ -3430,6 +3481,12 @@ class PageType(str, Enum):
     BLOG = "blog"
     PAGE = "page"
     ANNOUNCEMENT = "announcement"
+
+class CommentStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
