@@ -682,6 +682,42 @@ class ArtifactContentResponse(TypedDict, total=False):
     md5: str
     size_bytes: int
 
+# ArtifactDataDTO is one document in an artifact's store.
+class ArtifactDataDTO(TypedDict, total=False):
+    collection: str
+    doc_id: str
+    data: Dict[str, Any]
+    updated_at: str
+    # OwnerUserID is set for documents private to one viewer.
+    owner_user_id: str
+
+# ArtifactDataRequest addresses one document, or a collection when DocID is
+# empty (list).
+class ArtifactDataRequest(TypedDict, total=False):
+    collection: str
+    doc_id: str
+    # Data is the document body for set and update.
+    data: Dict[str, Any]
+    # Limit caps a list; the server clamps it.
+    limit: int
+
+# ArtifactDataListResponse is a page of documents from one collection.
+class ArtifactDataListResponse(TypedDict, total=False):
+    collection: str
+    documents: List[ArtifactDataDTO]
+    count: int
+
+# ArtifactViewerDTO is what the user capability tells a page about whoever
+# has it open. It carries no credential and no email.
+class ArtifactViewerDTO(TypedDict, total=False):
+    # SignedIn is false for someone opening a public link without an account.
+    signed_in: bool
+    user_id: str
+    name: str
+    avatar_url: str
+    # CanEdit reports whether this viewer may publish new versions.
+    can_edit: bool
+
 # AuthSessionDTO is a safe representation of AuthSession for API responses.
 class AuthSessionDTO(TypedDict, total=False):
     id: str
