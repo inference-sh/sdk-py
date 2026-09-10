@@ -642,6 +642,14 @@ class ArtifactCreateRequest(TypedDict, total=False):
     origin: str
     generated_by: str
     capabilities: Dict[str, Any]
+    # BaseVersionID is the version this content was built on. When the
+    # artifact has moved past it, the publish is refused instead of
+    # discarding whatever landed in between. Leave it empty to publish
+    # unconditionally.
+    base_version_id: str
+    # Force publishes over a newer version anyway, discarding it. Only ever
+    # set this because a person said to discard that specific version.
+    force: bool
 
 # ArtifactUpdateRequest is the body for POST /artifacts/{id}. Metadata only;
 # content changes go through ArtifactPublishRequest.
@@ -669,6 +677,14 @@ class ArtifactPublishRequest(TypedDict, total=False):
     description: str
     favicon: str
     images: Optional[ResourceImages]
+    # BaseVersionID is the version this content was built on. When the
+    # artifact has moved past it, the publish is refused instead of
+    # discarding whatever landed in between. Leave it empty to publish
+    # unconditionally.
+    base_version_id: str
+    # Force publishes over a newer version anyway, discarding it. Only ever
+    # set this because a person said to discard that specific version.
+    force: bool
 
 # ArtifactContentResponse is the JSON form of an artifact version body.
 class ArtifactContentResponse(TypedDict, total=False):
