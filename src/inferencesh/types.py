@@ -395,6 +395,10 @@ class SecretCreateRequest(TypedDict, total=False):
     value: str
     description: str
     provider: str
+    # ConnectionScope is who the credential this key activates belongs to —
+    # chosen once, here; scope is immutable after creation. Empty = the
+    # provider's default (team). Requires the matching admin role.
+    connection_scope: CredentialScope
 
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
