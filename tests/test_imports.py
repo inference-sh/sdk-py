@@ -145,7 +145,7 @@ def test_models_llm_export_exists(name):
     "InstanceTypeDTO", "InstanceTypeConfiguration",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
-    "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
+    "ResourceType", "SecretScope", "CredentialScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
     "UpdateIntegrationScopesRequest",
     "RequirementType", "IntegrationConfigDTO",
