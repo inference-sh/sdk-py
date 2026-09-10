@@ -174,6 +174,13 @@ def test_models_llm_export_exists(name):
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
     "SelectorConfig", "UtilityConfig",
+    # Artifacts API + comments (v0.8.24 typegen regen)
+    "ArtifactType", "ArtifactDTO", "ArtifactVersionDTO", "ArtifactCreateRequest",
+    "ArtifactPublishRequest", "ArtifactUpdateRequest", "ArtifactContentResponse",
+    "ArtifactDataDTO", "ArtifactDataRequest", "ArtifactDataListResponse",
+    "ArtifactViewerDTO", "ArtifactAssetDTO", "ArtifactAssetListResponse",
+    "ArtifactCommentCreateRequest", "ArtifactCommentThreadDTO", "CommentDTO",
+    "CommentStatus", "ResourceImages",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
