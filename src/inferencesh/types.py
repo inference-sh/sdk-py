@@ -734,6 +734,29 @@ class ArtifactViewerDTO(TypedDict, total=False):
     # CanEdit reports whether this viewer may publish new versions.
     can_edit: bool
 
+# ArtifactAssetDTO describes one file stored beside an artifact. URL is
+# absolute and is the only way a page may reference the bytes: the page has
+# no network of its own, and the CSP names this origin only when the
+# artifact declared the assets capability.
+class ArtifactAssetDTO(TypedDict, total=False):
+    asset_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    url: str
+    created_at: str
+    uploaded_by_user_id: str
+
+# ArtifactAssetListResponse is the body of the asset listing.
+class ArtifactAssetListResponse(TypedDict, total=False):
+    assets: List[ArtifactAssetDTO]
+    count: int
+    # TotalBytes is what this artifact's assets occupy, against the budget
+    # an upload is refused for exceeding.
+    total_bytes: int
+    # BudgetBytes is the ceiling for one artifact.
+    budget_bytes: int
+
 # AuthSessionDTO is a safe representation of AuthSession for API responses.
 class AuthSessionDTO(TypedDict, total=False):
     id: str
