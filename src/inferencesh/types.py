@@ -19,6 +19,7 @@ class InternalToolsConfig(TypedDict, total=False):
     skills: Optional[bool]
     host_context: Optional[bool]
     meta: Optional[bool]
+    artifact: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
@@ -609,6 +610,152 @@ class PublicAppStoreDTO(TypedDict, total=False):
     has_approved_version: bool
     page_id: Optional[str]
     pricing_description: str
+
+# ResourceImages is the display-image set every listable resource carries:
+# a card image for grids, a thumbnail for dense rows, a banner for headers.
+# AppImages and AgentImages predate this and hold the same three fields;
+# they should collapse onto this type, but aliasing them changes what
+# gotypegen emits for existing consumers, so that migration is separate.
+class ResourceImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+
+# ArtifactCreateRequest is the body for POST /artifacts. Creates the entry
+# and its first version. When an artifact with the same name already exists
+# in the caller's namespace a new version is published instead.
+class ArtifactCreateRequest(TypedDict, total=False):
+    # Name is optional; derived from Title when empty.
+    name: str
+    title: str
+    description: str
+    favicon: str
+    type: ArtifactType
+    images: Optional[ResourceImages]
+    # Content is the page source (HTML body/document or Markdown).
+    content: str
+    # ContentEncoding is "base64" when Content is base64-encoded UTF-8. Use it
+    # from browsers and CLIs: edge firewalls reject raw <script> in JSON bodies.
+    content_encoding: str
+    label: str
+    notes: str
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+    # BaseVersionID is the version this content was built on. When the
+    # artifact has moved past it, the publish is refused instead of
+    # discarding whatever landed in between. Leave it empty to publish
+    # unconditionally.
+    base_version_id: str
+    # Force publishes over a newer version anyway, discarding it. Only ever
+    # set this because a person said to discard that specific version.
+    force: bool
+
+# ArtifactUpdateRequest is the body for POST /artifacts/{id}. Metadata only;
+# content changes go through ArtifactPublishRequest.
+class ArtifactUpdateRequest(TypedDict, total=False):
+    title: Optional[str]
+    description: Optional[str]
+    favicon: Optional[str]
+    # Images replaces the whole cover-image set when present.
+    images: Optional[ResourceImages]
+    # SharedVersionID pins the version viewers see. Pass "" to share latest.
+    shared_version_id: Optional[str]
+
+# ArtifactPublishRequest is the body for POST /artifacts/{id}/versions.
+class ArtifactPublishRequest(TypedDict, total=False):
+    content: str
+    # ContentEncoding is "base64" when Content is base64-encoded UTF-8.
+    content_encoding: str
+    label: str
+    notes: str
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+    # Title/Favicon/Description may be refreshed alongside a publish.
+    title: str
+    description: str
+    favicon: str
+    images: Optional[ResourceImages]
+    # BaseVersionID is the version this content was built on. When the
+    # artifact has moved past it, the publish is refused instead of
+    # discarding whatever landed in between. Leave it empty to publish
+    # unconditionally.
+    base_version_id: str
+    # Force publishes over a newer version anyway, discarding it. Only ever
+    # set this because a person said to discard that specific version.
+    force: bool
+
+# ArtifactContentResponse is the JSON form of an artifact version body.
+class ArtifactContentResponse(TypedDict, total=False):
+    artifact_id: str
+    version_id: str
+    number: int
+    type: ArtifactType
+    title: str
+    content: str
+    content_hash: str
+    md5: str
+    size_bytes: int
+
+# ArtifactDataDTO is one document in an artifact's store.
+class ArtifactDataDTO(TypedDict, total=False):
+    collection: str
+    doc_id: str
+    data: Dict[str, Any]
+    updated_at: str
+    # OwnerUserID is set for documents private to one viewer.
+    owner_user_id: str
+
+# ArtifactDataRequest addresses one document, or a collection when DocID is
+# empty (list).
+class ArtifactDataRequest(TypedDict, total=False):
+    collection: str
+    doc_id: str
+    # Data is the document body for set and update.
+    data: Dict[str, Any]
+    # Limit caps a list; the server clamps it.
+    limit: int
+
+# ArtifactDataListResponse is a page of documents from one collection.
+class ArtifactDataListResponse(TypedDict, total=False):
+    collection: str
+    documents: List[ArtifactDataDTO]
+    count: int
+
+# ArtifactViewerDTO is what the user capability tells a page about whoever
+# has it open. It carries no credential and no email.
+class ArtifactViewerDTO(TypedDict, total=False):
+    # SignedIn is false for someone opening a public link without an account.
+    signed_in: bool
+    user_id: str
+    name: str
+    avatar_url: str
+    # CanEdit reports whether this viewer may publish new versions.
+    can_edit: bool
+
+# ArtifactAssetDTO describes one file stored beside an artifact. URL is
+# absolute and is the only way a page may reference the bytes: the page has
+# no network of its own, and the CSP names this origin only when the
+# artifact declared the assets capability.
+class ArtifactAssetDTO(TypedDict, total=False):
+    asset_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    url: str
+    created_at: str
+    uploaded_by_user_id: str
+
+# ArtifactAssetListResponse is the body of the asset listing.
+class ArtifactAssetListResponse(TypedDict, total=False):
+    assets: List[ArtifactAssetDTO]
+    count: int
+    # TotalBytes is what this artifact's assets occupy, against the budget
+    # an upload is refused for exceeding.
+    total_bytes: int
+    # BudgetBytes is the ceiling for one artifact.
+    budget_bytes: int
 
 # AuthSessionDTO is a safe representation of AuthSession for API responses.
 class AuthSessionDTO(TypedDict, total=False):
@@ -1259,6 +1406,15 @@ class MenuItem(TypedDict, total=False):
     expanded: bool
     children: List[MenuItem]
 
+# ArtifactCommentCreateRequest posts a thread or a reply on an artifact.
+class ArtifactCommentCreateRequest(TypedDict, total=False):
+    content: str
+    # ParentCommentID replies into an existing thread; omit to start one.
+    parent_comment_id: Optional[str]
+    # SendToAgent activates the thread for agents in the same call, which is
+    # what a "send to agent" affordance does.
+    send_to_agent: bool
+
 # PlanLimit defines a single resource limit or feature gate within a plan.
 class PlanLimit(TypedDict, total=False):
     type: EntitlementType
@@ -1780,6 +1936,12 @@ class A2UIComponent(TypedDict, total=False):
     showTooltip: bool
     # Extension: Form
     onSubmitAction: Optional[A2UIAction]
+    # Extension: Artifact
+    artifactId: str
+    artifactVersionId: str
+    artifactTitle: str
+    artifactUrl: str
+    artifactFavicon: str
 
 # A2UIBoundValue is either a literal or a data model path reference.
 class A2UIBoundValue(TypedDict, total=False):
@@ -2190,6 +2352,28 @@ class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
     app_id: str
     license: str
 
+# ArtifactVersionDTO is one immutable publish of an artifact.
+class ArtifactVersionDTO(BaseModelDTO, TypedDict, total=False):
+    artifact_id: str
+    # Number is the 1-based publish sequence within the artifact.
+    number: int
+    # Content is the stored source file (uri/hash/size). The inline `content`
+    # field is only populated on write requests, never on reads — use the
+    # /content endpoint to fetch the body.
+    content: KnowledgeFile
+    content_hash: str
+    # MD5 is the lowercase hex MD5 of the UTF-8 source; SizeBytes its byte
+    # length. Both let a DLP consumer dedupe without downloading.
+    md5: str
+    size_bytes: int
+    label: str
+    notes: str
+    # Provenance — same conventions as knowledge versions.
+    origin: str
+    generated_by: str
+    capabilities: Dict[str, Any]
+    created_by_user_id: str
+
 # WorkerDTO is the full API response for a worker.
 class WorkerDTO(BaseModelDTO, TypedDict, total=False):
     user_id: str
@@ -2423,6 +2607,31 @@ class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     call_count: int
     last_call_at: Optional[str]
     idle_timeout: Optional[int]
+
+# ArtifactDTO is the API shape of an artifact entry.
+class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    # Namespace is the owning team's username, copied at creation. Immutable.
+    namespace: str
+    # Name is the slug within the namespace. Immutable.
+    name: str
+    title: str
+    description: str
+    favicon: str
+    type: ArtifactType
+    # Images are the cover images shown in galleries and headers, same as
+    # apps and agents. The favicon stays the rendered page's tab icon.
+    images: ResourceImages
+    # VersionID points at the latest published version.
+    version_id: str
+    version: Optional[ArtifactVersionDTO]
+    # SharedVersionID pins the version viewers see. Empty = always latest.
+    shared_version_id: str
+    # Capabilities declared by the latest version (runtime features the page
+    # may use). Reserved for the artifact runtime; opaque to the API.
+    capabilities: Dict[str, Any]
+    views: int
+    # URL is the canonical viewer URL for this artifact.
+    url: str
 
 # BountyProgramDTO is the API representation of a bounty program.
 class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2701,6 +2910,27 @@ class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # Surfaced here so a reader does not have to reach into the metadata blob.
     publish_at: Optional[str]
 
+# CommentDTO for API responses
+class CommentDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    # ResourceType and ResourceID address what is commented on ("artifacts",
+    # "pages"). PageID stays for the page comment API that predates them.
+    resource_type: str
+    resource_id: str
+    page_id: str
+    content: str
+    parent_comment_id: Optional[str]
+    children: List[CommentDTO]
+    status: CommentStatus
+    resolved_at: Optional[str]
+    resolved_by_user_id: str
+    # AgentActivated reports whether an agent may reply to or resolve this
+    # thread. Reading is always allowed to anyone who can read the resource.
+    agent_activated: bool
+    agent_activated_by_user_id: str
+    # AuthorAgentID attributes a reply written by an agent on a person's
+    # behalf; clients render it as "agent, via <user>".
+    author_agent_id: str
+
 # MenuDTO for API responses
 class MenuDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
@@ -2842,6 +3072,10 @@ class LLMInput(LLMSettings, TypedDict, total=False):
     files: Optional[List[str]]
     tool_call_id: Optional[str]
 
+# ArtifactCommentThreadDTO is one thread: its root plus replies in order.
+class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
+    replies: List[CommentDTO]
+
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
 # Empty scopes = full access (for backwards compatibility with existing keys).
@@ -2903,6 +3137,10 @@ class Scope(str, Enum):
     # Action-level scopes for Knowledge (includes skills)
     KNOWLEDGE_READ = "knowledge:read"
     KNOWLEDGE_WRITE = "knowledge:write"
+    # Action-level scopes for Artifacts (published HTML/Markdown pages)
+    ARTIFACTS = "artifacts"
+    ARTIFACTS_READ = "artifacts:read"
+    ARTIFACTS_WRITE = "artifacts:write"
     # Action-level scopes for User profile
     USER_READ = "user:read"
     USER_WRITE = "user:write"
@@ -2925,6 +3163,7 @@ class ScopeGroup(str, Enum):
     ENGINES = "engines"
     API_KEYS = "apikeys"
     KNOWLEDGE = "knowledge"
+    ARTIFACTS = "artifacts"
     USER = "user"
     SETTINGS = "settings"
 
@@ -3009,6 +3248,9 @@ class A2UIComponentType(str, Enum):
     A2UI_SPACER = "Spacer"
     A2UI_CHART = "Chart"
     A2UI_FORM = "Form"
+    # Artifact embeds a published artifact (sandboxed page) with a link to
+    # the viewer. Rendered from the artifact's /render endpoint.
+    A2UI_ARTIFACT = "Artifact"
 
 class AgentEventType(str, Enum):
     # Run lifecycle
@@ -3315,6 +3557,12 @@ class PageType(str, Enum):
     PAGE = "page"
     ANNOUNCEMENT = "announcement"
 
+class CommentStatus(IntEnum):
+    UNKNOWN = 0
+    DRAFT = 1
+    PUBLISHED = 2
+    ARCHIVED = 3
+
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -3442,6 +3690,10 @@ class KnowledgeLifecycle(str, Enum):
     DECAY = "decay"
     DRAFT = "draft"
     DEPRECATED = "deprecated"
+
+class ArtifactType(str, Enum):
+    HTML = "html"
+    MARKDOWN = "markdown"
 
 class FilterOperator(str, Enum):
     OP_EQUAL = "eq"
