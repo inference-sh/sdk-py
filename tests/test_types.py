@@ -2418,6 +2418,36 @@ def test_secret_create_request_provider_field():
     assert "provider" in SecretCreateRequest.__annotations__
 
 
+def test_secret_create_request_connection_scope():
+    """SecretCreateRequest.connection_scope pins BYOK credential ownership at creation (v0.8.25)."""
+    from inferencesh.types import CredentialScope, SecretCreateRequest
+
+    secret: SecretCreateRequest = {
+        "key": "OPENAI_API_KEY",
+        "value": "sk-user-key",
+        "description": "Personal OpenAI key",
+        "provider": "openai",
+        "connection_scope": CredentialScope.USER,
+    }
+
+    assert secret["connection_scope"] == CredentialScope.USER
+    assert secret["connection_scope"].value == "user"
+    assert "connection_scope" in SecretCreateRequest.__annotations__
+
+
+def test_secret_update_request_does_not_allow_connection_scope():
+    """SecretUpdateRequest must not expose connection_scope — scope is immutable after create."""
+    from inferencesh.types import SecretUpdateRequest
+
+    update: SecretUpdateRequest = {
+        "value": "sk-rotated-key",
+        "description": "Rotated team key",
+    }
+
+    assert "connection_scope" not in SecretUpdateRequest.__annotations__
+    assert set(update.keys()) <= {"value", "description"}
+
+
 def test_gate_condition_typed_dict_shape():
     """GateCondition defines field/operator/value predicates for flow gate nodes."""
     from inferencesh.types import GateCondition
