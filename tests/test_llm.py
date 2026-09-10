@@ -559,6 +559,47 @@ class TestLLMWireContract:
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
 
+    def test_llm_input_inherits_llm_settings_after_v0824_regen(self):
+        """v0.8.24 restores LLMSettings inheritance dropped in v0.7.103."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        assert hasattr(llm_contract, "LLMSettings")
+        assert issubclass(llm_contract.LLMInput, llm_contract.LLMSettings)
+        settings_fields = set(llm_contract.LLMSettings.model_fields)
+        input_fields = set(llm_contract.LLMInput.model_fields)
+        assert settings_fields <= input_fields
+
+    def test_llm_settings_wire_contract_includes_output_constraints(self):
+        """LLMSettings carries tool_choice and response_format at the provider boundary."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.LLMSettings.model_fields)
+        assert "tool_choice" in fields
+        assert "response_format" in fields
+
+    def test_llm_input_accepts_tool_choice_and_response_format(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput(
+            context=[],
+            role=llm_contract.ChatMessageRole.USER,
+            stop=[],
+            tool_choice=llm_contract.ToolChoice(
+                mode=llm_contract.ToolChoiceMode.FUNCTION,
+                name="search",
+            ),
+            response_format=llm_contract.ResponseFormat(
+                type=llm_contract.ResponseFormatType.JSON_SCHEMA,
+                name="result",
+                json_schema={"type": "object"},
+                strict=True,
+            ),
+        )
+        assert inp.tool_choice.mode == llm_contract.ToolChoiceMode.FUNCTION
+        assert inp.tool_choice.name == "search"
+        assert inp.response_format.type == llm_contract.ResponseFormatType.JSON_SCHEMA
+        assert inp.response_format.strict is True
+
 
 class TestDeprecatedMixins:
     """Deprecated mixins emit warnings but don't break grid apps."""

@@ -2450,3 +2450,308 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("HTML", "html"),
+        ("MARKDOWN", "markdown"),
+    ],
+)
+def test_artifact_type_values(member, value):
+    """ArtifactType selects HTML or Markdown page sources for published artifacts."""
+    from inferencesh.types import ArtifactType
+
+    assert hasattr(ArtifactType, member)
+    assert getattr(ArtifactType, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("UNKNOWN", 0),
+        ("DRAFT", 1),
+        ("PUBLISHED", 2),
+        ("ARCHIVED", 3),
+    ],
+)
+def test_comment_status_values(member, value):
+    """CommentStatus tracks moderation lifecycle for artifact and page threads."""
+    from inferencesh.types import CommentStatus
+
+    assert hasattr(CommentStatus, member)
+    assert getattr(CommentStatus, member).value == value
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("ARTIFACTS", "artifacts"),
+        ("ARTIFACTS_READ", "artifacts:read"),
+        ("ARTIFACTS_WRITE", "artifacts:write"),
+    ],
+)
+def test_artifact_scope_values(member, value):
+    """Artifact API key scopes must stay stable for permission checks."""
+    from inferencesh.types import Scope
+
+    assert hasattr(Scope, member)
+    assert getattr(Scope, member).value == value
+
+
+def test_scope_group_includes_artifacts():
+    """Scope catalog must expose an artifacts group for API key presets."""
+    from inferencesh.types import ScopeGroup
+
+    assert ScopeGroup.ARTIFACTS.value == "artifacts"
+
+
+def test_resource_images_shape():
+    """ResourceImages carries card/thumbnail/banner URLs for listable resources."""
+    from inferencesh.types import ResourceImages
+
+    images: ResourceImages = {
+        "card": "https://cdn.example.com/card.png",
+        "thumbnail": "https://cdn.example.com/thumb.png",
+        "banner": "https://cdn.example.com/banner.png",
+    }
+
+    assert images["card"].endswith("card.png")
+    assert set(ResourceImages.__annotations__) >= {"card", "thumbnail", "banner"}
+
+
+def test_artifact_create_request_shape():
+    """POST /artifacts accepts metadata, content, provenance, and publish guards."""
+    from inferencesh.types import ArtifactCreateRequest, ArtifactType, ResourceImages
+
+    req: ArtifactCreateRequest = {
+        "name": "quarterly-report",
+        "title": "Q3 Report",
+        "description": "Executive summary dashboard",
+        "favicon": "https://cdn.example.com/favicon.ico",
+        "type": ArtifactType.HTML,
+        "images": ResourceImages(card="https://cdn.example.com/card.png"),
+        "content": "<html><body>Q3</body></html>",
+        "content_encoding": "base64",
+        "label": "v1",
+        "origin": "agent:analyst",
+        "generated_by": "agent:analyst",
+        "capabilities": {"assets": True},
+        "base_version_id": "ver_prev",
+        "force": False,
+    }
+
+    assert req["type"] == ArtifactType.HTML
+    assert req["content_encoding"] == "base64"
+    assert req["base_version_id"] == "ver_prev"
+    assert req["force"] is False
+    assert "force" in ArtifactCreateRequest.__annotations__
+
+
+def test_artifact_publish_request_optimistic_locking_fields():
+    """Publish requests refuse stale base_version_id unless force is set."""
+    from inferencesh.types import ArtifactPublishRequest
+
+    req: ArtifactPublishRequest = {
+        "content": "# Updated",
+        "base_version_id": "ver_3",
+        "force": True,
+        "label": "v4",
+    }
+
+    assert req["base_version_id"] == "ver_3"
+    assert req["force"] is True
+    assert "base_version_id" in ArtifactPublishRequest.__annotations__
+
+
+def test_artifact_update_request_shared_version_pin():
+    """ArtifactUpdateRequest can pin the viewer-facing version or reset to latest."""
+    from inferencesh.types import ArtifactUpdateRequest
+
+    req: ArtifactUpdateRequest = {
+        "title": "Pinned dashboard",
+        "shared_version_id": "ver_stable",
+    }
+
+    assert req["shared_version_id"] == "ver_stable"
+    assert "shared_version_id" in ArtifactUpdateRequest.__annotations__
+
+
+def test_artifact_dto_namespace_and_viewer_url():
+    """ArtifactDTO exposes immutable namespace/name and the canonical viewer URL."""
+    from inferencesh.types import ArtifactDTO, ArtifactType, ResourceImages
+
+    artifact: ArtifactDTO = {
+        "namespace": "acme",
+        "name": "quarterly-report",
+        "title": "Q3 Report",
+        "type": ArtifactType.HTML,
+        "images": ResourceImages(thumbnail="https://cdn.example.com/thumb.png"),
+        "version_id": "ver_latest",
+        "shared_version_id": "",
+        "capabilities": {"comments": True},
+        "views": 42,
+        "url": "https://inference.sh/acme/quarterly-report",
+    }
+
+    assert artifact["namespace"] == "acme"
+    assert artifact["shared_version_id"] == ""
+    assert artifact["url"].endswith("quarterly-report")
+    assert "url" in ArtifactDTO.__annotations__
+
+
+def test_artifact_version_dto_provenance_fields():
+    """Artifact versions track origin, generator, and declared runtime capabilities."""
+    from inferencesh.types import ArtifactVersionDTO
+
+    version: ArtifactVersionDTO = {
+        "artifact_id": "art_abc",
+        "number": 2,
+        "content_hash": "sha256:deadbeef",
+        "md5": "abc123",
+        "size_bytes": 4096,
+        "origin": "chat:xyz",
+        "generated_by": "agent:writer",
+        "capabilities": {"data": True, "assets": False},
+        "created_by_user_id": "user_123",
+    }
+
+    assert version["number"] == 2
+    assert version["generated_by"] == "agent:writer"
+    assert version["capabilities"]["data"] is True
+    assert "capabilities" in ArtifactVersionDTO.__annotations__
+
+
+def test_artifact_comment_create_request_threading():
+    """Artifact comments support replies and agent activation for a thread."""
+    from inferencesh.types import ArtifactCommentCreateRequest
+
+    reply: ArtifactCommentCreateRequest = {
+        "content": "Please revise the chart labels.",
+        "parent_comment_id": "cmt_root",
+        "send_to_agent": True,
+    }
+
+    assert reply["parent_comment_id"] == "cmt_root"
+    assert reply["send_to_agent"] is True
+    assert "send_to_agent" in ArtifactCommentCreateRequest.__annotations__
+
+
+def test_comment_dto_resource_addressing_and_agent_activation():
+    """CommentDTO generalizes beyond pages to artifacts via resource_type/id."""
+    from inferencesh.types import CommentDTO, CommentStatus
+
+    comment: CommentDTO = {
+        "resource_type": "artifacts",
+        "resource_id": "art_abc",
+        "content": "Looks good!",
+        "status": CommentStatus.PUBLISHED,
+        "agent_activated": True,
+        "agent_activated_by_user_id": "user_123",
+        "author_agent_id": "agent_reviewer",
+    }
+
+    assert comment["resource_type"] == "artifacts"
+    assert comment["status"] == CommentStatus.PUBLISHED
+    assert comment["agent_activated"] is True
+    assert "resource_type" in CommentDTO.__annotations__
+
+
+def test_artifact_viewer_dto_signed_in_and_edit_permission():
+    """ArtifactViewerDTO exposes viewer identity without credentials or email."""
+    from inferencesh.types import ArtifactViewerDTO
+
+    viewer: ArtifactViewerDTO = {
+        "signed_in": False,
+        "name": "Guest",
+        "can_edit": False,
+    }
+
+    assert viewer["signed_in"] is False
+    assert viewer["can_edit"] is False
+    assert "signed_in" in ArtifactViewerDTO.__annotations__
+
+
+def test_artifact_data_request_collection_listing():
+    """ArtifactDataRequest with empty doc_id lists documents in a collection."""
+    from inferencesh.types import ArtifactDataDTO, ArtifactDataListResponse, ArtifactDataRequest
+
+    req: ArtifactDataRequest = {"collection": "metrics", "limit": 25}
+    doc: ArtifactDataDTO = {
+        "collection": "metrics",
+        "doc_id": "q3",
+        "data": {"revenue": 1_000_000},
+        "owner_user_id": "user_abc",
+    }
+    resp: ArtifactDataListResponse = {
+        "collection": "metrics",
+        "documents": [doc],
+        "count": 1,
+    }
+
+    assert req["collection"] == "metrics"
+    assert "doc_id" not in req
+    assert resp["documents"][0]["doc_id"] == "q3"
+    assert "limit" in ArtifactDataRequest.__annotations__
+
+
+def test_artifact_asset_list_response_budget_fields():
+    """Asset listings report per-artifact byte budget for upload refusal."""
+    from inferencesh.types import ArtifactAssetDTO, ArtifactAssetListResponse
+
+    asset: ArtifactAssetDTO = {
+        "asset_id": "asset_1",
+        "filename": "logo.png",
+        "content_type": "image/png",
+        "size_bytes": 12_345,
+        "url": "https://cdn.example.com/assets/logo.png",
+    }
+    resp: ArtifactAssetListResponse = {
+        "assets": [asset],
+        "count": 1,
+        "total_bytes": 12_345,
+        "budget_bytes": 5_000_000,
+    }
+
+    assert resp["total_bytes"] == resp["assets"][0]["size_bytes"]
+    assert resp["budget_bytes"] > resp["total_bytes"]
+    assert "budget_bytes" in ArtifactAssetListResponse.__annotations__
+
+
+def test_internal_tools_config_artifact_flag():
+    """InternalToolsConfig.artifact enables the built-in artifact publishing tool."""
+    from inferencesh.types import InternalToolsConfig
+
+    config: InternalToolsConfig = {
+        "plan": True,
+        "artifact": True,
+    }
+
+    assert config["artifact"] is True
+    assert "artifact" in InternalToolsConfig.__annotations__
+
+
+def test_a2ui_artifact_component_type_value():
+    """A2UI Artifact component embeds a sandboxed published page."""
+    from inferencesh.types import A2UIComponentType
+
+    assert A2UIComponentType.A2UI_ARTIFACT.value == "Artifact"
+
+
+def test_a2ui_component_artifact_extension_fields():
+    """A2UIComponent carries artifact embed metadata for the Artifact widget."""
+    from inferencesh.types import A2UIComponent
+
+    component: A2UIComponent = {
+        "type": "Artifact",
+        "artifactId": "art_abc",
+        "artifactVersionId": "ver_2",
+        "artifactTitle": "Q3 Report",
+        "artifactUrl": "https://inference.sh/acme/q3",
+        "artifactFavicon": "https://cdn.example.com/favicon.ico",
+    }
+
+    assert component["artifactId"] == "art_abc"
+    assert component["artifactUrl"].endswith("/q3")
+    assert "artifactId" in A2UIComponent.__annotations__
