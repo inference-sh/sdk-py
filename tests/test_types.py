@@ -2450,3 +2450,50 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_artifact_frame_dto_private_exchange_urls():
+    """ArtifactFrameDTO with exchange=True carries signed user-content URLs and expiry."""
+    from inferencesh.types import ArtifactFrameDTO
+
+    frame: ArtifactFrameDTO = {
+        "artifact_id": "art_abc",
+        "version_id": "ver_full",
+        "version_short_id": "v1",
+        "embed_url": "https://content.example.com/embed/art_abc?v=v1&token=signed",
+        "top_url": "https://content.example.com/view/art_abc?v=v1&token=signed",
+        "exchange": True,
+        "expires_at": "2026-09-12T12:00:00Z",
+    }
+
+    assert frame["exchange"] is True
+    assert frame["embed_url"].startswith("https://content.example.com/embed/")
+    assert frame["top_url"].startswith("https://content.example.com/view/")
+    assert frame["expires_at"].endswith("Z")
+    assert set(ArtifactFrameDTO.__annotations__) >= {
+        "artifact_id",
+        "version_id",
+        "version_short_id",
+        "embed_url",
+        "top_url",
+        "exchange",
+        "expires_at",
+    }
+
+
+def test_artifact_frame_dto_public_viewer_urls():
+    """ArtifactFrameDTO with exchange=False serves public pages without credentials."""
+    from inferencesh.types import ArtifactFrameDTO
+
+    frame: ArtifactFrameDTO = {
+        "artifact_id": "art_public",
+        "version_id": "ver_latest",
+        "version_short_id": "v3",
+        "embed_url": "https://content.example.com/embed/art_public?v=v3",
+        "top_url": "https://content.example.com/view/art_public?v=v3",
+        "exchange": False,
+    }
+
+    assert frame["exchange"] is False
+    assert "token=" not in frame["embed_url"]
+    assert "expires_at" not in frame
