@@ -1222,59 +1222,6 @@ class SkillStoreListingDTO(TypedDict, total=False):
     uses: int
     tags: List[str]
 
-# LifecycleHookConfig registers a handler for an agent lifecycle event.
-# Stored on AgentVersion alongside Tools and Skills.
-class LifecycleHookConfig(TypedDict, total=False):
-    event: HookEvent
-    type: HookHandlerType
-    handler: str
-    async_: bool
-    timeout: int
-    # Gate-specific fields (type: "gate")
-    default_resolution: InterruptResolution
-
-# LifecycleHookPayload is sent to hook handlers on lifecycle events.
-class LifecycleHookPayload(TypedDict, total=False):
-    event: HookEvent
-    timestamp: str
-    agent_id: str
-    chat_id: str
-    run_id: str
-    turn_count: int
-    data: Any
-
-# LifecycleHookResponse is returned by hook handlers.
-# All fields are optional — an empty 200 response is equivalent to {decision: "allow"}.
-class LifecycleHookResponse(TypedDict, total=False):
-    inject: Optional[ContextInjection]
-    decision: HookDecision
-    reason: str
-    override: Any
-    system: str
-
-# ContextInjection adds ephemeral content to the agent's context window.
-# Injections are stored as ChatMessages and filtered at context-build time.
-class ContextInjection(TypedDict, total=False):
-    content: str
-    role: str
-    ttl_turns: int
-    dedup_key: str
-
-# ToolCallEventData is the typed payload for agent.tool_call events.
-class ToolCallEventData(TypedDict, total=False):
-    tool: str
-    arguments: Dict[str, Any]
-
-# ToolResultEventData is the typed payload for agent.tool_result events.
-class ToolResultEventData(TypedDict, total=False):
-    tool: str
-    status: str
-    result: str
-
-# ErrorEventData is the typed payload for agent.error events.
-class ErrorEventData(TypedDict, total=False):
-    error: str
-
 # ElicitationCapability advertises which elicitation modes the client handles.
 # An empty struct is equivalent to form-only for backward compatibility.
 class ElicitationCapability(TypedDict, total=False):
@@ -1992,88 +1939,6 @@ class A2UISurface(TypedDict, total=False):
     components: List[A2UIComponent]
     dataModel: Any
 
-# AgentEvent is the backbone protocol event for agent runs.
-# Published to "runs:<runID>" and "chats:<chatID>" keys on the event bus.
-class AgentEvent(TypedDict, total=False):
-    id: str
-    type: AgentEventType
-    run_id: str
-    chat_id: str
-    agent_id: str
-    timestamp: str
-    payload: Any
-
-class RunStartedPayload(TypedDict, total=False):
-    agent_id: str
-    agent_version_id: str
-    user_message_id: str
-
-class RunStateChangedPayload(TypedDict, total=False):
-    from_state: AgentRunState
-    to_state: AgentRunState
-    error: str
-
-class TurnStartedPayload(TypedDict, total=False):
-    turn_index: int
-    model: str
-
-class TurnCompletedPayload(TypedDict, total=False):
-    turn_index: int
-    tool_count: int
-    has_output: bool
-    stop_reason: str
-
-class ContentDeltaPayload(TypedDict, total=False):
-    kind: ContentDeltaKind
-    delta: str
-
-class ToolStartedPayload(TypedDict, total=False):
-    tool_invocation_id: str
-    tool_name: str
-    tool_type: ToolType
-    display_name: str
-    arguments: StringEncodedMap
-
-class ToolCompletedPayload(TypedDict, total=False):
-    tool_invocation_id: str
-    tool_name: str
-    status: ToolInvocationStatus
-    result: str
-    duration_ms: int
-
-class ApprovalRequiredPayload(TypedDict, total=False):
-    tool_invocation_id: str
-    tool_name: str
-    arguments: StringEncodedMap
-    reason: InterruptReason
-
-class ApprovalResolvedPayload(TypedDict, total=False):
-    tool_invocation_id: str
-    tool_name: str
-    decision: str
-    reason: str
-
-class HookExecutedPayload(TypedDict, total=False):
-    hook_event: HookEvent
-    decision: HookDecision
-    reason: str
-    duration_ms: int
-
-class UsageUpdatedPayload(TypedDict, total=False):
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
-    reasoning_tokens: int
-    cost_usd: float
-
-class ContextCompactedPayload(TypedDict, total=False):
-    before_tokens: int
-    after_tokens: int
-
-class ErrorPayload(TypedDict, total=False):
-    message: str
-    code: str
-
 # ChatData contains agent-specific data for a chat session
 class ChatData(TypedDict, total=False):
     plan_steps: List[PlanStep]
@@ -2101,8 +1966,6 @@ class ChatMessageContent(TypedDict, total=False):
 class IntegrationContext(TypedDict, total=False):
     integration_type: Optional[IntegrationType]
     integration_metadata: Any
-
-StringEncodedMap = Dict[str, Any]
 
 # FlowViewport represents the viewport state of a flow canvas
 class FlowViewport(TypedDict, total=False):
@@ -2167,12 +2030,6 @@ class SelectorConfig(TypedDict, total=False):
     field: str
     mode: str
     index: Optional[int]
-
-# HookEventDefinition describes a lifecycle hook event and its capabilities.
-class HookEventDefinition(TypedDict, total=False):
-    event: HookEvent
-    description: str
-    can_gate: bool
 
 # StreamDelta is the marker base for all streaming delta types.
 # Types embedding StreamDelta are routed through the delta channel.
@@ -2281,6 +2138,157 @@ class TaskAction(TypedDict, total=False):
 class TaskMetadata(TypedDict, total=False):
     action: Optional[TaskAction]
 
+# UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
+class UtilityConfig(TypedDict, total=False):
+    preset: str
+    expression: str
+    gate: Optional[GateCondition]
+    selector: Optional[SelectorConfig]
+    constant: Any
+
+# AgentEvent is the backbone protocol event for agent runs.
+# Published to "runs:<runID>" and "chats:<chatID>" keys on the event bus.
+class AgentEvent(TypedDict, total=False):
+    id: str
+    type: AgentEventType
+    run_id: str
+    chat_id: str
+    agent_id: str
+    timestamp: str
+    payload: Any
+
+class RunStartedPayload(TypedDict, total=False):
+    agent_id: str
+    agent_version_id: str
+    user_message_id: str
+
+class RunStateChangedPayload(TypedDict, total=False):
+    from_state: AgentRunState
+    to_state: AgentRunState
+    error: str
+
+class TurnStartedPayload(TypedDict, total=False):
+    turn_index: int
+    model: str
+
+class TurnCompletedPayload(TypedDict, total=False):
+    turn_index: int
+    tool_count: int
+    has_output: bool
+    stop_reason: str
+
+class ContentDeltaPayload(TypedDict, total=False):
+    kind: ContentDeltaKind
+    delta: str
+
+class ToolStartedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    tool_type: ToolType
+    display_name: str
+    arguments: StringEncodedMap
+
+class ToolCompletedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    status: ToolInvocationStatus
+    result: str
+    duration_ms: int
+
+class ApprovalRequiredPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    arguments: StringEncodedMap
+    reason: InterruptReason
+
+class ApprovalResolvedPayload(TypedDict, total=False):
+    tool_invocation_id: str
+    tool_name: str
+    decision: str
+    reason: str
+
+class HookExecutedPayload(TypedDict, total=False):
+    hook_event: HookEvent
+    decision: HookDecision
+    reason: str
+    duration_ms: int
+
+class UsageUpdatedPayload(TypedDict, total=False):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    reasoning_tokens: int
+    cost_usd: float
+
+class ContextCompactedPayload(TypedDict, total=False):
+    before_tokens: int
+    after_tokens: int
+
+class ErrorPayload(TypedDict, total=False):
+    message: str
+    code: str
+
+StringEncodedMap = Dict[str, Any]
+
+# HookEventDefinition describes a lifecycle hook event and its capabilities.
+class HookEventDefinition(TypedDict, total=False):
+    event: HookEvent
+    description: str
+    can_gate: bool
+
+# LifecycleHookConfig registers a handler for an agent lifecycle event.
+# Stored on AgentVersion alongside Tools and Skills.
+class LifecycleHookConfig(TypedDict, total=False):
+    event: HookEvent
+    type: HookHandlerType
+    handler: str
+    async_: bool
+    timeout: int
+    # Gate-specific fields (type: "gate")
+    default_resolution: InterruptResolution
+
+# LifecycleHookPayload is sent to hook handlers on lifecycle events.
+class LifecycleHookPayload(TypedDict, total=False):
+    event: HookEvent
+    timestamp: str
+    agent_id: str
+    chat_id: str
+    run_id: str
+    turn_count: int
+    data: Any
+
+# LifecycleHookResponse is returned by hook handlers.
+# All fields are optional — an empty 200 response is equivalent to {decision: "allow"}.
+class LifecycleHookResponse(TypedDict, total=False):
+    inject: Optional[ContextInjection]
+    decision: HookDecision
+    reason: str
+    override: Any
+    system: str
+
+# ContextInjection adds ephemeral content to the agent's context window.
+# Injections are stored as ChatMessages and filtered at context-build time.
+class ContextInjection(TypedDict, total=False):
+    content: str
+    role: str
+    ttl_turns: int
+    dedup_key: str
+
+# ToolCallEventData is the typed payload for agent.tool_call events.
+class ToolCallEventData(TypedDict, total=False):
+    tool: str
+    arguments: Dict[str, Any]
+
+# ToolResultEventData is the typed payload for agent.tool_result events.
+class ToolResultEventData(TypedDict, total=False):
+    tool: str
+    status: str
+    result: str
+
+# ErrorEventData is the typed payload for agent.error events.
+class ErrorEventData(TypedDict, total=False):
+    error: str
+
 # ToolCall represents a tool call from an LLM response (wire format)
 # This is a transport object for parsing LLM responses, not a database model
 class ToolCall(TypedDict, total=False):
@@ -2339,14 +2347,6 @@ class ToolParameterProperty(TypedDict, total=False):
     properties: Optional[ToolParameterProperties]
     items: Optional[ToolParameterProperty]
     required: Optional[List[str]]
-
-# UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
-class UtilityConfig(TypedDict, total=False):
-    preset: str
-    expression: str
-    gate: Optional[GateCondition]
-    selector: Optional[SelectorConfig]
-    constant: Any
 
 # AppVersionDTO is the API response for an app version.
 class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
@@ -3273,53 +3273,6 @@ class A2UIComponentType(str, Enum):
     # the viewer. Rendered from the artifact's /render endpoint.
     A2UI_ARTIFACT = "Artifact"
 
-class AgentEventType(str, Enum):
-    # Run lifecycle
-    AGENT_EVENT_RUN_STARTED = "run.started"
-    AGENT_EVENT_RUN_STATE_CHANGED = "run.state_changed"
-    # Turn lifecycle
-    AGENT_EVENT_TURN_STARTED = "turn.started"
-    AGENT_EVENT_TURN_COMPLETED = "turn.completed"
-    # Content streaming — structural wrapper; high-frequency token deltas
-    # still flow via the existing DeltaEvent channel for efficiency.
-    AGENT_EVENT_CONTENT_DELTA = "content.delta"
-    # Tool lifecycle
-    AGENT_EVENT_TOOL_STARTED = "tool.started"
-    AGENT_EVENT_TOOL_COMPLETED = "tool.completed"
-    # Approval flow
-    AGENT_EVENT_APPROVAL_REQUIRED = "approval.required"
-    AGENT_EVENT_APPROVAL_RESOLVED = "approval.resolved"
-    # Hook lifecycle
-    AGENT_EVENT_HOOK_EXECUTED = "hook.executed"
-    # Usage
-    AGENT_EVENT_USAGE_UPDATED = "usage.updated"
-    # Context management
-    AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
-    # Errors
-    AGENT_EVENT_ERROR = "error"
-
-class ContentDeltaKind(str, Enum):
-    CONTENT_DELTA_TEXT = "text"
-    CONTENT_DELTA_REASONING = "reasoning"
-
-class AgentRunState(str, Enum):
-    SUBMITTED = "submitted"
-    WORKING = "working"
-    INPUT_REQUIRED = "input_required"
-    AUTH_REQUIRED = "auth_required"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELED = "canceled"
-    REJECTED = "rejected"
-
-class InterruptReason(str, Enum):
-    TOOL_APPROVAL = "tool_approval"
-    CLIENT_TOOL = "client_tool"
-    WIDGET = "widget"
-    AUTH = "auth"
-    CONFIRMATION = "confirmation"
-    HOOK_GATE = "hook_gate"
-
 class AppCategory(str, Enum):
     IMAGE = "image"
     VIDEO = "video"
@@ -3503,43 +3456,6 @@ class GraphEdgeType(str, Enum):
     INPUT = "input"
     OUTPUT = "output"
 
-class InterruptStatus(str, Enum):
-    PENDING = "pending"
-    RESOLVED = "resolved"
-    EXPIRED = "expired"
-    CANCELLED = "cancelled"
-
-class InterruptResolution(str, Enum):
-    ALLOW = "allow"
-    DENY = "deny"
-
-class InterruptResourceType(str, Enum):
-    INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
-    INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
-
-class HookEvent(str, Enum):
-    AGENT_START = "agent.start"
-    TURN_START = "agent.turn_start"
-    TOOL_CALL = "agent.tool_call"
-    TOOL_RESULT = "agent.tool_result"
-    TURN_COMPLETE = "agent.turn_complete"
-    AGENT_ERROR = "agent.error"
-    AGENT_COMPLETE = "agent.complete"
-    AGENT_IDLE = "agent.idle"
-    PRE_COMPACT = "agent.pre_compact"
-    POST_COMPACT = "agent.post_compact"
-
-class HookDecision(str, Enum):
-    ALLOW = "allow"
-    DENY = "deny"
-    STOP = "stop"
-    SUSPEND = "suspend"
-
-class HookHandlerType(str, Enum):
-    HOOK_HANDLER_WEBHOOK = "webhook"
-    HOOK_HANDLER_TASK = "task"
-    HOOK_HANDLER_GATE = "gate"
-
 class MergeStrategy(str, Enum):
     CONCAT = "concat"
     REPLACE = "replace"
@@ -3583,25 +3499,6 @@ class CommentStatus(IntEnum):
     DRAFT = 1
     PUBLISHED = 2
     ARCHIVED = 3
-
-class ToolInvocationStatus(str, Enum):
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    AWAITING_INPUT = "awaiting_input"
-    AWAITING_APPROVAL = "awaiting_approval"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-class ToolType(str, Enum):
-    APP = "app"
-    AGENT = "agent"
-    HOOK = "hook"
-    HTTP = "http"
-    CALL = "call"
-    MCP = "mcp"
-    CLIENT = "client"
-    INTERNAL = "internal"
 
 class InstanceCloudProvider(str, Enum):
     CLOUD_AWS = "aws"
@@ -3935,6 +3832,115 @@ class TeamRole(str, Enum):
     ADMIN = "admin"
     MEMBER = "member"
 
+class Role(str, Enum):
+    GUEST = "guest"
+    USER = "user"
+    ADMIN = "admin"
+    SYSTEM = "system"
+
+class AgentEventType(str, Enum):
+    # Run lifecycle
+    AGENT_EVENT_RUN_STARTED = "run.started"
+    AGENT_EVENT_RUN_STATE_CHANGED = "run.state_changed"
+    # Turn lifecycle
+    AGENT_EVENT_TURN_STARTED = "turn.started"
+    AGENT_EVENT_TURN_COMPLETED = "turn.completed"
+    # Content streaming — structural wrapper; high-frequency token deltas
+    # still flow via the existing DeltaEvent channel for efficiency.
+    AGENT_EVENT_CONTENT_DELTA = "content.delta"
+    # Tool lifecycle
+    AGENT_EVENT_TOOL_STARTED = "tool.started"
+    AGENT_EVENT_TOOL_COMPLETED = "tool.completed"
+    # Approval flow
+    AGENT_EVENT_APPROVAL_REQUIRED = "approval.required"
+    AGENT_EVENT_APPROVAL_RESOLVED = "approval.resolved"
+    # Hook lifecycle
+    AGENT_EVENT_HOOK_EXECUTED = "hook.executed"
+    # Usage
+    AGENT_EVENT_USAGE_UPDATED = "usage.updated"
+    # Context management
+    AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
+    # Errors
+    AGENT_EVENT_ERROR = "error"
+
+class ContentDeltaKind(str, Enum):
+    CONTENT_DELTA_TEXT = "text"
+    CONTENT_DELTA_REASONING = "reasoning"
+
+class AgentRunState(str, Enum):
+    SUBMITTED = "submitted"
+    WORKING = "working"
+    INPUT_REQUIRED = "input_required"
+    AUTH_REQUIRED = "auth_required"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"
+    REJECTED = "rejected"
+
+class InterruptReason(str, Enum):
+    TOOL_APPROVAL = "tool_approval"
+    CLIENT_TOOL = "client_tool"
+    WIDGET = "widget"
+    AUTH = "auth"
+    CONFIRMATION = "confirmation"
+    HOOK_GATE = "hook_gate"
+
+class InterruptStatus(str, Enum):
+    PENDING = "pending"
+    RESOLVED = "resolved"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+class InterruptResolution(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"
+
+class InterruptResourceType(str, Enum):
+    INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
+    INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
+
+class HookEvent(str, Enum):
+    AGENT_START = "agent.start"
+    TURN_START = "agent.turn_start"
+    TOOL_CALL = "agent.tool_call"
+    TOOL_RESULT = "agent.tool_result"
+    TURN_COMPLETE = "agent.turn_complete"
+    AGENT_ERROR = "agent.error"
+    AGENT_COMPLETE = "agent.complete"
+    AGENT_IDLE = "agent.idle"
+    PRE_COMPACT = "agent.pre_compact"
+    POST_COMPACT = "agent.post_compact"
+
+class HookDecision(str, Enum):
+    ALLOW = "allow"
+    DENY = "deny"
+    STOP = "stop"
+    SUSPEND = "suspend"
+
+class HookHandlerType(str, Enum):
+    HOOK_HANDLER_WEBHOOK = "webhook"
+    HOOK_HANDLER_TASK = "task"
+    HOOK_HANDLER_GATE = "gate"
+
+class ToolInvocationStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    AWAITING_INPUT = "awaiting_input"
+    AWAITING_APPROVAL = "awaiting_approval"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+class ToolType(str, Enum):
+    APP = "app"
+    AGENT = "agent"
+    HOOK = "hook"
+    HTTP = "http"
+    CALL = "call"
+    MCP = "mcp"
+    CLIENT = "client"
+    INTERNAL = "internal"
+
 # Tool call types
 class ToolCallType(str, Enum):
     TOOL_TYPE_FUNCTION = "function"
@@ -3948,10 +3954,4 @@ class ToolParamType(str, Enum):
     BOOLEAN = "boolean"
     ARRAY = "array"
     NULL = "null"
-
-class Role(str, Enum):
-    GUEST = "guest"
-    USER = "user"
-    ADMIN = "admin"
-    SYSTEM = "system"
 
