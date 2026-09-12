@@ -11,8 +11,6 @@ from datetime import datetime
 ##########
 # source: models.go
 
-StringEncodedMap = Dict[str, Any]
-
 # StreamDelta is the marker base for all streaming delta types.
 # Types embedding StreamDelta are routed through the delta channel.
 class StreamDelta(BaseModel):
@@ -109,6 +107,8 @@ class LLMContextMessage(BaseModel):
     tools: Optional[List[Tool]] = None
     tool_calls: Optional[List[ToolCall]] = None
     tool_call_id: Optional[str] = None
+
+StringEncodedMap = Dict[str, Any]
 
 # ToolCall represents a tool call from an LLM response (wire format)
 # This is a transport object for parsing LLM responses, not a database model
