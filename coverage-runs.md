@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-12 (push dev @ a16ec25, artifact viewer embed contract v0.8.27)
+
+**Recent changes reviewed:** `a16ec25`/`0817266` (typegen v0.8.27: new `ArtifactFrameDTO` for iframe/direct viewer URLs with optional signed-token exchange; enum/type reorder only elsewhere; `StringEncodedMap` alias moved after `LLMContextMessage` in `llm_types_gen`).
+
+**Open PRs checked:** #284 (v0.8.25 `SecretCreateRequest.connection_scope`), #283 (v0.8.24 artifacts API — no `ArtifactFrameDTO`), #282–#267 — no overlap with v0.8.27 embed contract.
+
+**Gaps filled this run:**
+
+- `ArtifactFrameDTO` private viewer shape (`exchange=True`, signed user-content URLs, `expires_at`)
+- `ArtifactFrameDTO` public viewer shape (`exchange=False`, credential-free URLs)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_artifact_frame_dto_private_exchange_urls tests/test_types.py::test_artifact_frame_dto_public_viewer_urls tests/test_imports.py::test_generated_type_exists[ArtifactFrameDTO]` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
