@@ -2096,13 +2096,15 @@ class ResponseFormat(TypedDict, total=False):
     strict: Optional[bool]
 
 # LLMSettings is everything that configures a generation independent of the
-# conversation: model, context, sampling, system prompt, tools and output
+# conversation: context, sampling, system prompt, tools and output
 # constraints. Embedded (tstype extends) by BaseLLMInput — an agent's stored
 # configuration — and LLMInput — a single call — so a field added here
 # reaches both, and the call is built from the configuration by one
 # assignment.
+# 
+# Which model runs is not a setting: the app is the model. An app that
+# fronts several models (a router) declares its own `model` input.
 class LLMSettings(TypedDict, total=False):
-    model: Optional[str]
     context_size: int
     temperature: Optional[float]
     top_p: Optional[float]

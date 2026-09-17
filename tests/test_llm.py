@@ -512,7 +512,7 @@ class TestLLMWireContract:
 
         fields = set(llm_contract.LLMInput.model_fields.keys())
         for field in [
-            "model", "context_size", "temperature", "top_p", "top_k", "min_p",
+            "context_size", "temperature", "top_p", "top_k", "min_p",
             "frequency_penalty", "presence_penalty", "repetition_penalty",
             "seed", "stop", "max_tokens", "reasoning_effort", "reasoning_max_tokens",
             "system_prompt", "context", "role", "text", "reasoning",

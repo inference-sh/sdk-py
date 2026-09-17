@@ -260,7 +260,10 @@ def to_llm_input(req: ChatCompletionInput, input_cls: Type[LLMInput] = LLMInput)
         kwargs["context"].append(_to_context_message(current))
         kwargs["text"] = ""
 
-    if req.model is not None:
+    # `model` is not on LLMInput: which model runs is the app. A router app
+    # that fronts several models declares its own `model` input and gets the
+    # request's value; every other app is the model and ignores it.
+    if req.model is not None and "model" in input_cls.model_fields:
         kwargs["model"] = req.model
     if req.temperature is not None:
         kwargs["temperature"] = req.temperature
