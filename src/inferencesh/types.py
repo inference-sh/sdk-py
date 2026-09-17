@@ -878,6 +878,9 @@ class CursorListRequest(TypedDict, total=False):
     fields: List[str]
     permissions: List[str]
     include_others: bool
+    # IncludePrivate: an owner or admin of the selected team asks for every
+    # row the team owns, private ones included. Audited; ignored for others.
+    include_private: bool
 
 # CursorListResponse represents a cursor-based paginated response
 class CursorListResponse(TypedDict, total=False):
