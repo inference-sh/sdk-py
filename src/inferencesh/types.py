@@ -3822,6 +3822,12 @@ class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+    # TeamTypeOrg is an organization's own workspace. Its id is the org's
+    # id, its org_id points at itself, its members are the org's admins, and
+    # it owns what the org owns: the payer row, billing settings, org-scope
+    # credentials. Minted by org creation only; never archived while member
+    # teams exist.
+    ORG = "org"
 
 class TeamStatus(str, Enum):
     ACTIVE = "active"
