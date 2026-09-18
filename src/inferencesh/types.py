@@ -1370,6 +1370,9 @@ class MenuItem(TypedDict, total=False):
     id: str
     label: str
     slug: str
+    # Path is the linked page's path, filled in when a menu is read so a client
+    # can build the link without fetching each page. Never stored.
+    path: str
     page_id: str
     url: str
     icon: str
@@ -2933,6 +2936,7 @@ class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     type: PageType
     metadata: PageMetadata
     slug: str
+    path: str
     # PublishAt mirrors Metadata.PublishAt, which remains the field clients write.
     # Surfaced here so a reader does not have to reach into the metadata blob.
     publish_at: Optional[str]
@@ -3594,6 +3598,9 @@ class RefRouteType(str, Enum):
     APP = "app"
     AGENT = "agent"
     SKILL = "skill"
+    # RefRouteTypeURL routes a site path to another (/docs/api-files →
+    # /docs/api/sdk/files). Alias and target are literal paths, not refs.
+    URL = "url"
 
 class RefRouteMode(str, Enum):
     REWRITE = "rewrite"
