@@ -13,10 +13,10 @@ from inferencesh.types import (
     InstanceCloudProvider,
     InstanceStatus,
     InstanceTypeDeploymentType,
-    IntegrationAuthType,
-    IntegrationProvider,
-    IntegrationScope,
-    IntegrationStatus,
+    CredentialType,
+    CredentialProvider,
+    CredentialScope,
+    CredentialStatus,
     IntegrationType,
     RequirementType,
     KnowledgeLifecycle,
@@ -85,18 +85,18 @@ def test_tool_call_type_only_function_kind():
 @pytest.mark.parametrize(
     "enum_cls,member,value",
     [
-        (IntegrationProvider, "GIT_HUB", "github"),
-        (IntegrationProvider, "GOOGLE_SA", "google-sa"),
-        (IntegrationProvider, "GCP", "gcp"),
-        (IntegrationProvider, "MCP", "mcp"),
-        (IntegrationAuthType, "O_AUTH", "oauth"),
-        (IntegrationAuthType, "API_KEY", "api_key"),
-        (IntegrationAuthType, "SERVICE_ACCOUNT", "service_account"),
-        (IntegrationAuthType, "WIF", "wif"),
-        (IntegrationStatus, "CONNECTED", "connected"),
-        (IntegrationStatus, "DISCONNECTED", "disconnected"),
-        (IntegrationStatus, "EXPIRED", "expired"),
-        (IntegrationStatus, "ERROR", "error"),
+        (CredentialProvider, "GIT_HUB", "github"),
+        (CredentialProvider, "GOOGLE_SA", "google-sa"),
+        (CredentialProvider, "GCP", "gcp"),
+        (CredentialProvider, "MCP", "mcp"),
+        (CredentialType, "O_AUTH", "oauth"),
+        (CredentialType, "API_KEY", "api_key"),
+        (CredentialType, "SERVICE_ACCOUNT", "service_account"),
+        (CredentialType, "WIF", "wif"),
+        (CredentialStatus, "CONNECTED", "connected"),
+        (CredentialStatus, "DISCONNECTED", "disconnected"),
+        (CredentialStatus, "EXPIRED", "expired"),
+        (CredentialStatus, "ERROR", "error"),
     ],
 )
 def test_integration_enums_preserve_acronym_names(enum_cls, member, value):
@@ -618,24 +618,24 @@ def test_update_integration_scopes_request():
 
 
 def test_integration_dto_google_sa_service_account():
-    """Google service-account integrations expose the bound SA email on IntegrationDTO."""
+    """Google service-account integrations expose the bound SA email on CredentialDTO."""
     from inferencesh.types import (
-        IntegrationAuthType,
-        IntegrationDTO,
-        IntegrationProvider,
-        IntegrationStatus,
+        CredentialType,
+        CredentialDTO,
+        CredentialProvider,
+        CredentialStatus,
     )
 
-    dto: IntegrationDTO = {
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "type": IntegrationAuthType.SERVICE_ACCOUNT,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
-        "status": IntegrationStatus.CONNECTED,
+    dto: CredentialDTO = {
+        "provider": CredentialProvider.GOOGLE_SA,
+        "type": CredentialType.SERVICE_ACCOUNT,
+        "auth": CredentialType.SERVICE_ACCOUNT,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "GCP Production",
         "service_account_email": "sdk-runner@my-project.iam.gserviceaccount.com",
     }
 
-    assert dto["provider"] == IntegrationProvider.GOOGLE_SA
+    assert dto["provider"] == CredentialProvider.GOOGLE_SA
     assert dto["service_account_email"].endswith(".gserviceaccount.com")
 
 
@@ -655,17 +655,17 @@ def test_requirement_type_values(member, value):
 
 def test_integration_config_dto_slug():
     """Integration catalog entries are keyed by provider slug (e.g. google-sa)."""
-    from inferencesh.types import IntegrationConfigDTO
+    from inferencesh.types import CredentialConfigDTO
 
-    config: IntegrationConfigDTO = {
+    config: CredentialConfigDTO = {
         "slug": "google-sa",
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "provider": CredentialProvider.GOOGLE_SA,
+        "auth": CredentialType.SERVICE_ACCOUNT,
         "name": "Google Service Account",
         "available": True,
     }
     assert config["slug"] == "google-sa"
-    assert config["provider"] == IntegrationProvider.GOOGLE_SA
+    assert config["provider"] == CredentialProvider.GOOGLE_SA
 
 
 def test_check_requirements_response_uses_requirement_type():
@@ -691,8 +691,8 @@ def test_check_requirements_response_uses_requirement_type():
 )
 def test_integration_scope_values(member, value):
     """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
-    assert hasattr(IntegrationScope, member)
-    assert getattr(IntegrationScope, member).value == value
+    assert hasattr(CredentialScope, member)
+    assert getattr(CredentialScope, member).value == value
 
 
 @pytest.mark.parametrize(
@@ -719,9 +719,9 @@ def test_entitlement_resource_values(member, value):
 
 def test_integration_requirement_secrets_and_scopes():
     """App manifests declare per-integration secret keys and OAuth scopes."""
-    from inferencesh.types import IntegrationRequirement
+    from inferencesh.types import CredentialRequirement
 
-    req: IntegrationRequirement = {
+    req: CredentialRequirement = {
         "key": "google",
         "description": "Google Workspace",
         "optional": False,
@@ -735,28 +735,28 @@ def test_integration_requirement_secrets_and_scopes():
 
 
 def test_integration_dto_scope_team_vs_platform():
-    """IntegrationDTO.scope distinguishes user-owned vs platform-managed connections."""
-    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationStatus
+    """CredentialDTO.scope distinguishes user-owned vs platform-managed connections."""
+    from inferencesh.types import CredentialType, CredentialDTO, CredentialStatus
 
-    team: IntegrationDTO = {
-        "scope": IntegrationScope.TEAM,
-        "provider": IntegrationProvider.GOOGLE,
-        "type": IntegrationAuthType.O_AUTH,
-        "auth": IntegrationAuthType.O_AUTH,
-        "status": IntegrationStatus.CONNECTED,
+    team: CredentialDTO = {
+        "scope": CredentialScope.TEAM,
+        "provider": CredentialProvider.GOOGLE,
+        "type": CredentialType.O_AUTH,
+        "auth": CredentialType.O_AUTH,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "My Google",
     }
-    platform: IntegrationDTO = {
-        "scope": IntegrationScope.PLATFORM,
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "type": IntegrationAuthType.SERVICE_ACCOUNT,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
-        "status": IntegrationStatus.CONNECTED,
+    platform: CredentialDTO = {
+        "scope": CredentialScope.PLATFORM,
+        "provider": CredentialProvider.GOOGLE_SA,
+        "type": CredentialType.SERVICE_ACCOUNT,
+        "auth": CredentialType.SERVICE_ACCOUNT,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "Managed GCP",
     }
 
-    assert team["scope"] == IntegrationScope.TEAM
-    assert platform["scope"] == IntegrationScope.PLATFORM
+    assert team["scope"] == CredentialScope.TEAM
+    assert platform["scope"] == CredentialScope.PLATFORM
 
 
 def test_plan_dto_limits_use_entitlement_resources():

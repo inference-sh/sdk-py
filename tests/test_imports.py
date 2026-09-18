@@ -136,7 +136,7 @@ def test_models_llm_export_exists(name):
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallType", "ToolParamType",
     # Integrations
-    "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
+    "CredentialProvider", "CredentialType", "CredentialStatus",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
@@ -148,11 +148,11 @@ def test_models_llm_export_exists(name):
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
     "UpdateIntegrationScopesRequest",
-    "RequirementType", "IntegrationConfigDTO",
+    "RequirementType", "CredentialConfigDTO",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
-    "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
+    "CredentialScope", "CredentialRequirement", "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO", "PlanType", "PlanVersionDTO",
