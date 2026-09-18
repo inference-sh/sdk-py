@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-10 (push dev @ 89d180a, SecretCreateRequest.connection_scope v0.8.25)
+
+**Recent changes reviewed:** `89d180a` (typegen v0.8.25: `SecretCreateRequest.connection_scope: CredentialScope` — BYOK secret credential ownership pinned at creation; scope immutable after create).
+
+**Open PRs checked:** #283 (v0.8.24 artifacts), #282 (v0.7.103 flat LLMInput — obsolete), #278/#279 (CredentialScope enum + IntegrationConnectRequest.connection_scope) — no overlap on SecretCreateRequest; enum import guard is complementary.
+
+**Gaps filled this run:**
+
+- `SecretCreateRequest.connection_scope` selects user/team/org credential ownership at BYOK secret creation
+- Regression guard: `SecretUpdateRequest` must not expose `connection_scope` (immutable after create)
+- `CredentialScope` in generated-type import existence checks
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_secret_create_request_connection_scope tests/test_types.py::test_secret_update_request_does_not_allow_connection_scope tests/test_imports.py::test_generated_type_exists[CredentialScope]` — 3 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
