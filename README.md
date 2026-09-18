@@ -490,15 +490,15 @@ Workspace API responses use generated enums in `inferencesh.types`:
 
 ```python
 from inferencesh.types import (
-    IntegrationProvider,
-    IntegrationAuthType,
-    IntegrationStatus,
+    CredentialProvider,
+    CredentialType,
+    CredentialStatus,
     InstanceStatus,
 )
 
-IntegrationProvider.SLACK       # "slack"
-IntegrationAuthType.O_AUTH      # "oauth"
-IntegrationStatus.CONNECTED     # "connected"
+CredentialProvider.SLACK       # "slack"
+CredentialType.O_AUTH      # "oauth"
+CredentialStatus.CONNECTED     # "connected"
 
 InstanceStatus.CREATING         # "creating"
 InstanceStatus.PENDING_PROVIDER # "pending_provider"
@@ -506,7 +506,7 @@ InstanceStatus.ACTIVE           # "active"
 InstanceStatus.ERROR            # "error"
 ```
 
-`IntegrationProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
+`CredentialProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
 
 ### requirements errors (HTTP 412)
 

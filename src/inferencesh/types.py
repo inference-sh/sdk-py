@@ -301,7 +301,7 @@ class AppVersionInput(TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
+    required_integrations: List[CredentialRequirement]
     resources: AppResources
 
 # CreateAppRequest is the request body for POST /apps
@@ -405,7 +405,7 @@ class SecretUpdateRequest(TypedDict, total=False):
     value: str
     description: Optional[str]
 
-class IntegrationConnectRequest(TypedDict, total=False):
+class CredentialConnectRequest(TypedDict, total=False):
     provider: str
     type: str
     scopes: List[str]
@@ -417,15 +417,15 @@ class IntegrationConnectRequest(TypedDict, total=False):
     # are OAuth permission scopes.
     connection_scope: CredentialScope
 
-class IntegrationCompleteOAuthRequest(TypedDict, total=False):
+class CredentialCompleteOAuthRequest(TypedDict, total=False):
     provider: str
     type: str
     code: str
     state: str
     code_verifier: str
 
-class IntegrationConnectResponse(TypedDict, total=False):
-    integration: Optional[IntegrationDTO]
+class CredentialConnectResponse(TypedDict, total=False):
+    integration: Optional[CredentialDTO]
     auth_url: str
     state: str
     code_verifier: str
@@ -570,11 +570,11 @@ class SecretRequirement(TypedDict, total=False):
     description: str
     optional: bool
 
-# IntegrationRequirement defines an integration that an app requires.
+# CredentialRequirement defines an integration that an app requires.
 # Key is the provider slug (e.g. "bytedance", "google").
 # Secrets lists the specific env var names to inject from this integration.
 # Scopes lists OAuth scopes needed (for OAuth integrations).
-class IntegrationRequirement(TypedDict, total=False):
+class CredentialRequirement(TypedDict, total=False):
     key: str
     description: str
     optional: bool
@@ -847,6 +847,32 @@ class SubmitBountyRequest(TypedDict, total=False):
 class SubmitBountyResponse(TypedDict, total=False):
     submission: BountySubmissionDTO
     granted_amount: int
+
+# CredentialConfigDTO is the merged view: provider catalog + credential state.
+class CredentialConfigDTO(TypedDict, total=False):
+    slug: str
+    provider: str
+    type: str
+    name: str
+    short_name: str
+    description: str
+    icon_url: str
+    how_it_works: List[str]
+    docs_url: str
+    secret_fields: List[SecretFieldConfig]
+    allows_byok: bool
+    available: bool
+    has_managed: bool
+    grant: CredentialGrant
+    credential: Optional[CredentialDTO]
+
+# SecretFieldConfig defines a secret field for the UI
+class SecretFieldConfig(TypedDict, total=False):
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    optional: bool
 
 # SearchRequest represents a search request.
 # Each model declares its own SearchFields() on the repository.
@@ -1132,33 +1158,6 @@ class InstanceTypeBootTime(TypedDict, total=False):
     average_seconds: int
     updated_at: str
     sample_size: int
-
-# IntegrationConfigDTO is the API response for integration configuration
-class IntegrationConfigDTO(TypedDict, total=False):
-    slug: str
-    provider: str
-    type: str
-    auth: str
-    name: str
-    short_name: str
-    description: str
-    icon_url: str
-    how_it_works: List[str]
-    docs_url: str
-    secret_fields: List[SecretFieldConfig]
-    allows_byok: bool
-    available: bool
-    has_managed: bool
-    grant: IntegrationGrant
-    integration: Optional[IntegrationDTO]
-
-# SecretFieldConfig defines a secret field for the UI
-class SecretFieldConfig(TypedDict, total=False):
-    key: str
-    label: str
-    placeholder: str
-    sensitive: bool
-    optional: bool
 
 # KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
@@ -1543,7 +1542,7 @@ class SetupAction(TypedDict, total=False):
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
     secrets: List[SecretRequirement]
-    integrations: List[IntegrationRequirement]
+    integrations: List[CredentialRequirement]
 
 # CheckRequirementsResponse is the API response for checking requirements
 class CheckRequirementsResponse(TypedDict, total=False):
@@ -2372,7 +2371,7 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
+    required_integrations: List[CredentialRequirement]
     resources: AppResources
     checksum: str
 
@@ -2727,6 +2726,24 @@ class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     tool_call_id: Optional[str]
     tool_invocations: Optional[List[ToolInvocationDTO]]
 
+# CredentialDTO is the API response for a credential (never exposes secrets).
+class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    provider: str
+    type: CredentialType
+    grant: Optional[CredentialGrant]
+    scope: CredentialScope
+    status: CredentialStatus
+    display_name: str
+    icon_url: str
+    account_identifier: str
+    account_name: str
+    scopes: StringSlice
+    expires_at: Optional[str]
+    vault_id: Optional[str]
+    metadata: Dict[str, Any]
+    is_primary: bool
+    error_message: str
+
 # EngineDTO is the full API response for an engine.
 class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     instance: Optional[InstanceDTO]
@@ -2836,25 +2853,6 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     configuration: Optional[InstanceTypeConfiguration]
     availability: List[InstanceTypeAvailability]
     boot_time: Optional[InstanceTypeBootTime]
-
-# IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    scope: IntegrationScope
-    grant: Optional[IntegrationGrant]
-    provider: IntegrationProvider
-    type: IntegrationAuthType
-    auth: IntegrationAuthType
-    status: IntegrationStatus
-    display_name: str
-    icon_url: str
-    scopes: StringSlice
-    expires_at: Optional[str]
-    service_account_email: str
-    metadata: Dict[str, Any]
-    account_identifier: str
-    account_name: str
-    is_primary: bool
-    error_message: str
 
 class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     run_id: str
@@ -3695,7 +3693,8 @@ class ContentRating(str, Enum):
     CONTENT_GORE = "gore"
     CONTENT_UNRATED = "unrated"
 
-class IntegrationProvider(str, Enum):
+# Credential.Provider is a plain string; cast with string(...) when assigning.
+class CredentialProvider(str, Enum):
     GOOGLE = "google"
     GOOGLE_SA = "google-sa"
     SLACK = "slack"
@@ -3709,31 +3708,19 @@ class IntegrationProvider(str, Enum):
     MCP = "mcp"
     REDDIT = "reddit"
 
-class IntegrationAuthType(str, Enum):
-    SERVICE_ACCOUNT = "service_account"
+class CredentialType(str, Enum):
     O_AUTH = "oauth"
     API_KEY = "api_key"
-    WIF = "wif"
     MCP = "mcp"
+    SERVICE_ACCOUNT = "service_account"
+    WIF = "wif"
 
-class IntegrationStatus(str, Enum):
+class CredentialStatus(str, Enum):
     PENDING = "pending"
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     EXPIRED = "expired"
     ERROR = "error"
-
-class IntegrationScope(str, Enum):
-    TEAM = "team"
-    PLATFORM = "platform"
-    USER = "user"
-
-class IntegrationGrant(str, Enum):
-    # IntegrationGrantCredentials provides OAuth app credentials (client_id/secret).
-    # Users connect their own accounts against it. Only valid for type=oauth.
-    CREDENTIALS = "credentials"
-    # IntegrationGrantToken provides ready-to-use access (token, API key, etc.).
-    TOKEN = "token"
 
 class CredentialScope(str, Enum):
     PLATFORM = "platform"
@@ -3745,6 +3732,10 @@ class CredentialScope(str, Enum):
     TEAM = "team"
     USER = "user"
     AGENT = "agent"
+
+class CredentialGrant(str, Enum):
+    CREDENTIALS = "credentials"
+    TOKEN = "token"
 
 class NotificationChannel(str, Enum):
     EMAIL = "email"
