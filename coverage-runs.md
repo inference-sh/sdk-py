@@ -1,5 +1,27 @@
 # Coverage automation runs
 
+## 2026-08-20 (push dev @ cc0d2be, restore dropped batch-merge tests + gate/interrupt typegen)
+
+**Recent changes reviewed:** `cc0d2be` (batch merge of 8 cursor test PRs — several approved tests were dropped during merge). Underlying typegen: assistant `content=null` fix (`184b649`), AuthResponse.is_new, A2UI migration, origin/generated_by fields, FlowActionType undo/redo, gate hooks / InterruptDTO (`c3e1ba5`, `527a9b4`, `f720f05`).
+
+**Open PRs checked:** #264–#249 all CLOSED/MERGED — no open overlapping PRs. This run restores tests lost in the batch merge and adds gate/interrupt gaps never covered.
+
+**Gaps filled this run:**
+
+- `build_openai_messages()` sets `content=null` (not `""`) for assistant messages with tool_calls and empty text (MiniMax/provider regression guard)
+- `FlowActionType.ACTION_UNDO` / `ACTION_REDO` and `FlowActionsRequest` undo/redo envelope
+- `AuthResponse.is_new` first-time vs returning login flag
+- A2UI migration: `A2UIComponentType`, `Widget = A2UISurface` alias, flat adjacency surfaces, `A2UIHTML` removal guard
+- `SuggestRequest.origin` and `KnowledgeVersionInput`/`KnowledgeVersionDTO.origin` provenance fields
+- `NotificationType.SUBSCRIPTION_*` kinds including `SUBSCRIPTION_PAYMENT_FAILED`
+- Gate hook interrupt types: `InterruptDTO`, `InterruptStatus`, `InterruptResolution`, `InterruptResourceType`, `HookDecision.SUSPEND`, `HookHandlerType.HOOK_HANDLER_GATE`, `InterruptReason.HOOK_GATE`
+- `LifecycleHookConfig.default_resolution`, `HookEventDefinition.can_gate`
+- `PublicAppStoreDTO.pricing_description`, `InternalToolsConfig.meta`
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** targeted pytest on new/changed tests — 263 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

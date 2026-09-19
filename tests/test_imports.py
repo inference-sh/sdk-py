@@ -173,7 +173,14 @@ def test_models_llm_export_exists(name):
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
-    "SelectorConfig", "UtilityConfig",
+    "SelectorConfig", "UtilityConfig", "GateCondition",
+    # A2UI widget migration (v0.7.63–v0.7.65 typegen regen)
+    "A2UIComponentType", "A2UISurface", "Widget",
+    # Gate hooks + interrupts (gate hooks / InterruptDTO typegen regen)
+    "InterruptDTO", "InterruptStatus", "InterruptResolution", "InterruptResourceType",
+    "HookEventDefinition", "LifecycleHookConfig",
+    # Auth + catalog (v0.7.67+ typegen regen)
+    "AuthResponse", "PublicAppStoreDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
