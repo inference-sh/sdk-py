@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
-from .llm_types_gen import LLMDelta, LLMOutput, ToolCallDelta
+from .llm_types_gen import LLMDelta, LLMOutput, ToolCall, ToolCallFunction, ToolCallType, ToolCallDelta
 
 
 @dataclass
@@ -46,14 +47,14 @@ class DeltaAccumulator:
             output.reasoning = self.reasoning
         if self._tool_calls:
             output.tool_calls = [
-                {
-                    "id": tc.get("id", ""),
-                    "type": tc.get("type", "function"),
-                    "function": {
-                        "name": tc.get("name", ""),
-                        "arguments": tc.get("arguments", ""),
-                    },
-                }
+                ToolCall(
+                    id=tc.get("id", ""),
+                    type=ToolCallType(tc.get("type", "function")),
+                    function=ToolCallFunction(
+                        name=tc.get("name", ""),
+                        arguments=json.loads(tc.get("arguments", "{}") or "{}"),
+                    ),
+                )
                 for _, tc in sorted(self._tool_calls.items())
             ]
         return output

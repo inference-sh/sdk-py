@@ -2055,12 +2055,6 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-    _field_tags = {
-        "id": {"merge": "replace"},
-        "type": {"merge": "replace"},
-        "function": {"merge": "nested"},
-    }
-
 # DeltaEvent is the generic streaming envelope on the NDJSON wire.
 # Delta is raw bytes — consumers parse based on context.
 class DeltaEvent(TypedDict, total=False):
@@ -2072,11 +2066,6 @@ class DeltaEvent(TypedDict, total=False):
 class ToolCallFunctionDelta(TypedDict, total=False):
     name: str
     arguments: str
-
-    _field_tags = {
-        "name": {"merge": "replace"},
-        "arguments": {"merge": "concat"},
-    }
 
 # ToolChoice constrains tool calling for a turn. Providers spell this
 # differently (OpenAI tool_choice, Anthropic tool_choice.type any/tool,
@@ -3072,13 +3061,6 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
     reasoning: Optional[str]
     tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
-
-    _field_tags = {
-        "response": {"merge": "concat"},
-        "reasoning": {"merge": "concat"},
-        "tool_calls": {"merge": "indexed"},
-        "usage": {"merge": "replace"},
-    }
 
 # LLMDeltaEvent is a typed alias for backward compatibility.
 LLMDeltaEvent = DeltaEvent
