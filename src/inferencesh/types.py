@@ -178,6 +178,7 @@ class CoreAppConfigDTO(TypedDict, total=False):
 class CreateAgentRequest(TypedDict, total=False):
     id: str
     name: str
+    title: str
     namespace: str
     images: AgentImages
     # Version config (embedded - backend generates version ID, timestamps, etc)
@@ -309,6 +310,7 @@ class CreateAppRequest(TypedDict, total=False):
     id: str
     namespace: str
     name: str
+    title: str
     description: str
     agent_description: str
     category: AppCategory
@@ -608,6 +610,8 @@ class PublicAppStoreDTO(TypedDict, total=False):
     tags: List[str]
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     images: AppImages
     is_featured: bool
@@ -1323,6 +1327,8 @@ class MCPServerDTO(TypedDict, total=False):
     visibility: Visibility
     slug: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     icon_url: str
     server_url: str
@@ -1410,6 +1416,7 @@ class ProjectModelDTO(TypedDict, total=False):
 # KnowledgeCreateRequest is the request body for POST /knowledge.
 class KnowledgeCreateRequest(TypedDict, total=False):
     name: str
+    title: str
     description: str
     repo_url: str
     type: KnowledgeType
@@ -1433,6 +1440,7 @@ class KnowledgeVersionInput(TypedDict, total=False):
 
 # KnowledgeUpdateRequest is the request body for PUT /knowledge/{id}.
 class KnowledgeUpdateRequest(TypedDict, total=False):
+    title: str
     description: str
     version: Optional[KnowledgeVersionInput]
 
@@ -2148,11 +2156,14 @@ class TaskMetadata(TypedDict, total=False):
 
 # UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
 class UtilityConfig(TypedDict, total=False):
-    preset: str
+    preset: UtilityPreset
     expression: str
     gate: Optional[GateCondition]
     selector: Optional[SelectorConfig]
     constant: Any
+    random: bool
+    random_min: Optional[float]
+    random_max: Optional[float]
 
 # AgentEvent is the backbone protocol event for agent runs.
 # Published to "runs:<runID>" and "chats:<chatID>" keys on the event bus.
@@ -2614,6 +2625,11 @@ class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name shown wherever this resource is presented:
+    # "Veo 3.1" for the app named veo-3-1. Name stays the immutable slug that
+    # addresses it. Empty means the surface falls back to the name, so nothing
+    # breaks for a resource that never sets one.
+    title: str
     description: str
     agent_description: str
     category: AppCategory
@@ -2779,6 +2795,8 @@ class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     card_image: str
     thumbnail: str
@@ -2883,6 +2901,8 @@ class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class KnowledgeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     type: KnowledgeType
     lifecycle: KnowledgeLifecycle
@@ -3064,6 +3084,8 @@ class UsageEventDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     images: AgentImages
     version_id: str
     version: Optional[AgentVersionDTO]
@@ -3847,6 +3869,12 @@ class Role(str, Enum):
     USER = "user"
     ADMIN = "admin"
     SYSTEM = "system"
+
+class UtilityPreset(str, Enum):
+    GATE = "gate"
+    SELECTOR = "selector"
+    MERGE = "merge"
+    CONSTANT = "constant"
 
 class AgentEventType(str, Enum):
     # Run lifecycle
