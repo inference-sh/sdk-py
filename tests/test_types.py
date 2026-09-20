@@ -17,7 +17,7 @@ from inferencesh.types import (
     IntegrationProvider,
     IntegrationScope,
     IntegrationStatus,
-    IntegrationType,
+    ChannelType,
     RequirementType,
     KnowledgeLifecycle,
     KnowledgeType,
@@ -244,9 +244,9 @@ def test_subscription_dto_shape():
     ],
 )
 def test_integration_type_chat_platform_values(member, value):
-    """Chat integration kinds for IntegrationContext must match backend."""
-    assert hasattr(IntegrationType, member)
-    assert getattr(IntegrationType, member).value == value
+    """Chat integration kinds for ChannelContext must match backend."""
+    assert hasattr(ChannelType, member)
+    assert getattr(ChannelType, member).value == value
 
 
 @pytest.mark.parametrize(
