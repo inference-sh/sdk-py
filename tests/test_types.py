@@ -17,7 +17,7 @@ from inferencesh.types import (
     IntegrationProvider,
     IntegrationScope,
     IntegrationStatus,
-    IntegrationType,
+    ChannelType,
     RequirementType,
     KnowledgeLifecycle,
     KnowledgeType,
@@ -243,10 +243,43 @@ def test_subscription_dto_shape():
         ("TELEGRAM", "telegram"),
     ],
 )
-def test_integration_type_chat_platform_values(member, value):
-    """Chat integration kinds for IntegrationContext must match backend."""
-    assert hasattr(IntegrationType, member)
-    assert getattr(IntegrationType, member).value == value
+def test_channel_type_chat_platform_values(member, value):
+    """Chat channel kinds for ChannelContext must match backend."""
+    assert hasattr(ChannelType, member)
+    assert getattr(ChannelType, member).value == value
+
+
+def test_channel_context_typed_dict_shape():
+    """ChannelContext carries channel_type and transport metadata for reply routing."""
+    from inferencesh.types import ChannelContext, ChannelType
+
+    ctx: ChannelContext = {
+        "channel_type": ChannelType.SLACK,
+        "channel_metadata": {"channel_id": "C123", "thread_ts": "1234.5678"},
+    }
+
+    assert ctx["channel_type"] == ChannelType.SLACK
+    assert ctx["channel_metadata"]["channel_id"] == "C123"
+    assert set(ChannelContext.__annotations__) >= {"channel_type", "channel_metadata"}
+
+
+def test_create_agent_message_request_channel_context_field():
+    """CreateAgentMessageRequest routes replies via channel_context, not integration_context."""
+    from inferencesh.types import ChannelContext, ChannelType, CreateAgentMessageRequest
+
+    channel_context: ChannelContext = {
+        "channel_type": ChannelType.TELEGRAM,
+        "channel_metadata": {"chat_id": 42},
+    }
+    request: CreateAgentMessageRequest = {
+        "chat_id": "chat_abc",
+        "channel_context": channel_context,
+    }
+
+    assert request["channel_context"]["channel_type"] == ChannelType.TELEGRAM
+    assert request["channel_context"]["channel_metadata"]["chat_id"] == 42
+    assert "channel_context" in CreateAgentMessageRequest.__annotations__
+    assert "integration_context" not in CreateAgentMessageRequest.__annotations__
 
 
 @pytest.mark.parametrize(
