@@ -10,6 +10,7 @@ from .models import (
     BaseAppSetup,
     File,
     Metadata,
+    Session,
     # LLM types
     ContextMessageRole,
     Message,
@@ -158,6 +159,7 @@ def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInfere
 
 
 __all__ = [
+    "Session",
     # Base types
     "BaseApp",
     "BaseAppInput",
