@@ -2,7 +2,7 @@
 
 from .base import BaseApp, BaseAppInput, BaseAppOutput, BaseAppSetup, Metadata
 from .file import File
-from .session import Session
+from .socket import Socket
 from .llm import (
     ContextMessageRole,
     Message,
@@ -37,7 +37,7 @@ from .errors import (
 from .response import Response
 
 __all__ = [
-    "Session",
+    "Socket",
     "BaseApp",
     "BaseAppInput",
     "BaseAppOutput",
