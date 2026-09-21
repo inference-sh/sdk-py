@@ -11,6 +11,12 @@ from .models import (
     File,
     Metadata,
     Socket,
+    # Live fields of stream functions
+    Live,
+    PCM16,
+    Stream,
+    Update,
+    media,
     # LLM types
     ContextMessageRole,
     Message,
@@ -160,6 +166,11 @@ def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInfere
 
 __all__ = [
     "Socket",
+    "Live",
+    "PCM16",
+    "Stream",
+    "Update",
+    "media",
     # Base types
     "BaseApp",
     "BaseAppInput",
