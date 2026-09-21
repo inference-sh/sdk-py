@@ -264,7 +264,7 @@ class CreateAgentMessageRequest(TypedDict, total=False):
     agent: Optional[str]
     tool_call_id: Optional[str]
     input: LLMInput
-    integration_context: Optional[IntegrationContext]
+    channel_context: Optional[ChannelContext]
     agent_config: Optional[AgentConfigInput]
     agent_name: Optional[str]
     context: Dict[str, str]
@@ -868,6 +868,9 @@ class CredentialConfigDTO(TypedDict, total=False):
     available: bool
     has_managed: bool
     grant: CredentialGrant
+    # CustomProviderID is set when the provider is one the team defined
+    # itself (models.CustomProvider), so the UI can offer edit and remove.
+    custom_provider_id: str
     credential: Optional[CredentialDTO]
 
 # SecretFieldConfig defines a secret field for the UI
@@ -1976,10 +1979,12 @@ class ChatMessageContent(TypedDict, total=False):
     file: Optional[str]
     tool_calls: Optional[List[ToolCall]]
 
-# IntegrationContext holds integration-specific metadata for a chat
-class IntegrationContext(TypedDict, total=False):
-    integration_type: Optional[IntegrationType]
-    integration_metadata: Any
+# ChannelContext records which channel a chat or message came through
+# (slack, telegram, an OpenAI-dialect tag, ...) and the transport metadata
+# needed to route a reply back to it.
+class ChannelContext(TypedDict, total=False):
+    channel_type: Optional[ChannelType]
+    channel_metadata: Any
 
 # FlowViewport represents the viewport state of a flow canvas
 class FlowViewport(TypedDict, total=False):
@@ -2073,12 +2078,6 @@ class ToolCallDelta(TypedDict, total=False):
         "function": {"merge": "nested"},
     }
 
-# DeltaEvent is the generic streaming envelope on the NDJSON wire.
-# Delta is raw bytes — consumers parse based on context.
-class DeltaEvent(TypedDict, total=False):
-    delta: Any
-    seq: int
-
 # ToolCallFunctionDelta carries partial tool call function data.
 # Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
 class ToolCallFunctionDelta(TypedDict, total=False):
@@ -2143,6 +2142,29 @@ class LLMContextMessage(TypedDict, total=False):
     tools: Optional[List[Tool]]
     tool_calls: Optional[List[ToolCall]]
     tool_call_id: Optional[str]
+
+# DeltaEvent is the generic streaming envelope on the NDJSON wire.
+# Delta is raw bytes — consumers parse based on context.
+# 
+# It is deliberately not LLM-specific: agent lifecycle events and any future
+# delta producer share this envelope, which is why the identity field below is
+# a bare resource id rather than anything named after chat.
+class DeltaEvent(TypedDict, total=False):
+    delta: Any
+    seq: int
+    # ResourceID names what this delta belongs to — for an LLM task, the
+    # assistant chat message being generated.
+    # 
+    # Without it a consumer can only assume deltas belong to whatever it is
+    # currently building, which breaks the moment a message carries no text
+    # (a tool-call-only turn) and the previous message's state is still live.
+    # 
+    # The producer copies this from the graph and never interprets it: ids come
+    # from one idgen space, so a consumer matches against the ids it already
+    # tracks and buffers anything it does not recognise yet. A resource_type
+    # companion is deliberately absent — nothing needs to route before matching.
+    # Empty when the task has no execution edge (a plain app run).
+    resource_id: str
 
 # TaskAction defines an action to execute when a task reaches a specific status.
 class TaskAction(TypedDict, total=False):
@@ -3108,9 +3130,6 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
         "usage": {"merge": "replace"},
     }
 
-# LLMDeltaEvent is a typed alias for backward compatibility.
-LLMDeltaEvent = DeltaEvent
-
 # LLMInput is the input envelope for an LLM provider task: the settings plus
 # the conversation, with the current turn split out of the context.
 class LLMInput(LLMSettings, TypedDict, total=False):
@@ -3122,6 +3141,9 @@ class LLMInput(LLMSettings, TypedDict, total=False):
     images: Optional[List[str]]
     files: Optional[List[str]]
     tool_call_id: Optional[str]
+
+# LLMDeltaEvent is a typed alias for backward compatibility.
+LLMDeltaEvent = DeltaEvent
 
 # ArtifactCommentThreadDTO is one thread: its root plus replies in order.
 class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
@@ -3417,7 +3439,7 @@ class ChatMessageContentType(str, Enum):
     FILE = "file"
     TOOL = "tool"
 
-class IntegrationType(str, Enum):
+class ChannelType(str, Enum):
     SLACK = "slack"
     DISCORD = "discord"
     TEAMS = "teams"
