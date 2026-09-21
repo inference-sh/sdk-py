@@ -402,6 +402,20 @@ class SecretCreateRequest(TypedDict, total=False):
     # chosen once, here; scope is immutable after creation. Empty = the
     # provider's default (team). Requires the matching admin role.
     connection_scope: CredentialScope
+    # ProviderName and ProviderWebsite describe a provider the platform does
+    # not list: the name the credential is shown under, and the site its
+    # logo is looked up from. Ignored for a provider the platform knows.
+    provider_name: str
+    provider_website: str
+
+# SecretProviderRequest attaches an existing secret to a provider's
+# credential — the link a secret gets when it is created against a provider.
+# An empty Provider detaches it back to a plain secret.
+class SecretProviderRequest(TypedDict, total=False):
+    provider: str
+    connection_scope: CredentialScope
+    provider_name: str
+    provider_website: str
 
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
@@ -3045,6 +3059,9 @@ class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     masked_value: str
     description: str
     scope: SecretScope
+    # CredentialID is the credential this secret is attached to; empty for
+    # a plain secret.
+    credential_id: str
 
 # SocketDTO is a socket and what is known of its life. The traffic figures
 # come from the relay once the socket has closed.
