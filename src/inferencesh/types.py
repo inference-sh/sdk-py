@@ -540,6 +540,9 @@ class AppFunction(TypedDict, total=False):
     # LLMInput and returns an LLMOutput). Promoted onto the version's
     # metadata by AppVersion.DeriveCapabilities.
     capabilities: List[str]
+    # Kind is how the function talks to its caller, from engine discovery:
+    # a stream function declares a socket parameter. Empty means run.
+    kind: FunctionKind
 
 # AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
@@ -1572,6 +1575,19 @@ class ShareRequest(TypedDict, total=False):
 class SDKTypes(TypedDict, total=False):
     pass
 
+# SocketAccess is where one end of a socket dials and the credential it
+# presents. The task's caller gets one in the run response; the worker gets
+# its own with the dispatch.
+# 
+# Browsers cannot set headers on a WebSocket: they append
+# `?access_token=<token>` to the URL. Everything else sends
+# `Authorization: Bearer <token>`.
+class SocketAccess(TypedDict, total=False):
+    id: str
+    url: str
+    token: str
+    expires_at: str
+
 # MeStatsResponse is returned by GET /me/stats.
 class MeStatsResponse(TypedDict, total=False):
     knowledge_count: int
@@ -1731,6 +1747,9 @@ class TaskResultDTO(TypedDict, total=False):
     created_at: str
     updated_at: str
     run_at: Optional[str]
+    # Socket is set when the function is a stream function: the caller dials
+    # it to talk to the app. POST /sockets/{id}/access issues a fresh one.
+    socket: Optional[SocketAccess]
 
 # TaskLogsDTO is a lightweight response for task logs endpoint.
 class TaskLogsDTO(TypedDict, total=False):
@@ -3027,6 +3046,22 @@ class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     scope: SecretScope
 
+# SocketDTO is a socket and what is known of its life. The traffic figures
+# come from the relay once the socket has closed.
+class SocketDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    task_id: str
+    relay: str
+    status: SocketStatus
+    paired_at: Optional[str]
+    ended_at: Optional[str]
+    outcome: SocketOutcome
+    close_code: int
+    close_reason: str
+    client_frames: int
+    client_bytes: int
+    worker_frames: int
+    worker_bytes: int
+
 # SurveyResponseDTO is the API representation of a survey response.
 class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     question_id: str
@@ -3837,6 +3872,35 @@ class NotificationStatus(str, Enum):
     FAILED = "failed"
     BOUNCED = "bounced"
     CANCELLED = "cancelled"
+
+class FunctionKind(str, Enum):
+    # FunctionKindRun takes an input and returns an output (optionally
+    # yielding progress on the way). The zero value means this.
+    RUN = "run"
+    # FunctionKindStream holds a socket with the caller for the life of the
+    # task: frames both ways, no input/output exchange.
+    STREAM = "stream"
+
+class SocketStatus(str, Enum):
+    # SocketStatusPending: opened, and the two ends have not met yet. An end
+    # that gave up waiting may dial again, so an unpaired end does not close
+    # the socket; the task ending does.
+    PENDING = "pending"
+    # SocketStatusOpen: both ends are connected through the relay.
+    OPEN = "open"
+    # SocketStatusClosed: over. Outcome says why.
+    CLOSED = "closed"
+
+class SocketOutcome(str, Enum):
+    CLIENT_CLOSED = "client_closed"
+    WORKER_CLOSED = "worker_closed"
+    # SocketOutcomeDrained: the relay restarted under a live socket.
+    DRAINED = "drained"
+    # SocketOutcomeNeverPaired: the task ended before the two ends met.
+    NEVER_PAIRED = "never_paired"
+    # SocketOutcomeTaskEnded: the task ended and the relay's own account of
+    # the socket has not arrived (yet).
+    TASK_ENDED = "task_ended"
 
 class TaskStatus(IntEnum):
     UNKNOWN = 0
