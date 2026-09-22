@@ -3854,6 +3854,7 @@ class NotificationType(str, Enum):
     USAGE_SUMMARY = "usage_summary"
     SPENDING_LIMIT = "spending_limit"
     INVOICE = "invoice"
+    CREDIT_NOTE = "credit_note"
     SUBSCRIPTION_CREATED = "subscription_created"
     SUBSCRIPTION_CREDIT = "subscription_credit"
     SUBSCRIPTION_CANCELED = "subscription_canceled"
