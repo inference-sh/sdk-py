@@ -15,6 +15,7 @@ from .types import (
     ChatMessageDTO,
     AgentConfigInput as AgentConfig,
     AgentRunState,
+    ChatMessageStatus,
     FileRef,
     InterruptReason,
     InterruptStatus,
@@ -22,6 +23,8 @@ from .types import (
     ToolInvocationStatus,
 )
 from .client import StreamManager
+from .delta import DeltaAccumulator
+from .llm_types_gen import LLMDelta
 
 if TYPE_CHECKING:
     from .client import Inference, AsyncInference
@@ -37,6 +40,20 @@ class ToolCallInfo:
     id: str
     name: str
     args: Dict[str, Any]
+
+
+@dataclass
+class AgentDelta:
+    """One streamed token batch for a message, with everything received for
+    that message so far. ``output["response"]`` is the assistant text as it grows."""
+    message_id: str
+    """The chat message the tokens belong to (normally this turn's assistant message)."""
+    delta: Dict[str, Any]
+    """This batch alone."""
+    output: Dict[str, Any]
+    """All batches for the message merged, in the shape of the message's final output."""
+    seq: int
+    """Producer sequence number, monotonically increasing per message."""
 
 
 @dataclass
@@ -129,6 +146,7 @@ class Agent:
         files: Optional[list[bytes | str]] = None,
         on_message: Optional[Callable[[ChatMessageDTO], None]] = None,
         on_tool_call: Optional[Callable[[ToolCallInfo], None]] = None,
+        on_delta: Optional[Callable[[AgentDelta], None]] = None,
     ) -> ChatMessageDTO:
         """
         Send a message to the agent.
@@ -138,6 +156,8 @@ class Agent:
             files: File attachments (bytes or base64/data URI strings)
             on_message: Callback for streaming message updates
             on_tool_call: Callback when a client tool needs execution
+            on_delta: Callback for token-by-token output while the assistant
+                message is being generated
 
         Returns:
             The assistant's response message
@@ -171,8 +191,8 @@ class Agent:
             self._chat_id = assistant_msg["chat_id"]
 
         # Start streaming if callbacks provided
-        if on_message or on_tool_call:
-            self._start_streaming(on_message, on_tool_call)
+        if on_message or on_tool_call or on_delta:
+            self._start_streaming(on_message, on_tool_call, on_delta)
 
         return assistant_msg
 
@@ -353,9 +373,10 @@ class Agent:
         on_chat: Optional[Callable[[ChatDTO], None]] = None,
         on_message: Optional[Callable[[ChatMessageDTO], None]] = None,
         on_tool_call: Optional[Callable[["ToolCallInfo"], None]] = None,
+        on_delta: Optional[Callable[["AgentDelta"], None]] = None,
     ) -> None:
         """
-        Stream all events (Chat and ChatMessage) from the unified stream endpoint.
+        Stream all events (Chat, ChatMessage and token deltas) from the unified stream endpoint.
         Uses TypedEvents - single SSE connection for both event types.
 
         Automatically stops when the chat becomes idle (agent finished responding).
@@ -364,12 +385,33 @@ class Agent:
             on_chat: Callback for Chat object updates (status changes)
             on_message: Callback for ChatMessage updates
             on_tool_call: Callback when a client tool needs execution
+            on_delta: Callback for token deltas, accumulated per message
         """
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
 
+        # One accumulator per message being streamed, keyed by the message id
+        # the delta names, so a tool-call-only turn never shows the previous
+        # message's text. A delta without a resource id cannot be attributed
+        # and is dropped; the text still lands when the message itself arrives.
+        accumulators: Dict[str, DeltaAccumulator] = {}
+
         for event_type, data in self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream"):
-            if event_type == "chats":
+            if event_type == "delta":
+                message_id = data.get("resource_id")
+                delta = data.get("delta")
+                if not on_delta or not message_id or not delta:
+                    continue
+                accumulator = accumulators.setdefault(message_id, DeltaAccumulator())
+                accumulator.apply(LLMDelta.model_validate(delta))
+                on_delta(AgentDelta(
+                    message_id=message_id,
+                    delta=delta,
+                    output=accumulator.to_dict(),
+                    seq=int(data.get("seq") or 0),
+                ))
+
+            elif event_type == "chats":
                 if on_chat:
                     on_chat(data)
                 active_run = data.get("active_run")
@@ -378,6 +420,9 @@ class Agent:
                     break
 
             elif event_type == "chat_messages":
+                # A terminal message receives no further deltas.
+                if data.get("status") in (ChatMessageStatus.READY, ChatMessageStatus.FAILED, ChatMessageStatus.CANCELLED):
+                    accumulators.pop(data.get("id"), None)
                 if on_message:
                     on_message(data)
 
@@ -546,6 +591,7 @@ class Agent:
         self,
         on_message: Optional[Callable[[ChatMessageDTO], None]],
         on_tool_call: Optional[Callable[[ToolCallInfo], None]],
+        on_delta: Optional[Callable[[AgentDelta], None]] = None,
     ) -> None:
         """Start streaming and wait for completion.
 
@@ -561,6 +607,7 @@ class Agent:
         self.stream_all(
             on_message=on_message,
             on_tool_call=on_tool_call,
+            on_delta=on_delta,
         )
 
     def _request(

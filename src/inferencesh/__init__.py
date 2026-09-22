@@ -89,7 +89,7 @@ from .models.errors import (
 )
 
 # Agent SDK (headless)
-from .agent import Agent, AsyncAgent, ToolCallInfo, PendingApproval, pending_approvals
+from .agent import Agent, AsyncAgent, ToolCallInfo, AgentDelta, PendingApproval, pending_approvals
 
 # Tool Builder (fluent API)
 from .tools import (
@@ -282,6 +282,7 @@ __all__ = [
     "AgentConfig",
     "InternalToolsConfig",
     "ToolCallInfo",
+    "AgentDelta",
     "PendingApproval",
     "pending_approvals",
     # Tool Builder

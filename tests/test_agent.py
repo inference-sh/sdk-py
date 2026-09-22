@@ -676,3 +676,45 @@ def test_pending_approvals_projects_tool_approval_interrupts():
     assert got[1].tool_name == ""
     assert pending_approvals(None) == []
     assert pending_approvals({"id": "x"}) == []
+
+
+def test_stream_all_surfaces_deltas_per_message(monkeypatch, patch_agent_requests):
+    from inferencesh import AgentDelta
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("delta", {"delta": {"response": "Hel"}, "seq": 1, "resource_id": "asst-1"}),
+        # Unattributed: dropped, never merged into asst-1.
+        ("delta", {"delta": {"response": "XXX"}, "seq": 1}),
+        ("delta", {"delta": {"response": "lo"}, "seq": 2, "resource_id": "asst-1"}),
+        ("delta", {"delta": {"response": "Other"}, "seq": 1, "resource_id": "asst-2"}),
+        ("chat_messages", {"id": "asst-1", "status": "ready"}),
+        ("chats", {"active_run": {"state": "completed"}}),
+    ]
+    monkeypatch.setattr(agent, "_create_typed_ndjson_generator", lambda endpoint: iter(events))
+
+    seen: list[AgentDelta] = []
+    agent.stream_all(on_delta=seen.append)
+
+    assert [(d.message_id, d.delta["response"], d.output["response"], d.seq) for d in seen] == [
+        ("asst-1", "Hel", "Hel", 1),
+        ("asst-1", "lo", "Hello", 2),
+        ("asst-2", "Other", "Other", 1),
+    ]
+
+
+def test_send_message_with_only_on_delta_streams(monkeypatch, patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    streamed = []
+    monkeypatch.setattr(
+        agent, "_create_typed_ndjson_generator",
+        lambda endpoint: iter([("chats", {"active_run": {"state": "completed"}})]) if streamed.append(endpoint) is None else None,
+    )
+    agent.send_message("Again", on_delta=lambda d: None)
+    assert streamed == ["/chats/chat_1/stream"]
