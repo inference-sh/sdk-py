@@ -4100,3 +4100,14 @@ class ToolParamType(str, Enum):
     ARRAY = "array"
     NULL = "null"
 
+# Backwards-compatible aliases: Integration* names were renamed to Credential*
+# during the credential/integration model consolidation.
+IntegrationProvider = CredentialProvider
+IntegrationAuthType = CredentialType
+IntegrationStatus = CredentialStatus
+IntegrationScope = CredentialScope
+IntegrationType = ChannelType
+IntegrationDTO = CredentialDTO
+IntegrationConfigDTO = CredentialConfigDTO
+IntegrationRequirement = CredentialRequirement
+
