@@ -2772,6 +2772,9 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: ChatStatus
     output: Optional[Any]
     context: Dict[str, str]
+    # ChannelContext names the channel this chat came through (slack, a
+    # wearable's tag, ...). Unset for chats started in the app or the SDK.
+    channel_context: Optional[ChannelContext]
     agent_id: Optional[str]
     agent: Optional[AgentDTO]
     agent_version_id: Optional[str]
