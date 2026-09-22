@@ -13,11 +13,11 @@ from inferencesh.types import (
     InstanceCloudProvider,
     InstanceStatus,
     InstanceTypeDeploymentType,
-    IntegrationAuthType,
-    IntegrationProvider,
-    IntegrationScope,
-    IntegrationStatus,
-    IntegrationType,
+    CredentialType,
+    CredentialProvider,
+    CredentialScope,
+    CredentialStatus,
+    ChannelType,
     RequirementType,
     KnowledgeLifecycle,
     KnowledgeType,
@@ -85,22 +85,22 @@ def test_tool_call_type_only_function_kind():
 @pytest.mark.parametrize(
     "enum_cls,member,value",
     [
-        (IntegrationProvider, "GIT_HUB", "github"),
-        (IntegrationProvider, "GOOGLE_SA", "google-sa"),
-        (IntegrationProvider, "GCP", "gcp"),
-        (IntegrationProvider, "MCP", "mcp"),
-        (IntegrationAuthType, "O_AUTH", "oauth"),
-        (IntegrationAuthType, "API_KEY", "api_key"),
-        (IntegrationAuthType, "SERVICE_ACCOUNT", "service_account"),
-        (IntegrationAuthType, "WIF", "wif"),
-        (IntegrationStatus, "CONNECTED", "connected"),
-        (IntegrationStatus, "DISCONNECTED", "disconnected"),
-        (IntegrationStatus, "EXPIRED", "expired"),
-        (IntegrationStatus, "ERROR", "error"),
+        (CredentialProvider, "GIT_HUB", "github"),
+        (CredentialProvider, "GOOGLE_SA", "google-sa"),
+        (CredentialProvider, "GCP", "gcp"),
+        (CredentialProvider, "MCP", "mcp"),
+        (CredentialType, "O_AUTH", "oauth"),
+        (CredentialType, "API_KEY", "api_key"),
+        (CredentialType, "SERVICE_ACCOUNT", "service_account"),
+        (CredentialType, "WIF", "wif"),
+        (CredentialStatus, "CONNECTED", "connected"),
+        (CredentialStatus, "DISCONNECTED", "disconnected"),
+        (CredentialStatus, "EXPIRED", "expired"),
+        (CredentialStatus, "ERROR", "error"),
     ],
 )
-def test_integration_enums_preserve_acronym_names(enum_cls, member, value):
-    """New integration enums from typegen must stay readable (GIT_HUB not G_I_T_H_U_B)."""
+def test_credential_enums_preserve_acronym_names(enum_cls, member, value):
+    """Credential enums from typegen must stay readable (GIT_HUB not G_I_T_H_U_B)."""
     assert hasattr(enum_cls, member), f"{enum_cls.__name__}.{member} missing"
     assert getattr(enum_cls, member).value == value
 
@@ -243,10 +243,43 @@ def test_subscription_dto_shape():
         ("TELEGRAM", "telegram"),
     ],
 )
-def test_integration_type_chat_platform_values(member, value):
-    """Chat integration kinds for IntegrationContext must match backend."""
-    assert hasattr(IntegrationType, member)
-    assert getattr(IntegrationType, member).value == value
+def test_channel_type_chat_platform_values(member, value):
+    """Chat channel kinds for ChannelContext must match backend."""
+    assert hasattr(ChannelType, member)
+    assert getattr(ChannelType, member).value == value
+
+
+def test_channel_context_typed_dict_shape():
+    """ChannelContext carries channel_type and transport metadata for reply routing."""
+    from inferencesh.types import ChannelContext, ChannelType
+
+    ctx: ChannelContext = {
+        "channel_type": ChannelType.SLACK,
+        "channel_metadata": {"channel_id": "C123", "thread_ts": "1234.5678"},
+    }
+
+    assert ctx["channel_type"] == ChannelType.SLACK
+    assert ctx["channel_metadata"]["channel_id"] == "C123"
+    assert set(ChannelContext.__annotations__) >= {"channel_type", "channel_metadata"}
+
+
+def test_create_agent_message_request_channel_context_field():
+    """CreateAgentMessageRequest routes replies via channel_context, not integration_context."""
+    from inferencesh.types import ChannelContext, ChannelType, CreateAgentMessageRequest
+
+    channel_context: ChannelContext = {
+        "channel_type": ChannelType.TELEGRAM,
+        "channel_metadata": {"chat_id": 42},
+    }
+    request: CreateAgentMessageRequest = {
+        "chat_id": "chat_abc",
+        "channel_context": channel_context,
+    }
+
+    assert request["channel_context"]["channel_type"] == ChannelType.TELEGRAM
+    assert request["channel_context"]["channel_metadata"]["chat_id"] == 42
+    assert "channel_context" in CreateAgentMessageRequest.__annotations__
+    assert "integration_context" not in CreateAgentMessageRequest.__annotations__
 
 
 @pytest.mark.parametrize(
@@ -617,26 +650,27 @@ def test_update_integration_scopes_request():
     assert req["scopes"][0].endswith("drive.readonly")
 
 
-def test_integration_dto_google_sa_service_account():
-    """Google service-account integrations expose the bound SA email on IntegrationDTO."""
+def test_credential_dto_google_sa_account_identifier():
+    """Google service-account credentials expose the bound SA email via account_identifier."""
     from inferencesh.types import (
-        IntegrationAuthType,
-        IntegrationDTO,
-        IntegrationProvider,
-        IntegrationStatus,
+        CredentialDTO,
+        CredentialProvider,
+        CredentialScope,
+        CredentialStatus,
+        CredentialType,
     )
 
-    dto: IntegrationDTO = {
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "type": IntegrationAuthType.SERVICE_ACCOUNT,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
-        "status": IntegrationStatus.CONNECTED,
+    dto: CredentialDTO = {
+        "provider": CredentialProvider.GOOGLE_SA,
+        "type": CredentialType.SERVICE_ACCOUNT,
+        "scope": CredentialScope.TEAM,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "GCP Production",
-        "service_account_email": "sdk-runner@my-project.iam.gserviceaccount.com",
+        "account_identifier": "sdk-runner@my-project.iam.gserviceaccount.com",
     }
 
-    assert dto["provider"] == IntegrationProvider.GOOGLE_SA
-    assert dto["service_account_email"].endswith(".gserviceaccount.com")
+    assert dto["provider"] == CredentialProvider.GOOGLE_SA
+    assert dto["account_identifier"].endswith(".gserviceaccount.com")
 
 
 @pytest.mark.parametrize(
@@ -653,19 +687,19 @@ def test_requirement_type_values(member, value):
     assert getattr(RequirementType, member).value == value
 
 
-def test_integration_config_dto_slug():
-    """Integration catalog entries are keyed by provider slug (e.g. google-sa)."""
-    from inferencesh.types import IntegrationConfigDTO
+def test_credential_config_dto_slug():
+    """Credential catalog entries are keyed by provider slug (e.g. google-sa)."""
+    from inferencesh.types import CredentialConfigDTO, CredentialProvider, CredentialType
 
-    config: IntegrationConfigDTO = {
+    config: CredentialConfigDTO = {
         "slug": "google-sa",
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
+        "provider": CredentialProvider.GOOGLE_SA,
+        "type": CredentialType.SERVICE_ACCOUNT.value,
         "name": "Google Service Account",
         "available": True,
     }
     assert config["slug"] == "google-sa"
-    assert config["provider"] == IntegrationProvider.GOOGLE_SA
+    assert config["provider"] == CredentialProvider.GOOGLE_SA
 
 
 def test_check_requirements_response_uses_requirement_type():
@@ -689,10 +723,10 @@ def test_check_requirements_response_uses_requirement_type():
         ("PLATFORM", "platform"),
     ],
 )
-def test_integration_scope_values(member, value):
-    """Integration ownership scope must distinguish BYOK team vs platform-managed creds."""
-    assert hasattr(IntegrationScope, member)
-    assert getattr(IntegrationScope, member).value == value
+def test_credential_scope_values(member, value):
+    """Credential ownership scope must distinguish BYOK team vs platform-managed creds."""
+    assert hasattr(CredentialScope, member)
+    assert getattr(CredentialScope, member).value == value
 
 
 @pytest.mark.parametrize(
@@ -717,11 +751,11 @@ def test_entitlement_resource_values(member, value):
     assert getattr(EntitlementResource, member).value == value
 
 
-def test_integration_requirement_secrets_and_scopes():
-    """App manifests declare per-integration secret keys and OAuth scopes."""
-    from inferencesh.types import IntegrationRequirement
+def test_credential_requirement_secrets_and_scopes():
+    """App manifests declare per-credential secret keys and OAuth scopes."""
+    from inferencesh.types import CredentialRequirement
 
-    req: IntegrationRequirement = {
+    req: CredentialRequirement = {
         "key": "google",
         "description": "Google Workspace",
         "optional": False,
@@ -734,29 +768,27 @@ def test_integration_requirement_secrets_and_scopes():
     assert req["scopes"][0].endswith("drive.readonly")
 
 
-def test_integration_dto_scope_team_vs_platform():
-    """IntegrationDTO.scope distinguishes user-owned vs platform-managed connections."""
-    from inferencesh.types import IntegrationAuthType, IntegrationDTO, IntegrationStatus
+def test_credential_dto_scope_team_vs_platform():
+    """CredentialDTO.scope distinguishes user-owned vs platform-managed connections."""
+    from inferencesh.types import CredentialDTO, CredentialProvider, CredentialStatus, CredentialType
 
-    team: IntegrationDTO = {
-        "scope": IntegrationScope.TEAM,
-        "provider": IntegrationProvider.GOOGLE,
-        "type": IntegrationAuthType.O_AUTH,
-        "auth": IntegrationAuthType.O_AUTH,
-        "status": IntegrationStatus.CONNECTED,
+    team: CredentialDTO = {
+        "scope": CredentialScope.TEAM,
+        "provider": CredentialProvider.GOOGLE,
+        "type": CredentialType.O_AUTH,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "My Google",
     }
-    platform: IntegrationDTO = {
-        "scope": IntegrationScope.PLATFORM,
-        "provider": IntegrationProvider.GOOGLE_SA,
-        "type": IntegrationAuthType.SERVICE_ACCOUNT,
-        "auth": IntegrationAuthType.SERVICE_ACCOUNT,
-        "status": IntegrationStatus.CONNECTED,
+    platform: CredentialDTO = {
+        "scope": CredentialScope.PLATFORM,
+        "provider": CredentialProvider.GOOGLE_SA,
+        "type": CredentialType.SERVICE_ACCOUNT,
+        "status": CredentialStatus.CONNECTED,
         "display_name": "Managed GCP",
     }
 
-    assert team["scope"] == IntegrationScope.TEAM
-    assert platform["scope"] == IntegrationScope.PLATFORM
+    assert team["scope"] == CredentialScope.TEAM
+    assert platform["scope"] == CredentialScope.PLATFORM
 
 
 def test_plan_dto_limits_use_entitlement_resources():
@@ -1828,6 +1860,27 @@ def test_chat_dto_carries_status():
     }
 
     assert chat["status"] == ChatStatus.AWAITING_INPUT
+
+
+def test_chat_dto_channel_context_field():
+    """ChatDTO exposes channel_context for multi-channel reply routing on chat listings."""
+    from inferencesh.types import ChannelContext, ChannelType, ChatDTO, ChatStatus
+
+    channel_context: ChannelContext = {
+        "channel_type": ChannelType.SLACK,
+        "channel_metadata": {"channel_id": "C123", "thread_ts": "1234.5678"},
+    }
+    chat: ChatDTO = {
+        "id": "chat_slack",
+        "status": ChatStatus.IDLE,
+        "children": [],
+        "channel_context": channel_context,
+    }
+
+    assert chat["channel_context"]["channel_type"] == ChannelType.SLACK
+    assert chat["channel_context"]["channel_metadata"]["channel_id"] == "C123"
+    assert "channel_context" in ChatDTO.__annotations__
+    assert "integration_context" not in ChatDTO.__annotations__
 
 
 def test_flow_run_dto_carries_int_status():

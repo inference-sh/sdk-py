@@ -135,8 +135,9 @@ def test_models_llm_export_exists(name):
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallType", "ToolParamType",
-    # Integrations
-    "IntegrationProvider", "IntegrationAuthType", "IntegrationStatus",
+    # Credentials
+    "CredentialProvider", "CredentialType", "CredentialStatus",
+    "CredentialDTO", "CredentialConfigDTO", "CredentialRequirement",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
@@ -148,11 +149,12 @@ def test_models_llm_export_exists(name):
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
     "UpdateIntegrationScopesRequest",
-    "RequirementType", "IntegrationConfigDTO",
+    "RequirementType",
+    "CredentialScope",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
     "SetupActionType", "EngineStatus",
-    "IntegrationScope", "IntegrationRequirement", "SecretRequirement",
+    "SecretRequirement",
     "EntitlementResource", "EntitlementSource", "EntitlementType", "EnforcementMode",
     "WorkerStatus", "EntitlementDTO",
     "PlanLimit", "PlanLimits", "PlanDTO", "PlanType", "PlanVersionDTO",
@@ -163,7 +165,8 @@ def test_models_llm_export_exists(name):
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
-    "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
+    "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO",
+    "ChannelType", "ChannelContext", "CreateAgentMessageRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)

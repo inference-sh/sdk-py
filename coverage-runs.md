@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-22 (push dev @ 5a618e2, channel_context on ChatDTO + credential typegen)
+
+**Recent changes reviewed:** `5a618e2` (typegen: `ChatDTO.channel_context`; Integration→Credential renames — `CredentialDTO`, `CredentialConfigDTO`, `CredentialRequirement`, `CredentialProvider`/`CredentialType`/`CredentialStatus`; `CreateAgentRequest.title`, `SecretProviderRequest`, `AppFunction.kind`, `CursorListRequest.include_private`, etc.). `6e072f2` (ChannelContext on messages — open PR #287).
+
+**Open PRs checked:** #287 (ChannelContext on `CreateAgentMessageRequest` — overlaps message-side tests; this PR adds `ChatDTO.channel_context` and fixes credential rename breakage). #285–#267 — no overlap on ChatDTO channel context or credential DTO renames.
+
+**Gaps filled this run:**
+
+- `ChatDTO.channel_context` for multi-channel reply routing on chat listings (regression guard vs `integration_context`)
+- `ChannelContext`/`ChannelType`/`CreateAgentMessageRequest.channel_context` (required fix — dev tests broken after `6e072f2`)
+- Integration→Credential renames in existing tests (`CredentialDTO`, `CredentialConfigDTO`, `CredentialRequirement`, enum renames)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py tests/test_imports.py` — 625 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
