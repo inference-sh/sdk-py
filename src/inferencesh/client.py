@@ -83,7 +83,10 @@ if TYPE_CHECKING:
         AsyncSessionsAPI,
         SessionHandle,
         AsyncSessionHandle,
+        SocketsAPI,
+        AsyncSocketsAPI,
     )
+    from .live import AsyncLiveSession
 class TaskStream(AbstractContextManager['TaskStream']):
     """A context manager for streaming task updates.
 
@@ -529,11 +532,12 @@ class Inference:
             self._sse_read_bytes = 8192  # Default to 8KB chunks on error
 
         # Initialize namespaced APIs
-        from .api import TasksAPI, FilesAPI, AgentsAPI, SessionsAPI
+        from .api import TasksAPI, FilesAPI, AgentsAPI, SessionsAPI, SocketsAPI
         self._tasks = TasksAPI(self)
         self._files = FilesAPI(self)
         self._agents = AgentsAPI(self)
         self._sessions = SessionsAPI(self)
+        self._sockets = SocketsAPI(self)
 
     @property
     def tasks(self) -> "TasksAPI":
@@ -554,6 +558,11 @@ class Inference:
     def sessions(self) -> "SessionsAPI":
         """Sessions API namespace."""
         return self._sessions
+
+    @property
+    def sockets(self) -> "SocketsAPI":
+        """Sockets API namespace (HTTP only; dialling needs AsyncInference)."""
+        return self._sockets
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
@@ -1122,11 +1131,12 @@ class AsyncInference:
         self._on_message = on_message
 
         # Initialize namespaced APIs
-        from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI, AsyncSessionsAPI
+        from .api import AsyncTasksAPI, AsyncFilesAPI, AsyncAgentsAPI, AsyncSessionsAPI, AsyncSocketsAPI
         self._tasks = AsyncTasksAPI(self)
         self._files = AsyncFilesAPI(self)
         self._agents = AsyncAgentsAPI(self)
         self._sessions = AsyncSessionsAPI(self)
+        self._sockets = AsyncSocketsAPI(self)
 
     @property
     def tasks(self) -> "AsyncTasksAPI":
@@ -1147,6 +1157,38 @@ class AsyncInference:
     def sessions(self) -> "AsyncSessionsAPI":
         """Sessions API namespace."""
         return self._sessions
+
+    @property
+    def sockets(self) -> "AsyncSocketsAPI":
+        """Sockets API namespace: the duplex connection of a stream task."""
+        return self._sockets
+
+    async def live(self, params: Dict[str, Any], **open_kwargs: Any) -> "tuple[Dict[str, Any], AsyncLiveSession]":
+        """Start a stream function and open its socket. The task runs until
+        the session is closed (or the app returns); ``session.ended`` settles then.
+
+        Args:
+            params: As for ``run()``; the function must be a stream function.
+            **open_kwargs: Passed to ``sockets.open`` (``on_state``,
+                ``on_binary``, ``on_patch``, ``watch_task``, ...).
+
+        Returns:
+            ``(task, session)``: the created task and the connected session.
+
+        Example:
+            ```python
+            task, session = await client.live({"app": "infsh/voice-loop", "function": "stream", "input": {"effect": "robot"}})
+            await session.send(mic_frame)          # bytes: one item of the input's binary live field
+            await session.send({"effect": "echo"})  # dict: change an ordinary input while it runs
+            async for frame in session:             # bytes or dict, as the app sends them
+                ...
+            await session.close()
+            ```
+        """
+        task = await self.run(params, wait=False)
+        assert isinstance(task, dict)
+        session = await self.sockets.open(task, **open_kwargs)
+        return task, session
 
     # --------------- HTTP helpers ---------------
     def _headers(self) -> Dict[str, str]:
@@ -1699,6 +1741,9 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     # Include session_id if present
     if task.get("session_id"):
         result["session_id"] = task["session_id"]
+    # A stream task's run response carries the caller's end of its socket
+    if task.get("socket"):
+        result["socket"] = task["socket"]
     return result
 def _process_stream_event(
     data: Dict[str, Any], *, task: Dict[str, Any], stopper: Optional[Callable[[], None]] = None

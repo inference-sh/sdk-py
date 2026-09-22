@@ -9,8 +9,11 @@ from .sessions import (
     SessionHandle,
     AsyncSessionHandle,
 )
+from .sockets import SocketsAPI, AsyncSocketsAPI
 
 __all__ = [
+    "SocketsAPI",
+    "AsyncSocketsAPI",
     "TasksAPI",
     "AsyncTasksAPI",
     "FilesAPI",

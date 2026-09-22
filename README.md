@@ -594,6 +594,38 @@ async def main():
             print(update.get("status"))
 ```
 
+### stream functions (live sockets)
+
+A stream function keeps a socket open with its caller for the life of the task: frames go both ways until the caller closes or the app returns. `client.live` starts the task and dials its socket; the run response carries where to dial (`task["socket"]`). The socket needs the async extra: `pip install inferencesh[async]`.
+
+```python
+from inferencesh import async_inference
+
+async def main():
+    client = async_inference(api_key="your-api-key")
+
+    task, session = await client.live(
+        {"app": "infsh/voice-loop", "function": "stream", "input": {"effect": "robot"}},
+        on_state=lambda state, end: print(state),  # connecting → waiting → live → ended
+    )
+
+    await session.send(mic_frame)           # bytes: one item of the input's binary live field
+    await session.send({"effect": "echo"})  # dict: change an ordinary input while it runs
+
+    async for frame in session:             # what the app sends
+        if isinstance(frame, bytes):        # an item of the output's binary live field
+            speaker.write(frame)
+        else:                               # a partial output object, e.g. {"frames": 120}
+            print(frame)
+
+    await session.close()                   # the function returns and the task completes
+    print(await session.ended)              # LiveEnd(code=1000, reason="done", by_caller=True, task_ended=False)
+```
+
+The session is `waiting` until the app's first frame (a cold start can take a minute) and gives up if the task ends before then. It dials again with a fresh credential when the relay restarts under it. `await client.sockets.open(task_or_id)` reconnects to a running task's socket. Callbacks (`on_binary`, `on_patch`) take frames instead of the iterator when you prefer them.
+
+What a function's socket carries is in its schemas: a live field is `{"type": "array", "format": "stream", "items": ...}`. `split_live_schema(schema)` separates the ordinary fields (the request body) from the live ones, and `pcm_format(field.media)` reads the sample rate of a PCM audio field. The app side of the same convention is `Stream[...]` on the input and output models (see "creating an app").
+
 ## file handling
 
 the `File` class provides a standardized way to handle files in the inference.sh ecosystem:

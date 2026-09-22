@@ -58,6 +58,21 @@ from .api import (
     AsyncSessionsAPI,
     SessionHandle,
     AsyncSessionHandle,
+    SocketsAPI,
+    AsyncSocketsAPI,
+)
+# Live sockets of stream functions (the caller's end; needs the async extra to dial)
+from .live import (
+    AsyncLiveSession,
+    LiveEnd,
+    LiveState,
+    LiveField,
+    MediaType,
+    PCMFormat,
+    split_live_schema,
+    binary_live_field,
+    parse_media_type,
+    pcm_format,
 )
 from .ref import Ref
 from .types import TaskStatus, ChatMessageStatus
@@ -165,6 +180,19 @@ def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInfere
 
 
 __all__ = [
+    # Live sockets
+    "AsyncLiveSession",
+    "LiveEnd",
+    "LiveState",
+    "LiveField",
+    "MediaType",
+    "PCMFormat",
+    "split_live_schema",
+    "binary_live_field",
+    "parse_media_type",
+    "pcm_format",
+    "SocketsAPI",
+    "AsyncSocketsAPI",
     "Socket",
     "Live",
     "PCM16",
