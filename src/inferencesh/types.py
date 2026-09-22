@@ -20,6 +20,7 @@ class InternalToolsConfig(TypedDict, total=False):
     host_context: Optional[bool]
     meta: Optional[bool]
     artifact: Optional[bool]
+    spawn: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
@@ -177,6 +178,7 @@ class CoreAppConfigDTO(TypedDict, total=False):
 class CreateAgentRequest(TypedDict, total=False):
     id: str
     name: str
+    title: str
     namespace: str
     images: AgentImages
     # Version config (embedded - backend generates version ID, timestamps, etc)
@@ -300,7 +302,7 @@ class AppVersionInput(TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
+    required_integrations: List[CredentialRequirement]
     resources: AppResources
 
 # CreateAppRequest is the request body for POST /apps
@@ -308,6 +310,7 @@ class CreateAppRequest(TypedDict, total=False):
     id: str
     namespace: str
     name: str
+    title: str
     description: str
     agent_description: str
     category: AppCategory
@@ -399,12 +402,26 @@ class SecretCreateRequest(TypedDict, total=False):
     # chosen once, here; scope is immutable after creation. Empty = the
     # provider's default (team). Requires the matching admin role.
     connection_scope: CredentialScope
+    # ProviderName and ProviderWebsite describe a provider the platform does
+    # not list: the name the credential is shown under, and the site its
+    # logo is looked up from. Ignored for a provider the platform knows.
+    provider_name: str
+    provider_website: str
+
+# SecretProviderRequest attaches an existing secret to a provider's
+# credential — the link a secret gets when it is created against a provider.
+# An empty Provider detaches it back to a plain secret.
+class SecretProviderRequest(TypedDict, total=False):
+    provider: str
+    connection_scope: CredentialScope
+    provider_name: str
+    provider_website: str
 
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
     description: Optional[str]
 
-class IntegrationConnectRequest(TypedDict, total=False):
+class CredentialConnectRequest(TypedDict, total=False):
     provider: str
     type: str
     scopes: List[str]
@@ -416,15 +433,15 @@ class IntegrationConnectRequest(TypedDict, total=False):
     # are OAuth permission scopes.
     connection_scope: CredentialScope
 
-class IntegrationCompleteOAuthRequest(TypedDict, total=False):
+class CredentialCompleteOAuthRequest(TypedDict, total=False):
     provider: str
     type: str
     code: str
     state: str
     code_verifier: str
 
-class IntegrationConnectResponse(TypedDict, total=False):
-    integration: Optional[IntegrationDTO]
+class CredentialConnectResponse(TypedDict, total=False):
+    integration: Optional[CredentialDTO]
     auth_url: str
     state: str
     code_verifier: str
@@ -537,6 +554,9 @@ class AppFunction(TypedDict, total=False):
     # LLMInput and returns an LLMOutput). Promoted onto the version's
     # metadata by AppVersion.DeriveCapabilities.
     capabilities: List[str]
+    # Kind is how the function talks to its caller, from engine discovery:
+    # a stream function declares a socket parameter. Empty means run.
+    kind: FunctionKind
 
 # AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
@@ -569,11 +589,11 @@ class SecretRequirement(TypedDict, total=False):
     description: str
     optional: bool
 
-# IntegrationRequirement defines an integration that an app requires.
+# CredentialRequirement defines an integration that an app requires.
 # Key is the provider slug (e.g. "bytedance", "google").
 # Secrets lists the specific env var names to inject from this integration.
 # Scopes lists OAuth scopes needed (for OAuth integrations).
-class IntegrationRequirement(TypedDict, total=False):
+class CredentialRequirement(TypedDict, total=False):
     key: str
     description: str
     optional: bool
@@ -607,6 +627,8 @@ class PublicAppStoreDTO(TypedDict, total=False):
     tags: List[str]
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     images: AppImages
     is_featured: bool
@@ -847,6 +869,35 @@ class SubmitBountyResponse(TypedDict, total=False):
     submission: BountySubmissionDTO
     granted_amount: int
 
+# CredentialConfigDTO is the merged view: provider catalog + credential state.
+class CredentialConfigDTO(TypedDict, total=False):
+    slug: str
+    provider: str
+    type: str
+    name: str
+    short_name: str
+    description: str
+    icon_url: str
+    how_it_works: List[str]
+    docs_url: str
+    secret_fields: List[SecretFieldConfig]
+    allows_byok: bool
+    available: bool
+    has_managed: bool
+    grant: CredentialGrant
+    # CustomProviderID is set when the provider is one the team defined
+    # itself (models.CustomProvider), so the UI can offer edit and remove.
+    custom_provider_id: str
+    credential: Optional[CredentialDTO]
+
+# SecretFieldConfig defines a secret field for the UI
+class SecretFieldConfig(TypedDict, total=False):
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    optional: bool
+
 # SearchRequest represents a search request.
 # Each model declares its own SearchFields() on the repository.
 class SearchRequest(TypedDict, total=False):
@@ -877,6 +928,9 @@ class CursorListRequest(TypedDict, total=False):
     fields: List[str]
     permissions: List[str]
     include_others: bool
+    # IncludePrivate: an owner or admin of the selected team asks for every
+    # row the team owns, private ones included. Audited; ignored for others.
+    include_private: bool
 
 # CursorListResponse represents a cursor-based paginated response
 class CursorListResponse(TypedDict, total=False):
@@ -1129,33 +1183,6 @@ class InstanceTypeBootTime(TypedDict, total=False):
     updated_at: str
     sample_size: int
 
-# IntegrationConfigDTO is the API response for integration configuration
-class IntegrationConfigDTO(TypedDict, total=False):
-    slug: str
-    provider: str
-    type: str
-    auth: str
-    name: str
-    short_name: str
-    description: str
-    icon_url: str
-    how_it_works: List[str]
-    docs_url: str
-    secret_fields: List[SecretFieldConfig]
-    allows_byok: bool
-    available: bool
-    has_managed: bool
-    grant: IntegrationGrant
-    integration: Optional[IntegrationDTO]
-
-# SecretFieldConfig defines a secret field for the UI
-class SecretFieldConfig(TypedDict, total=False):
-    key: str
-    label: str
-    placeholder: str
-    sensitive: bool
-    optional: bool
-
 # KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
     path: str
@@ -1320,6 +1347,8 @@ class MCPServerDTO(TypedDict, total=False):
     visibility: Visibility
     slug: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     icon_url: str
     server_url: str
@@ -1366,6 +1395,9 @@ class MenuItem(TypedDict, total=False):
     id: str
     label: str
     slug: str
+    # Path is the linked page's path, filled in when a menu is read so a client
+    # can build the link without fetching each page. Never stored.
+    path: str
     page_id: str
     url: str
     icon: str
@@ -1404,6 +1436,7 @@ class ProjectModelDTO(TypedDict, total=False):
 # KnowledgeCreateRequest is the request body for POST /knowledge.
 class KnowledgeCreateRequest(TypedDict, total=False):
     name: str
+    title: str
     description: str
     repo_url: str
     type: KnowledgeType
@@ -1427,6 +1460,7 @@ class KnowledgeVersionInput(TypedDict, total=False):
 
 # KnowledgeUpdateRequest is the request body for PUT /knowledge/{id}.
 class KnowledgeUpdateRequest(TypedDict, total=False):
+    title: str
     description: str
     version: Optional[KnowledgeVersionInput]
 
@@ -1536,7 +1570,7 @@ class SetupAction(TypedDict, total=False):
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
     secrets: List[SecretRequirement]
-    integrations: List[IntegrationRequirement]
+    integrations: List[CredentialRequirement]
 
 # CheckRequirementsResponse is the API response for checking requirements
 class CheckRequirementsResponse(TypedDict, total=False):
@@ -1554,6 +1588,19 @@ class ShareRequest(TypedDict, total=False):
 # To expose a type to SDK consumers: reference it in this struct.
 class SDKTypes(TypedDict, total=False):
     pass
+
+# SocketAccess is where one end of a socket dials and the credential it
+# presents. The task's caller gets one in the run response; the worker gets
+# its own with the dispatch.
+# 
+# Browsers cannot set headers on a WebSocket: they append
+# `?access_token=<token>` to the URL. Everything else sends
+# `Authorization: Bearer <token>`.
+class SocketAccess(TypedDict, total=False):
+    id: str
+    url: str
+    token: str
+    expires_at: str
 
 # MeStatsResponse is returned by GET /me/stats.
 class MeStatsResponse(TypedDict, total=False):
@@ -1714,6 +1761,9 @@ class TaskResultDTO(TypedDict, total=False):
     created_at: str
     updated_at: str
     run_at: Optional[str]
+    # Socket is set when the function is a stream function: the caller dials
+    # it to talk to the app. POST /sockets/{id}/access issues a fresh one.
+    socket: Optional[SocketAccess]
 
 # TaskLogsDTO is a lightweight response for task logs endpoint.
 class TaskLogsDTO(TypedDict, total=False):
@@ -2061,12 +2111,6 @@ class ToolCallDelta(TypedDict, total=False):
         "function": {"merge": "nested"},
     }
 
-# DeltaEvent is the generic streaming envelope on the NDJSON wire.
-# Delta is raw bytes — consumers parse based on context.
-class DeltaEvent(TypedDict, total=False):
-    delta: Any
-    seq: int
-
 # ToolCallFunctionDelta carries partial tool call function data.
 # Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
 class ToolCallFunctionDelta(TypedDict, total=False):
@@ -2094,13 +2138,15 @@ class ResponseFormat(TypedDict, total=False):
     strict: Optional[bool]
 
 # LLMSettings is everything that configures a generation independent of the
-# conversation: model, context, sampling, system prompt, tools and output
+# conversation: context, sampling, system prompt, tools and output
 # constraints. Embedded (tstype extends) by BaseLLMInput — an agent's stored
 # configuration — and LLMInput — a single call — so a field added here
 # reaches both, and the call is built from the configuration by one
 # assignment.
+# 
+# Which model runs is not a setting: the app is the model. An app that
+# fronts several models (a router) declares its own `model` input.
 class LLMSettings(TypedDict, total=False):
-    model: Optional[str]
     context_size: int
     temperature: Optional[float]
     top_p: Optional[float]
@@ -2130,6 +2176,29 @@ class LLMContextMessage(TypedDict, total=False):
     tool_calls: Optional[List[ToolCall]]
     tool_call_id: Optional[str]
 
+# DeltaEvent is the generic streaming envelope on the NDJSON wire.
+# Delta is raw bytes — consumers parse based on context.
+# 
+# It is deliberately not LLM-specific: agent lifecycle events and any future
+# delta producer share this envelope, which is why the identity field below is
+# a bare resource id rather than anything named after chat.
+class DeltaEvent(TypedDict, total=False):
+    delta: Any
+    seq: int
+    # ResourceID names what this delta belongs to — for an LLM task, the
+    # assistant chat message being generated.
+    # 
+    # Without it a consumer can only assume deltas belong to whatever it is
+    # currently building, which breaks the moment a message carries no text
+    # (a tool-call-only turn) and the previous message's state is still live.
+    # 
+    # The producer copies this from the graph and never interprets it: ids come
+    # from one idgen space, so a consumer matches against the ids it already
+    # tracks and buffers anything it does not recognise yet. A resource_type
+    # companion is deliberately absent — nothing needs to route before matching.
+    # Empty when the task has no execution edge (a plain app run).
+    resource_id: str
+
 # TaskAction defines an action to execute when a task reaches a specific status.
 class TaskAction(TypedDict, total=False):
     key: str
@@ -2142,11 +2211,14 @@ class TaskMetadata(TypedDict, total=False):
 
 # UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
 class UtilityConfig(TypedDict, total=False):
-    preset: str
+    preset: UtilityPreset
     expression: str
     gate: Optional[GateCondition]
     selector: Optional[SelectorConfig]
     constant: Any
+    random: bool
+    random_min: Optional[float]
+    random_max: Optional[float]
 
 # AgentEvent is the backbone protocol event for agent runs.
 # Published to "runs:<runID>" and "chats:<chatID>" keys on the event bus.
@@ -2365,7 +2437,7 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[IntegrationRequirement]
+    required_integrations: List[CredentialRequirement]
     resources: AppResources
     checksum: str
 
@@ -2608,6 +2680,11 @@ class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name shown wherever this resource is presented:
+    # "Veo 3.1" for the app named veo-3-1. Name stays the immutable slug that
+    # addresses it. Empty means the surface falls back to the name, so nothing
+    # breaks for a resource that never sets one.
+    title: str
     description: str
     agent_description: str
     category: AppCategory
@@ -2695,6 +2772,9 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: ChatStatus
     output: Optional[Any]
     context: Dict[str, str]
+    # ChannelContext names the channel this chat came through (slack, a
+    # wearable's tag, ...). Unset for chats started in the app or the SDK.
+    channel_context: Optional[ChannelContext]
     agent_id: Optional[str]
     agent: Optional[AgentDTO]
     agent_version_id: Optional[str]
@@ -2719,6 +2799,24 @@ class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     tools: Optional[List[Tool]]
     tool_call_id: Optional[str]
     tool_invocations: Optional[List[ToolInvocationDTO]]
+
+# CredentialDTO is the API response for a credential (never exposes secrets).
+class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    provider: str
+    type: CredentialType
+    grant: Optional[CredentialGrant]
+    scope: CredentialScope
+    status: CredentialStatus
+    display_name: str
+    icon_url: str
+    account_identifier: str
+    account_name: str
+    scopes: StringSlice
+    expires_at: Optional[str]
+    vault_id: Optional[str]
+    metadata: Dict[str, Any]
+    is_primary: bool
+    error_message: str
 
 # EngineDTO is the full API response for an engine.
 class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2755,6 +2853,8 @@ class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class FlowDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     card_image: str
     thumbnail: str
@@ -2830,25 +2930,6 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     availability: List[InstanceTypeAvailability]
     boot_time: Optional[InstanceTypeBootTime]
 
-# IntegrationDTO for API responses (never exposes tokens)
-class IntegrationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    scope: IntegrationScope
-    grant: Optional[IntegrationGrant]
-    provider: IntegrationProvider
-    type: IntegrationAuthType
-    auth: IntegrationAuthType
-    status: IntegrationStatus
-    display_name: str
-    icon_url: str
-    scopes: StringSlice
-    expires_at: Optional[str]
-    service_account_email: str
-    metadata: Dict[str, Any]
-    account_identifier: str
-    account_name: str
-    is_primary: bool
-    error_message: str
-
 class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     run_id: str
     chat_id: str
@@ -2878,6 +2959,8 @@ class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class KnowledgeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     description: str
     type: KnowledgeType
     lifecycle: KnowledgeLifecycle
@@ -2929,6 +3012,7 @@ class PageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     type: PageType
     metadata: PageMetadata
     slug: str
+    path: str
     # PublishAt mirrors Metadata.PublishAt, which remains the field clients write.
     # Surfaced here so a reader does not have to reach into the metadata blob.
     publish_at: Optional[str]
@@ -2978,6 +3062,25 @@ class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     masked_value: str
     description: str
     scope: SecretScope
+    # CredentialID is the credential this secret is attached to; empty for
+    # a plain secret.
+    credential_id: str
+
+# SocketDTO is a socket and what is known of its life. The traffic figures
+# come from the relay once the socket has closed.
+class SocketDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    task_id: str
+    relay: str
+    status: SocketStatus
+    paired_at: Optional[str]
+    ended_at: Optional[str]
+    outcome: SocketOutcome
+    close_code: int
+    close_reason: str
+    client_frames: int
+    client_bytes: int
+    worker_frames: int
+    worker_bytes: int
 
 # SurveyResponseDTO is the API representation of a survey response.
 class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3058,6 +3161,8 @@ class UsageEventDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
     namespace: str
     name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
     images: AgentImages
     version_id: str
     version: Optional[AgentVersionDTO]
@@ -3080,9 +3185,6 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
         "usage": {"merge": "replace"},
     }
 
-# LLMDeltaEvent is a typed alias for backward compatibility.
-LLMDeltaEvent = DeltaEvent
-
 # LLMInput is the input envelope for an LLM provider task: the settings plus
 # the conversation, with the current turn split out of the context.
 class LLMInput(LLMSettings, TypedDict, total=False):
@@ -3094,6 +3196,9 @@ class LLMInput(LLMSettings, TypedDict, total=False):
     images: Optional[List[str]]
     files: Optional[List[str]]
     tool_call_id: Optional[str]
+
+# LLMDeltaEvent is a typed alias for backward compatibility.
+LLMDeltaEvent = DeltaEvent
 
 # ArtifactCommentThreadDTO is one thread: its root plus replies in order.
 class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
@@ -3590,6 +3695,9 @@ class RefRouteType(str, Enum):
     APP = "app"
     AGENT = "agent"
     SKILL = "skill"
+    # RefRouteTypeURL routes a site path to another (/docs/api-files →
+    # /docs/api/sdk/files). Alias and target are literal paths, not refs.
+    URL = "url"
 
 class RefRouteMode(str, Enum):
     REWRITE = "rewrite"
@@ -3684,7 +3792,8 @@ class ContentRating(str, Enum):
     CONTENT_GORE = "gore"
     CONTENT_UNRATED = "unrated"
 
-class IntegrationProvider(str, Enum):
+# Credential.Provider is a plain string; cast with string(...) when assigning.
+class CredentialProvider(str, Enum):
     GOOGLE = "google"
     GOOGLE_SA = "google-sa"
     SLACK = "slack"
@@ -3698,31 +3807,19 @@ class IntegrationProvider(str, Enum):
     MCP = "mcp"
     REDDIT = "reddit"
 
-class IntegrationAuthType(str, Enum):
-    SERVICE_ACCOUNT = "service_account"
+class CredentialType(str, Enum):
     O_AUTH = "oauth"
     API_KEY = "api_key"
-    WIF = "wif"
     MCP = "mcp"
+    SERVICE_ACCOUNT = "service_account"
+    WIF = "wif"
 
-class IntegrationStatus(str, Enum):
+class CredentialStatus(str, Enum):
     PENDING = "pending"
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
     EXPIRED = "expired"
     ERROR = "error"
-
-class IntegrationScope(str, Enum):
-    TEAM = "team"
-    PLATFORM = "platform"
-    USER = "user"
-
-class IntegrationGrant(str, Enum):
-    # IntegrationGrantCredentials provides OAuth app credentials (client_id/secret).
-    # Users connect their own accounts against it. Only valid for type=oauth.
-    CREDENTIALS = "credentials"
-    # IntegrationGrantToken provides ready-to-use access (token, API key, etc.).
-    TOKEN = "token"
 
 class CredentialScope(str, Enum):
     PLATFORM = "platform"
@@ -3734,6 +3831,10 @@ class CredentialScope(str, Enum):
     TEAM = "team"
     USER = "user"
     AGENT = "agent"
+
+class CredentialGrant(str, Enum):
+    CREDENTIALS = "credentials"
+    TOKEN = "token"
 
 class NotificationChannel(str, Enum):
     EMAIL = "email"
@@ -3756,6 +3857,7 @@ class NotificationType(str, Enum):
     USAGE_SUMMARY = "usage_summary"
     SPENDING_LIMIT = "spending_limit"
     INVOICE = "invoice"
+    CREDIT_NOTE = "credit_note"
     SUBSCRIPTION_CREATED = "subscription_created"
     SUBSCRIPTION_CREDIT = "subscription_credit"
     SUBSCRIPTION_CANCELED = "subscription_canceled"
@@ -3792,6 +3894,35 @@ class NotificationStatus(str, Enum):
     BOUNCED = "bounced"
     CANCELLED = "cancelled"
 
+class FunctionKind(str, Enum):
+    # FunctionKindRun takes an input and returns an output (optionally
+    # yielding progress on the way). The zero value means this.
+    RUN = "run"
+    # FunctionKindStream holds a socket with the caller for the life of the
+    # task: frames both ways, no input/output exchange.
+    STREAM = "stream"
+
+class SocketStatus(str, Enum):
+    # SocketStatusPending: opened, and the two ends have not met yet. An end
+    # that gave up waiting may dial again, so an unpaired end does not close
+    # the socket; the task ending does.
+    PENDING = "pending"
+    # SocketStatusOpen: both ends are connected through the relay.
+    OPEN = "open"
+    # SocketStatusClosed: over. Outcome says why.
+    CLOSED = "closed"
+
+class SocketOutcome(str, Enum):
+    CLIENT_CLOSED = "client_closed"
+    WORKER_CLOSED = "worker_closed"
+    # SocketOutcomeDrained: the relay restarted under a live socket.
+    DRAINED = "drained"
+    # SocketOutcomeNeverPaired: the task ended before the two ends met.
+    NEVER_PAIRED = "never_paired"
+    # SocketOutcomeTaskEnded: the task ended and the relay's own account of
+    # the socket has not arrived (yet).
+    TASK_ENDED = "task_ended"
+
 class TaskStatus(IntEnum):
     UNKNOWN = 0
     RECEIVED = 1
@@ -3823,6 +3954,12 @@ class TeamType(str, Enum):
     PERSONAL = "personal"
     TEAM = "team"
     SYSTEM = "system"
+    # TeamTypeOrg is an organization's own workspace. Its id is the org's
+    # id, its org_id points at itself, its members are the org's admins, and
+    # it owns what the org owns: the payer row, billing settings, org-scope
+    # credentials. Minted by org creation only; never archived while member
+    # teams exist.
+    ORG = "org"
 
 class TeamStatus(str, Enum):
     ACTIVE = "active"
@@ -3839,6 +3976,12 @@ class Role(str, Enum):
     USER = "user"
     ADMIN = "admin"
     SYSTEM = "system"
+
+class UtilityPreset(str, Enum):
+    GATE = "gate"
+    SELECTOR = "selector"
+    MERGE = "merge"
+    CONSTANT = "constant"
 
 class AgentEventType(str, Enum):
     # Run lifecycle
