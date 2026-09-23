@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ 0246c53, credential tool auth + typegen renames)
+
+**Recent changes reviewed:** `0246c53` (`tools.py`: HTTP/MCP builders emit `type: credential` + `credential_id`; deprecated `integration*` spellings; `RequirementType.CREDENTIAL`, `Scope.CREDENTIALS_*`, `UpdateCredentialScopesRequest`, `GraphNodeType.CREDENTIAL_REQUIREMENT`). Upstream commit already added builder/regression tests in `test_tools.py`, `test_types.py` (RequirementType/ScopeGroup), and `test_errors.py`.
+
+**Open PRs checked:** #302 (live/socket tidy @ e7bc1d9), #299 (harness profile fields), #295 (credential_id TypedDict — overlapping wire tests folded here with corrected `ToolAuthType.CREDENTIAL`), #293 — no duplicate work on live/socket or harness fields.
+
+**Gaps filled this run:**
+
+- `Scope.CREDENTIALS_READ` / `CREDENTIALS_WRITE` (formerly `integrations:*`)
+- `GraphNodeType.CREDENTIAL_REQUIREMENT` workflow node kind
+- `ToolAuthType.CREDENTIAL` and `ToolAuthConfig` / `MCPToolConfigDTO` / `SecretDTO` wire contracts
+- MCP builder: keyword `credential_id`, missing-arg `TypeError`, HTTP auth without `credential_id`
+
+**Files:** `tests/test_types.py`, `tests/test_tools.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k 'tool_auth or credential_id or CREDENTIALS or CREDENTIAL_REQUIREMENT' tests/test_tools.py::TestHTTPToolBuilder tests/test_tools.py::TestMCPToolBuilder` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

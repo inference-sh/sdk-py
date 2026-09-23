@@ -135,6 +135,7 @@ def test_instance_status_lifecycle_values(member, value):
         ("CONDITIONAL", "conditional"),
         ("FLOW_NODE", "flow_node"),
         ("TRIGGER", "trigger"),
+        ("CREDENTIAL_REQUIREMENT", "credential_requirement"),
     ],
 )
 def test_graph_node_type_workflow_values(member, value):
@@ -1072,6 +1073,8 @@ def test_entitlement_dto_carries_source_and_enforcement():
         ("APPS", "apps"),
         ("FLOWS_EXECUTE", "flows:execute"),
         ("SECRETS_READ", "secrets:read"),
+        ("CREDENTIALS_READ", "credentials:read"),
+        ("CREDENTIALS_WRITE", "credentials:write"),
         ("API_KEYS_WRITE", "apikeys:write"),
         ("SETTINGS_READ", "settings:read"),
     ],
@@ -2450,3 +2453,62 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_tool_auth_type_credential_value():
+    """HTTP/MCP tool auth uses ToolAuthType.CREDENTIAL (integration type removed)."""
+    from inferencesh.types import ToolAuthType
+
+    assert ToolAuthType.CREDENTIAL.value == "credential"
+    assert not hasattr(ToolAuthType, "INTEGRATION")
+
+
+def test_mcp_tool_config_dto_uses_credential_id():
+    """MCPToolConfigDTO wires MCP servers through credential_id, not integration_id."""
+    from inferencesh.types import MCPToolConfigDTO
+
+    config: MCPToolConfigDTO = {
+        "credential_id": "cred_mcp_slack",
+        "tool_name": "post_message",
+    }
+
+    assert config["credential_id"] == "cred_mcp_slack"
+    assert set(MCPToolConfigDTO.__annotations__) == {"credential_id", "tool_name"}
+    assert "integration_id" not in MCPToolConfigDTO.__annotations__
+
+
+def test_tool_auth_config_credential_wire_shape():
+    """ToolAuthConfig OAuth auth references a stored credential by credential_id."""
+    from inferencesh.types import ToolAuthConfig, ToolAuthType
+
+    auth: ToolAuthConfig = {
+        "type": ToolAuthType.CREDENTIAL,
+        "provider": "github",
+        "credential_id": "cred_github_team",
+    }
+
+    assert auth["type"] == ToolAuthType.CREDENTIAL
+    assert auth["credential_id"] == "cred_github_team"
+    assert "credential_id" in ToolAuthConfig.__annotations__
+
+
+def test_secret_dto_credential_id_for_attached_secrets():
+    """SecretDTO.credential_id links a secret to its parent credential; empty for plain secrets."""
+    from inferencesh.types import SecretDTO, SecretScope
+
+    attached: SecretDTO = {
+        "key": "SLACK_BOT_TOKEN",
+        "masked_value": "xox***",
+        "scope": SecretScope.INTERNAL,
+        "credential_id": "cred_slack",
+    }
+    plain: SecretDTO = {
+        "key": "API_KEY",
+        "masked_value": "sk-***",
+        "scope": SecretScope.TEAM,
+        "credential_id": "",
+    }
+
+    assert attached["credential_id"] == "cred_slack"
+    assert plain["credential_id"] == ""
+    assert "credential_id" in SecretDTO.__annotations__
