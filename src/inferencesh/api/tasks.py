@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Union, Iterator, TYPE_CHECKING
 
+from ..models.response import Response
+
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference, TaskStream, AsyncTaskStream
 
@@ -81,7 +83,7 @@ class TasksAPI:
             reconnect_delay_ms=reconnect_delay_ms,
         )
 
-    def get(self, task_id: str) -> Dict[str, Any]:
+    def get(self, task_id: str) -> Response[Any]:
         """Get the current state of a task.
 
         Args:
@@ -186,7 +188,7 @@ class AsyncTasksAPI:
             reconnect_delay_ms=reconnect_delay_ms,
         )
 
-    async def get(self, task_id: str) -> Dict[str, Any]:
+    async def get(self, task_id: str) -> Response[Any]:
         """Get the current state of a task."""
         return await self._client.get_task(task_id)
 
