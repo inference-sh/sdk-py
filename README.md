@@ -656,6 +656,10 @@ class App(BaseApp):
 
 The caller closing the socket ends the `async for`, so the final yield goes after the loop. Both channels can be used at once: `await live.send(text=...)` pushes a partial over the socket for the lowest latency, while the yields build the transcript the task stores.
 
+#### frames dropped when the app falls behind
+
+Binary frames are perishable media, so the kernel keeps at most 256 of them queued for the app (about five seconds of 20 ms audio) and drops the oldest when the app reads slower than the caller sends: latency stays bounded instead of growing for ever. Text frames — commands and patches — are never dropped. `socket.dropped` counts the binary frames lost so far, and setting `socket.binary_backlog = None` turns dropping off when every frame matters (a file sent in chunks).
+
 ## file handling
 
 the `File` class provides a standardized way to handle files in the inference.sh ecosystem:

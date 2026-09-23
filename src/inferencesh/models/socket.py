@@ -35,6 +35,12 @@ class Socket(Protocol):
     id: str
     metadata: Dict[str, Any]
 
+    dropped: int
+    """How many binary frames the kernel has dropped because the app read too slowly."""
+
+    binary_backlog: Optional[int]
+    """The most binary frames kept queued (256); None keeps every one of them."""
+
     @property
     def closed(self) -> bool:
         """True once the client is gone or the app closed the socket."""
