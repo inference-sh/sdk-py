@@ -21,7 +21,7 @@ SocketTarget = Union[Dict[str, Any], str]
 
 
 def _task_filter(task_id: str) -> CursorListRequest:
-    return {"limit": 1, "filters": [{"field": "task_id", "operator": FilterOperator.OP_EQUAL.value, "value": task_id}]}
+    return {"limit": 1, "filters": [{"field": "task_id", "operator": FilterOperator.OP_EQUAL, "value": task_id}]}
 
 
 class SocketsAPI:
