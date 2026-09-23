@@ -314,14 +314,15 @@ class HTTPToolBuilder(_ToolBuilder):
         """
         provider = credential or integration
         if provider:
-            self._auth = {"type": ToolAuthType.CREDENTIAL.value, "provider": provider}
+            auth: ToolAuthConfig = cast(ToolAuthConfig, {"type": ToolAuthType.CREDENTIAL.value, "provider": provider})
             cid = credential_id or integration_id
             if cid:
-                self._auth["credential_id"] = cid
+                auth["credential_id"] = cid
+            self._auth = auth
         elif api_key:
-            self._auth = {"type": ToolAuthType.API_KEY.value, "secret": api_key, "header": header or "X-API-Key"}
+            self._auth = cast(ToolAuthConfig, {"type": ToolAuthType.API_KEY.value, "secret": api_key, "header": header or "X-API-Key"})
         elif bearer:
-            self._auth = {"type": ToolAuthType.BEARER.value, "secret": bearer}
+            self._auth = cast(ToolAuthConfig, {"type": ToolAuthType.BEARER.value, "secret": bearer})
         return self
 
     def header(self, name: str, value: str) -> "HTTPToolBuilder":
@@ -512,7 +513,7 @@ class LifecycleHookBuilder:
         if self._handler is not None:
             config["handler"] = self._handler
         if self._async is not None:
-            config["async"] = self._async
+            config["async_"] = self._async
         if self._timeout is not None:
             config["timeout"] = self._timeout
         return config
