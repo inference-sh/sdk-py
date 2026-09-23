@@ -21,6 +21,7 @@ class InternalToolsConfig(TypedDict, total=False):
     meta: Optional[bool]
     artifact: Optional[bool]
     spawn: Optional[bool]
+    remote: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
