@@ -2672,6 +2672,10 @@ class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     tool_invocation_id: Optional[str]
     trigger_id: Optional[str]
     metadata: Any
+    # ProfileID is the harness profile that thought for this run; nil when it
+    # was our own loop. RemoteID is the machine it ran on, if any.
+    profile_id: Optional[str]
+    remote_id: Optional[str]
 
 # ApiKeyDTO for API responses
 class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -2791,6 +2795,11 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     agent_data: ChatData
     active_run: Optional[AgentRunDTO]
     pending_interrupts: List[InterruptDTO]
+    # HarnessSessionID is the harness's own session id when a remote profile
+    # thinks for this chat; `claude --resume <id>` opens it on that machine.
+    harness_session_id: Optional[str]
+    # ForkedFromMessageID is the message this chat was branched at.
+    forked_from_message_id: Optional[str]
 
 # ChatMessageDTO for API responses
 class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3172,6 +3181,11 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     images: AgentImages
     version_id: str
     version: Optional[AgentVersionDTO]
+    # ProfileID is set when a harness profile on a remote thinks for this
+    # agent instead of our loop.
+    profile_id: Optional[str]
+    # RemoteID is the machine the agent's terminal tools run on by default.
+    remote_id: Optional[str]
 
 # Widget is an A2UI surface stored on a ToolInvocation.
 # Alias of shared.A2UISurface so the type generation pipeline picks it up.
