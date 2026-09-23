@@ -173,6 +173,11 @@ class Live:
     A frame that does not fit the input model is answered with
     ``{"error": {"field": ..., "message": ...}}`` and skipped; the stream
     goes on.
+
+    The function may instead be an async generator (``-> AsyncGenerator[TalkOutput,
+    None]``): each yield is a cumulative snapshot of the task's output, sent as a
+    task update rather than over the socket, and the last yield (after the loop,
+    once the caller closes) is the result.
     """
 
     def __init__(self, socket: Any, input_data: BaseModel, output_type: Type[BaseModel]):

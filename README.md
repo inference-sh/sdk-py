@@ -626,6 +626,36 @@ The session is `waiting` until the app's first frame (a cold start can take a mi
 
 What a function's socket carries is in its schemas: a live field is `{"type": "array", "format": "stream", "items": ...}`. `split_live_schema(schema)` separates the ordinary fields (the request body) from the live ones, and `pcm_format(field.media)` reads the sample rate of a PCM audio field. The app side of the same convention is `Stream[...]` on the input and output models (see "creating an app").
 
+#### progress from a stream function
+
+On the app side a stream function may also be an async generator. Each yield is a progress snapshot of the task's output: it replaces the task's `output` and reaches clients as a task update (SSE `/tasks/{id}/stream`, `stream=True`), not over the socket — the socket carries the live fields. Yield cumulative snapshots; the last yield is the result, so `output_meta` goes there, and a generator that ends without yielding fails the task (`NoOutput`).
+
+```python
+from typing import AsyncGenerator
+from inferencesh import BaseApp, BaseAppInput, BaseAppOutput, Live, OutputMeta, PCM16, Socket, Stream
+
+class DictateInput(BaseAppInput):
+    audio: Stream[PCM16(16000)]              # mic frames arrive over the socket
+
+class DictateOutput(BaseAppOutput):
+    text: str = ""
+    partial: bool = True
+
+class App(BaseApp):
+    async def dictate(self, input_data: DictateInput, socket: Socket) -> AsyncGenerator[DictateOutput, None]:
+        live = Live(socket, input_data, DictateOutput)
+        window = bytearray()
+        async for update in live:
+            if update.field == "audio":
+                window += update.value
+                if len(window) >= 32000:                             # one second of 16 kHz s16le
+                    yield DictateOutput(text=self.transcribe(window))  # the transcript so far
+        yield DictateOutput(text=self.transcribe(window), partial=False,
+                            output_meta=OutputMeta(inputs=[], outputs=[]))
+```
+
+The caller closing the socket ends the `async for`, so the final yield goes after the loop. Both channels can be used at once: `await live.send(text=...)` pushes a partial over the socket for the lowest latency, while the yields build the transcript the task stores.
+
 ## file handling
 
 the `File` class provides a standardized way to handle files in the inference.sh ecosystem:
