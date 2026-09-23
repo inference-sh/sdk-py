@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ ee8c597, ToolAuthType.NONE)
+
+**Recent changes reviewed:** `ee8c597` (typegen: `ToolAuthType.NONE` — explicit opt-out of credential injection on HTTP tools). `0246c53` credential builder renames covered by open PR #306.
+
+**Open PRs checked:** #306 (credential tool auth @ 0246c53), #302 (live/socket tidy), #299 (harness profile fields), #295 (credential_id TypedDict) — no overlap on `ToolAuthType.NONE`.
+
+**Gaps filled this run:**
+
+- `ToolAuthType.NONE` wire token (`"none"`) alongside existing credential/api_key/bearer members
+- `ToolAuthConfig` shape when `type` is explicitly `none` (no credential fields)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py -k 'tool_auth' tests/test_imports.py::test_generated_type_exists[ToolAuthType]` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

@@ -2450,3 +2450,31 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("NONE", "none"),
+        ("CREDENTIAL", "credential"),
+        ("API_KEY", "api_key"),
+        ("BEARER", "bearer"),
+    ],
+)
+def test_tool_auth_type_values(member, value):
+    """ToolAuthType wire tokens must stay stable for HTTP/MCP tool auth configs."""
+    from inferencesh.types import ToolAuthType
+
+    assert hasattr(ToolAuthType, member)
+    assert getattr(ToolAuthType, member).value == value
+
+
+def test_tool_auth_config_explicit_none_type():
+    """type=none opts out of credential injection (same as omitting auth on the tool)."""
+    from inferencesh.types import ToolAuthConfig, ToolAuthType
+
+    auth: ToolAuthConfig = {"type": ToolAuthType.NONE.value}
+
+    assert auth["type"] == "none"
+    assert "credential_id" not in auth
+    assert "provider" not in auth
