@@ -213,3 +213,17 @@ def test_live_send():
         {"transcript": {"text": "hello", "final": True}},
         {"voice": "eve", "seconds": 2.0},
     ]
+
+
+def test_live_send_passes_binary_views_without_copying():
+    socket = FakeSocket([])
+    live = Live(socket, TalkInput(), TalkOutput)
+    view = memoryview(b"\xaa\xbb")
+    buf = bytearray(b"\xcc\xdd")
+
+    async def go():
+        await live.send(audio=view)
+        await live.send(audio=buf)
+
+    _run(go())
+    assert socket.sent[0] is view and socket.sent[1] is buf

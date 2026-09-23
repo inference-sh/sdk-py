@@ -158,6 +158,15 @@ async def test_iteration_yields_bytes_and_dicts_and_ends_with_the_session():
     assert [item async for item in s.session] == []
 
 
+async def test_send_binary_passes_buffer_views_to_the_transport():
+    s = await start()
+    view = memoryview(b"\x05")
+    buf = bytearray(b"\x06")
+    await s.session.send_binary(view)
+    await s.session.send_binary(buf)
+    assert s.ws.sent[-2] is view and s.ws.sent[-1] is buf
+
+
 async def test_send_routes_bytes_to_binary_and_dicts_to_json_frames():
     s = await start()
     await s.session.send(b"\x01\x02\x03")
@@ -232,6 +241,14 @@ async def test_ends_when_the_caller_closes_and_reports_it_as_such():
     assert end.by_caller is True and end.code == 1000
     await tick()
     assert len([st for st, _ in s.states if st == LiveState.ENDED]) == 1
+
+
+async def test_close_before_connect_ends_cleanly():
+    session = AsyncLiveSession(access(), ws_connect=FakeWS.dial)
+    await session.close()
+    assert session.state == LiveState.ENDED
+    assert session.end == LiveEnd(code=1000, reason="done", by_caller=True, task_ended=False)
+    assert FakeWS.dialed == []
 
 
 async def test_caller_close_does_not_redial():
@@ -375,6 +392,35 @@ def test_split_live_schema_without_properties_passes_through():
     assert split_live_schema(None) == (None, [])
     assert split_live_schema({"type": "string"}) == ({"type": "string"}, [])
     assert binary_live_field([]) is None
+
+
+def test_live_alternative_bundles_defs_for_nested_enum_reference():
+    """Forms validate one anyOf branch at a time; nested $refs must still resolve."""
+    from enum import Enum
+    from typing import Literal, Union
+
+    from pydantic import BaseModel
+
+    from inferencesh import BaseAppInput, Stream
+
+    class Voice(str, Enum):
+        ara = "ara"
+        eve = "eve"
+
+    class RichText(BaseModel):
+        type: Literal["text"] = "text"
+        voice: Voice
+
+    class Interrupt(BaseModel):
+        type: Literal["interrupt"] = "interrupt"
+
+    class In(BaseAppInput):
+        events: Stream[Union[Interrupt, RichText]]
+
+    _, live = split_live_schema(In.model_json_schema())
+    rich = next(a for a in live[0].alternatives if "voice" in (a.get("properties") or {}))
+    assert rich["properties"]["voice"]["$ref"] == "#/$defs/Voice"
+    assert rich["$defs"]["Voice"]["enum"] == ["ara", "eve"]
 
 
 def test_parse_media_type_and_pcm_format():

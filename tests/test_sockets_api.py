@@ -146,6 +146,26 @@ async def test_redial_renews_the_credential_through_the_api():
     await session.close()
 
 
+async def test_open_by_task_id_redials_on_the_credential_socket_without_fetching_the_task():
+    client, calls = async_client({
+        "POST /sockets/list": {"items": [SOCKET]},
+        "POST /sockets/sock-1/access": ACCESS,
+        "POST /sockets/sock-1/access": {**ACCESS, "token": "tok-2"},
+    })
+    session = await client.sockets.open("task-1", ws_connect=FakeWS.dial, watch_task=False)
+    assert requests(calls) == ["POST /sockets/list", "POST /sockets/sock-1/access"]
+    FakeWS.dialed[0].server_close(1012, "restarting")
+    await tick()
+    assert requests(calls) == [
+        "POST /sockets/list",
+        "POST /sockets/sock-1/access",
+        "POST /sockets/sock-1/access",
+    ]
+    assert "access_token=tok-2" in FakeWS.dialed[1].url
+    assert not any("GET /tasks/" in r for r in requests(calls))
+    await session.close()
+
+
 async def test_open_follows_the_task_while_waiting_and_ends_when_it_fails():
     polls = iter([{"id": "task-1", "status": int(TaskStatus.RUNNING)}, {"id": "task-1", "status": int(TaskStatus.FAILED)}])
     client, calls = async_client({

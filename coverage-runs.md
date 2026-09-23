@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ e7bc1d9, live stream/socket tidy)
+
+**Recent changes reviewed:** `e7bc1d9` (live alternatives carry root `$defs`; mid-stream ordinary fields use `validate_assignment`; binary refusal once; buffer pass-through on send; `sockets.open(task_id)` skips task GET; renew driven by credential id). Author added baseline tests in the same commit.
+
+**Open PRs checked:** #299 (harness profile fields), #295 (credential_id / backpressure), #293 (channel_context), #287 (ChannelContext) — no overlap with live/socket behavior.
+
+**Gaps filled this run:**
+
+- `split_live_schema` alternatives bundle `$defs` when items nest `$ref` to an enum (form can validate one branch alone)
+- `Live.send` / `AsyncLiveSession.send_binary` pass `memoryview` / `bytearray` without copying to `bytes`
+- `AsyncLiveSession.close()` before `connect()` ends cleanly with no dial
+- `AsyncSocketsAPI.open("task-id")` redials via `POST /sockets/{id}/access` only (no `GET /tasks`)
+
+**Files:** `tests/test_live.py`, `tests/test_stream_fields.py`, `tests/test_sockets_api.py`
+
+**Validation:** `pytest tests/test_live.py tests/test_stream_fields.py tests/test_sockets_api.py` — 45 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
