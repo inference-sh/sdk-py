@@ -103,6 +103,9 @@ class ClientToolConfig(TypedDict, total=False):
 class ToolAuthConfig(TypedDict, total=False):
     type: str
     provider: str
+    credential_id: str
+    # Deprecated: the credential id used to be called integration_id. Read
+    # through CredentialRef(); never written.
     integration_id: str
     secret: str
     header: str
@@ -116,6 +119,9 @@ class HTTPToolConfig(TypedDict, total=False):
     output_schema: Any
 
 class MCPToolConfig(TypedDict, total=False):
+    credential_id: str
+    # Deprecated: the credential id used to be called integration_id. Read
+    # through CredentialRef(); never written.
     integration_id: str
     tool_name: str
 
@@ -154,7 +160,7 @@ class HTTPToolConfigDTO(TypedDict, total=False):
     output_schema: Any
 
 class MCPToolConfigDTO(TypedDict, total=False):
-    integration_id: str
+    credential_id: str
     tool_name: str
 
 # AgentImages contains display images for an agent
