@@ -1,5 +1,19 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ 5ca1de1, v0.9.0 version bump)
+
+**Recent changes reviewed:** `5ca1de1` (`pyproject.toml` version bump to v0.9.0 only). Prior commit `ee8c597` (`ToolAuthType.NONE`) and `0246c53` (credential tool auth renames) remain the latest meaningful API surface changes on dev.
+
+**Open PRs checked:** #309 (`ToolAuthType.NONE` @ ee8c597), #306 (credential scopes + builder gaps @ 0246c53), #302 (live/socket tidy), #299 (harness profile fields), #295 (`credential_id` TypedDict) — no new overlap; no additional production diff in `5ca1de1`.
+
+**Gaps filled this run:**
+
+- Rebased open PR #309 branch onto `5ca1de1` so `ToolAuthType.NONE` regression tests apply to the v0.9.0 line (no new test cases beyond that PR).
+
+**Files:** (unchanged test files; branch maintenance on `coverage/tool-auth-type-none-ee8c597`)
+
+**Validation:** `pytest tests/test_types.py -k 'tool_auth' tests/test_imports.py::test_generated_type_exists[ToolAuthType]` — passed on rebased branch.
+
 ## 2026-09-23 (push dev @ ee8c597, ToolAuthType.NONE)
 
 **Recent changes reviewed:** `ee8c597` (typegen: `ToolAuthType.NONE` — explicit opt-out of credential injection on HTTP tools). `0246c53` credential builder renames covered by open PR #306.
