@@ -602,11 +602,11 @@ def test_device_auth_response_init_shape():
     assert resp["poll_url"].endswith("/poll")
 
 
-def test_update_integration_scopes_request():
-    """OAuth integrations can request additional scopes after initial connect."""
-    from inferencesh.types import UpdateIntegrationScopesRequest
+def test_update_credential_scopes_request():
+    """OAuth credentials can request additional scopes after initial connect."""
+    from inferencesh.types import UpdateCredentialScopesRequest
 
-    req: UpdateIntegrationScopesRequest = {
+    req: UpdateCredentialScopesRequest = {
         "scopes": [
             "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/calendar.readonly",
@@ -643,12 +643,12 @@ def test_integration_dto_google_sa_service_account():
     "member,value",
     [
         ("SECRET", "secret"),
-        ("INTEGRATION", "integration"),
+        ("CREDENTIAL", "credential"),
         ("SCOPE", "scope"),
     ],
 )
 def test_requirement_type_values(member, value):
-    """412 requirement errors must distinguish secrets, integrations, and OAuth scopes."""
+    """412 requirement errors must distinguish secrets, credentials, and OAuth scopes."""
     assert hasattr(RequirementType, member)
     assert getattr(RequirementType, member).value == value
 
@@ -1089,7 +1089,7 @@ def test_scope_permission_values(member, value):
     [
         ("AGENTS", "agents"),
         ("SECRETS", "secrets"),
-        ("INTEGRATIONS", "integrations"),
+        ("CREDENTIALS", "credentials"),
         ("ENGINES", "engines"),
         ("API_KEYS", "apikeys"),
         ("SETTINGS", "settings"),

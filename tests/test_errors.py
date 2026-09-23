@@ -46,12 +46,12 @@ class TestSetupAction:
 class TestRequirementError:
     def test_from_dict_with_nested_action(self):
         err = RequirementError.from_dict({
-            "type": "integration",
+            "type": "credential",
             "key": "github",
             "message": "Connect GitHub",
             "action": {"type": "connect", "provider": "github"},
         })
-        assert err.type == "integration"
+        assert err.type == "credential"
         assert err.key == "github"
         assert err.message == "Connect GitHub"
         assert err.action is not None

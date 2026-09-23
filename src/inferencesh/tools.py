@@ -13,6 +13,7 @@ from .types import (
     HookEvent,
     HookHandlerType,
     ToolAuthConfig,
+    ToolAuthType,
     ToolType,
 )
 
@@ -300,18 +301,27 @@ class HTTPToolBuilder(_ToolBuilder):
         self._method = m
         return self
 
-    def auth(self, *, integration: Optional[str] = None, integration_id: Optional[str] = None,
+    def auth(self, *, credential: Optional[str] = None, credential_id: Optional[str] = None,
              api_key: Optional[str] = None, bearer: Optional[str] = None,
-             header: Optional[str] = None) -> "HTTPToolBuilder":
-        """Set authentication. Use integration for OAuth, api_key/bearer for secret store references."""
-        if integration:
-            self._auth = {"type": "integration", "provider": integration}
-            if integration_id:
-                self._auth["integration_id"] = integration_id
+             header: Optional[str] = None,
+             integration: Optional[str] = None, integration_id: Optional[str] = None) -> "HTTPToolBuilder":
+        """Set authentication.
+
+        credential sends a connected account's access token (pick the account
+        with credential_id); api_key / bearer send a vault secret.
+        integration / integration_id are deprecated spellings of credential /
+        credential_id.
+        """
+        provider = credential or integration
+        if provider:
+            self._auth = {"type": ToolAuthType.CREDENTIAL.value, "provider": provider}
+            cid = credential_id or integration_id
+            if cid:
+                self._auth["credential_id"] = cid
         elif api_key:
-            self._auth = {"type": "api_key", "secret": api_key, "header": header or "X-API-Key"}
+            self._auth = {"type": ToolAuthType.API_KEY.value, "secret": api_key, "header": header or "X-API-Key"}
         elif bearer:
-            self._auth = {"type": "bearer", "secret": bearer}
+            self._auth = {"type": ToolAuthType.BEARER.value, "secret": bearer}
         return self
 
     def header(self, name: str, value: str) -> "HTTPToolBuilder":
@@ -374,9 +384,9 @@ def call_tool(name: str, url: str) -> HTTPToolBuilder:
 class MCPToolBuilder(_ToolBuilder):
     """Builder for MCP connector tools."""
 
-    def __init__(self, name: str, integration_id: str, tool_name: str):
+    def __init__(self, name: str, credential_id: str, tool_name: str):
         super().__init__(name)
-        self._integration_id = integration_id
+        self._credential_id = credential_id
         self._tool_name = tool_name
 
     def build(self) -> AgentTool:
@@ -386,13 +396,21 @@ class MCPToolBuilder(_ToolBuilder):
             "description": self._description,
             "type": ToolType.MCP,
             "require_approval": self._require_approval,
-            "mcp": {"integration_id": self._integration_id, "tool_name": self._tool_name},
+            "mcp": {"credential_id": self._credential_id, "tool_name": self._tool_name},
         }
 
 
-def mcp_tool(name: str, integration_id: str, tool_name: str) -> MCPToolBuilder:
-    """Create an MCP connector tool (calls a tool on a connected MCP server)."""
-    return MCPToolBuilder(name, integration_id, tool_name)
+def mcp_tool(name: str, credential_id: Optional[str] = None, tool_name: Optional[str] = None, *,
+             integration_id: Optional[str] = None) -> MCPToolBuilder:
+    """Create an MCP connector tool (calls a tool on a connected MCP server).
+
+    credential_id is the connected MCP server's credential; integration_id is
+    its deprecated spelling.
+    """
+    cid = credential_id or integration_id
+    if not cid or not tool_name:
+        raise TypeError("mcp_tool() needs credential_id and tool_name")
+    return MCPToolBuilder(name, cid, tool_name)
 
 
 # =============================================================================

@@ -158,9 +158,9 @@ status_check = (
 print("\nstatus_check (http tool):")
 print(json.dumps(status_check, indent=2, default=str))
 
-# MCP connector tool (integration must be connected in workspace)
+# MCP connector tool (the MCP server must be connected as a credential)
 web_search = (
-    mcp_tool("web_search", "int-abc123", "search")
+    mcp_tool("web_search", "cred-abc123", "search")
     .describe("Search via connected MCP server")
     .build()
 )

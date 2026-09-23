@@ -18,12 +18,12 @@ class SetupAction:
     Mirrors Go struct:
         type SetupAction struct {
             Type     string   `json:"type"`               // "add_secret" | "connect" | "add_scopes"
-            Provider string   `json:"provider,omitempty"` // For integration actions
+            Provider string   `json:"provider,omitempty"` // For credential actions
             Scopes   []string `json:"scopes,omitempty"`   // Scopes to request
         }
     """
     type: str  # "add_secret" | "connect" | "add_scopes"
-    provider: Optional[str] = None  # For integration actions
+    provider: Optional[str] = None  # For credential actions
     provider_name: Optional[str] = None  # Human-readable provider label for UIs
     scopes: Optional[List[str]] = None  # Scopes to request
     scope_descriptions: Optional[Dict[str, str]] = None  # Scope URL -> description
@@ -47,13 +47,13 @@ class RequirementError:
 
     Mirrors Go struct:
         type RequirementError struct {
-            Type    string       `json:"type"`    // "secret" | "integration" | "scope"
+            Type    string       `json:"type"`    // "secret" | "credential" | "scope"
             Key     string       `json:"key"`     // The requirement key that's missing
             Message string       `json:"message"` // Human-readable error message
             Action  *SetupAction `json:"action,omitempty"`
         }
     """
-    type: str  # "secret" | "integration" | "scope"
+    type: str  # "secret" | "credential" | "scope"
     key: str  # The requirement key that's missing
     message: str  # Human-readable error message
     action: Optional[SetupAction] = None
@@ -69,7 +69,7 @@ class RequirementError:
 
 
 class RequirementsNotMetError(Exception):
-    """Error raised when app requirements (secrets, integrations, scopes) are not met.
+    """Error raised when app requirements (secrets, credentials, scopes) are not met.
 
     This is raised for HTTP 412 responses that contain structured requirement errors.
 

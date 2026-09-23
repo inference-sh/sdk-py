@@ -417,9 +417,9 @@ notify = (
     .build()
 )
 
-# MCP connector tool (integration must be connected in workspace)
+# MCP connector tool (the MCP server must be connected as a credential)
 web_search = (
-    mcp_tool("web_search", "int-abc123", "search")
+    mcp_tool("web_search", "cred-abc123", "search")
     .describe("Search via connected MCP server")
     .build()
 )
@@ -484,7 +484,7 @@ assert ToolParamType.STRING.value == "string"
 
 Package exports (`Tool`, `ToolCall`, `ToolParameters`, and related TypedDicts) are available from `inferencesh`; import `ToolCallType` and `ToolParamType` from `inferencesh.types` when you need the enums.
 
-### integration and instance enums
+### credential and instance enums
 
 Workspace API responses use generated enums in `inferencesh.types`:
 
@@ -510,7 +510,7 @@ InstanceStatus.ERROR            # "error"
 
 ### requirements errors (HTTP 412)
 
-When an app is missing secrets, integrations, or scopes, `client.tasks.run()` raises `RequirementsNotMetError`:
+When an app is missing secrets, credentials, or scopes, `client.tasks.run()` raises `RequirementsNotMetError`:
 
 ```python
 from inferencesh import RequirementsNotMetError

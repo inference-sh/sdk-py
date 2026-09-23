@@ -102,7 +102,7 @@ class ClientToolConfig(TypedDict, total=False):
 
 # ToolAuthConfig declares how a tool authenticates.
 class ToolAuthConfig(TypedDict, total=False):
-    type: str
+    type: ToolAuthType
     provider: str
     credential_id: str
     # Deprecated: the credential id used to be called integration_id. Read
@@ -309,7 +309,7 @@ class AppVersionInput(TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[CredentialRequirement]
+    required_credentials: List[CredentialRequirement]
     resources: AppResources
 
 # CreateAppRequest is the request body for POST /apps
@@ -448,7 +448,7 @@ class CredentialCompleteOAuthRequest(TypedDict, total=False):
     code_verifier: str
 
 class CredentialConnectResponse(TypedDict, total=False):
-    integration: Optional[CredentialDTO]
+    credential: Optional[CredentialDTO]
     auth_url: str
     state: str
     code_verifier: str
@@ -596,10 +596,10 @@ class SecretRequirement(TypedDict, total=False):
     description: str
     optional: bool
 
-# CredentialRequirement defines an integration that an app requires.
+# CredentialRequirement defines a credential that an app requires.
 # Key is the provider slug (e.g. "bytedance", "google").
-# Secrets lists the specific env var names to inject from this integration.
-# Scopes lists OAuth scopes needed (for OAuth integrations).
+# Secrets lists the specific env var names to inject from this credential.
+# Scopes lists OAuth scopes needed (for OAuth credentials).
 class CredentialRequirement(TypedDict, total=False):
     key: str
     description: str
@@ -1530,8 +1530,8 @@ class CompletePaymentRequest(TypedDict, total=False):
     session_id: str
     payment_id: str
 
-# UpdateIntegrationScopesRequest updates integration scopes.
-class UpdateIntegrationScopesRequest(TypedDict, total=False):
+# UpdateCredentialScopesRequest adds OAuth scopes to a connected credential.
+class UpdateCredentialScopesRequest(TypedDict, total=False):
     scopes: List[str]
 
 # SuggestRequest is the input for the suggest endpoint.
@@ -1577,7 +1577,7 @@ class SetupAction(TypedDict, total=False):
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
     secrets: List[SecretRequirement]
-    integrations: List[CredentialRequirement]
+    credentials: List[CredentialRequirement]
 
 # CheckRequirementsResponse is the API response for checking requirements
 class CheckRequirementsResponse(TypedDict, total=False):
@@ -2444,7 +2444,7 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_integrations: List[CredentialRequirement]
+    required_credentials: List[CredentialRequirement]
     resources: AppResources
     checksum: str
 
@@ -3225,6 +3225,14 @@ LLMDeltaEvent = DeltaEvent
 class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
     replies: List[CommentDTO]
 
+class ToolAuthType(str, Enum):
+    # ToolAuthTypeCredential sends a connected credential's access token.
+    CREDENTIAL = "credential"
+    # ToolAuthTypeAPIKey sends a vault secret in a header.
+    API_KEY = "api_key"
+    # ToolAuthTypeBearer sends a vault secret as a bearer token.
+    BEARER = "bearer"
+
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
 # Empty scopes = full access (for backwards compatibility with existing keys).
@@ -3274,9 +3282,10 @@ class Scope(str, Enum):
     # Action-level scopes for Secrets (sensitive - excluded from read-only preset)
     SECRETS_READ = "secrets:read"
     SECRETS_WRITE = "secrets:write"
-    # Action-level scopes for Integrations
-    INTEGRATIONS_READ = "integrations:read"
-    INTEGRATIONS_WRITE = "integrations:write"
+    # Action-level scopes for credentials (connected accounts, vaults,
+    # custom providers, MCP servers). Formerly integrations:read|write.
+    CREDENTIALS_READ = "credentials:read"
+    CREDENTIALS_WRITE = "credentials:write"
     # Action-level scopes for Engines
     ENGINES_READ = "engines:read"
     ENGINES_WRITE = "engines:write"
@@ -3308,7 +3317,7 @@ class ScopeGroup(str, Enum):
     TEAMS = "teams"
     BILLING = "billing"
     SECRETS = "secrets"
-    INTEGRATIONS = "integrations"
+    CREDENTIALS = "credentials"
     ENGINES = "engines"
     API_KEYS = "apikeys"
     KNOWLEDGE = "knowledge"
@@ -3367,7 +3376,7 @@ class ToolContentType(str, Enum):
 # Requirement error types
 class RequirementType(str, Enum):
     SECRET = "secret"
-    INTEGRATION = "integration"
+    CREDENTIAL = "credential"
     SCOPE = "scope"
 
 class SetupActionType(str, Enum):
@@ -3554,7 +3563,7 @@ class GraphNodeType(str, Enum):
     CONDITIONAL = "conditional"
     FLOW_NODE = "flow_node"
     TRIGGER = "trigger"
-    INTEGRATION_REQUIREMENT = "integration_requirement"
+    CREDENTIAL_REQUIREMENT = "credential_requirement"
 
 class GraphNodeStatus(str, Enum):
     PENDING = "pending"

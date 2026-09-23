@@ -135,7 +135,7 @@ def test_models_llm_export_exists(name):
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallType", "ToolParamType",
-    # Integrations
+    # Credentials
     "CredentialProvider", "CredentialType", "CredentialStatus",
     "InstanceStatus",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
@@ -147,7 +147,7 @@ def test_models_llm_export_exists(name):
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
-    "UpdateIntegrationScopesRequest",
+    "UpdateCredentialScopesRequest",
     "RequirementType", "CredentialConfigDTO",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",
