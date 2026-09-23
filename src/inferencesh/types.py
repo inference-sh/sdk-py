@@ -3226,6 +3226,8 @@ class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
     replies: List[CommentDTO]
 
 class ToolAuthType(str, Enum):
+    # ToolAuthTypeNone sends no credentials (same as leaving type empty).
+    NONE = "none"
     # ToolAuthTypeCredential sends a connected credential's access token.
     CREDENTIAL = "credential"
     # ToolAuthTypeAPIKey sends a vault secret in a header.
