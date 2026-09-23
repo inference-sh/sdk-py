@@ -2112,7 +2112,7 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "id": {"merge": "replace"},
         "type": {"merge": "replace"},
         "function": {"merge": "nested"},
@@ -2124,7 +2124,7 @@ class ToolCallFunctionDelta(TypedDict, total=False):
     name: str
     arguments: str
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "name": {"merge": "replace"},
         "arguments": {"merge": "concat"},
     }
@@ -2833,6 +2833,8 @@ class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
     is_primary: bool
     error_message: str
+    # Google service-account credentials expose the bound SA email.
+    service_account_email: str
 
 # EngineDTO is the full API response for an engine.
 class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3199,7 +3201,7 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
     tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "response": {"merge": "concat"},
         "reasoning": {"merge": "concat"},
         "tool_calls": {"merge": "indexed"},

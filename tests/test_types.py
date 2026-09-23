@@ -629,7 +629,6 @@ def test_integration_dto_google_sa_service_account():
     dto: CredentialDTO = {
         "provider": CredentialProvider.GOOGLE_SA,
         "type": CredentialType.SERVICE_ACCOUNT,
-        "auth": CredentialType.SERVICE_ACCOUNT,
         "status": CredentialStatus.CONNECTED,
         "display_name": "GCP Production",
         "service_account_email": "sdk-runner@my-project.iam.gserviceaccount.com",
@@ -660,7 +659,6 @@ def test_integration_config_dto_slug():
     config: CredentialConfigDTO = {
         "slug": "google-sa",
         "provider": CredentialProvider.GOOGLE_SA,
-        "auth": CredentialType.SERVICE_ACCOUNT,
         "name": "Google Service Account",
         "available": True,
     }
@@ -742,7 +740,6 @@ def test_integration_dto_scope_team_vs_platform():
         "scope": CredentialScope.TEAM,
         "provider": CredentialProvider.GOOGLE,
         "type": CredentialType.O_AUTH,
-        "auth": CredentialType.O_AUTH,
         "status": CredentialStatus.CONNECTED,
         "display_name": "My Google",
     }
@@ -750,7 +747,6 @@ def test_integration_dto_scope_team_vs_platform():
         "scope": CredentialScope.PLATFORM,
         "provider": CredentialProvider.GOOGLE_SA,
         "type": CredentialType.SERVICE_ACCOUNT,
-        "auth": CredentialType.SERVICE_ACCOUNT,
         "status": CredentialStatus.CONNECTED,
         "display_name": "Managed GCP",
     }
