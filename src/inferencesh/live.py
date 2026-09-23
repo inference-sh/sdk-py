@@ -114,7 +114,9 @@ class LiveField:
 
 
 def _deref(schema: JsonSchema, root: JsonSchema) -> JsonSchema:
-    """Resolves a ``#/$defs/`` reference against the root, recursively."""
+    """Resolves a ``#/$defs/`` reference against the root, recursively. The
+    result stands on its own: it carries no ``$ref``, so a validator can
+    compile it without the root's ``$defs``."""
     ref = schema.get("$ref")
     defs = root.get("$defs")
     if not ref or not defs:
@@ -123,7 +125,8 @@ def _deref(schema: JsonSchema, root: JsonSchema) -> JsonSchema:
     if target is None:
         return schema
     # The reference's own fields (title, description) win over the target's.
-    return {**_deref(target, root), **schema}
+    own = {key: value for key, value in schema.items() if key != "$ref"}
+    return {**_deref(target, root), **own}
 
 
 def _item_alternatives(items: JsonSchema, root: JsonSchema) -> List[JsonSchema]:
