@@ -189,6 +189,7 @@ class Live:
         self._out_binary = binary_field(output_type)
         self._out_fields = output_type.model_fields
         self._adapters: Dict[str, TypeAdapter] = {}
+        self._refused_binary = False
 
     def _adapter(self, key: str, annotation: Any) -> TypeAdapter:
         if key not in self._adapters:
@@ -206,7 +207,11 @@ class Live:
     async def _read(self, frame: Any) -> list:
         if isinstance(frame, (bytes, bytearray, memoryview)):
             if self._in_binary is None:
-                await self._refuse(None, "this function takes no binary frames")
+                # Once: a caller streaming audio to the wrong function would
+                # otherwise get an error frame for every frame it sends.
+                if not self._refused_binary:
+                    self._refused_binary = True
+                    await self._refuse(None, "this function takes no binary frames")
                 return []
             return [Update(self._in_binary, bytes(frame))]
 
@@ -227,9 +232,10 @@ class Live:
                         raise ValueError("send this field's items as binary frames")
                     updates.append(Update(key, self._adapter("in:" + key, self._in_live[key]).validate_python(raw)))
                 elif key in fields:
-                    value = self._adapter("in:" + key, fields[key].annotation).validate_python(raw)
-                    setattr(self.input, key, value)
-                    updates.append(Update(key, value))
+                    # The model's own validation, so the field's constraints
+                    # and validators hold mid-stream as they do in the body.
+                    type(self.input).__pydantic_validator__.validate_assignment(self.input, key, raw)
+                    updates.append(Update(key, getattr(self.input, key)))
                 else:
                     raise ValueError("no such field")
             except (ValidationError, ValueError) as err:
@@ -251,7 +257,8 @@ class Live:
             if key not in self._out_fields:
                 raise KeyError(f"the output model has no field {key!r}")
             if key == self._out_binary:
-                await self.socket.send(bytes(value))
+                # The kernel copies to bytes on the way out; pass views through.
+                await self.socket.send(value if isinstance(value, (bytes, bytearray, memoryview)) else bytes(value))
                 continue
             annotation = self._out_live.get(key, self._out_fields[key].annotation)
             patch[key] = self._adapter("out:" + key, annotation).dump_python(value, mode="json")

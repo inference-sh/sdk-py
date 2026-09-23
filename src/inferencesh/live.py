@@ -36,13 +36,12 @@ from typing import (
 )
 from urllib.parse import quote
 
+from .models.stream import STREAM_FORMAT
 from .types import SocketAccess
 
 # --------------------------------------------------------------------------
 # Live schema helpers
 # --------------------------------------------------------------------------
-
-STREAM_FORMAT = "stream"
 
 JsonSchema = Dict[str, Any]
 
@@ -115,8 +114,8 @@ class LiveField:
 
 def _deref(schema: JsonSchema, root: JsonSchema) -> JsonSchema:
     """Resolves a ``#/$defs/`` reference against the root, recursively. The
-    result stands on its own: it carries no ``$ref``, so a validator can
-    compile it without the root's ``$defs``."""
+    result carries no top-level ``$ref`` (a validator ignores a ``$ref``'s
+    siblings)."""
     ref = schema.get("$ref")
     defs = root.get("$defs")
     if not ref or not defs:
@@ -132,9 +131,12 @@ def _deref(schema: JsonSchema, root: JsonSchema) -> JsonSchema:
 def _item_alternatives(items: JsonSchema, root: JsonSchema) -> List[JsonSchema]:
     resolved = _deref(items, root)
     options = resolved.get("anyOf") or resolved.get("oneOf")
-    if options:
-        return [_deref(option, root) for option in options]
-    return [resolved]
+    alternatives = [_deref(option, root) for option in options] if options else [resolved]
+    # Each alternative must stand on its own (a form validates it without the
+    # root), and nested references (an enum field, a nested model) still point
+    # into the root's $defs, so they travel with it.
+    defs = root.get("$defs")
+    return [{**alt, "$defs": defs} for alt in alternatives] if defs else alternatives
 
 
 class SplitLiveSchema(NamedTuple):
@@ -392,8 +394,6 @@ class AsyncLiveSession:
             while True:
                 try:
                     msg = await ws.receive()
-                except asyncio.CancelledError:
-                    raise
                 except Exception as exc:
                     reason = str(exc)
                     break
@@ -526,9 +526,6 @@ class AsyncLiveSession:
     async def close(self) -> None:
         """Ends the stream; the function returns and the task completes."""
         self._closed_by_caller = True
-        if self._ws is None:
-            await self._finish(LiveEnd(code=1000, reason="done", by_caller=True, task_ended=False))
-            return
         await self._close_socket(1000, "done")
         await self._finish(LiveEnd(code=1000, reason="done", by_caller=True, task_ended=False))
 
@@ -547,7 +544,7 @@ class AsyncLiveSession:
     async def send_binary(self, data: Union[bytes, bytearray, memoryview]) -> None:
         """One item of the input's binary live field."""
         if self.is_open:
-            await self._ws.send_bytes(bytes(data))
+            await self._ws.send_bytes(data)
 
     async def send_patch(self, patch: Mapping[str, Any]) -> None:
         """A partial input object keyed by field name."""
@@ -560,8 +557,6 @@ class AsyncLiveSession:
         return self
 
     async def __anext__(self) -> Frame:
-        if self._state == LiveState.ENDED and self._frames.empty():
-            raise StopAsyncIteration
         item = await self._frames.get()
         if item is _DONE:
             self._frames.put_nowait(_DONE)  # a later iteration ends too

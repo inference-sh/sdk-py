@@ -123,7 +123,7 @@ async def test_open_finds_the_socket_of_a_task_id_and_issues_a_credential():
         "POST /sockets/sock-1/access": ACCESS,
     })
     session = await client.sockets.open("task-1", ws_connect=FakeWS.dial, watch_task=False)
-    assert requests(calls) == ["GET /tasks/task-1", "POST /sockets/list", "POST /sockets/sock-1/access"]
+    assert requests(calls) == ["POST /sockets/list", "POST /sockets/sock-1/access"]  # the id is all it needs of the task
     assert len(FakeWS.dialed) == 1
     await session.close()
 

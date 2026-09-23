@@ -168,13 +168,32 @@ def test_live_refuses_binary_when_the_input_has_no_binary_field():
     class TextOnly(BaseAppInput):
         events: Stream[UserText]
 
-    socket = FakeSocket([b"\x00"])
+    socket = FakeSocket([b"\x00", b"\x01", b"\x02"])
 
     async def collect():
         return [u async for u in Live(socket, TextOnly(), TalkOutput)]
 
     assert _run(collect()) == []
-    assert socket.sent[0]["error"]["message"] == "this function takes no binary frames"
+    # Once, not once per frame: a mic streaming to the wrong function sends 50 a second.
+    assert socket.sent == [{"error": {"field": None, "message": "this function takes no binary frames"}}]
+
+
+def test_live_holds_an_ordinary_field_to_its_constraints_mid_stream():
+    from pydantic import Field
+
+    class Tuned(BaseAppInput):
+        speed: float = Field(default=1.0, ge=0.7, le=1.5)
+        audio: Stream[PCM16(16000)]
+
+    socket = FakeSocket([json.dumps({"speed": 9}), json.dumps({"speed": 1.2})])
+    data = Tuned()
+
+    async def collect():
+        return [u async for u in Live(socket, data, TalkOutput)]
+
+    assert _run(collect()) == [("speed", 1.2)]
+    assert data.speed == 1.2
+    assert [e["error"]["field"] for e in socket.sent] == ["speed"], "the request body's constraints hold on the socket too"
 
 
 def test_live_send():

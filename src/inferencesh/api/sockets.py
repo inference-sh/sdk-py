@@ -117,19 +117,17 @@ class AsyncSocketsAPI:
             ws_connect: ``async (url) -> ws`` to dial with (tests, another transport).
             poll_interval: Seconds between task status polls while waiting.
         """
-        task: Dict[str, Any] = (await self._client.get_task(target)).data if isinstance(target, str) else target
-        task_id = task["id"]
-        access: Optional[SocketAccess] = None if isinstance(target, str) else task.get("socket")
-        socket_id = access["id"] if access else None
+        task_id: str = target if isinstance(target, str) else target["id"]
+        access: Optional[SocketAccess] = None if isinstance(target, str) else target.get("socket")
         if access is None:
             socket = await self.for_task(task_id)
             if socket is None:
                 raise ValueError(f"task {task_id} has no socket: is it a stream function?")
-            socket_id = socket["id"]
-            access = await self.access(socket_id)
+            access = await self.access(socket["id"])
+        socket_id = access["id"]
 
         async def renew() -> SocketAccess:
-            return await self.access(socket_id)  # type: ignore[arg-type]
+            return await self.access(socket_id)
 
         session = AsyncLiveSession(
             access,

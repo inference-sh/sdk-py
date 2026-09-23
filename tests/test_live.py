@@ -366,7 +366,9 @@ def test_split_live_schema_separates_ordinary_from_live():
     assert events.binary is False and events.media is None
     assert [alt["title"] for alt in events.alternatives] == ["Interrupt", "Text"]  # the reference's title wins
     assert events.alternatives[1]["properties"]["text"] == {"type": "string"}
-    assert all("$ref" not in alt for alt in events.alternatives)  # self-contained, compiles without $defs
+    assert all("$ref" not in alt for alt in events.alternatives)
+    # Self-contained: nested references still resolve, so a form can compile an alternative on its own.
+    assert all(alt["$defs"] is TALK_INPUT["$defs"] for alt in events.alternatives)
 
 
 def test_split_live_schema_without_properties_passes_through():
