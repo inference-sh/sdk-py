@@ -2450,3 +2450,71 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_internal_tools_config_remote_toggle():
+    """InternalToolsConfig.remote gates harness terminal tools on remote profiles."""
+    from inferencesh.types import InternalToolsConfig
+
+    config: InternalToolsConfig = {"remote": True}
+
+    assert config["remote"] is True
+    assert "remote" in InternalToolsConfig.__annotations__
+
+
+def test_chat_dto_harness_session_and_fork_fields():
+    """Remote harness chats expose resume session id and fork point for branching."""
+    from inferencesh.types import ChatDTO, ChatStatus
+
+    chat: ChatDTO = {
+        "id": "chat_fork",
+        "status": ChatStatus.IDLE,
+        "children": [],
+        "harness_session_id": "sess_claude_abc",
+        "forked_from_message_id": "msg_parent_123",
+    }
+
+    assert chat["harness_session_id"] == "sess_claude_abc"
+    assert chat["forked_from_message_id"] == "msg_parent_123"
+    annotations = ChatDTO.__annotations__
+    assert "harness_session_id" in annotations
+    assert "forked_from_message_id" in annotations
+
+
+def test_agent_run_dto_profile_and_remote_ids():
+    """AgentRunDTO ties a run to the harness profile and machine that executed it."""
+    from inferencesh.types import AgentRunDTO, AgentRunState
+
+    run: AgentRunDTO = {
+        "agent_id": "agent_abc",
+        "chat_id": "chat_xyz",
+        "state": AgentRunState.WORKING,
+        "profile_id": "profile_dev_laptop",
+        "remote_id": "remote_mac_01",
+    }
+
+    assert run["profile_id"] == "profile_dev_laptop"
+    assert run["remote_id"] == "remote_mac_01"
+    annotations = AgentRunDTO.__annotations__
+    assert "profile_id" in annotations
+    assert "remote_id" in annotations
+
+
+def test_agent_dto_profile_and_remote_ids():
+    """AgentDTO defaults terminal tools to a harness profile on a remote machine."""
+    from inferencesh.types import AgentDTO
+
+    agent: AgentDTO = {
+        "namespace": "acme",
+        "name": "researcher",
+        "title": "Researcher",
+        "version_id": "ver_1",
+        "profile_id": "profile_ci_runner",
+        "remote_id": "remote_linux_02",
+    }
+
+    assert agent["profile_id"] == "profile_ci_runner"
+    assert agent["remote_id"] == "remote_linux_02"
+    annotations = AgentDTO.__annotations__
+    assert "profile_id" in annotations
+    assert "remote_id" in annotations

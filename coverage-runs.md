@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ 3700505, harness profile / remote typegen)
+
+**Recent changes reviewed:** `3700505` / `333b74a` (`profile_id`/`remote_id` on `AgentDTO` and `AgentRunDTO`; `harness_session_id`/`forked_from_message_id` on `ChatDTO`; `InternalToolsConfig.remote` for harness terminal tools). `8f8220b` (Makefile release-only-from-dev — no SDK behavior).
+
+**Open PRs checked:** #295 (`credential_id`, Socket backpressure), #293 (`ChatDTO.channel_context` + credential renames), #287–#267 — no overlap with harness profile or remote execution fields.
+
+**Gaps filled this run:**
+
+- `InternalToolsConfig.remote` wire contract for remote harness tools
+- `ChatDTO.harness_session_id` / `forked_from_message_id` for resume and chat branching
+- `AgentRunDTO` / `AgentDTO` `profile_id` and `remote_id` for remote harness attribution
+
+**Files:** `tests/test_types.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k 'harness_session or fork_fields or profile_and_remote or internal_tools_config_remote'` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
