@@ -8,6 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from inferencesh import BaseAppInput, BaseAppOutput, Live, PCM16, Stream, media
+from inferencesh.models.socket import Socket
 from inferencesh.models.stream import binary_field, live_fields
 
 
@@ -194,3 +195,10 @@ def test_live_send():
         {"transcript": {"text": "hello", "final": True}},
         {"voice": "eve", "seconds": 2.0},
     ]
+
+
+def test_socket_protocol_exposes_binary_backpressure_fields():
+    """Stream apps read dropped/binary_backlog to detect caller backpressure (bounded backlog)."""
+    assert set(Socket.__annotations__) >= {"dropped", "binary_backlog"}
+    assert Socket.__annotations__["dropped"] == "int"
+    assert Socket.__annotations__["binary_backlog"] == "Optional[int]"

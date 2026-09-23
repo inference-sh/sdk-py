@@ -2418,6 +2418,69 @@ def test_secret_create_request_provider_field():
     assert "provider" in SecretCreateRequest.__annotations__
 
 
+def test_mcp_tool_config_dto_uses_credential_id():
+    """MCPToolConfigDTO.integration_id was renamed to credential_id in go/api typegen."""
+    from inferencesh.types import MCPToolConfigDTO
+
+    config: MCPToolConfigDTO = {
+        "credential_id": "cred_mcp_slack",
+        "tool_name": "post_message",
+    }
+
+    assert config["credential_id"] == "cred_mcp_slack"
+    assert set(MCPToolConfigDTO.__annotations__) == {"credential_id", "tool_name"}
+    assert "integration_id" not in MCPToolConfigDTO.__annotations__
+
+
+def test_mcp_tool_config_accepts_credential_id():
+    """Agent tool definitions wire MCP servers through credential_id (integration_id is legacy)."""
+    from inferencesh.types import MCPToolConfig
+
+    config: MCPToolConfig = {
+        "credential_id": "cred_abc",
+        "tool_name": "search",
+    }
+
+    assert config["credential_id"] == "cred_abc"
+    assert "credential_id" in MCPToolConfig.__annotations__
+
+
+def test_tool_auth_config_accepts_credential_id():
+    """HTTP tool OAuth auth references a stored credential by credential_id."""
+    from inferencesh.types import ToolAuthConfig
+
+    auth: ToolAuthConfig = {
+        "type": "integration",
+        "provider": "github",
+        "credential_id": "cred_github_team",
+    }
+
+    assert auth["credential_id"] == "cred_github_team"
+    assert "credential_id" in ToolAuthConfig.__annotations__
+
+
+def test_secret_dto_credential_id_for_attached_secrets():
+    """SecretDTO.credential_id links a secret to its parent credential; empty for plain secrets."""
+    from inferencesh.types import SecretDTO, SecretScope
+
+    attached: SecretDTO = {
+        "key": "SLACK_BOT_TOKEN",
+        "masked_value": "xox***",
+        "scope": SecretScope.INTERNAL,
+        "credential_id": "cred_slack",
+    }
+    plain: SecretDTO = {
+        "key": "API_KEY",
+        "masked_value": "sk-***",
+        "scope": SecretScope.TEAM,
+        "credential_id": "",
+    }
+
+    assert attached["credential_id"] == "cred_slack"
+    assert plain["credential_id"] == ""
+    assert "credential_id" in SecretDTO.__annotations__
+
+
 def test_gate_condition_typed_dict_shape():
     """GateCondition defines field/operator/value predicates for flow gate nodes."""
     from inferencesh.types import GateCondition

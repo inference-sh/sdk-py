@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-23 (push dev @ 8f8220b, release tooling + credential_id typegen)
+
+**Recent changes reviewed:** `8f8220b` (Makefile: release only from dev — no SDK behavior). `942b2c2` (live schema `$ref` resolution — covered by `test_split_live_schema_separates_ordinary_from_live`). `8046ae4` (`credential_id` on `ToolAuthConfig`, `MCPToolConfig`, `MCPToolConfigDTO`; `SecretDTO.credential_id`). `e5beef5` (`Socket.dropped` / `binary_backlog` on app-facing protocol).
+
+**Open PRs checked:** #293 (`ChatDTO.channel_context` + credential renames), #287 (`ChannelContext` on messages), #285–#267 — no overlap with tool-config credential_id or Socket backpressure fields.
+
+**Gaps filled this run:**
+
+- `MCPToolConfigDTO` rename `integration_id` → `credential_id`
+- `ToolAuthConfig` / `MCPToolConfig` / `SecretDTO` `credential_id` wire contract
+- `Socket` protocol exposes `dropped` and `binary_backlog` for stream backpressure
+
+**Files:** `tests/test_types.py`, `tests/test_stream_fields.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k credential_id tests/test_stream_fields.py::test_socket_protocol_exposes_binary_backpressure_fields` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
