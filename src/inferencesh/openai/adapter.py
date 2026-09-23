@@ -368,7 +368,7 @@ class _ChunkStream:
                 ChoiceDeltaToolCall(
                     index=tc.index,
                     id=tc.id,
-                    type=tc.type,
+                    type=tc.type,  # type: ignore[arg-type]  # ToolCallType is str enum with value "function"
                     function=ChoiceDeltaFunctionCall(
                         name=tc.function.name or None,
                         arguments=tc.function.arguments or None,
