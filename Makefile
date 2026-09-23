@@ -129,9 +129,12 @@ major:
 	@./scripts/bump.sh major
 
 # Push and create GitHub release (triggers PyPI publish via CI)
+# Releases are cut from dev; main is fast-forwarded to the released commit so
+# the two never drift (a release from main once left dev a month behind).
 release:
+	@test "$$(git branch --show-current)" = dev || { echo "release from dev (on $$(git branch --show-current))"; exit 1; }
 	@VERSION=$$(git describe --tags --abbrev=0) && \
-	git push origin HEAD "$$VERSION" && \
+	git push origin HEAD:dev HEAD:main "$$VERSION" && \
 	gh release create "$$VERSION" --title "$$VERSION" --generate-notes && \
 	echo "Released $$VERSION"
 
