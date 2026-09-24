@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-09-24 (push dev @ ae66d29, v0.10.0 credential keyword alias removal)
+
+**Recent changes reviewed:** `ae66d29` (version bump). `951153f` (remove `integration` / `integration_id` keyword aliases from HTTP `.auth()` and `mcp_tool()`; drop deprecated TypedDict fields; types regenerated).
+
+**Open PRs checked:** #316 (v0.9.1 CredentialRequirement/SetupAction), #309 (ToolAuthType.NONE), #306 (credential renames 0246c53 — includes deprecated-alias tests superseded by 951153f), #302 (live/socket tidy) — no overlap on alias removal contract.
+
+**Gaps filled this run:**
+
+- HTTP `.auth()` rejects `integration` / `integration_id` kwargs (breaking migration guard)
+- `mcp_tool()` requires positional `credential_id` and `tool_name`; rejects `integration_id` kwarg
+- HTTP credential auth without `credential_id` still emits provider-only auth payload
+- Generated `ToolAuthConfig` / `MCPToolConfig` no longer expose `integration_id` keys
+
+**Files:** `tests/test_tools.py`, `tests/test_types.py`
+
+**Validation:** `pytest tests/test_tools.py::TestHTTPToolBuilder tests/test_tools.py::TestMCPToolBuilder tests/test_types.py::test_tool_auth_config_uses_credential_id_not_integration_id tests/test_types.py::test_mcp_tool_config_uses_credential_id_not_integration_id` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

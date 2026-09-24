@@ -717,6 +717,21 @@ def test_entitlement_resource_values(member, value):
     assert getattr(EntitlementResource, member).value == value
 
 
+def test_tool_auth_config_uses_credential_id_not_integration_id():
+    """951153f: wire auth config no longer declares integration_id alias keys."""
+    from inferencesh.types import ToolAuthConfig
+
+    assert "credential_id" in ToolAuthConfig.__annotations__
+    assert "integration_id" not in ToolAuthConfig.__annotations__
+
+
+def test_mcp_tool_config_uses_credential_id_not_integration_id():
+    """951153f: MCP tool config no longer declares integration_id alias keys."""
+    from inferencesh.types import MCPToolConfig
+
+    assert set(MCPToolConfig.__annotations__) == {"credential_id", "tool_name"}
+
+
 def test_integration_requirement_secrets_and_scopes():
     """App manifests declare per-integration secret keys and OAuth scopes."""
     from inferencesh.types import CredentialRequirement
