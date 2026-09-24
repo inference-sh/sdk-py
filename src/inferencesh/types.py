@@ -2819,6 +2819,8 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # HarnessSessionID is the harness's own session id when a remote profile
     # thinks for this chat; `claude --resume <id>` opens it on that machine.
     harness_session_id: Optional[str]
+    # WorkDir is the folder a harness works in for this chat.
+    work_dir: str
     # ForkedFromMessageID is the message this chat was branched at.
     forked_from_message_id: Optional[str]
 
@@ -3202,6 +3204,10 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     images: AgentImages
     version_id: str
     version: Optional[AgentVersionDTO]
+    # Harness is what drives the agent: "inference" for our own loop, or an
+    # agentprotocol registry id (claude, codex, ...) for an external harness,
+    # whose instructions, tools and versions are its own.
+    harness: str
     # ProfileID is set when a harness profile on a remote thinks for this
     # agent instead of our loop.
     profile_id: Optional[str]
