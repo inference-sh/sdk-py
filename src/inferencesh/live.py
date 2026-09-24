@@ -301,7 +301,7 @@ class AsyncLiveSession:
     Control frames (reserved keys start with ``$``) have their own callbacks:
     ``{"$clear": field}`` goes to ``on_clear`` (drop what you buffered of that
     field: the user talked over the answer), ``{"$error": {...}}`` to
-    ``on_error(field, message)``. Apps on SDKs before 0.9.2 send the error as
+    ``on_error(field, message)``. Apps on SDKs before 0.10.1 send the error as
     ``{"error": {...}}``; it is treated the same unless the output has an
     ``error`` field. Without the callback a control frame stays in its patch.
 
@@ -516,7 +516,7 @@ class AsyncLiveSession:
             self._frames.put_nowait(patch)
 
     def _legacy_error(self, patch: Dict[str, Any]) -> bool:
-        """``{"error": {"message": ...}}`` from an app on an SDK before 0.9.2,
+        """``{"error": {"message": ...}}`` from an app on an SDK before 0.10.1,
         unless the output really has an ``error`` field."""
         err = patch.get("error")
         return isinstance(err, dict) and "message" in err and "error" not in self._out_fields
