@@ -1,19 +1,20 @@
 # Coverage automation runs
 
-## 2026-09-24 (push dev @ 89cbb87, agent harness + chat work_dir typegen)
+## 2026-09-24 (push dev @ 60e51ac, v0.10.3 release + harness typegen)
 
-**Recent changes reviewed:** `89cbb87` (`AgentDTO.harness` for inference vs external agentprotocol drivers; `ChatDTO.work_dir` for remote harness cwd). Commit message also references remote launch request — no new Python symbols in this diff (`InstanceDTO.launch_configuration` unchanged).
+**Recent changes reviewed:** `60e51ac` (version bump to `0.10.3` only). `89cbb87` (`AgentDTO.harness` for inference vs external agentprotocol drivers; `ChatDTO.work_dir` for remote harness cwd). Commit message also references remote launch request — no new Python symbols in that diff (`InstanceDTO.launch_configuration` unchanged).
 
-**Open PRs checked:** #299 (harness `profile_id`/`remote_id`, `harness_session_id` — complementary, not merged), #328 (v0.10.2 `auth_scheme_id` / `DeltaEvent.end`), #322/#319/#316 — no overlap.
+**Open PRs checked:** #332 (same harness/`work_dir` tests — rebased onto `60e51ac` here), #299 (harness `profile_id`/`remote_id`, `harness_session_id` — complementary), #328 (v0.10.2 `auth_scheme_id` / `DeltaEvent.end`), #322/#319/#316 — no overlap.
 
 **Gaps filled this run:**
 
 - `ChatDTO.work_dir` wire contract for routing harness terminal sessions to the correct folder
 - `AgentDTO.harness` values (`inference`, external registry ids) so clients do not silently lose harness selection
+- `inferencesh.__version__` stays aligned with `pyproject.toml` after release bumps (User-Agent contract)
 
-**Files:** `tests/test_types.py`, `coverage-runs.md`
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `coverage-runs.md`
 
-**Validation:** `pytest tests/test_types.py -k 'work_dir or harness_field'` — passed.
+**Validation:** `pytest tests/test_types.py -k 'work_dir or harness_field' tests/test_imports.py::test_package_version_matches_pyproject` — passed.
 
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 

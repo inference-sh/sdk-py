@@ -7,8 +7,10 @@ that slipped into 0.7.2 because no test exercised the import path.
 
 import importlib
 import pkgutil
+from pathlib import Path
 
 import pytest
+import tomllib
 
 import inferencesh
 
@@ -41,6 +43,14 @@ def test_all_exports_resolvable():
     """Every name in __all__ must be accessible on the package."""
     missing = [name for name in inferencesh.__all__ if not hasattr(inferencesh, name)]
     assert not missing, f"Names in __all__ but missing from package: {missing}"
+
+
+def test_package_version_matches_pyproject():
+    """Release bumps must keep importlib metadata in sync with pyproject (User-Agent)."""
+    pyproject = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert inferencesh.__version__ == pyproject["project"]["version"]
 
 
 # ── Core public API imports ──────────────────────────────────────────────────
