@@ -559,6 +559,28 @@ class TestLLMWireContract:
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
 
+    def test_delta_event_wire_model_includes_end_marker(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.DeltaEvent.model_fields.keys())
+        assert {"delta", "seq", "resource_id", "end"} <= fields
+
+    def test_delta_event_end_marker_json_round_trip_without_delta(self):
+        """End frames carry completion ids; delta is null when no payload is streamed."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.DeltaEvent(
+            delta=None,
+            seq=7,
+            resource_id="msg_asst_1",
+            end="run_task_9",
+        )
+        restored = llm_contract.DeltaEvent.model_validate_json(original.model_dump_json())
+        assert restored.end == "run_task_9"
+        assert restored.resource_id == "msg_asst_1"
+        assert restored.seq == 7
+        assert restored.delta is None
+
 
 class TestDeprecatedMixins:
     """Deprecated mixins emit warnings but don't break grid apps."""

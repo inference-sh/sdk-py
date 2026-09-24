@@ -668,6 +668,25 @@ def test_integration_config_dto_slug():
     assert config["provider"] == CredentialProvider.GOOGLE_SA
 
 
+def test_credential_config_dto_auth_scheme_id_for_team_providers():
+    """Team-defined auth schemes link via auth_scheme_id (renamed from custom_provider_id)."""
+    from inferencesh.types import CredentialConfigDTO
+
+    annotations = CredentialConfigDTO.__annotations__
+    assert "auth_scheme_id" in annotations
+    assert "custom_provider_id" not in annotations
+
+    config: CredentialConfigDTO = {
+        "slug": "acme-oauth",
+        "provider": CredentialProvider.MCP,
+        "auth": CredentialType.O_AUTH,
+        "name": "Acme OAuth",
+        "available": True,
+        "auth_scheme_id": "authscheme_team_abc",
+    }
+    assert config["auth_scheme_id"] == "authscheme_team_abc"
+
+
 def test_check_requirements_response_uses_requirement_type():
     """CheckRequirementsResponse errors use RequirementType for structured 412 payloads."""
     from inferencesh.types import CheckRequirementsResponse, RequirementError
@@ -2450,3 +2469,19 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_delta_event_typed_dict_end_marker():
+    """In-process stream followers use DeltaEvent.end to know a resource stream finished."""
+    from inferencesh.types import DeltaEvent
+
+    assert "end" in DeltaEvent.__annotations__
+    assert "resource_id" in DeltaEvent.__annotations__
+
+    terminal: DeltaEvent = {
+        "seq": 42,
+        "resource_id": "msg_asst_1",
+        "end": "run_task_9",
+    }
+    assert terminal["end"] == "run_task_9"
+    assert "delta" not in terminal
