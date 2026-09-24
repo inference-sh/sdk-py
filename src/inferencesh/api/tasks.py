@@ -90,7 +90,7 @@ class TasksAPI:
         Returns:
             The current task state
         """
-        return self._client.get_task(task_id)
+        return self._client.get_task(task_id).data
 
     def cancel(self, task_id: str) -> None:
         """Cancel a running task.
@@ -188,7 +188,7 @@ class AsyncTasksAPI:
 
     async def get(self, task_id: str) -> Dict[str, Any]:
         """Get the current state of a task."""
-        return await self._client.get_task(task_id)
+        return (await self._client.get_task(task_id)).data
 
     async def cancel(self, task_id: str) -> None:
         """Cancel a running task."""
