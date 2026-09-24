@@ -734,6 +734,27 @@ def test_integration_requirement_secrets_and_scopes():
     assert req["scopes"][0].endswith("drive.readonly")
 
 
+def test_credential_requirement_provider_and_unlisted_provider_labels():
+    """CredentialRequirement may name a platform provider or describe an unlisted one."""
+    from inferencesh.types import CredentialRequirement
+
+    listed: CredentialRequirement = {
+        "provider": "github",
+        "key": "github.repo",
+        "description": "GitHub repository access",
+    }
+    unlisted: CredentialRequirement = {
+        "name": "Acme Corp API",
+        "website": "https://acme.example/logo.png",
+        "secrets": ["ACME_API_KEY"],
+    }
+
+    assert listed["provider"] == "github"
+    assert unlisted["name"] == "Acme Corp API"
+    assert unlisted["website"].startswith("https://")
+    assert unlisted["secrets"] == ["ACME_API_KEY"]
+
+
 def test_integration_dto_scope_team_vs_platform():
     """CredentialDTO.scope distinguishes user-owned vs platform-managed connections."""
     from inferencesh.types import CredentialType, CredentialDTO, CredentialStatus
@@ -1318,6 +1339,23 @@ def test_setup_action_typed_dict_shape():
     assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SCOPES
     assert action["provider_name"] == "Google Workspace"
     assert "https://www.googleapis.com/auth/drive.readonly" in action["scope_descriptions"]
+
+
+def test_setup_action_add_secret_lists_keys_and_provider_website():
+    """add_secret setup actions tell UIs which keys to collect and where the logo lives."""
+    from inferencesh.types import SetupAction, SetupActionType
+
+    action: SetupAction = {
+        "type": SetupActionType.SETUP_ACTION_ADD_SECRET,
+        "provider": "acme",
+        "provider_name": "Acme Corp",
+        "secrets": ["ACME_API_KEY", "ACME_API_SECRET"],
+        "provider_website": "https://acme.example",
+    }
+
+    assert action["type"] == SetupActionType.SETUP_ACTION_ADD_SECRET
+    assert action["secrets"] == ["ACME_API_KEY", "ACME_API_SECRET"]
+    assert action["provider_website"] == "https://acme.example"
 
 
 @pytest.mark.parametrize(

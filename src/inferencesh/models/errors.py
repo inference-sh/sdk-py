@@ -27,6 +27,8 @@ class SetupAction:
     provider_name: Optional[str] = None  # Human-readable provider label for UIs
     scopes: Optional[List[str]] = None  # Scopes to request
     scope_descriptions: Optional[Dict[str, str]] = None  # Scope URL -> description
+    secrets: Optional[List[str]] = None  # Secret keys for add_secret actions
+    provider_website: Optional[str] = None  # Logo source for unlisted providers
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional['SetupAction']:
@@ -38,6 +40,8 @@ class SetupAction:
             provider_name=data.get("provider_name"),
             scopes=data.get("scopes"),
             scope_descriptions=data.get("scope_descriptions"),
+            secrets=data.get("secrets"),
+            provider_website=data.get("provider_website"),
         )
 
 

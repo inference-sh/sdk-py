@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-24 (push dev @ e8126e7, v0.9.1 live $clear + credential setup typegen)
+
+**Recent changes reviewed:** `e8126e7` (version bump). `c63b3c1` (live `$clear` control frame + `Live.clear()` — tests landed in the same commit). `d644baf` (typegen: `CredentialRequirement` `provider`/`name`/`website`, `SetupAction` `secrets`/`provider_website`).
+
+**Open PRs checked:** #309 (`ToolAuthType.NONE`), #306 (credential tool auth), #302 (live/socket tidy), #295–#299 (harness/credential_id/socket backlog) — no overlap with v0.9.1 typegen or `$clear` (already covered on dev).
+
+**Gaps filled this run:**
+
+- `CredentialRequirement` platform vs unlisted provider labels (`provider`, `name`, `website`)
+- `SetupAction` `secrets` and `provider_website` on `add_secret` flows (TypedDict + 412 `SetupAction.from_dict`)
+- `SetupAction` dataclass/`from_dict` aligned with API so 412 payloads do not drop new fields
+
+**Files:** `tests/test_types.py`, `tests/test_errors.py`, `src/inferencesh/models/errors.py`
+
+**Validation:** `pytest` on new cases plus existing `$clear` tests in `tests/test_live.py` and `tests/test_stream_fields.py` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

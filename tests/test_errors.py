@@ -42,6 +42,19 @@ class TestSetupAction:
             "Read files"
         )
 
+    def test_from_dict_parses_secrets_and_provider_website(self):
+        """412 add_secret actions list secret keys and logo source for unlisted providers."""
+        action = SetupAction.from_dict({
+            "type": "add_secret",
+            "provider": "acme",
+            "provider_name": "Acme Corp",
+            "secrets": ["ACME_API_KEY"],
+            "provider_website": "https://acme.example",
+        })
+        assert action.type == "add_secret"
+        assert action.secrets == ["ACME_API_KEY"]
+        assert action.provider_website == "https://acme.example"
+
 
 class TestRequirementError:
     def test_from_dict_with_nested_action(self):
