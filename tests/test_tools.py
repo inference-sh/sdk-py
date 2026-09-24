@@ -395,18 +395,6 @@ class TestHTTPToolBuilder:
             "credential_id": "cred-42",
         }
 
-    def test_deprecated_integration_auth_writes_credential(self):
-        t = (
-            http_tool("gh", "https://api.github.com/user")
-            .auth(integration="github", integration_id="int-42")
-            .build()
-        )
-        assert t["http"]["auth"] == {
-            "type": "credential",
-            "provider": "github",
-            "credential_id": "int-42",
-        }
-
     def test_api_key_auth(self):
         t = http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY").build()
         assert t["http"]["auth"] == {
@@ -445,10 +433,6 @@ class TestMCPToolBuilder:
         assert t["type"].value == "mcp"
         assert t["mcp"] == {"credential_id": "int-abc", "tool_name": "search"}
         assert t["description"] == "Search the web via MCP"
-
-    def test_mcp_tool_accepts_deprecated_integration_id(self):
-        t = mcp_tool("web_search", integration_id="int-abc", tool_name="search").build()
-        assert t["mcp"] == {"credential_id": "int-abc", "tool_name": "search"}
 
     def test_mcp_tool_with_display_and_approval(self):
         t = (

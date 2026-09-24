@@ -105,9 +105,6 @@ class ToolAuthConfig(TypedDict, total=False):
     type: ToolAuthType
     provider: str
     credential_id: str
-    # Deprecated: the credential id used to be called integration_id. Read
-    # through CredentialRef(); never written.
-    integration_id: str
     secret: str
     header: str
 
@@ -121,9 +118,6 @@ class HTTPToolConfig(TypedDict, total=False):
 
 class MCPToolConfig(TypedDict, total=False):
     credential_id: str
-    # Deprecated: the credential id used to be called integration_id. Read
-    # through CredentialRef(); never written.
-    integration_id: str
     tool_name: str
 
 class AppToolConfigDTO(TypedDict, total=False):
@@ -3306,7 +3300,7 @@ class Scope(str, Enum):
     SECRETS_READ = "secrets:read"
     SECRETS_WRITE = "secrets:write"
     # Action-level scopes for credentials (connected accounts, vaults,
-    # custom providers, MCP servers). Formerly integrations:read|write.
+    # custom providers, MCP servers).
     CREDENTIALS_READ = "credentials:read"
     CREDENTIALS_WRITE = "credentials:write"
     # Action-level scopes for Engines
@@ -3636,7 +3630,7 @@ class ResponseFormatType(str, Enum):
 class SecretScope(str, Enum):
     # SecretScopeTeam is a normal user secret, visible in team secret lists
     TEAM = "team"
-    # SecretScopeInternal is an integration-managed secret, hidden from user lists
+    # SecretScopeInternal is a credential-managed secret, hidden from user lists
     INTERNAL = "internal"
     # SecretScopeSystem is a global system setting, owned by system team, admin-only
     SYSTEM = "system"

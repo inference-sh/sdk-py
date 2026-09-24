@@ -303,21 +303,16 @@ class HTTPToolBuilder(_ToolBuilder):
 
     def auth(self, *, credential: Optional[str] = None, credential_id: Optional[str] = None,
              api_key: Optional[str] = None, bearer: Optional[str] = None,
-             header: Optional[str] = None,
-             integration: Optional[str] = None, integration_id: Optional[str] = None) -> "HTTPToolBuilder":
+             header: Optional[str] = None) -> "HTTPToolBuilder":
         """Set authentication.
 
         credential sends a connected account's access token (pick the account
         with credential_id); api_key / bearer send a vault secret.
-        integration / integration_id are deprecated spellings of credential /
-        credential_id.
         """
-        provider = credential or integration
-        if provider:
-            self._auth = {"type": ToolAuthType.CREDENTIAL.value, "provider": provider}
-            cid = credential_id or integration_id
-            if cid:
-                self._auth["credential_id"] = cid
+        if credential:
+            self._auth = {"type": ToolAuthType.CREDENTIAL.value, "provider": credential}
+            if credential_id:
+                self._auth["credential_id"] = credential_id
         elif api_key:
             self._auth = {"type": ToolAuthType.API_KEY.value, "secret": api_key, "header": header or "X-API-Key"}
         elif bearer:
@@ -400,17 +395,12 @@ class MCPToolBuilder(_ToolBuilder):
         }
 
 
-def mcp_tool(name: str, credential_id: Optional[str] = None, tool_name: Optional[str] = None, *,
-             integration_id: Optional[str] = None) -> MCPToolBuilder:
+def mcp_tool(name: str, credential_id: str, tool_name: str) -> MCPToolBuilder:
     """Create an MCP connector tool (calls a tool on a connected MCP server).
 
-    credential_id is the connected MCP server's credential; integration_id is
-    its deprecated spelling.
+    credential_id is the connected MCP server's credential.
     """
-    cid = credential_id or integration_id
-    if not cid or not tool_name:
-        raise TypeError("mcp_tool() needs credential_id and tool_name")
-    return MCPToolBuilder(name, cid, tool_name)
+    return MCPToolBuilder(name, credential_id, tool_name)
 
 
 # =============================================================================
