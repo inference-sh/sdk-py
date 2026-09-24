@@ -2450,3 +2450,35 @@ def test_flow_node_data_gate_condition():
 
     assert node["gate_condition"]["operator"] == "neq"
     assert "gate_condition" in FlowNodeData.__annotations__
+
+
+def test_chat_dto_work_dir_field():
+    """ChatDTO.work_dir is the harness working directory for terminal tools on remotes."""
+    from inferencesh.types import ChatDTO, ChatStatus
+
+    chat: ChatDTO = {
+        "id": "chat_remote",
+        "status": ChatStatus.IDLE,
+        "children": [],
+        "work_dir": "/home/dev/project",
+    }
+
+    assert chat["work_dir"] == "/home/dev/project"
+    assert "work_dir" in ChatDTO.__annotations__
+
+
+@pytest.mark.parametrize("harness", ["inference", "claude", "codex"])
+def test_agent_dto_harness_field(harness):
+    """AgentDTO.harness selects our loop vs an external agentprotocol registry driver."""
+    from inferencesh.types import AgentDTO
+
+    agent: AgentDTO = {
+        "namespace": "acme",
+        "name": "coder",
+        "title": "Coder",
+        "version_id": "ver_1",
+        "harness": harness,
+    }
+
+    assert agent["harness"] == harness
+    assert "harness" in AgentDTO.__annotations__

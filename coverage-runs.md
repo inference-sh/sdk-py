@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-24 (push dev @ 89cbb87, agent harness + chat work_dir typegen)
+
+**Recent changes reviewed:** `89cbb87` (`AgentDTO.harness` for inference vs external agentprotocol drivers; `ChatDTO.work_dir` for remote harness cwd). Commit message also references remote launch request — no new Python symbols in this diff (`InstanceDTO.launch_configuration` unchanged).
+
+**Open PRs checked:** #299 (harness `profile_id`/`remote_id`, `harness_session_id` — complementary, not merged), #328 (v0.10.2 `auth_scheme_id` / `DeltaEvent.end`), #322/#319/#316 — no overlap.
+
+**Gaps filled this run:**
+
+- `ChatDTO.work_dir` wire contract for routing harness terminal sessions to the correct folder
+- `AgentDTO.harness` values (`inference`, external registry ids) so clients do not silently lose harness selection
+
+**Files:** `tests/test_types.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k 'work_dir or harness_field'` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
