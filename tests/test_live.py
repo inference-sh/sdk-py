@@ -390,3 +390,20 @@ def test_parse_media_type_and_pcm_format():
     assert parse_media_type("") is None
     assert parse_media_type(None) is None
     assert pcm_format(None) is None
+
+
+async def test_clear_goes_to_on_clear_and_the_rest_of_the_patch_to_on_patch():
+    cleared = []
+    s = await start(on_clear=cleared.append)
+    s.ws.message(json.dumps({"$clear": "audio"}))
+    s.ws.message(json.dumps({"$clear": "audio", "assistant_text": ""}))
+    await tick()
+    assert cleared == ["audio", "audio"]
+    assert s.patches == [{"assistant_text": ""}]
+
+
+async def test_without_on_clear_the_control_frame_is_an_ordinary_patch():
+    s = await start()
+    s.ws.message(json.dumps({"$clear": "audio"}))
+    await tick()
+    assert s.patches == [{"$clear": "audio"}]

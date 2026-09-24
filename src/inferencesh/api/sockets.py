@@ -11,7 +11,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from ..types import CursorListRequest, CursorListResponse, FilterOperator, SocketAccess, SocketDTO, TaskStatus
-from ..live import AsyncLiveSession, OnBinary, OnPatch, OnState, WsConnect
+from ..live import AsyncLiveSession, OnBinary, OnClear, OnPatch, OnState, WsConnect
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference
@@ -98,6 +98,7 @@ class AsyncSocketsAPI:
         on_state: Optional[OnState] = None,
         on_binary: Optional[OnBinary] = None,
         on_patch: Optional[OnPatch] = None,
+        on_clear: Optional[OnClear] = None,
         ws_connect: Optional[WsConnect] = None,
         poll_interval: float = 2.0,
     ) -> AsyncLiveSession:
@@ -113,7 +114,7 @@ class AsyncSocketsAPI:
                 session if the task ends first (default: True). Off, a task
                 that fails before its worker dials leaves the session waiting
                 until the relay's pair timeout.
-            on_state, on_binary, on_patch: Session callbacks.
+            on_state, on_binary, on_patch, on_clear: Session callbacks.
             ws_connect: ``async (url) -> ws`` to dial with (tests, another transport).
             poll_interval: Seconds between task status polls while waiting.
         """
@@ -136,6 +137,7 @@ class AsyncSocketsAPI:
             on_state=on_state,
             on_binary=on_binary,
             on_patch=on_patch,
+            on_clear=on_clear,
             ws_connect=ws_connect,
         )
         await session.connect()

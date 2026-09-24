@@ -48,6 +48,10 @@ T = TypeVar("T")
 
 STREAM_FORMAT = "stream"
 
+CLEAR_KEY = "$clear"
+"""A control frame, ``{"$clear": "audio"}``: drop what has been buffered of a
+live output field. Reserved keys start with ``$``, which no field name can."""
+
 
 class Stream(Generic[T]):
     """A field whose values travel over the socket while the task runs.
@@ -244,6 +248,13 @@ class Live:
 
     async def _refuse(self, field: Optional[str], message: str) -> None:
         await self.socket.send({"error": {"field": field, "message": message}})
+
+    async def clear(self, field: str) -> None:
+        """Tell the caller to drop what it has buffered of a live output field:
+        the queued audio of an answer the user just talked over."""
+        if field not in self._out_live:
+            raise KeyError(f"the output model has no live field {field!r}")
+        await self.socket.send({CLEAR_KEY: field})
 
     async def send(self, **fields: Any) -> None:
         """Send items of live output fields, or new values of ordinary ones.

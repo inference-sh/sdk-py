@@ -213,3 +213,16 @@ def test_live_send():
         {"transcript": {"text": "hello", "final": True}},
         {"voice": "eve", "seconds": 2.0},
     ]
+
+
+def test_live_clear_tells_the_caller_to_drop_a_live_field():
+    socket = FakeSocket([])
+    live = Live(socket, TalkInput(), TalkOutput)
+
+    async def go():
+        await live.clear("audio")
+        with pytest.raises(KeyError):
+            await live.clear("voice")  # an ordinary field has nothing buffered
+
+    _run(go())
+    assert socket.sent == [{"$clear": "audio"}]

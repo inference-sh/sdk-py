@@ -36,7 +36,7 @@ from typing import (
 )
 from urllib.parse import quote
 
-from .models.stream import STREAM_FORMAT
+from .models.stream import CLEAR_KEY, STREAM_FORMAT
 from .types import SocketAccess
 
 # --------------------------------------------------------------------------
@@ -237,6 +237,7 @@ Frame = Union[bytes, Dict[str, Any]]
 OnState = Callable[[LiveState, Optional[LiveEnd]], None]
 OnBinary = Callable[[bytes], None]
 OnPatch = Callable[[Dict[str, Any]], None]
+OnClear = Callable[[str], None]
 Renew = Callable[[], Awaitable[SocketAccess]]
 WsConnect = Callable[[str], Awaitable[Any]]
 
@@ -261,7 +262,9 @@ class AsyncLiveSession:
     for a binary frame, a ``dict`` for a JSON text frame (a partial output
     object keyed by field name). A frame goes to ``on_binary`` / ``on_patch``
     instead when that callback is set, so a caller using callbacks does not
-    have to drain the iterator.
+    have to drain the iterator. ``{"$clear": field}`` (the app dropping an
+    answer the user talked over) goes to ``on_clear`` when it is set: drop what
+    you have buffered of that field.
 
     ``send(data)`` sends ``bytes`` as a binary frame and a ``dict`` as a JSON
     text frame. ``close()`` ends the stream: the function returns and the task
@@ -274,7 +277,7 @@ class AsyncLiveSession:
             (raising when it failed or was cancelled). While the session is
             still waiting for the app, the task ending ends the session; once
             live it is cancelled, since the task's fate then shows on the socket.
-        on_state, on_binary, on_patch: Callbacks; see above.
+        on_state, on_binary, on_patch, on_clear: Callbacks; see above.
         ws_connect: ``async (url) -> ws`` to dial with, for tests or another
             transport. Defaults to ``aiohttp.ClientSession().ws_connect``.
     """
@@ -288,6 +291,7 @@ class AsyncLiveSession:
         on_state: Optional[OnState] = None,
         on_binary: Optional[OnBinary] = None,
         on_patch: Optional[OnPatch] = None,
+        on_clear: Optional[OnClear] = None,
         ws_connect: Optional[WsConnect] = None,
     ) -> None:
         self._access = access
@@ -298,6 +302,7 @@ class AsyncLiveSession:
         self._on_state = on_state
         self._on_binary = on_binary
         self._on_patch = on_patch
+        self._on_clear = on_clear
         self._ws_connect = ws_connect or self._dial_aiohttp
 
         self._state = LiveState.CONNECTING
@@ -430,6 +435,10 @@ class AsyncLiveSession:
             patch = {"text": text}
         if not isinstance(patch, dict):
             return
+        if self._on_clear and isinstance(patch.get(CLEAR_KEY), str):
+            self._on_clear(patch.pop(CLEAR_KEY))
+            if not patch:
+                return
         if self._on_patch:
             self._on_patch(patch)
         else:
