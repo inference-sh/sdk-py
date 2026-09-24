@@ -444,6 +444,30 @@ async def test_an_output_field_named_error_is_not_an_error():
     assert errors == []
 
 
+async def test_without_on_error_unprefixed_error_is_an_ordinary_patch():
+    """Apps before SDK 0.10.1 send ``{"error": ...}``; only ``on_error`` interprets it."""
+    s = await start()
+    s.ws.message(json.dumps({"error": {"field": None, "message": "Grok: unknown voice"}}))
+    await tick()
+    assert s.patches == [{"error": {"field": None, "message": "Grok: unknown voice"}}]
+
+
+async def test_without_on_error_dollar_error_stays_in_the_patch():
+    s = await start()
+    s.ws.message(json.dumps({"$error": {"message": "too fast"}, "voice": "eve"}))
+    await tick()
+    assert s.patches == [{"$error": {"message": "too fast"}, "voice": "eve"}]
+
+
+async def test_unprefixed_error_without_message_is_not_control():
+    errors = []
+    s = await start(on_error=lambda field, message: errors.append((field, message)))
+    s.ws.message(json.dumps({"error": {"code": 404, "detail": "missing"}}))
+    await tick()
+    assert errors == []
+    assert s.patches == [{"error": {"code": 404, "detail": "missing"}}]
+
+
 OUTPUT = {
     "type": "object",
     "properties": {

@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-24 (push dev @ 269ed88, live legacy `{error}` control frames / v0.10.1)
+
+**Recent changes reviewed:** `269ed88` (doc: apps on SDKs before **0.10.1** send unprefixed `{"error": ...}`; `_legacy_error` threshold was already 0.10.1 in code). `13c905a` (`$error`, plain text, schema field mapping — largely covered in `tests/test_live.py`). `c7c930a` (version bump only).
+
+**Open PRs checked:** #319 (951153f credential alias removal), #316 (v0.9.1 CredentialRequirement/SetupAction), #302 (live/socket tidy) — no overlap with legacy error gating.
+
+**Gaps filled this run:**
+
+- Unprefixed `{"error": {"message": ...}}` is treated as a control frame **only when `on_error` is registered** (matches pre-0.10.1 app wire format without mis-routing when the callback is absent)
+- `$error` without `on_error` stays in the patch (symmetric with `$clear` behavior)
+- Unprefixed `error` objects **without** a `message` key are never interpreted as control frames even when `on_error` is set
+
+**Files:** `tests/test_live.py`
+
+**Validation:** `pytest tests/test_live.py::test_without_on_error_unprefixed_error_is_an_ordinary_patch tests/test_live.py::test_without_on_error_dollar_error_stays_in_the_patch tests/test_live.py::test_unprefixed_error_without_message_is_not_control` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
