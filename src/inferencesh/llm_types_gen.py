@@ -126,6 +126,11 @@ class DeltaEvent(BaseModel):
     # companion is deliberately absent — nothing needs to route before matching.
     # Empty when the task has no execution edge (a plain app run).
     resource_id: str = ""
+    # End, when set, carries no delta: it is the id of the task or agent run
+    # whose deltas on this key are complete. It follows the last of them on
+    # the same key, so an in-process follower reads to it instead of guessing
+    # when the stream is over. The stream layer never sends it to clients.
+    end: str = ""
 
 StringEncodedMap = Dict[str, Any]
 
