@@ -900,6 +900,7 @@ class CredentialConfigDTO(TypedDict, total=False):
     allows_byok: bool
     available: bool
     has_managed: bool
+    auth: CredentialType
     grant: CredentialGrant
     # CustomProviderID is set when the provider is one the team defined
     # itself (models.CustomProvider), so the UI can offer edit and remove.
@@ -2835,6 +2836,7 @@ class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     provider: str
     type: CredentialType
+    auth: CredentialType
     grant: Optional[CredentialGrant]
     scope: CredentialScope
     status: CredentialStatus
@@ -2848,6 +2850,7 @@ class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
     is_primary: bool
     error_message: str
+    service_account_email: str
 
 # EngineDTO is the full API response for an engine.
 class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
