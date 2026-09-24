@@ -1937,6 +1937,33 @@ def test_team_invite_dto_carries_status_and_role():
     assert invite["status"] == TeamInviteStatus.PENDING
 
 
+def test_team_member_dto_carries_assignable_roles_and_removable():
+    """Team member listings expose role-change and removal affordances for the caller."""
+    from inferencesh.types import TeamMemberDTO, TeamRole
+
+    member: TeamMemberDTO = {
+        "id": "mem_abc",
+        "role": TeamRole.ADMIN,
+        "assignable_roles": [TeamRole.ADMIN, TeamRole.MEMBER],
+        "removable": True,
+    }
+
+    assert member["assignable_roles"] == [TeamRole.ADMIN, TeamRole.MEMBER]
+    assert member["removable"] is True
+
+
+def test_team_member_dto_permission_fields_optional_when_absent():
+    """GET /teams/{id}/members omits assignable_roles/removable when caller has no rights."""
+    from inferencesh.types import TeamMemberDTO, TeamRole
+
+    member: TeamMemberDTO = {
+        "role": TeamRole.MEMBER,
+    }
+
+    assert "assignable_roles" not in member
+    assert "removable" not in member
+
+
 def test_file_dto_carries_content_rating():
     """Uploaded files expose ContentRating for moderation filters."""
     from inferencesh.types import ContentRating, FileDTO

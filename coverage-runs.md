@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-24 (push dev @ 10fb6a6, TeamMemberDTO permission affordances / INF-868)
+
+**Recent changes reviewed:** `10fb6a6` (typegen: `TeamMemberDTO.assignable_roles`, `TeamMemberDTO.removable` on GET `/teams/{id}/members`). `60e51ac` (version bump v0.10.3 only).
+
+**Open PRs checked:** #332 (`AgentDTO.harness`, `ChatDTO.work_dir` for `89cbb87`), #328 (v0.10.2 auth_scheme_id), #322–#319 (older v0.10.x coverage) — no overlap on team member permission fields.
+
+**Gaps filled this run:**
+
+- `TeamMemberDTO.assignable_roles` — roles the caller may assign (current role included)
+- `TeamMemberDTO.removable` — whether the caller may remove the member
+- Optional omission when the API withholds permission metadata (`total=False`)
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py -k 'team_member_dto'` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
