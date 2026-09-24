@@ -901,9 +901,9 @@ class CredentialConfigDTO(TypedDict, total=False):
     available: bool
     has_managed: bool
     grant: CredentialGrant
-    # CustomProviderID is set when the provider is one the team defined
-    # itself (models.CustomProvider), so the UI can offer edit and remove.
-    custom_provider_id: str
+    # AuthSchemeID is set when the provider is one the team defined
+    # itself (models.AuthScheme), so the UI can offer edit and remove.
+    auth_scheme_id: str
     credential: Optional[CredentialDTO]
 
 # SecretFieldConfig defines a secret field for the UI
@@ -3305,7 +3305,7 @@ class Scope(str, Enum):
     SECRETS_READ = "secrets:read"
     SECRETS_WRITE = "secrets:write"
     # Action-level scopes for credentials (connected accounts, vaults,
-    # custom providers, MCP servers).
+    # auth schemes, MCP servers).
     CREDENTIALS_READ = "credentials:read"
     CREDENTIALS_WRITE = "credentials:write"
     # Action-level scopes for Engines
