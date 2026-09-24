@@ -11,7 +11,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from ..types import CursorListRequest, CursorListResponse, FilterOperator, SocketAccess, SocketDTO, TaskStatus
-from ..live import AsyncLiveSession, OnBinary, OnClear, OnPatch, OnState, WsConnect
+from ..live import AsyncLiveSession
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference
@@ -90,18 +90,7 @@ class AsyncSocketsAPI:
     async def delete(self, socket_id: str) -> None:
         await self._client._request("delete", f"/sockets/{socket_id}")
 
-    async def open(
-        self,
-        target: SocketTarget,
-        *,
-        watch_task: bool = True,
-        on_state: Optional[OnState] = None,
-        on_binary: Optional[OnBinary] = None,
-        on_patch: Optional[OnPatch] = None,
-        on_clear: Optional[OnClear] = None,
-        ws_connect: Optional[WsConnect] = None,
-        poll_interval: float = 2.0,
-    ) -> AsyncLiveSession:
+    async def open(self, target: SocketTarget, *, watch_task: bool = True, **session_options: Any) -> AsyncLiveSession:
         """Dials the caller's end of a stream task's socket. Returns once the
         relay accepted the connection: the session is ``waiting`` until the
         app's first frame, then ``live``; see AsyncLiveSession.
@@ -114,9 +103,10 @@ class AsyncSocketsAPI:
                 session if the task ends first (default: True). Off, a task
                 that fails before its worker dials leaves the session waiting
                 until the relay's pair timeout.
-            on_state, on_binary, on_patch, on_clear: Session callbacks.
-            ws_connect: ``async (url) -> ws`` to dial with (tests, another transport).
-            poll_interval: Seconds between task status polls while waiting.
+            **session_options: Passed to AsyncLiveSession: the callbacks
+                (``on_state``, ``on_binary``, ``on_patch``, ``on_text``,
+                ``on_update``, ``on_clear``, ``on_error``), ``input_schema`` /
+                ``output_schema`` to map frames to fields, and ``ws_connect``.
         """
         task_id: str = target if isinstance(target, str) else target["id"]
         access: Optional[SocketAccess] = None if isinstance(target, str) else target.get("socket")
@@ -133,40 +123,12 @@ class AsyncSocketsAPI:
         session = AsyncLiveSession(
             access,
             renew=renew,
-            task_watch=_watch_task_status(self._client, task_id, poll_interval) if watch_task else None,
-            on_state=on_state,
-            on_binary=on_binary,
-            on_patch=on_patch,
-            on_clear=on_clear,
-            ws_connect=ws_connect,
+            # The same watch the client waits on tasks with (SSE, reconciled by GET).
+            task_watch=self._client.wait_for_completion(task_id) if watch_task else None,
+            **session_options,
         )
         await session.connect()
         return session
-
-
-async def _watch_task_status(client: "AsyncInference", task_id: str, poll_interval: float) -> Dict[str, Any]:
-    """Polls ``GET /tasks/{id}/status`` until the task ends. Returns the status
-    on completion; raises RuntimeError when it failed or was cancelled."""
-    from ..client import parse_status
-
-    while True:
-        status_dto = (await client._request("get", f"/tasks/{task_id}/status")).data or {}
-        status = parse_status(status_dto.get("status"))
-        if status == TaskStatus.COMPLETED:
-            return status_dto
-        if status == TaskStatus.FAILED:
-            raise RuntimeError(await _task_error(client, task_id) or "task failed")
-        if status == TaskStatus.CANCELLED:
-            raise RuntimeError("task cancelled")
-        await asyncio.sleep(poll_interval)
-
-
-async def _task_error(client: "AsyncInference", task_id: str) -> Optional[str]:
-    """The status endpoint carries no error; the task does."""
-    try:
-        return ((await client.get_task(task_id)).data or {}).get("error")
-    except Exception:
-        return None
 
 
 __all__ = ["SocketsAPI", "AsyncSocketsAPI", "SocketTarget"]

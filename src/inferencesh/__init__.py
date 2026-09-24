@@ -71,9 +71,13 @@ from .live import (
     PCMFormat,
     split_live_schema,
     binary_live_field,
+    alternative_label,
+    alternative_tag,
+    LiveUpdate,
     parse_media_type,
     pcm_format,
 )
+from .models.stream import CLEAR_KEY, ERROR_KEY
 from .ref import Ref
 from .types import TaskStatus, ChatMessageStatus
 from .models.errors import (
@@ -188,6 +192,11 @@ __all__ = [
     "MediaType",
     "PCMFormat",
     "split_live_schema",
+    "alternative_label",
+    "alternative_tag",
+    "LiveUpdate",
+    "CLEAR_KEY",
+    "ERROR_KEY",
     "binary_live_field",
     "parse_media_type",
     "pcm_format",

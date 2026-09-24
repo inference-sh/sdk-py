@@ -48,9 +48,13 @@ T = TypeVar("T")
 
 STREAM_FORMAT = "stream"
 
+# Control frames. Reserved keys start with ``$``, which no field name can, so a
+# control frame is never mistaken for an output field.
 CLEAR_KEY = "$clear"
-"""A control frame, ``{"$clear": "audio"}``: drop what has been buffered of a
-live output field. Reserved keys start with ``$``, which no field name can."""
+"""``{"$clear": "audio"}``: drop what has been buffered of a live output field."""
+ERROR_KEY = "$error"
+"""``{"$error": {"field": ..., "message": ...}}``: a refused frame, or anything
+else the caller should be told went wrong. The stream goes on."""
 
 
 class Stream(Generic[T]):
@@ -175,8 +179,9 @@ class Live:
             return TalkOutput(seconds=...)
 
     A frame that does not fit the input model is answered with
-    ``{"error": {"field": ..., "message": ...}}`` and skipped; the stream
-    goes on.
+    ``{"$error": {"field": ..., "message": ...}}`` and skipped; the stream
+    goes on. ``live.error(message)`` sends the same frame for anything else
+    the caller should hear about.
 
     The function may instead be an async generator (``-> AsyncGenerator[TalkOutput,
     None]``): each yield is a cumulative snapshot of the task's output, sent as a
@@ -247,7 +252,13 @@ class Live:
         return updates
 
     async def _refuse(self, field: Optional[str], message: str) -> None:
-        await self.socket.send({"error": {"field": field, "message": message}})
+        await self.error(message, field=field)
+
+    async def error(self, message: str, *, field: Optional[str] = None) -> None:
+        """Tell the caller something went wrong without ending the stream: a
+        provider error, or why the session is about to end."""
+        if not getattr(self.socket, "closed", False):
+            await self.socket.send({ERROR_KEY: {"field": field, "message": message}})
 
     async def clear(self, field: str) -> None:
         """Tell the caller to drop what it has buffered of a live output field:

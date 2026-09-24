@@ -147,36 +147,40 @@ async def test_redial_renews_the_credential_through_the_api():
 
 
 async def test_open_follows_the_task_while_waiting_and_ends_when_it_fails():
-    polls = iter([{"id": "task-1", "status": int(TaskStatus.RUNNING)}, {"id": "task-1", "status": int(TaskStatus.FAILED)}])
-    client, calls = async_client({
-        "GET /tasks/task-1/status": lambda: next(polls),
-        "GET /tasks/task-1": {**TASK, "status": int(TaskStatus.FAILED), "error": "no module named x"},
-    })
-    session = await client.sockets.open({**TASK, "socket": ACCESS}, ws_connect=FakeWS.dial, poll_interval=0)
+    client, _ = async_client({})
+    waited = []
+
+    async def wait_for_completion(task_id, **kwargs):
+        waited.append(task_id)
+        raise RuntimeError("no module named x")
+
+    client.wait_for_completion = wait_for_completion  # the client's own watch: SSE, reconciled by GET
+    session = await client.sockets.open({**TASK, "socket": ACCESS}, ws_connect=FakeWS.dial)
     end = await asyncio.wait_for(session.ended, 1)
+    assert waited == ["task-1"]
     assert end.task_ended is True
     assert end.reason == "no module named x"
-    assert requests(calls) == ["GET /tasks/task-1/status", "GET /tasks/task-1/status", "GET /tasks/task-1"]
     assert FakeWS.dialed[0].closed_with == (1000, "task ended")
 
 
 async def test_open_stops_following_the_task_once_live():
-    polled = []
+    client, _ = async_client({})
+    watch = {}
 
-    def poll():
-        polled.append(1)
-        return {"id": "task-1", "status": int(TaskStatus.RUNNING)}
+    async def wait_for_completion(task_id, **kwargs):
+        try:
+            await asyncio.sleep(3600)
+        except asyncio.CancelledError:
+            watch["cancelled"] = True
+            raise
 
-    client, _ = async_client({"GET /tasks/task-1/status": poll})
-    session = await client.sockets.open({**TASK, "socket": ACCESS}, ws_connect=FakeWS.dial, poll_interval=0)
+    client.wait_for_completion = wait_for_completion
+    session = await client.sockets.open({**TASK, "socket": ACCESS}, ws_connect=FakeWS.dial)
     await tick()
-    assert polled
     FakeWS.dialed[0].message("{}")
     await tick()
     assert session.state == LiveState.LIVE
-    count = len(polled)
-    await tick(10)
-    assert len(polled) == count
+    assert watch.get("cancelled") is True
     await session.close()
 
 

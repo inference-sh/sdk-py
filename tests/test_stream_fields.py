@@ -159,9 +159,9 @@ def test_live_answers_frames_that_do_not_fit_and_goes_on():
     updates = _run(collect())
     assert updates == [("audio", b"\x00")], "the stream goes on after bad frames"
     assert data.voice == "ara", "a refused value is not applied"
-    fields = [e["error"]["field"] for e in socket.sent]
+    fields = [e["$error"]["field"] for e in socket.sent]
     assert fields == ["voice", "nope", None, "audio", "events"]
-    assert all(e["error"]["message"] for e in socket.sent)
+    assert all(e["$error"]["message"] for e in socket.sent)
 
 
 def test_live_refuses_binary_when_the_input_has_no_binary_field():
@@ -175,7 +175,7 @@ def test_live_refuses_binary_when_the_input_has_no_binary_field():
 
     assert _run(collect()) == []
     # Once, not once per frame: a mic streaming to the wrong function sends 50 a second.
-    assert socket.sent == [{"error": {"field": None, "message": "this function takes no binary frames"}}]
+    assert socket.sent == [{"$error": {"field": None, "message": "this function takes no binary frames"}}]
 
 
 def test_live_holds_an_ordinary_field_to_its_constraints_mid_stream():
@@ -193,7 +193,7 @@ def test_live_holds_an_ordinary_field_to_its_constraints_mid_stream():
 
     assert _run(collect()) == [("speed", 1.2)]
     assert data.speed == 1.2
-    assert [e["error"]["field"] for e in socket.sent] == ["speed"], "the request body's constraints hold on the socket too"
+    assert [e["$error"]["field"] for e in socket.sent] == ["speed"], "the request body's constraints hold on the socket too"
 
 
 def test_live_send():
@@ -226,3 +226,14 @@ def test_live_clear_tells_the_caller_to_drop_a_live_field():
 
     _run(go())
     assert socket.sent == [{"$clear": "audio"}]
+
+
+def test_live_error_tells_the_caller_without_ending_the_stream():
+    socket = FakeSocket([])
+    live = Live(socket, TalkInput(), TalkOutput)
+    _run(live.error("Grok: unknown voice"))
+    _run(live.error("too fast", field="gain"))
+    assert socket.sent == [
+        {"$error": {"field": None, "message": "Grok: unknown voice"}},
+        {"$error": {"field": "gain", "message": "too fast"}},
+    ]

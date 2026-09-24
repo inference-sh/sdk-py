@@ -36,7 +36,7 @@ from typing import (
 )
 from urllib.parse import quote
 
-from .models.stream import CLEAR_KEY, STREAM_FORMAT
+from .models.stream import CLEAR_KEY, ERROR_KEY, STREAM_FORMAT
 from .types import SocketAccess
 
 # --------------------------------------------------------------------------
@@ -110,6 +110,9 @@ class LiveField:
     alternatives: List[JsonSchema] = field(default_factory=list)
     """What one item can be, references resolved: the alternatives of an anyOf,
     or the single item schema. Empty for a binary field."""
+    discriminator: Optional[str] = None
+    """The property that tells the alternatives apart, when the schema names
+    one (pydantic's ``discriminator.propertyName``)."""
 
 
 def _deref(schema: JsonSchema, root: JsonSchema) -> JsonSchema:
@@ -171,6 +174,7 @@ def split_live_schema(schema: Optional[JsonSchema]) -> SplitLiveSchema:
                 binary=binary,
                 media=parse_media_type(resolved_items.get("contentMediaType")) if binary else None,
                 alternatives=[] if binary else _item_alternatives(items, schema),
+                discriminator=None if binary else (resolved_items.get("discriminator") or {}).get("propertyName"),
             )
         )
     out = {**schema, "properties": ordinary}
@@ -184,11 +188,24 @@ def binary_live_field(live: List[LiveField]) -> Optional[LiveField]:
     return next((f for f in live if f.binary), None)
 
 
-def alternative_label(schema: JsonSchema, index: int) -> str:
-    """A label for one alternative of a JSON live field: its ``type`` const, else its title."""
-    tag = (schema.get("properties") or {}).get("type", {}).get("const")
-    if isinstance(tag, str):
-        return tag
+def alternative_tag(schema: JsonSchema, discriminator: Optional[str] = None) -> Optional[str]:
+    """The property whose constant names this alternative: the schema's
+    discriminator, else ``type``, else the first property with a constant."""
+    props = schema.get("properties") or {}
+    constants = [key for key, prop in props.items() if isinstance(prop, dict) and "const" in prop]
+    for key in ([discriminator] if discriminator else []) + ["type"] + constants:
+        if key in constants:
+            return key
+    return None
+
+
+def alternative_label(schema: JsonSchema, index: int, discriminator: Optional[str] = None) -> str:
+    """A label for one alternative of a JSON live field: the constant that
+    tags it (see ``alternative_tag``), else its title."""
+    tag = alternative_tag(schema, discriminator)
+    value = (schema.get("properties") or {}).get(tag, {}).get("const") if tag else None
+    if isinstance(value, str):
+        return value
     return schema.get("title") or f"option {index + 1}"
 
 
@@ -233,11 +250,22 @@ class WSMsgType(IntEnum):
 REDIAL_CODES = frozenset({1012, 1013})
 MAX_REDIALS = 5
 
-Frame = Union[bytes, Dict[str, Any]]
+class LiveUpdate(NamedTuple):
+    """One thing the app sent, mapped to its output field: an item of a live
+    field (bytes for the binary one) or a new value of an ordinary field."""
+
+    field: str
+    value: Any
+
+
+Frame = Union[bytes, str, Dict[str, Any], LiveUpdate]
 OnState = Callable[[LiveState, Optional[LiveEnd]], None]
 OnBinary = Callable[[bytes], None]
 OnPatch = Callable[[Dict[str, Any]], None]
 OnClear = Callable[[str], None]
+OnError = Callable[[Optional[str], str], None]
+OnText = Callable[[str], None]
+OnUpdate = Callable[[LiveUpdate], None]
 Renew = Callable[[], Awaitable[SocketAccess]]
 WsConnect = Callable[[str], Awaitable[Any]]
 
@@ -259,12 +287,23 @@ class AsyncLiveSession:
     → ``live`` (the app's first frame) → ``ended``.
 
     Frames the app sends come out of ``async for item in session``: ``bytes``
-    for a binary frame, a ``dict`` for a JSON text frame (a partial output
-    object keyed by field name). A frame goes to ``on_binary`` / ``on_patch``
-    instead when that callback is set, so a caller using callbacks does not
-    have to drain the iterator. ``{"$clear": field}`` (the app dropping an
-    answer the user talked over) goes to ``on_clear`` when it is set: drop what
-    you have buffered of that field.
+    for a binary frame, a ``dict`` for a JSON object (a partial output object
+    keyed by field name), a ``str`` for any other text. A frame goes to
+    ``on_binary`` / ``on_patch`` / ``on_text`` instead when that callback is
+    set, so a caller using callbacks does not have to drain the iterator.
+
+    Given the function's schemas, the session maps frames to fields the way the
+    app's ``Live`` does: pass ``output_schema`` and frames arrive as
+    ``LiveUpdate(field, value)`` (to ``on_update``, or from the iterator);
+    pass ``input_schema`` and ``send_field(field, value)`` sends a binary frame
+    or a JSON one as the field requires.
+
+    Control frames (reserved keys start with ``$``) have their own callbacks:
+    ``{"$clear": field}`` goes to ``on_clear`` (drop what you buffered of that
+    field: the user talked over the answer), ``{"$error": {...}}`` to
+    ``on_error(field, message)``. Apps on SDKs before 0.9.2 send the error as
+    ``{"error": {...}}``; it is treated the same unless the output has an
+    ``error`` field. Without the callback a control frame stays in its patch.
 
     ``send(data)`` sends ``bytes`` as a binary frame and a ``dict`` as a JSON
     text frame. ``close()`` ends the stream: the function returns and the task
@@ -277,7 +316,10 @@ class AsyncLiveSession:
             (raising when it failed or was cancelled). While the session is
             still waiting for the app, the task ending ends the session; once
             live it is cancelled, since the task's fate then shows on the socket.
-        on_state, on_binary, on_patch, on_clear: Callbacks; see above.
+        on_state, on_binary, on_patch, on_text, on_update, on_clear, on_error:
+            Callbacks; see above.
+        input_schema, output_schema: The function's schemas, to map frames
+            to fields; see above.
         ws_connect: ``async (url) -> ws`` to dial with, for tests or another
             transport. Defaults to ``aiohttp.ClientSession().ws_connect``.
     """
@@ -292,6 +334,11 @@ class AsyncLiveSession:
         on_binary: Optional[OnBinary] = None,
         on_patch: Optional[OnPatch] = None,
         on_clear: Optional[OnClear] = None,
+        on_error: Optional[OnError] = None,
+        on_text: Optional[OnText] = None,
+        on_update: Optional[OnUpdate] = None,
+        input_schema: Optional[JsonSchema] = None,
+        output_schema: Optional[JsonSchema] = None,
         ws_connect: Optional[WsConnect] = None,
     ) -> None:
         self._access = access
@@ -303,12 +350,21 @@ class AsyncLiveSession:
         self._on_binary = on_binary
         self._on_patch = on_patch
         self._on_clear = on_clear
+        self._on_error = on_error
+        self._on_text = on_text
+        self._on_update = on_update
+        self._mapped = output_schema is not None
+        out_live = split_live_schema(output_schema).live
+        self._out_binary = next((f.key for f in out_live if f.binary), None)
+        self._out_fields = set((output_schema or {}).get("properties") or {})
+        self._in_binary = next((f.key for f in split_live_schema(input_schema).live if f.binary), None)
+        self._in_known = input_schema is not None
         self._ws_connect = ws_connect or self._dial_aiohttp
 
         self._state = LiveState.CONNECTING
         self._ws: Any = None
         self._reader: Optional["asyncio.Task[None]"] = None
-        self._http_sessions: List[Any] = []
+        self._http: Any = None  # the aiohttp session behind the current socket
         self._closed_by_caller = False
         self._redials = 0
         self._end: Optional[LiveEnd] = None
@@ -363,12 +419,12 @@ class AsyncLiveSession:
         except BaseException:
             await http.close()
             raise
-        self._http_sessions.append(http)
+        self._http = http
         return ws
 
-    async def _close_http_sessions(self) -> None:
-        sessions, self._http_sessions = self._http_sessions, []
-        for http in sessions:
+    async def _close_http(self) -> None:
+        http, self._http = self._http, None
+        if http is not None:
             try:
                 await http.close()
             except Exception:
@@ -432,22 +488,51 @@ class AsyncLiveSession:
         try:
             patch = json.loads(text)
         except ValueError:
-            patch = {"text": text}
+            patch = None
         if not isinstance(patch, dict):
+            # Not a patch: text the app sent as text (a raw Socket can).
+            if self._on_text:
+                self._on_text(text)
+            else:
+                self._frames.put_nowait(text)
             return
+        arrived_empty = not patch
         if self._on_clear and isinstance(patch.get(CLEAR_KEY), str):
             self._on_clear(patch.pop(CLEAR_KEY))
-            if not patch:
-                return
+        if self._on_error:
+            key = ERROR_KEY if ERROR_KEY in patch else "error" if self._legacy_error(patch) else None
+            if key is not None:
+                err = patch.pop(key)
+                err = err if isinstance(err, dict) else {"message": str(err)}
+                self._on_error(err.get("field"), str(err.get("message") or json.dumps(err)))
+        if not patch and not arrived_empty:
+            return  # it was only control frames
         if self._on_patch:
             self._on_patch(patch)
+        elif self._mapped:
+            for key, value in patch.items():
+                self._deliver_update(LiveUpdate(key, value))
         else:
             self._frames.put_nowait(patch)
+
+    def _legacy_error(self, patch: Dict[str, Any]) -> bool:
+        """``{"error": {"message": ...}}`` from an app on an SDK before 0.9.2,
+        unless the output really has an ``error`` field."""
+        err = patch.get("error")
+        return isinstance(err, dict) and "message" in err and "error" not in self._out_fields
+
+    def _deliver_update(self, update: LiveUpdate) -> None:
+        if self._on_update:
+            self._on_update(update)
+        else:
+            self._frames.put_nowait(update)
 
     def _deliver_binary(self, data: bytes) -> None:
         self._went_live()
         if self._on_binary:
             self._on_binary(data)
+        elif self._mapped and self._out_binary:
+            self._deliver_update(LiveUpdate(self._out_binary, data))
         else:
             self._frames.put_nowait(data)
 
@@ -455,7 +540,7 @@ class AsyncLiveSession:
         if self._ws is not ws:
             return  # detached by _close_socket: its close must not end the session a second time
         self._ws = None
-        await self._close_http_sessions()
+        await self._close_http()
         waiting = self._state != LiveState.LIVE
         if not self._closed_by_caller and waiting and code in REDIAL_CODES and self._redials < MAX_REDIALS:
             self._redials += 1
@@ -510,7 +595,7 @@ class AsyncLiveSession:
         if not fut.done():
             fut.set_result(end)
         self._frames.put_nowait(_DONE)
-        await self._close_http_sessions()
+        await self._close_http()
 
     async def _close_ws(self, ws: Any, code: int, reason: str) -> None:
         try:
@@ -530,7 +615,7 @@ class AsyncLiveSession:
                 await reader
             except (asyncio.CancelledError, Exception):
                 pass
-        await self._close_http_sessions()
+        await self._close_http()
 
     async def close(self) -> None:
         """Ends the stream; the function returns and the task completes."""
@@ -554,6 +639,17 @@ class AsyncLiveSession:
         """One item of the input's binary live field."""
         if self.is_open:
             await self._ws.send_bytes(data)
+
+    async def send_field(self, field: str, value: Any) -> None:
+        """One item of an input live field, or a new value of an ordinary one:
+        a binary frame for the binary live field, a JSON frame otherwise.
+        Needs ``input_schema``."""
+        if not self._in_known:
+            raise ValueError("send_field needs the function's input_schema")
+        if field == self._in_binary:
+            await self.send_binary(value)
+        else:
+            await self.send_patch({field: value})
 
     async def send_patch(self, patch: Mapping[str, Any]) -> None:
         """A partial input object keyed by field name."""
@@ -593,7 +689,9 @@ __all__ = [
     "split_live_schema",
     "binary_live_field",
     "alternative_label",
+    "alternative_tag",
     "LiveState",
+    "LiveUpdate",
     "LiveEnd",
     "AsyncLiveSession",
     "REDIAL_CODES",

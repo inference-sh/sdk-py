@@ -7,7 +7,7 @@ from typing import Any, List, Optional
 
 import pytest
 
-from inferencesh import AsyncLiveSession, LiveEnd, LiveState, binary_live_field, parse_media_type, pcm_format, split_live_schema
+from inferencesh import AsyncLiveSession, LiveEnd, LiveState, LiveUpdate, alternative_label, alternative_tag, binary_live_field, parse_media_type, pcm_format, split_live_schema
 from inferencesh.live import WSMsgType
 
 
@@ -106,7 +106,7 @@ async def start(*, callbacks: bool = True, **options: Any) -> Started:
             "on_patch": lambda patch: holder.patches.append(patch),
             "on_binary": lambda data: holder.binaries.append(data),
         }
-    session = AsyncLiveSession(access(), ws_connect=FakeWS.dial, **handlers, **options)
+    session = AsyncLiveSession(access(), ws_connect=FakeWS.dial, **{**handlers, **options})
     holder = Started(session)
     await session.connect()
     return holder
@@ -129,10 +129,8 @@ async def test_credential_in_query_then_waiting_then_live_on_first_frame():
 
     pcm = bytes(8)
     s.ws.message(pcm)
-    s.ws.message("not json")
     await tick()
     assert s.binaries == [pcm]
-    assert s.patches[1] == {"text": "not json"}
     assert [st for st, _ in s.states] == [LiveState.CONNECTING, LiveState.WAITING, LiveState.LIVE]
 
 
@@ -140,7 +138,8 @@ async def test_iteration_yields_bytes_and_dicts_and_ends_with_the_session():
     s = await start(callbacks=False)
     s.ws.message(b"\x01\x02")
     s.ws.message('{"transcript": {"text": "hi"}}')
-    s.ws.message("[1, 2]")  # a JSON frame that is not an object is dropped
+    s.ws.message("[1, 2]")  # not a patch: text, as the app sent it
+    s.ws.message("plain words")
 
     async def collect():
         return [item async for item in s.session]
@@ -149,7 +148,7 @@ async def test_iteration_yields_bytes_and_dicts_and_ends_with_the_session():
     await tick()
     s.ws.server_close(1000, "app returned")
     items = await asyncio.wait_for(collector, 1)
-    assert items == [b"\x01\x02", {"transcript": {"text": "hi"}}]
+    assert items == [b"\x01\x02", {"transcript": {"text": "hi"}}, "[1, 2]", "plain words"]
     assert s.session.state == LiveState.ENDED
     end = await asyncio.wait_for(s.session.ended, 1)
     assert end == LiveEnd(code=1000, reason="app returned", by_caller=False, task_ended=False)
@@ -407,3 +406,98 @@ async def test_without_on_clear_the_control_frame_is_an_ordinary_patch():
     s.ws.message(json.dumps({"$clear": "audio"}))
     await tick()
     assert s.patches == [{"$clear": "audio"}]
+
+
+async def test_text_that_is_not_a_patch_goes_to_on_text():
+    texts = []
+    s = await start(on_text=texts.append)
+    s.ws.message("hello")
+    s.ws.message("[1, 2]")
+    await tick()
+    assert texts == ["hello", "[1, 2]"]
+    assert s.patches == []
+
+
+async def test_error_goes_to_on_error_and_the_rest_of_the_patch_on():
+    errors = []
+    s = await start(on_error=lambda field, message: errors.append((field, message)))
+    s.ws.message(json.dumps({"$error": {"field": "speed", "message": "too fast"}, "voice": "eve"}))
+    await tick()
+    assert errors == [("speed", "too fast")]
+    assert s.patches == [{"voice": "eve"}]
+
+
+async def test_an_app_on_an_older_sdk_sends_error_unprefixed_and_it_still_counts():
+    errors = []
+    s = await start(on_error=lambda field, message: errors.append((field, message)))
+    s.ws.message(json.dumps({"error": {"field": None, "message": "Grok: unknown voice"}}))
+    await tick()
+    assert errors == [(None, "Grok: unknown voice")]
+
+
+async def test_an_output_field_named_error_is_not_an_error():
+    errors = []
+    schema = {"type": "object", "properties": {"error": {"type": "object"}}}
+    s = await start(on_error=lambda f, m: errors.append(m), output_schema=schema, on_patch=None)
+    s.ws.message(json.dumps({"error": {"message": "a value"}}))
+    await tick()
+    assert errors == []
+
+
+OUTPUT = {
+    "type": "object",
+    "properties": {
+        "audio": {"type": "array", "format": "stream", "items": {"type": "string", "format": "binary", "contentMediaType": "audio/pcm;rate=24000"}},
+        "user_text": {"type": "string"},
+    },
+}
+INPUT = {
+    "type": "object",
+    "properties": {
+        "audio": {"type": "array", "format": "stream", "items": {"type": "string", "format": "binary", "contentMediaType": "audio/pcm;rate=24000"}},
+        "voice": {"type": "string"},
+    },
+}
+
+
+async def test_with_the_schemas_frames_arrive_as_field_updates():
+    session = AsyncLiveSession(access(), ws_connect=FakeWS.dial, output_schema=OUTPUT, input_schema=INPUT)
+    await session.connect()
+    ws = FakeWS.dialed[-1]
+    ws.message(b"\x01\x02")
+    ws.message(json.dumps({"user_text": "hi", "$clear": "audio"}))
+    ws.server_close(1000)
+    items = [item async for item in session]
+    assert items == [LiveUpdate("audio", b"\x01\x02"), LiveUpdate("user_text", "hi"), LiveUpdate("$clear", "audio")]
+
+
+async def test_send_field_routes_by_the_input_schema():
+    session = AsyncLiveSession(access(), ws_connect=FakeWS.dial, input_schema=INPUT)
+    await session.connect()
+    await session.send_field("audio", b"\x09")
+    await session.send_field("voice", "ara")
+    assert FakeWS.dialed[-1].sent == [b"\x09", '{"voice": "ara"}']
+    with pytest.raises(ValueError):
+        await AsyncLiveSession(access(), ws_connect=FakeWS.dial).send_field("voice", "ara")
+
+
+def test_alternatives_are_labelled_by_the_schema_discriminator():
+    schema = {
+        "type": "object",
+        "properties": {"events": {"type": "array", "format": "stream", "items": {
+            "oneOf": [{"$ref": "#/$defs/Ask"}, {"$ref": "#/$defs/Stop"}],
+            "discriminator": {"propertyName": "kind"},
+        }}},
+        "$defs": {
+            "Ask": {"type": "object", "properties": {"kind": {"const": "ask"}, "q": {"type": "string"}}},
+            "Stop": {"type": "object", "title": "Stop", "properties": {"kind": {"const": "stop"}}},
+        },
+    }
+    events = split_live_schema(schema).live[0]
+    assert events.discriminator == "kind"
+    assert [alternative_label(a, i, events.discriminator) for i, a in enumerate(events.alternatives)] == ["ask", "stop"]
+    assert alternative_tag(events.alternatives[0], events.discriminator) == "kind"
+    # Without a declared discriminator: `type`, else the first constant property.
+    assert alternative_label({"properties": {"type": {"const": "text"}}}, 0) == "text"
+    assert alternative_label({"properties": {"op": {"const": "ping"}}}, 0) == "ping"
+    assert alternative_label({"title": "Plain"}, 3) == "Plain"
