@@ -642,6 +642,38 @@ def test_device_auth_response_init_shape():
     assert resp["poll_url"].endswith("/poll")
 
 
+def test_credential_complete_oauth_request_callback_params():
+    """OAuth completion carries provider-specific callback query params for scheme templates."""
+    from typing import Dict, get_type_hints
+
+    from inferencesh.types import CredentialCompleteOAuthRequest
+
+    quickbooks: CredentialCompleteOAuthRequest = {
+        "provider": "quickbooks",
+        "type": "oauth",
+        "code": "auth_code_xyz",
+        "state": "csrf_state",
+        "code_verifier": "pkce_verifier",
+        "params": {"realmId": "1234567890"},
+    }
+    shopify: CredentialCompleteOAuthRequest = {
+        "provider": "shopify",
+        "type": "oauth",
+        "code": "shpca_abc",
+        "state": "csrf_state",
+        "params": {"shop": "my-store.myshopify.com"},
+    }
+
+    assert quickbooks["params"]["realmId"] == "1234567890"
+    assert shopify["params"]["shop"] == "my-store.myshopify.com"
+    hints = get_type_hints(CredentialCompleteOAuthRequest)
+    assert hints["params"] == Dict[str, str]
+    annotations = CredentialCompleteOAuthRequest.__annotations__
+    assert "params" in annotations
+    for field in ("code", "state", "code_verifier", "provider", "type"):
+        assert field in annotations
+
+
 def test_update_credential_scopes_request():
     """OAuth credentials can request additional scopes after initial connect."""
     from inferencesh.types import UpdateCredentialScopesRequest
@@ -3215,6 +3247,39 @@ def test_chat_dto_work_dir_field():
 
     assert chat["work_dir"] == "/home/dev/project"
     assert "work_dir" in ChatDTO.__annotations__
+
+
+def test_chat_dto_channel_context_field():
+    """ChatDTO.channel_context records the origin channel for routed agent replies."""
+    from inferencesh.types import ChannelContext, ChannelType, ChatDTO, ChatStatus
+
+    ctx: ChannelContext = {
+        "channel_type": ChannelType.SLACK,
+        "channel_metadata": {"thread_ts": "171.9", "channel": "C1"},
+    }
+    chat: ChatDTO = {
+        "id": "chat_slack",
+        "status": ChatStatus.IDLE,
+        "children": [],
+        "channel_context": ctx,
+    }
+
+    assert chat["channel_context"]["channel_type"] == ChannelType.SLACK
+    assert chat["channel_context"]["channel_metadata"]["channel"] == "C1"
+    assert "channel_context" in ChatDTO.__annotations__
+
+
+def test_create_agent_message_request_channel_context_field():
+    """CreateAgentMessageRequest carries channel_context for multi-channel agents."""
+    from inferencesh.types import ChannelContext, CreateAgentMessageRequest
+
+    req: CreateAgentMessageRequest = {
+        "chat_id": "chat_1",
+        "channel_context": {"channel_type": "slack", "channel_metadata": {"channel": "C9"}},
+    }
+
+    assert req["channel_context"]["channel_metadata"]["channel"] == "C9"
+    assert "channel_context" in CreateAgentMessageRequest.__annotations__
 
 
 @pytest.mark.parametrize("harness", ["inference", "claude", "codex"])
