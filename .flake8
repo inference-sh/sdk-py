@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 100
+# E203: whitespace before ':' — Black formats slice notation as `s[i + 1 :]`,
+# which conflicts with pycodestyle's E203. Suppress it when using Black.
+# W503: line break before binary operator — also contradicts Black's style.
+extend-ignore = E203,W503
+exclude = .git,__pycache__,build,dist
