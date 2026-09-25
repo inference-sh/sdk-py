@@ -642,6 +642,38 @@ def test_device_auth_response_init_shape():
     assert resp["poll_url"].endswith("/poll")
 
 
+def test_credential_complete_oauth_request_callback_params():
+    """OAuth completion carries provider-specific callback query params for scheme templates."""
+    from typing import Dict, get_type_hints
+
+    from inferencesh.types import CredentialCompleteOAuthRequest
+
+    quickbooks: CredentialCompleteOAuthRequest = {
+        "provider": "quickbooks",
+        "type": "oauth",
+        "code": "auth_code_xyz",
+        "state": "csrf_state",
+        "code_verifier": "pkce_verifier",
+        "params": {"realmId": "1234567890"},
+    }
+    shopify: CredentialCompleteOAuthRequest = {
+        "provider": "shopify",
+        "type": "oauth",
+        "code": "shpca_abc",
+        "state": "csrf_state",
+        "params": {"shop": "my-store.myshopify.com"},
+    }
+
+    assert quickbooks["params"]["realmId"] == "1234567890"
+    assert shopify["params"]["shop"] == "my-store.myshopify.com"
+    hints = get_type_hints(CredentialCompleteOAuthRequest)
+    assert hints["params"] == Dict[str, str]
+    annotations = CredentialCompleteOAuthRequest.__annotations__
+    assert "params" in annotations
+    for field in ("code", "state", "code_verifier", "provider", "type"):
+        assert field in annotations
+
+
 def test_update_credential_scopes_request():
     """OAuth credentials can request additional scopes after initial connect."""
     from inferencesh.types import UpdateCredentialScopesRequest

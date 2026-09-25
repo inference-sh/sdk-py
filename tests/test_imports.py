@@ -161,7 +161,7 @@ def test_models_llm_export_exists(name):
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
     "DeviceAuthInitRequest", "DeviceAuthResponse", "DeviceAuthPollResponse",
-    "UpdateCredentialScopesRequest",
+    "UpdateCredentialScopesRequest", "CredentialCompleteOAuthRequest",
     "RequirementType", "CredentialConfigDTO",
     "Scope", "ScopeGroup", "AuthSessionDTO", "ScopesResponse", "ScopeDefinition",
     "ScopePreset", "EstimateCostRequest", "EstimateCostResponse", "AppPricing",

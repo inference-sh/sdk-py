@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ 3d5618b, CredentialCompleteOAuthRequest callback params)
+
+**Recent changes reviewed:** `17f60df` (`CredentialCompleteOAuthRequest.params: Dict[str, str]` for OAuth redirect query params — QuickBooks `realmId`, Shopify `shop` — consumed as `{{callback.*}}` in auth schemes). `3d5618b` / `3248e5a` / `e2e7902` version bumps only. `2ca8e81` (Ref.parse, sockets `on_clear` — already on dev).
+
+**Open PRs checked:** #344 (live `on_update`, Ref `full_name`, `CLEAR_KEY`/`ERROR_KEY` imports) — no overlap on credential OAuth completion payload.
+
+**Gaps filled this run:**
+
+- `CredentialCompleteOAuthRequest.params` wire contract for provider-specific OAuth callback query parameters
+- Standard OAuth completion fields (`code`, `state`, `code_verifier`) remain on the TypedDict alongside `params`
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_credential_complete_oauth_request_callback_params tests/test_imports.py::test_generated_type_exists[CredentialCompleteOAuthRequest]` — passed.
+
 ## 2026-09-25 (push dev @ 90d3904, coverage batch landed on dev)
 
 **Recent changes reviewed:** `90d3904` (merge staging: credential catalog, harness/remotes, live `$error`/`$clear`, team member permissions, tool auth `credential_id` — tests already on dev). No new production symbols beyond what that batch covers.
