@@ -434,12 +434,17 @@ class CredentialConnectRequest(TypedDict, total=False):
     # are OAuth permission scopes.
     connection_scope: CredentialScope
 
+# CredentialCompleteOAuthRequest is what the provider's redirect delivered:
+# the code and state, the PKCE verifier the client kept, and every other
+# query param the callback carried (QuickBooks' realmId, Shopify's shop),
+# which a scheme reads as {{callback.*}}.
 class CredentialCompleteOAuthRequest(TypedDict, total=False):
     provider: str
     type: str
     code: str
     state: str
     code_verifier: str
+    params: Dict[str, str]
 
 class CredentialConnectResponse(TypedDict, total=False):
     credential: Optional[CredentialDTO]
