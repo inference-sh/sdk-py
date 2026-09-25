@@ -78,6 +78,8 @@ def test_package_version_matches_pyproject():
     "streamable", "streamable_raw",
     # Ref parsing
     "Ref",
+    # Live control-frame keys (documented alongside AsyncLiveSession)
+    "CLEAR_KEY", "ERROR_KEY", "LiveUpdate",
     # OutputMeta
     "OutputMeta", "TextMeta", "ImageMeta", "VideoMeta", "AudioMeta", "probe_video",
 ])

@@ -53,6 +53,12 @@ def test_ref_try_parse_reports_namespace_presence(raw, has_namespace):
     assert ref.namespace == ("acme" if has_namespace else "")
 
 
+def test_ref_full_name_without_namespace():
+    ref = Ref.parse("solo-app")
+    assert ref.namespace == ""
+    assert ref.full_name() == "solo-app"
+
+
 def test_ref_formatting_helpers_and_str_roundtrip():
     ref = Ref.parse("app/acme/voice-loop@v3:stream")
     assert ref.is_typed() is True
