@@ -2,7 +2,6 @@
 
 from typing import ClassVar, List, Optional
 
-import pytest
 from pydantic import BaseModel
 
 from inferencesh.delta import DeltaAccumulator, merge_delta

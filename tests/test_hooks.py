@@ -1,6 +1,6 @@
 """Tests for the lifecycle hook builder."""
 
-from inferencesh.tools import lifecycle_hook, LifecycleHookBuilder
+from inferencesh.tools import lifecycle_hook
 from inferencesh.types import HookEvent, HookHandlerType
 
 
