@@ -310,13 +310,13 @@ class HTTPToolBuilder(_ToolBuilder):
         with credential_id); api_key / bearer send a vault secret.
         """
         if credential:
-            self._auth = {"type": ToolAuthType.CREDENTIAL.value, "provider": credential}
+            self._auth = {"type": ToolAuthType.CREDENTIAL, "provider": credential}
             if credential_id:
                 self._auth["credential_id"] = credential_id
         elif api_key:
-            self._auth = {"type": ToolAuthType.API_KEY.value, "secret": api_key, "header": header or "X-API-Key"}
+            self._auth = {"type": ToolAuthType.API_KEY, "secret": api_key, "header": header or "X-API-Key"}
         elif bearer:
-            self._auth = {"type": ToolAuthType.BEARER.value, "secret": bearer}
+            self._auth = {"type": ToolAuthType.BEARER, "secret": bearer}
         return self
 
     def header(self, name: str, value: str) -> "HTTPToolBuilder":
@@ -502,7 +502,7 @@ class LifecycleHookBuilder:
         if self._handler is not None:
             config["handler"] = self._handler
         if self._async is not None:
-            config["async"] = self._async
+            config["async_"] = self._async
         if self._timeout is not None:
             config["timeout"] = self._timeout
         return config
