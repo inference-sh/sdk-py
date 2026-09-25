@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ 214c9fc, v0.12.1 release bump)
+
+**Recent changes reviewed:** `214c9fc` (version bump to `0.12.1` only). `9411f1f` / `8b4d9ed` (`channel_context` on `/agents/run`, OAuth `params`, live `on_update` — already covered on dev).
+
+**Open PRs checked:** none open — no duplicate work.
+
+**Gaps filled this run:**
+
+- `pending_approvals` decodes JSON-string `meta` payloads (tool name/args for human-in-the-loop approvals)
+- Invalid `meta` JSON does not break listing; `resource_id` still identifies the pending tool
+- Ad-hoc `agent_config` `/agents/run` requests forward `channel_context` (second body branch)
+
+**Files:** `tests/test_agent.py`
+
+**Validation:** `pytest tests/test_agent.py -k 'pending_approvals_parses or pending_approvals_invalid or ad_hoc_config_forwards_channel'` — passed.
+
 ## 2026-09-25 (push dev @ f936c22, v0.12.0 bump)
 
 **Recent changes reviewed:** `f936c22` (version bump). `8b4d9ed` (`Agent.send_message` / `AsyncAgent.send_message` forward `channel_context` on `/agents/run` for routed replies). Sync forwarding already covered on dev; async path and type contracts were not.
