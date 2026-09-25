@@ -46,6 +46,10 @@ from typing_extensions import Annotated
 
 T = TypeVar("T")
 
+# The live socket's wire protocol. sdk-js (src/live/protocol.ts) mirrors all of
+# it and sdk-js-app (src/stream.ts) mirrors CLEAR_KEY and ERROR_KEY; change the
+# copies together.
+
 STREAM_FORMAT = "stream"
 
 # Control frames. Reserved keys start with ``$``, which no field name can, so a
@@ -55,6 +59,11 @@ CLEAR_KEY = "$clear"
 ERROR_KEY = "$error"
 """``{"$error": {"field": ..., "message": ...}}``: a refused frame, or anything
 else the caller should be told went wrong. The stream goes on."""
+
+# Relay close codes that mean "dial again". 1012: the relay is restarting and
+# closed an end that still waited for its peer. 1013: the peer did not come in
+# time. Neither means anything once frames have flowed.
+REDIAL_CODES = frozenset({1012, 1013})
 
 
 class Stream(Generic[T]):

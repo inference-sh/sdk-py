@@ -36,7 +36,7 @@ from typing import (
 )
 from urllib.parse import quote
 
-from .models.stream import CLEAR_KEY, ERROR_KEY, STREAM_FORMAT
+from .models.stream import CLEAR_KEY, ERROR_KEY, REDIAL_CODES, STREAM_FORMAT
 from .types import SocketAccess
 
 # --------------------------------------------------------------------------
@@ -244,10 +244,6 @@ class WSMsgType(IntEnum):
     ERROR = 0x102
 
 
-# 1012: the relay is restarting and closed an end that still waited for its
-# peer. 1013: the peer did not come in time. Both mean "dial again" while the
-# task is alive, and neither means anything once frames have flowed.
-REDIAL_CODES = frozenset({1012, 1013})
 MAX_REDIALS = 5
 
 class LiveUpdate(NamedTuple):
