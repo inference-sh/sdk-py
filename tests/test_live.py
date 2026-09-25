@@ -495,6 +495,25 @@ async def test_with_the_schemas_frames_arrive_as_field_updates():
     assert items == [LiveUpdate("audio", b"\x01\x02"), LiveUpdate("user_text", "hi"), LiveUpdate("$clear", "audio")]
 
 
+async def test_on_update_receives_schema_mapped_frames_without_iterating():
+    """output_schema + on_update is the callback form of field-mapped delivery."""
+    updates: List[LiveUpdate] = []
+    session = AsyncLiveSession(
+        access(),
+        ws_connect=FakeWS.dial,
+        output_schema=OUTPUT,
+        on_update=updates.append,
+        on_patch=None,
+    )
+    await session.connect()
+    ws = FakeWS.dialed[-1]
+    ws.message(b"\x01\x02")
+    ws.message(json.dumps({"user_text": "hi"}))
+    await tick()
+    assert updates == [LiveUpdate("audio", b"\x01\x02"), LiveUpdate("user_text", "hi")]
+    await session.close()
+
+
 async def test_send_field_routes_by_the_input_schema():
     session = AsyncLiveSession(access(), ws_connect=FakeWS.dial, input_schema=INPUT)
     await session.connect()

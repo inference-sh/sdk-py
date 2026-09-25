@@ -1,5 +1,21 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ e2e7902 / 3248e5a, release bumps v0.10.4 → v0.11.0)
+
+**Recent changes reviewed:** `e2e7902` / `3248e5a` (`pyproject.toml` version bumps only). `2ca8e81` (Ref.parse + sockets `on_clear` forwarding — already on dev). Live field-mapping refactor (`13c905a`) still lacked a dedicated `on_update` callback path test.
+
+**Open PRs checked:** none open — no duplicate work.
+
+**Gaps filled this run:**
+
+- `AsyncLiveSession` with `output_schema` routes binary/JSON frames to `on_update` (callback consumers do not need to drain the async iterator)
+- `Ref.full_name()` for unnamespaced refs (`solo-app` → `solo-app`)
+- Public export smoke for `CLEAR_KEY`, `ERROR_KEY`, `LiveUpdate` (live control-frame contract from `13c905a`)
+
+**Files:** `tests/test_live.py`, `tests/test_ref.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_live.py::test_on_update_receives_schema_mapped_frames_without_iterating tests/test_ref.py::test_ref_full_name_without_namespace tests/test_imports.py -k 'CLEAR_KEY or ERROR_KEY or LiveUpdate'` — passed.
+
 ## 2026-09-25 (push dev @ 90d3904, coverage batch landed on dev)
 
 **Recent changes reviewed:** `90d3904` (merge staging: credential catalog, harness/remotes, live `$error`/`$clear`, team member permissions, tool auth `credential_id` — tests already on dev). No new production symbols beyond what that batch covers.
