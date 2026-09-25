@@ -2469,7 +2469,7 @@ def test_elicit_result_action_and_content():
 
 def test_tool_call_response_complete_shape():
     """Complete tool results omit MRTR fields; servers older than 2026-07-28 omit resultType."""
-    from inferencesh.types import ResultMeta, ResultType, ToolCallResponse, ToolContent, ToolContentType
+    from inferencesh.types import ResultType, ToolCallResponse, ToolContentType
 
     resp: ToolCallResponse = {
         "resultType": ResultType.COMPLETE,
