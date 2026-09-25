@@ -215,7 +215,7 @@ class APIResponse(TypedDict, total=False):
     error: Optional[APIError]
 
 class APIError(TypedDict, total=False):
-    code: str
+    code: ErrorCode
     message: str
     suggestions: List[str]
     meta: Dict[str, Any]
@@ -1057,6 +1057,21 @@ class EntitlementErrorMeta(TypedDict, total=False):
     addon_plan_name: str
     addon_plan_price: Optional[int]
 
+# TeamRoleRequiredMeta is the meta of a team_role_required error from a
+# capability gate. Only Capability is always set: a team that does not
+# resolve answers with the capability alone, so clients must not assume
+# RequiredRole is present.
+class TeamRoleRequiredMeta(TypedDict, total=False):
+    capability: TeamCapability
+    actual_role: TeamRole
+    required_role: TeamRole
+    requires_org_admin: Optional[bool]
+
+# PaymentMethodRequiredMeta is the meta of a payment_method_required error.
+class PaymentMethodRequiredMeta(TypedDict, total=False):
+    bounty_id: str
+    billing_page: str
+
 # FileMetadata holds probed media metadata cached on File records.
 class FileMetadata(TypedDict, total=False):
     type: str
@@ -1386,6 +1401,9 @@ class MCPServerDTO(TypedDict, total=False):
     default_scopes: StringSlice
     documentation_url: str
     connection_status: str
+    # ConnectionScope is who the caller's connection to this server belongs
+    # to (user, team, org, platform); empty when not connected.
+    connection_scope: CredentialScope
 
 # UpdateNotificationPreferencesRequest is the request to update preferences
 class UpdateNotificationPreferencesRequest(TypedDict, total=False):
@@ -2356,6 +2374,15 @@ class HookEventDefinition(TypedDict, total=False):
     description: str
     can_gate: bool
 
+# BuiltinHookDefinition describes a builtin hook and where it may be used.
+class BuiltinHookDefinition(TypedDict, total=False):
+    name: BuiltinHook
+    description: str
+    # Events the builtin may be attached to. A builtin that reads the turn's
+    # prompt is meaningless on agent.complete, so the set is part of its
+    # definition rather than a convention.
+    events: List[HookEvent]
+
 # LifecycleHookConfig registers a handler for an agent lifecycle event.
 # Stored on AgentVersion alongside Tools and Skills.
 class LifecycleHookConfig(TypedDict, total=False):
@@ -2393,6 +2420,12 @@ class ContextInjection(TypedDict, total=False):
     role: str
     ttl_turns: int
     dedup_key: str
+    # Items names what this injection put in front of the model — resource
+    # refs, file paths, whatever the producer deals in. A hook that offers the
+    # same things every turn reads its own past Items back to see what it has
+    # already offered, instead of keeping a ledger somewhere else and hoping
+    # the two stay in step.
+    items: List[str]
 
 # ToolCallEventData is the typed payload for agent.tool_call events.
 class ToolCallEventData(TypedDict, total=False):
@@ -3377,6 +3410,46 @@ class ScopeGroup(str, Enum):
     USER = "user"
     SETTINGS = "settings"
 
+class ErrorCode(str, Enum):
+    INVALID_REQUEST = "invalid_request"
+    VALIDATION_ERROR = "validation_error"
+    UNAUTHORIZED = "unauthorized"
+    FORBIDDEN = "forbidden"
+    NOT_FOUND = "not_found"
+    CONFLICT = "conflict"
+    NAME_CONFLICT = "name_conflict"
+    ALREADY_EXISTS = "already_exists"
+    NOT_CONFIGURED = "not_configured"
+    METHOD_NOT_ALLOWED = "method_not_allowed"
+    RATE_LIMITED = "rate_limited"
+    INTERNAL_ERROR = "internal_error"
+    # ErrorCodeTeamRoleRequired: the caller's team role or org-admin status
+    # does not allow the action. Meta is TeamRoleRequiredMeta when a
+    # capability gate refused it.
+    TEAM_ROLE_REQUIRED = "team_role_required"
+    # ErrorCodeBlockedByUsagePolicy: the resource is outside the team or org
+    # usage policy. The message names who to ask.
+    BLOCKED_BY_USAGE_POLICY = "blocked_by_usage_policy"
+    OTP_REQUIRED = "otp_required"
+    MCP_AUTH_EXPIRED = "mcp_auth_expired"
+    # Entitlements. LimitExceeded (402) and FeatureNotAvailable (403) carry
+    # EntitlementErrorMeta. EntitlementUnavailable (500) means the plan could
+    # not be checked and the request is retriable.
+    LIMIT_EXCEEDED = "limit_exceeded"
+    FEATURE_NOT_AVAILABLE = "feature_not_available"
+    ENTITLEMENT_UNAVAILABLE = "entitlement_unavailable"
+    PAYMENT_REQUIRED = "payment_required"
+    # ErrorCodePaymentMethodRequired (402): a bounty program requires a saved
+    # payment method and the caller's team has none. Meta is
+    # PaymentMethodRequiredMeta; clients send the user to BillingPage.
+    PAYMENT_METHOD_REQUIRED = "payment_method_required"
+    # Remote harness refusals.
+    AGENTS_DISABLED = "agents_disabled"
+    REMOTE_OFFLINE = "remote_offline"
+    REMOTE_TIMEOUT = "remote_timeout"
+    HARNESS_NOT_DRIVABLE = "harness_not_drivable"
+    HARNESS_TOO_OLD = "harness_too_old"
+
 # Flow graph action type constants.
 class FlowActionType(str, Enum):
     ACTION_NODE_ADD = "node.add"
@@ -3558,7 +3631,8 @@ class ChatMessageRole(str, Enum):
     ASSISTANT = "assistant"
     TOOL = "tool"
     # Internal bookkeeping roles — never sent to the LLM provider.
-    # BuildContext converts these to system messages or skips them.
+    # BuildContext folds injections into the user turn and replaces
+    # compaction markers with their summary.
     INJECTION = "injection"
     COMPACTION = "compaction"
 
@@ -4056,6 +4130,26 @@ class TeamRole(str, Enum):
     ADMIN = "admin"
     MEMBER = "member"
 
+class TeamCapability(str, Enum):
+    EDIT_PROFILE = "edit_profile"
+    MANAGE_MEMBERS = "manage_members"
+    VIEW_MEMBERS = "view_members"
+    MANAGE_KEYS = "manage_keys"
+    MANAGE_VAULT = "manage_vault"
+    VIEW_BILLING = "view_billing"
+    MANAGE_BILLING = "manage_billing"
+    VIEW_POLICY = "view_policy"
+    MANAGE_POLICY = "manage_policy"
+    MANAGE_ORG = "manage_org"
+    MANAGE_SSO = "manage_sso"
+    ARCHIVE = "archive"
+    CREATE_TEAM = "create_team"
+    CREATE_ORG = "create_org"
+    # Connecting a credential the whole org, or the whole platform, resolves.
+    # The workspace level is manage_vault.
+    CONNECT_ORG_CREDENTIAL = "connect_org_credential"
+    CONNECT_PLATFORM_CREDENTIAL = "connect_platform_credential"
+
 class Role(str, Enum):
     GUEST = "guest"
     USER = "user"
@@ -4151,6 +4245,10 @@ class HookHandlerType(str, Enum):
     HOOK_HANDLER_WEBHOOK = "webhook"
     HOOK_HANDLER_TASK = "task"
     HOOK_HANDLER_GATE = "gate"
+    HOOK_HANDLER_BUILTIN = "builtin"
+
+class BuiltinHook(str, Enum):
+    BELT_SUGGEST = "belt:suggest"
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
@@ -4170,6 +4268,7 @@ class ToolType(str, Enum):
     MCP = "mcp"
     CLIENT = "client"
     INTERNAL = "internal"
+    HARNESS = "harness"
 
 # Tool call types
 class ToolCallType(str, Enum):

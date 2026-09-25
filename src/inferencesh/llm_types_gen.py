@@ -226,7 +226,8 @@ class ChatMessageRole(str, Enum):
     ASSISTANT = "assistant"
     TOOL = "tool"
     # Internal bookkeeping roles — never sent to the LLM provider.
-    # BuildContext converts these to system messages or skips them.
+    # BuildContext folds injections into the user turn and replaces
+    # compaction markers with their summary.
     INJECTION = "injection"
     COMPACTION = "compaction"
 
