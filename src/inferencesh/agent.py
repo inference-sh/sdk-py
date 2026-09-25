@@ -192,7 +192,7 @@ class _ChatStreamRouter:
         calls newly awaiting input and marks them dispatched."""
         # A terminal message receives no further deltas.
         if data.get("status") in (ChatMessageStatus.READY, ChatMessageStatus.FAILED, ChatMessageStatus.CANCELLED):
-            self._accumulators.pop(data.get("id"), None)
+            self._accumulators.pop(data.get("id") or "", None)
         calls: List[ToolCallInfo] = []
         if not dispatch_tools:
             return calls
