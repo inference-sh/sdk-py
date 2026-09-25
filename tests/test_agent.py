@@ -144,14 +144,14 @@ def test_agents_create_delegates_to_client_agent(patch_agent_requests):
     assert body["agent"] == "okaris/assistant@abc123"
 
 
-def test_agent_without_context_sends_none(patch_agent_requests):
+def test_agent_without_context_omits_it(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
 
     agent.send_message("Hi")
 
     body = patch_agent_requests[0]["data"]
-    assert body["context"] is None
+    assert "context" not in body
 
 
 def test_submit_tool_result_string_payload(patch_agent_requests):

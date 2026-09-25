@@ -256,6 +256,8 @@ class ApiAgentRunRequest(TypedDict, total=False):
     input: LLMInput
     context: Dict[str, str]
     stream: bool
+    # ChannelContext is recorded on the chat the first time it is seen.
+    channel_context: Optional[ChannelContext]
 
 # CreateAgentMessageRequest is the request for creating agent messages.
 class CreateAgentMessageRequest(TypedDict, total=False):
@@ -3295,6 +3297,7 @@ class Scope(str, Enum):
     PROJECTS = "projects"
     TEAMS = "teams"
     BILLING = "billing"
+    ARTIFACTS = "artifacts"
     # Action-level scopes for Agents
     AGENTS_READ = "agents:read"
     AGENTS_WRITE = "agents:write"
@@ -3335,6 +3338,9 @@ class Scope(str, Enum):
     # Action-level scopes for Engines
     ENGINES_READ = "engines:read"
     ENGINES_WRITE = "engines:write"
+    # Action-level scopes for Remotes
+    REMOTES_READ = "remotes:read"
+    REMOTES_WRITE = "remotes:write"
     # Action-level scopes for API Keys
     API_KEYS_READ = "apikeys:read"
     API_KEYS_WRITE = "apikeys:write"
@@ -3342,7 +3348,6 @@ class Scope(str, Enum):
     KNOWLEDGE_READ = "knowledge:read"
     KNOWLEDGE_WRITE = "knowledge:write"
     # Action-level scopes for Artifacts (published HTML/Markdown pages)
-    ARTIFACTS = "artifacts"
     ARTIFACTS_READ = "artifacts:read"
     ARTIFACTS_WRITE = "artifacts:write"
     # Action-level scopes for User profile
@@ -3365,6 +3370,7 @@ class ScopeGroup(str, Enum):
     SECRETS = "secrets"
     CREDENTIALS = "credentials"
     ENGINES = "engines"
+    REMOTES = "remotes"
     API_KEYS = "apikeys"
     KNOWLEDGE = "knowledge"
     ARTIFACTS = "artifacts"

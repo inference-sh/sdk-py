@@ -7,19 +7,22 @@ Chat with AI agents without UI dependencies.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .types import (
+    ApiAgentRunRequest,
     ChannelContext,
     ChatDTO,
     ChatMessageDTO,
     AgentConfigInput as AgentConfig,
     AgentRunState,
+    ChatMessageRole,
     ChatMessageStatus,
     FileRef,
     InterruptReason,
     InterruptStatus,
+    LLMInput,
     ToolType,
     ToolInvocationStatus,
 )
@@ -96,6 +99,40 @@ def pending_approvals(chat: Optional[ChatDTO]) -> List[PendingApproval]:
             arguments=meta.get("arguments") or {},
         ))
     return out
+
+
+def _run_body(
+    options: AgentOptions,
+    chat_id: Optional[str],
+    context: Optional[Dict[str, str]],
+    text: str,
+    attachments: Optional[List[FileRef]],
+    channel_context: Optional[ChannelContext],
+) -> ApiAgentRunRequest:
+    """POST /agents/run body, shared by Agent and AsyncAgent.
+
+    /agents/run takes either "agent" (a template ref) or "agent_config" (ad-hoc).
+    """
+    input_data: LLMInput = {
+        "text": text,
+        "attachments": attachments,
+        "role": ChatMessageRole.USER,
+        "context": [],
+        "system_prompt": "",
+        "context_size": 0,
+    }
+    body: ApiAgentRunRequest = {"chat_id": chat_id, "input": input_data}
+    if context is not None:
+        body["context"] = context
+    if isinstance(options, str):
+        body["agent"] = options
+    else:
+        body["agent_config"] = options
+        # The name dedupes ad-hoc agents.
+        body["agent_name"] = options.get("name")
+    if channel_context is not None:
+        body["channel_context"] = channel_context
+    return body
 
 
 class Agent:
@@ -176,18 +213,7 @@ class Agent:
         if files:
             attachments = [self.upload_file(f) for f in files]
 
-        # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
-        input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
-        body: Dict[str, Any]
-        if isinstance(self._options, str):
-            body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
-        else:
-            # For ad-hoc agents, extract name from config for agent deduplication
-            agent_name = self._options.get("name") if hasattr(self._options, "get") else None
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
-
-        if channel_context is not None:
-            body["channel_context"] = channel_context
+        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
 
         response = self._request("post", "/agents/run", data=body)
         if not response:
@@ -622,7 +648,7 @@ class Agent:
         self,
         method: str,
         endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: Optional[Mapping[str, Any]] = None,
     ) -> Any:
         """Make an API request."""
         requests = _require_requests()
@@ -709,18 +735,7 @@ class AsyncAgent:
         telegram chat, ...); the API stamps it on the chat the first time it is
         seen and routes the agent's replies back there.
         """
-        # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
-        input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
-        body: Dict[str, Any]
-        if isinstance(self._options, str):
-            body = {"chat_id": self._chat_id, "agent": self._options, "context": self._context, "input": input_data}
-        else:
-            # For ad-hoc agents, extract name from config for agent deduplication
-            agent_name = self._options.get("name") if hasattr(self._options, "get") else None
-            body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
-
-        if channel_context is not None:
-            body["channel_context"] = channel_context
+        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
 
         response = await self._request("post", "/agents/run", data=body)
 
@@ -801,7 +816,7 @@ class AsyncAgent:
     def reset(self) -> None:
         self._chat_id = None
 
-    async def _request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Any:
+    async def _request(self, method: str, endpoint: str, data: Optional[Mapping[str, Any]] = None) -> Any:
         aiohttp = await _require_aiohttp()
 
         url = f"{self._base_url}{endpoint}"
