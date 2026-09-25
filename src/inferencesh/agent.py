@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Callable, Iterator, AsyncIterator,
 from dataclasses import dataclass
 
 from .types import (
+    ChannelContext,
     ChatDTO,
     ChatMessageDTO,
     AgentConfigInput as AgentConfig,
@@ -147,6 +148,7 @@ class Agent:
         on_message: Optional[Callable[[ChatMessageDTO], None]] = None,
         on_tool_call: Optional[Callable[[ToolCallInfo], None]] = None,
         on_delta: Optional[Callable[[AgentDelta], None]] = None,
+        channel_context: Optional[ChannelContext] = None,
     ) -> ChatMessageDTO:
         """
         Send a message to the agent.
@@ -158,6 +160,9 @@ class Agent:
             on_tool_call: Callback when a client tool needs execution
             on_delta: Callback for token-by-token output while the assistant
                 message is being generated
+            channel_context: Origin channel of this message (slack thread,
+                telegram chat, ...). The API stamps it on the chat the first
+                time it is seen and routes the agent's replies back there.
 
         Returns:
             The assistant's response message
@@ -180,6 +185,9 @@ class Agent:
             # For ad-hoc agents, extract name from config for agent deduplication
             agent_name = self._options.get("name") if hasattr(self._options, "get") else None
             body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
+
+        if channel_context is not None:
+            body["channel_context"] = channel_context
 
         response = self._request("post", "/agents/run", data=body)
         if not response:
@@ -689,8 +697,18 @@ class AsyncAgent:
     def chat_id(self) -> Optional[str]:
         return self._chat_id
 
-    async def send_message(self, text: str, attachments: Optional[list[FileRef]] = None) -> ChatMessageDTO:
-        """Send a message to the agent."""
+    async def send_message(
+        self,
+        text: str,
+        attachments: Optional[list[FileRef]] = None,
+        channel_context: Optional[ChannelContext] = None,
+    ) -> ChatMessageDTO:
+        """Send a message to the agent.
+
+        channel_context names the origin channel of the message (slack thread,
+        telegram chat, ...); the API stamps it on the chat the first time it is
+        seen and routes the agent's replies back there.
+        """
         # Build request body - /agents/run accepts either "agent" (template ref) or "agent_config" (ad-hoc)
         input_data = {"text": text, "attachments": attachments, "role": "user", "context": [], "system_prompt": "", "context_size": 0}
         body: Dict[str, Any]
@@ -700,6 +718,9 @@ class AsyncAgent:
             # For ad-hoc agents, extract name from config for agent deduplication
             agent_name = self._options.get("name") if hasattr(self._options, "get") else None
             body = {"chat_id": self._chat_id, "agent_config": self._options, "agent_name": agent_name, "context": self._context, "input": input_data}
+
+        if channel_context is not None:
+            body["channel_context"] = channel_context
 
         response = await self._request("post", "/agents/run", data=body)
 

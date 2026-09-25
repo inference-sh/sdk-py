@@ -718,3 +718,24 @@ def test_send_message_with_only_on_delta_streams(monkeypatch, patch_agent_reques
     )
     agent.send_message("Again", on_delta=lambda d: None)
     assert streamed == ["/chats/chat_1/stream"]
+
+
+def test_agent_send_message_forwards_channel_context(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    ctx = {"channel_type": "slack", "channel_metadata": {"thread_ts": "171.9", "channel": "C1"}}
+    agent.send_message("Hello", channel_context=ctx)
+
+    body = patch_agent_requests[0]["data"]
+    assert body["channel_context"] == ctx
+
+
+def test_agent_send_message_omits_channel_context_by_default(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("Hello")
+
+    body = patch_agent_requests[0]["data"]
+    assert "channel_context" not in body
