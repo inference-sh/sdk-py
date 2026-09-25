@@ -848,7 +848,6 @@ class PermissionModelDTO(TypedDict, total=False):
     user: Optional[UserRelationDTO]
     team_id: str
     team: Optional[TeamRelationDTO]
-    org_id: str
     visibility: Visibility
 
 # ResourceStatusDTO is a lightweight status-only response for polling transports.
@@ -900,7 +899,15 @@ class CredentialConfigDTO(TypedDict, total=False):
     allows_byok: bool
     available: bool
     has_managed: bool
-    grant: CredentialGrant
+    # ConnectionScope is who a new connection belongs to by default: the
+    # team, or each user (their own account).
+    connection_scope: CredentialScope
+    # App is the OAuth app a login to this provider goes through (a
+    # grant=credentials row): the workspace's own, its org's or the
+    # platform's. Nil when the provider signs in through an app and none is
+    # set up yet, or when it doesn't sign in through one. Credential is the
+    # login itself.
+    app: Optional[CredentialDTO]
     # AuthSchemeID is set when the provider is one the team defined
     # itself (models.AuthScheme), so the UI can offer edit and remove.
     auth_scheme_id: str
@@ -1359,7 +1366,6 @@ class MCPServerDTO(TypedDict, total=False):
     user: Optional[UserRelationDTO]
     team_id: str
     team: Optional[TeamRelationDTO]
-    org_id: str
     visibility: Visibility
     slug: str
     name: str
@@ -2848,7 +2854,8 @@ class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     provider: str
     type: CredentialType
-    grant: Optional[CredentialGrant]
+    grant: CredentialGrant
+    app_credential_id: Optional[str]
     scope: CredentialScope
     status: CredentialStatus
     display_name: str
@@ -3897,7 +3904,10 @@ class CredentialScope(str, Enum):
     AGENT = "agent"
 
 class CredentialGrant(str, Enum):
+    # CredentialGrantCredentials: an OAuth app. Never a connection.
     CREDENTIALS = "credentials"
+    # CredentialGrantToken: a connection: an OAuth login, an API key, a
+    # service account, an MCP authorization.
     TOKEN = "token"
 
 class NotificationChannel(str, Enum):
