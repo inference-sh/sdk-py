@@ -1,0 +1,28 @@
+# Bot coverage PRs add behavior tests only: no source edits (cc0d2be
+# reverted src/inferencesh/models/llm.py inside a "tests only" batch), no run
+# logs in the tree, no per-version suites, and no tests that re-assert
+# generated types (src/inferencesh/types.py).
+
+name: Bot test policy
+
+on:
+  pull_request:
+
+jobs:
+  bot-test-policy:
+    if: github.event.pull_request.user.login == 'cursor[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          non_test=$(git diff --name-only --no-renames "$BASE"..."$HEAD_SHA" | grep -vE '^tests/' || true)
+          added=$(git diff --name-only --no-renames --diff-filter=A "$BASE"..."$HEAD_SHA")
+          versioned=$(echo "$added" | grep -E '^tests/(.*_v[0-9][^/]*\.py|test_types\.py)$' || true)
+          if [ -n "$non_test" ]; then echo "::error::bot PRs may only change tests/:"; echo "$non_test"; fi
+          if [ -n "$versioned" ]; then echo "::error::bot PRs must not add per-version or generated-type test files:"; echo "$versioned"; fi
+          [ -z "$non_test$versioned" ]
