@@ -502,7 +502,10 @@ class LifecycleHookBuilder:
         if self._handler is not None:
             config["handler"] = self._handler
         if self._async is not None:
-            config["async"] = self._async
+            # 'async' is a Python keyword so the generated TypedDict spells it
+            # 'async_', but the wire format uses "async". Cast to plain dict to
+            # set the key without a spurious mypy error.
+            cast(Dict[str, Any], config)["async"] = self._async
         if self._timeout is not None:
             config["timeout"] = self._timeout
         return config
