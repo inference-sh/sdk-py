@@ -3217,6 +3217,39 @@ def test_chat_dto_work_dir_field():
     assert "work_dir" in ChatDTO.__annotations__
 
 
+def test_chat_dto_channel_context_field():
+    """ChatDTO.channel_context records the origin channel for routed agent replies."""
+    from inferencesh.types import ChannelContext, ChannelType, ChatDTO, ChatStatus
+
+    ctx: ChannelContext = {
+        "channel_type": ChannelType.SLACK,
+        "channel_metadata": {"thread_ts": "171.9", "channel": "C1"},
+    }
+    chat: ChatDTO = {
+        "id": "chat_slack",
+        "status": ChatStatus.IDLE,
+        "children": [],
+        "channel_context": ctx,
+    }
+
+    assert chat["channel_context"]["channel_type"] == ChannelType.SLACK
+    assert chat["channel_context"]["channel_metadata"]["channel"] == "C1"
+    assert "channel_context" in ChatDTO.__annotations__
+
+
+def test_create_agent_message_request_channel_context_field():
+    """CreateAgentMessageRequest carries channel_context for multi-channel agents."""
+    from inferencesh.types import ChannelContext, CreateAgentMessageRequest
+
+    req: CreateAgentMessageRequest = {
+        "chat_id": "chat_1",
+        "channel_context": {"channel_type": "slack", "channel_metadata": {"channel": "C9"}},
+    }
+
+    assert req["channel_context"]["channel_metadata"]["channel"] == "C9"
+    assert "channel_context" in CreateAgentMessageRequest.__annotations__
+
+
 @pytest.mark.parametrize("harness", ["inference", "claude", "codex"])
 def test_agent_dto_harness_field(harness):
     """AgentDTO.harness selects our loop vs an external agentprotocol registry driver."""

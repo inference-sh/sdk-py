@@ -180,6 +180,7 @@ def test_models_llm_export_exists(name):
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
+    "ChannelContext", "CreateAgentMessageRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)

@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ f936c22, v0.12.0 bump)
+
+**Recent changes reviewed:** `f936c22` (version bump). `8b4d9ed` (`Agent.send_message` / `AsyncAgent.send_message` forward `channel_context` on `/agents/run` for routed replies). Sync forwarding already covered on dev; async path and type contracts were not.
+
+**Open PRs checked:** #349 (`CredentialCompleteOAuthRequest.params`), #344 (live `on_update`, Ref `full_name`) — no overlap.
+
+**Gaps filled this run:**
+
+- `AsyncAgent.send_message` forwards / omits `channel_context` on `/agents/run` (parity with sync `Agent`)
+- `ChatDTO.channel_context` and `CreateAgentMessageRequest.channel_context` type contract (Slack/Telegram routing metadata)
+
+**Files:** `tests/test_agent.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_agent.py -k channel_context tests/test_types.py -k channel_context tests/test_imports.py -k 'ChannelContext or CreateAgentMessageRequest'` — passed.
+
 ## 2026-09-25 (push dev @ e2e7902 / 3248e5a, release bumps v0.10.4 → v0.11.0)
 
 **Recent changes reviewed:** `e2e7902` / `3248e5a` (`pyproject.toml` version bumps only). `2ca8e81` (Ref.parse + sockets `on_clear` forwarding — already on dev). Live field-mapping refactor (`13c905a`) still lacked a dedicated `on_update` callback path test.

@@ -739,3 +739,49 @@ def test_agent_send_message_omits_channel_context_by_default(patch_agent_request
 
     body = patch_agent_requests[0]["data"]
     assert "channel_context" not in body
+
+
+@pytest.mark.asyncio
+async def test_async_agent_send_message_forwards_channel_context(monkeypatch):
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    captured: dict = {}
+
+    async def fake_request(method, endpoint, data=None):
+        captured["method"] = method
+        captured["endpoint"] = endpoint
+        captured["data"] = data
+        return {
+            "assistant_message": {
+                "id": "msg_1",
+                "chat_id": "chat_1",
+                "text": "Hi",
+                "role": "assistant",
+            },
+        }
+
+    monkeypatch.setattr(agent, "_request", fake_request)
+
+    ctx = {"channel_type": "telegram", "channel_metadata": {"chat_id": "tg-99"}}
+    msg = await agent.send_message("Hello", channel_context=ctx)
+
+    assert msg["text"] == "Hi"
+    assert captured["endpoint"] == "/agents/run"
+    assert captured["data"]["channel_context"] == ctx
+
+
+@pytest.mark.asyncio
+async def test_async_agent_send_message_omits_channel_context_by_default(monkeypatch):
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    captured: dict = {}
+
+    async def fake_request(method, endpoint, data=None):
+        captured["data"] = data
+        return {"assistant_message": {"id": "msg_1", "chat_id": "chat_1", "text": "Hi", "role": "assistant"}}
+
+    monkeypatch.setattr(agent, "_request", fake_request)
+
+    await agent.send_message("Hello")
+
+    assert "channel_context" not in captured["data"]
