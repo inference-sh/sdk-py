@@ -1,5 +1,22 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ e99f64c, credential catalog connection_scope + app)
+
+**Recent changes reviewed:** `e99f64c` (typegen from go/api 53509cc2: `CredentialConfigDTO` replaces `grant` with `connection_scope` + nested `app`; `CredentialDTO` requires `grant`, adds `app_credential_id`; `PermissionModelDTO` drops `org_id`).
+
+**Open PRs checked:** #335 (TeamMemberDTO permissions, `10fb6a6`), #332 (harness/work_dir), #328 (v0.10.2 auth_scheme_id), #316 (CredentialRequirement labels) — no overlap on credential catalog grant/app split.
+
+**Gaps filled this run:**
+
+- `CredentialConfigDTO.connection_scope` and `app` vs removed top-level `grant`
+- `CredentialDTO.grant` + `app_credential_id` link from connection login to OAuth app row
+- `CredentialGrant` wire values (`credentials` vs `token`)
+- `PermissionModelDTO` / `MCPServerDTO` regression guard: `org_id` must not return
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py -k 'credential_config_dto_connection_scope or credential_dto_grant or credential_grant_wire or permission_model_dto_drops_org'` — passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).

@@ -668,6 +668,86 @@ def test_integration_config_dto_slug():
     assert config["provider"] == CredentialProvider.GOOGLE_SA
 
 
+def test_credential_config_dto_connection_scope_and_app():
+    """Catalog rows expose default connection ownership and the OAuth app credential."""
+    from inferencesh.types import (
+        CredentialConfigDTO,
+        CredentialDTO,
+        CredentialGrant,
+        CredentialScope,
+        CredentialStatus,
+        CredentialType,
+    )
+
+    workspace_app: CredentialDTO = {
+        "grant": CredentialGrant.CREDENTIALS,
+        "provider": CredentialProvider.GIT_HUB,
+        "type": CredentialType.O_AUTH,
+        "scope": CredentialScope.TEAM,
+        "status": CredentialStatus.CONNECTED,
+        "display_name": "Workspace GitHub App",
+    }
+    config: CredentialConfigDTO = {
+        "slug": "github",
+        "provider": CredentialProvider.GIT_HUB,
+        "connection_scope": CredentialScope.USER,
+        "app": workspace_app,
+    }
+
+    assert config["connection_scope"] == CredentialScope.USER
+    assert config["app"]["grant"] == CredentialGrant.CREDENTIALS
+    annotations = CredentialConfigDTO.__annotations__
+    assert "connection_scope" in annotations
+    assert "app" in annotations
+    assert "grant" not in annotations
+
+
+def test_credential_dto_grant_and_app_credential_id():
+    """Connections carry grant kind and optional link to the OAuth app row."""
+    from typing import Optional, get_type_hints
+
+    from inferencesh.types import CredentialDTO, CredentialGrant, CredentialStatus, CredentialType
+
+    login: CredentialDTO = {
+        "grant": CredentialGrant.TOKEN,
+        "app_credential_id": "cred_app_ws",
+        "provider": CredentialProvider.GIT_HUB,
+        "type": CredentialType.O_AUTH,
+        "scope": CredentialScope.USER,
+        "status": CredentialStatus.CONNECTED,
+        "display_name": "My GitHub",
+    }
+
+    assert login["grant"] == CredentialGrant.TOKEN
+    assert login["app_credential_id"] == "cred_app_ws"
+    hints = get_type_hints(CredentialDTO)
+    assert hints["grant"] is CredentialGrant
+    assert hints["app_credential_id"] == Optional[str]
+
+
+@pytest.mark.parametrize(
+    "member,value",
+    [
+        ("CREDENTIALS", "credentials"),
+        ("TOKEN", "token"),
+    ],
+)
+def test_credential_grant_wire_values(member, value):
+    """Grant distinguishes OAuth app config rows from user/team connection logins."""
+    from inferencesh.types import CredentialGrant
+
+    assert hasattr(CredentialGrant, member)
+    assert getattr(CredentialGrant, member).value == value
+
+
+def test_permission_model_dto_drops_org_id():
+    """Permission embed is team-scoped; org_id was removed from generated DTOs."""
+    from inferencesh.types import MCPServerDTO, PermissionModelDTO
+
+    assert "org_id" not in PermissionModelDTO.__annotations__
+    assert "org_id" not in MCPServerDTO.__annotations__
+
+
 def test_check_requirements_response_uses_requirement_type():
     """CheckRequirementsResponse errors use RequirementType for structured 412 payloads."""
     from inferencesh.types import CheckRequirementsResponse, RequirementError
