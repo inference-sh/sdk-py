@@ -6,6 +6,7 @@ Chat with AI agents without UI dependencies.
 
 from __future__ import annotations
 
+import inspect
 import json
 from typing import Any, Dict, List, Mapping, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
 from dataclasses import dataclass
@@ -27,8 +28,7 @@ from .types import (
     ToolInvocationStatus,
 )
 from .client import StreamManager
-from .delta import DeltaAccumulator
-from .llm_types_gen import LLMDelta
+from .delta import DELTA_EVENT, DeltaAccumulator, apply_delta_event
 
 if TYPE_CHECKING:
     from .client import Inference, AsyncInference
@@ -101,6 +101,11 @@ def pending_approvals(chat: Optional[ChatDTO]) -> List[PendingApproval]:
     return out
 
 
+# =============================================================================
+# Shared sync/async helpers: request bodies, paths and chat-stream routing.
+# Agent and AsyncAgent differ only in how they perform the I/O.
+# =============================================================================
+
 def _run_body(
     options: AgentOptions,
     chat_id: Optional[str],
@@ -133,6 +138,77 @@ def _run_body(
     if channel_context is not None:
         body["channel_context"] = channel_context
     return body
+
+
+def _tool_path(tool_invocation_id: str, action: str = "") -> str:
+    return f"/tools/{tool_invocation_id}/{action}" if action else f"/tools/{tool_invocation_id}"
+
+
+def _tool_result_body(result_or_action: str | dict[str, Any]) -> Dict[str, Any]:
+    # Widget actions are sent as a JSON string
+    if isinstance(result_or_action, str):
+        return {"result": result_or_action}
+    return {"result": json.dumps(result_or_action)}
+
+
+def _chat_run_active(chat: Dict[str, Any]) -> bool:
+    """Whether the chat's agent run is still going; the stream ends once it is not."""
+    active_run = chat.get("active_run")
+    run_state = active_run.get("state") if active_run else None
+    return run_state in (AgentRunState.WORKING, AgentRunState.SUBMITTED)
+
+
+async def _maybe_await(value: Any) -> None:
+    if inspect.isawaitable(value):
+        await value
+
+
+class _ChatStreamRouter:
+    """Per-stream state for stream_all: delta accumulation and client tool dispatch."""
+
+    def __init__(self, dispatched_tools: set[str]) -> None:
+        # One accumulator per message being streamed, keyed by the message id
+        # the delta names, so a tool-call-only turn never shows the previous
+        # message's text. A delta without a resource id cannot be attributed
+        # and is dropped; the text still lands when the message itself arrives.
+        self._accumulators: Dict[str, DeltaAccumulator] = {}
+        self._dispatched_tools = dispatched_tools
+
+    def delta(self, data: Dict[str, Any]) -> Optional[AgentDelta]:
+        message_id = data.get("resource_id")
+        if not message_id or not data.get("delta"):
+            return None
+        accumulator = self._accumulators.setdefault(message_id, DeltaAccumulator())
+        apply_delta_event(accumulator, data)
+        return AgentDelta(
+            message_id=message_id,
+            delta=data["delta"],
+            output=accumulator.to_dict(),
+            seq=int(data.get("seq") or 0),
+        )
+
+    def message(self, data: Dict[str, Any], dispatch_tools: bool) -> List[ToolCallInfo]:
+        """Record a chat_messages event; with dispatch_tools, returns client tool
+        calls newly awaiting input and marks them dispatched."""
+        # A terminal message receives no further deltas.
+        if data.get("status") in (ChatMessageStatus.READY, ChatMessageStatus.FAILED, ChatMessageStatus.CANCELLED):
+            self._accumulators.pop(data.get("id"), None)
+        calls: List[ToolCallInfo] = []
+        if not dispatch_tools:
+            return calls
+        # ID tracking handles duplicates, status field indicates message readiness
+        for inv in data.get("tool_invocations") or []:
+            inv_id = inv.get("id")
+            if not inv_id or inv_id in self._dispatched_tools:
+                continue
+            if inv.get("type") == ToolType.CLIENT and inv.get("status") == ToolInvocationStatus.AWAITING_INPUT:
+                self._dispatched_tools.add(inv_id)
+                calls.append(ToolCallInfo(
+                    id=inv_id,
+                    name=inv.get("function", {}).get("name", ""),
+                    args=inv.get("function", {}).get("arguments", {}),
+                ))
+        return calls
 
 
 class Agent:
@@ -266,20 +342,15 @@ class Agent:
                 "form_data": {"name": "John"}
             })
         """
-        # Serialize widget actions to JSON string
-        if isinstance(result_or_action, str):
-            result = result_or_action
-        else:
-            result = json.dumps(result_or_action)
-        self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
+        self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
 
     def approve_tool(self, tool_invocation_id: str) -> None:
         """Approve a tool invocation that is awaiting human approval."""
-        self._request("post", f"/tools/{tool_invocation_id}/invoke")
+        self._request("post", _tool_path(tool_invocation_id, "invoke"))
 
     def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
         """Reject a tool invocation that is awaiting human approval."""
-        self._request("post", f"/tools/{tool_invocation_id}/reject", data={"reason": reason or ""})
+        self._request("post", _tool_path(tool_invocation_id, "reject"), data={"reason": reason or ""})
 
     def stream_messages(
         self,
@@ -424,56 +495,26 @@ class Agent:
         if not self._chat_id:
             raise RuntimeError("No active chat - send a message first")
 
-        # One accumulator per message being streamed, keyed by the message id
-        # the delta names, so a tool-call-only turn never shows the previous
-        # message's text. A delta without a resource id cannot be attributed
-        # and is dropped; the text still lands when the message itself arrives.
-        accumulators: Dict[str, DeltaAccumulator] = {}
+        router = _ChatStreamRouter(self._dispatched_tools)
 
         for event_type, data in self._create_typed_ndjson_generator(f"/chats/{self._chat_id}/stream"):
-            if event_type == "delta":
-                message_id = data.get("resource_id")
-                delta = data.get("delta")
-                if not on_delta or not message_id or not delta:
-                    continue
-                accumulator = accumulators.setdefault(message_id, DeltaAccumulator())
-                accumulator.apply(LLMDelta.model_validate(delta))
-                on_delta(AgentDelta(
-                    message_id=message_id,
-                    delta=delta,
-                    output=accumulator.to_dict(),
-                    seq=int(data.get("seq") or 0),
-                ))
+            if event_type == DELTA_EVENT:
+                if on_delta and (delta := router.delta(data)):
+                    on_delta(delta)
 
             elif event_type == "chats":
                 if on_chat:
                     on_chat(data)
-                active_run = data.get("active_run")
-                run_state = active_run.get("state") if active_run else None
-                if run_state not in (AgentRunState.WORKING, AgentRunState.SUBMITTED):
+                if not _chat_run_active(data):
                     break
 
             elif event_type == "chat_messages":
-                # A terminal message receives no further deltas.
-                if data.get("status") in (ChatMessageStatus.READY, ChatMessageStatus.FAILED, ChatMessageStatus.CANCELLED):
-                    accumulators.pop(data.get("id"), None)
+                calls = router.message(data, on_tool_call is not None)
                 if on_message:
                     on_message(data)
-
-                # Check for client tool invocations awaiting input
-                # (ID tracking handles duplicates, status field indicates message readiness)
                 if on_tool_call:
-                    for inv in data.get("tool_invocations") or []:
-                        inv_id = inv.get("id")
-                        if not inv_id or inv_id in self._dispatched_tools:
-                            continue
-                        if inv.get("type") == ToolType.CLIENT and inv.get("status") == ToolInvocationStatus.AWAITING_INPUT:
-                            self._dispatched_tools.add(inv_id)
-                            on_tool_call(ToolCallInfo(
-                                id=inv_id,
-                                name=inv.get("function", {}).get("name", ""),
-                                args=inv.get("function", {}).get("arguments", {}),
-                            ))
+                    for call in calls:
+                        on_tool_call(call)
 
     def run(self, text: str, **kwargs: Any) -> Any:
         """
@@ -708,6 +749,7 @@ class AsyncAgent:
         self._options = options
         self._context = context
         self._chat_id: Optional[str] = None
+        self._dispatched_tools: set[str] = set()  # tool invocation ids we've already processed
 
     @property
     def _api_key(self) -> str:
@@ -728,20 +770,30 @@ class AsyncAgent:
         text: str,
         attachments: Optional[list[FileRef]] = None,
         channel_context: Optional[ChannelContext] = None,
+        on_message: Optional[Callable[[ChatMessageDTO], Any]] = None,
+        on_tool_call: Optional[Callable[[ToolCallInfo], Any]] = None,
+        on_delta: Optional[Callable[[AgentDelta], Any]] = None,
     ) -> ChatMessageDTO:
         """Send a message to the agent.
 
         channel_context names the origin channel of the message (slack thread,
         telegram chat, ...); the API stamps it on the chat the first time it is
         seen and routes the agent's replies back there.
-        """
-        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
 
+        With any callback set, streams until the agent run finishes (see
+        stream_all). Callbacks may be plain functions or coroutines.
+        """
+        self._dispatched_tools.clear()
+
+        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
         response = await self._request("post", "/agents/run", data=body)
 
         assistant_msg = response.get("assistant_message", {})
         if not self._chat_id and assistant_msg.get("chat_id"):
             self._chat_id = assistant_msg["chat_id"]
+
+        if self._chat_id and (on_message or on_tool_call or on_delta):
+            await self.stream_all(on_message=on_message, on_tool_call=on_tool_call, on_delta=on_delta)
 
         return assistant_msg
 
@@ -770,18 +822,13 @@ class AsyncAgent:
                 - form_data?: dict (optional form data for widgets)
                 Dict values are JSON-serialized automatically.
         """
-        # Serialize widget actions to JSON string
-        if isinstance(result_or_action, str):
-            result = result_or_action
-        else:
-            result = json.dumps(result_or_action)
-        await self._request("post", f"/tools/{tool_invocation_id}", data={"result": result})
+        await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
 
     async def approve_tool(self, tool_invocation_id: str) -> None:
-        await self._request("post", f"/tools/{tool_invocation_id}/invoke")
+        await self._request("post", _tool_path(tool_invocation_id, "invoke"))
 
     async def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
-        await self._request("post", f"/tools/{tool_invocation_id}/reject", data={"reason": reason or ""})
+        await self._request("post", _tool_path(tool_invocation_id, "reject"), data={"reason": reason or ""})
 
     async def stream_messages(self) -> AsyncIterator[ChatMessageDTO]:
         """Stream messages from the unified stream endpoint with TypedEvents."""
@@ -801,6 +848,42 @@ class AsyncAgent:
             if event_type == "chats":
                 yield cast(ChatDTO, data)
 
+    async def stream_all(
+        self,
+        on_chat: Optional[Callable[[ChatDTO], Any]] = None,
+        on_message: Optional[Callable[[ChatMessageDTO], Any]] = None,
+        on_tool_call: Optional[Callable[[ToolCallInfo], Any]] = None,
+        on_delta: Optional[Callable[[AgentDelta], Any]] = None,
+    ) -> None:
+        """
+        Stream all events (Chat, ChatMessage and token deltas) from the unified
+        stream endpoint until the chat becomes idle. Callbacks may be plain
+        functions or coroutines.
+        """
+        if not self._chat_id:
+            raise RuntimeError("No active chat - send a message first")
+
+        router = _ChatStreamRouter(self._dispatched_tools)
+
+        async for event_type, data in self._stream_typed_ndjson(f"/chats/{self._chat_id}/stream"):
+            if event_type == DELTA_EVENT:
+                if on_delta and (delta := router.delta(data)):
+                    await _maybe_await(on_delta(delta))
+
+            elif event_type == "chats":
+                if on_chat:
+                    await _maybe_await(on_chat(cast(ChatDTO, data)))
+                if not _chat_run_active(data):
+                    break
+
+            elif event_type == "chat_messages":
+                calls = router.message(data, on_tool_call is not None)
+                if on_message:
+                    await _maybe_await(on_message(cast(ChatMessageDTO, data)))
+                if on_tool_call:
+                    for call in calls:
+                        await _maybe_await(on_tool_call(call))
+
     async def run(self, text: str, **kwargs: Any) -> Any:
         """
         Run the agent and return structured output.
@@ -815,6 +898,7 @@ class AsyncAgent:
 
     def reset(self) -> None:
         self._chat_id = None
+        self._dispatched_tools.clear()
 
     async def _request(self, method: str, endpoint: str, data: Optional[Mapping[str, Any]] = None) -> Any:
         aiohttp = await _require_aiohttp()

@@ -785,3 +785,36 @@ async def test_async_agent_send_message_omits_channel_context_by_default(monkeyp
     await agent.send_message("Hello")
 
     assert "channel_context" not in captured["data"]
+
+
+@pytest.mark.asyncio
+async def test_async_stream_all_surfaces_deltas_and_tool_calls(monkeypatch):
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent._chat_id = "chat_1"
+
+    tool_inv = {"id": "inv_1", "type": "client", "status": "awaiting_input", "function": {"name": "f", "arguments": {"a": 1}}}
+    events = [
+        ("delta", {"delta": {"response": "Hel"}, "seq": 1, "resource_id": "asst-1"}),
+        ("delta", {"delta": {"response": "lo"}, "seq": 2, "resource_id": "asst-1"}),
+        ("chat_messages", {"id": "asst-1", "status": "ready", "tool_invocations": [tool_inv]}),
+        ("chat_messages", {"id": "asst-1", "status": "ready", "tool_invocations": [tool_inv]}),
+        ("chats", {"active_run": {"state": "completed"}}),
+        ("delta", {"delta": {"response": "late"}, "seq": 3, "resource_id": "asst-1"}),
+    ]
+
+    async def fake_stream(endpoint):
+        for e in events:
+            yield e
+
+    monkeypatch.setattr(agent, "_stream_typed_ndjson", fake_stream)
+
+    deltas, calls = [], []
+
+    async def on_tool_call(info):
+        calls.append(info.id)
+
+    await agent.stream_all(on_delta=deltas.append, on_tool_call=on_tool_call)
+
+    assert [(d.delta["response"], d.output["response"]) for d in deltas] == [("Hel", "Hel"), ("lo", "Hello")]
+    assert calls == ["inv_1"]

@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, List, Optional
 
-from .llm_types_gen import LLMDelta, LLMOutput, MergeStrategy, StreamDelta
+from .llm_types_gen import DeltaEvent, LLMDelta, LLMOutput, MergeStrategy, StreamDelta
+
+# Event name of a DeltaEvent on task and chat NDJSON streams.
+DELTA_EVENT = "delta"
 
 
 def _get_field_tags(obj: Any) -> dict:
@@ -126,6 +129,23 @@ class DeltaAccumulator:
 
     def to_output(self) -> LLMOutput:
         return LLMOutput(**self._state)
+
+
+def is_delta_event(evt: Any) -> bool:
+    return isinstance(evt, dict) and evt.get("event") == DELTA_EVENT
+
+
+def apply_delta_event(acc: DeltaAccumulator, data: Any) -> Optional[LLMDelta]:
+    """Apply one DeltaEvent payload (the ``data`` of a delta stream event) to acc.
+
+    Returns the applied delta, or None when the event carries no delta.
+    """
+    if not isinstance(data, dict) or not data.get("delta"):
+        return None
+    event = DeltaEvent.model_validate(data)
+    delta = LLMDelta.model_validate(event.delta)
+    acc.apply(delta)
+    return delta
 
 
 class OutputDiffer:

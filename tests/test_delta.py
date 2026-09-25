@@ -7,7 +7,7 @@ from typing import ClassVar, List, Optional
 import pytest
 from pydantic import BaseModel
 
-from inferencesh.delta import DeltaAccumulator, merge_delta
+from inferencesh.delta import DeltaAccumulator, apply_delta_event, is_delta_event, merge_delta
 from inferencesh.llm_types_gen import (
     LLMDelta,
     StreamDelta,
@@ -265,3 +265,22 @@ def test_golden_fixture(case):
     for d in case["deltas"]:
         acc.apply(delta_type(**d) if delta_type else d)
     assert json.loads(json.dumps(acc.to_dict(), default=str)) == case["expected"]
+
+
+class TestApplyDeltaEvent:
+    def test_applies_delta_payload(self):
+        acc = DeltaAccumulator()
+        assert apply_delta_event(acc, {"delta": {"response": "Hel"}, "seq": 1}) is not None
+        apply_delta_event(acc, {"delta": {"response": "lo"}, "seq": 2, "resource_id": "m1"})
+        assert acc.to_dict()["response"] == "Hello"
+
+    def test_empty_event_is_ignored(self):
+        acc = DeltaAccumulator()
+        assert apply_delta_event(acc, None) is None
+        assert apply_delta_event(acc, {"delta": None}) is None
+        assert acc.to_dict() == {}
+
+    def test_is_delta_event(self):
+        assert is_delta_event({"event": "delta", "data": {}})
+        assert not is_delta_event({"event": "chats"})
+        assert not is_delta_event("delta")

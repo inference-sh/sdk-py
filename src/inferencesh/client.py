@@ -71,6 +71,7 @@ def is_message_ready(status: str | None) -> bool:
     return status not in (ChatMessageStatus.PENDING, ChatMessageStatus.PENDING.value)
 if TYPE_CHECKING:
     from .types import AgentConfigInput as AgentConfig
+    from .delta import DeltaAccumulator
     from .agent import Agent, AsyncAgent
     from .api import (
         TasksAPI,
@@ -887,8 +888,7 @@ class Inference:
         task: Dict[str, Any],
     ) -> Generator[Union[Dict[str, Any], Exception], None, None]:
         """Internal method to stream task updates."""
-        from .delta import DeltaAccumulator
-        from .llm_types_gen import LLMDelta
+        from .delta import DeltaAccumulator, apply_delta_event, is_delta_event
 
         url = f"/tasks/{task_id}/stream"
         resp = self._request(
@@ -907,18 +907,9 @@ class Inference:
         try:
             for evt in self._iter_ndjson(resp):
                 try:
-                    # Handle delta events — accumulate and yield synthetic task update
-                    if isinstance(evt, dict) and evt.get("event") == "delta":
-                        delta_data = (evt.get("data") or {}).get("delta")
-                        if delta_data:
-                            accumulator.apply(LLMDelta(**delta_data))
-                            output = accumulator.to_output()
-                            yield {
-                                "id": task_id,
-                                "status": task.get("status"),
-                                "output": output.model_dump(exclude_none=True),
-                                "_delta": True,
-                            }
+                    if is_delta_event(evt):
+                        if apply_delta_event(accumulator, evt.get("data")) is not None:
+                            yield _delta_update(task_id, task, accumulator)
                         continue
 
                     # Process the event to check for completion/errors
@@ -928,10 +919,7 @@ class Inference:
                         stopper=None,  # We'll handle stopping via the iterator
                     )
                     if result is not None:
-                        # Merge accumulated delta output into final result
-                        if accumulator.to_dict():
-                            output = accumulator.to_output()
-                            result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
+                        _merge_accumulated(result, accumulator)
                         yield result
                         break
                     yield _strip_task(evt)
@@ -963,6 +951,8 @@ class Inference:
                 via a GET poll.  Prevents hanging when the stream stays open
                 but never delivers a terminal event.
         """
+        from .delta import is_delta_event
+
         last_real_event = time.monotonic()
         for line in resp.iter_lines(decode_unicode=True, chunk_size=8192):
             # Check if we've been asked to stop
@@ -993,7 +983,7 @@ class Inference:
             last_real_event = time.monotonic()
 
             # Delta events — yield as-is so consumers can detect them
-            if isinstance(parsed, dict) and parsed.get("event") == "delta":
+            if is_delta_event(parsed):
                 yield parsed
                 continue
 
@@ -1547,8 +1537,7 @@ class AsyncInference:
         task: Dict[str, Any],
     ) -> AsyncIterator[Union[Dict[str, Any], Exception]]:
         """Internal method to stream task updates asynchronously."""
-        from .delta import DeltaAccumulator
-        from .llm_types_gen import LLMDelta
+        from .delta import DeltaAccumulator, apply_delta_event, is_delta_event
 
         aiohttp = await _require_aiohttp()
         url = f"{self._base_url}/tasks/{task_id}/stream"
@@ -1566,18 +1555,9 @@ class AsyncInference:
             async with session.get(url, headers=headers) as resp:
                 async for evt in self._aiter_ndjson(resp):
                     try:
-                        # Handle delta events — accumulate and yield synthetic task update
-                        if isinstance(evt, dict) and evt.get("event") == "delta":
-                            delta_data = (evt.get("data") or {}).get("delta")
-                            if delta_data:
-                                accumulator.apply(LLMDelta(**delta_data))
-                                output = accumulator.to_output()
-                                yield {
-                                    "id": task_id,
-                                    "status": task.get("status"),
-                                    "output": output.model_dump(exclude_none=True),
-                                    "_delta": True,
-                                }
+                        if is_delta_event(evt):
+                            if apply_delta_event(accumulator, evt.get("data")) is not None:
+                                yield _delta_update(task_id, task, accumulator)
                             continue
 
                         # Process the event to check for completion/errors
@@ -1587,10 +1567,7 @@ class AsyncInference:
                             stopper=None,  # We'll handle stopping via the iterator
                         )
                         if result is not None:
-                            # Merge accumulated delta output into final result
-                            if accumulator.to_dict():
-                                output = accumulator.to_output()
-                                result.setdefault("output", {}).update(output.model_dump(exclude_none=True))
+                            _merge_accumulated(result, accumulator)
                             yield result
                             return
                         yield _strip_task(evt)
@@ -1605,6 +1582,8 @@ class AsyncInference:
             resp: The aiohttp response object.
             idle_timeout: Seconds of only heartbeats before breaking out.
         """
+        from .delta import is_delta_event
+
         last_real_event = time.monotonic()
         async for raw_line in resp.content:  # type: ignore[attr-defined]
             try:
@@ -1628,7 +1607,7 @@ class AsyncInference:
             last_real_event = time.monotonic()
 
             # Delta events — yield as-is so consumers can detect them
-            if isinstance(parsed, dict) and parsed.get("event") == "delta":
+            if is_delta_event(parsed):
                 yield parsed
                 continue
 
@@ -1727,6 +1706,28 @@ def _looks_like_base64(value: str) -> bool:
         return True
     except Exception:
         return False
+
+
+def _delta_update(task_id: str, task: Dict[str, Any], acc: DeltaAccumulator) -> Dict[str, Any]:
+    """Synthetic task update carrying the output accumulated from deltas so far.
+
+    ``_delta: True`` marks it as built client-side from delta events; it is not
+    a server task event and its status is the task's status when streaming began.
+    """
+    return {
+        "id": task_id,
+        "status": task.get("status"),
+        "output": acc.to_output().model_dump(exclude_none=True),
+        "_delta": True,
+    }
+
+
+def _merge_accumulated(result: Dict[str, Any], acc: DeltaAccumulator) -> None:
+    """Merge the delta-accumulated output into a terminal task result."""
+    if acc.to_dict():
+        result.setdefault("output", {}).update(acc.to_output().model_dump(exclude_none=True))
+
+
 def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     """Strip task to essential fields."""
     result = {
