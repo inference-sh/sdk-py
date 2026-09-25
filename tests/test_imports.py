@@ -76,6 +76,8 @@ def test_package_version_matches_pyproject():
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable
     "streamable", "streamable_raw",
+    # Ref parsing
+    "Ref",
     # OutputMeta
     "OutputMeta", "TextMeta", "ImageMeta", "VideoMeta", "AudioMeta", "probe_video",
 ])

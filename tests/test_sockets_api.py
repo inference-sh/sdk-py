@@ -1,6 +1,7 @@
 """Sockets API (mocked _request) and open() dialling a fake WebSocket."""
 
 import asyncio
+import json
 from typing import Any, Dict, List
 
 import pytest
@@ -113,6 +114,21 @@ async def test_open_dials_the_run_response_access_without_asking_for_anything():
     assert calls == []
     assert FakeWS.dialed[0].url == "wss://relay.test/sockets/sock-1?access_token=tok"
     assert session.state == LiveState.WAITING
+    await session.close()
+
+
+async def test_open_forwards_on_clear_to_the_live_session():
+    client, _ = async_client({})
+    cleared: List[str] = []
+    session = await client.sockets.open(
+        {**TASK, "socket": ACCESS},
+        ws_connect=FakeWS.dial,
+        watch_task=False,
+        on_clear=cleared.append,
+    )
+    FakeWS.dialed[0].message(json.dumps({"$clear": "audio"}))
+    await tick()
+    assert cleared == ["audio"]
     await session.close()
 
 

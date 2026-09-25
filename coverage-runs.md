@@ -1,5 +1,20 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ 90d3904, coverage batch landed on dev)
+
+**Recent changes reviewed:** `90d3904` (merge staging: credential catalog, harness/remotes, live `$error`/`$clear`, team member permissions, tool auth `credential_id` — tests already on dev). No new production symbols beyond what that batch covers.
+
+**Open PRs checked:** #337 (credential catalog tests — same content now on `dev`; leave draft closed/rebased) — no duplicate work.
+
+**Gaps filled this run:**
+
+- Public `Ref.parse` / `Ref.try_parse` / formatting helpers (mirrors Go `apitypes.Ref.Parse`; was 32% covered, zero dedicated tests)
+- `AsyncSocketsAPI.open()` forwards `on_clear` into `AsyncLiveSession` (live `$clear` control frames on socket opens)
+
+**Files:** `tests/test_ref.py`, `tests/test_sockets_api.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_ref.py tests/test_sockets_api.py::test_open_forwards_on_clear_to_the_live_session tests/test_imports.py::test_public_name_importable[Ref]` — passed.
+
 ## 2026-09-25 (push dev @ e99f64c, credential catalog connection_scope + app)
 
 **Recent changes reviewed:** `e99f64c` (typegen from go/api 53509cc2: `CredentialConfigDTO` replaces `grant` with `connection_scope` + nested `app`; `CredentialDTO` requires `grant`, adds `app_credential_id`; `PermissionModelDTO` drops `org_id`).
