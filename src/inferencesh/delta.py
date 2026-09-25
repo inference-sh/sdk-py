@@ -75,19 +75,19 @@ def _to_delta_dict(obj: Any) -> dict:
     return dict(obj)
 
 
-def _strategy_for(tags: dict, field_name: str, value: Any) -> MergeStrategy:
-    """Strategy from the type's _field_tags; untagged strings concat, others replace."""
+def _strategy_for(tags: dict, field_name: str) -> MergeStrategy:
+    """Strategy from the type's _field_tags; untagged fields replace, as in sdk-js, Swift and belt."""
     tag = tags.get(field_name, {}).get("merge")
     if tag:
         return MergeStrategy(tag)
-    return MergeStrategy.CONCAT if isinstance(value, str) else MergeStrategy.REPLACE
+    return MergeStrategy.REPLACE
 
 
 def merge_delta(current: dict, delta: Any) -> dict:
     """Merge a delta into accumulated state using _field_tags.
 
     Reads merge strategies from the delta type's _field_tags ClassVar.
-    Fields without tags default to concat for strings, replace for others.
+    Fields without tags replace.
     """
     tags = _get_field_tags(delta)
     delta_dict = _to_delta_dict(delta)
@@ -100,7 +100,7 @@ def merge_delta(current: dict, delta: Any) -> dict:
     for field_name, value in delta_dict.items():
         if value is None:
             continue
-        strategy = _strategy_for(tags, field_name, value)
+        strategy = _strategy_for(tags, field_name)
 
         if strategy in (MergeStrategy.INDEXED, MergeStrategy.NESTED) and raw_delta is not None:
             value = getattr(raw_delta, field_name, value)

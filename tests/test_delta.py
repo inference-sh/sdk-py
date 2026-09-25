@@ -1,5 +1,7 @@
 """Tests for the generic delta accumulator."""
 
+import json
+from pathlib import Path
 from typing import ClassVar, List, Optional
 
 import pytest
@@ -166,7 +168,7 @@ class TestDeltaAccumulator:
         assert d["score"] == 42.0
 
     def test_no_tags_defaults(self):
-        """Delta type without _field_tags: strings concat, others replace."""
+        """Delta type without _field_tags: every field replaces, strings included."""
 
         class PlainDelta(StreamDelta):
             content: str = ""
@@ -176,15 +178,15 @@ class TestDeltaAccumulator:
         acc.apply(PlainDelta(content="a"))
         acc.apply(PlainDelta(content="b", count=5))
         d = acc.to_dict()
-        assert d["content"] == "ab"
+        assert d["content"] == "b"
         assert d["count"] == 5
 
 
 # ── nested types two levels deep keep their tags ──────────────────────
 
 class Leaf(BaseModel):
-    parts: Optional[List[dict]] = None   # list → default would be replace
-    label: str = ""                       # str → default would be concat
+    parts: Optional[List[dict]] = None
+    label: str = ""
 
     _field_tags: ClassVar[dict] = {
         "parts": {"merge": "indexed"},
@@ -248,3 +250,18 @@ class TestOutputDiffer:
         second = d.step(ContractOutput(tool_calls=[{"id": "c1", "type": "function", "function": {"name": "f", "arguments": '{"a":1}'}}]))
         assert second.tool_calls[0].function.arguments == ":1}"
         assert "id" not in second.tool_calls[0].model_fields_set
+
+
+# ── golden fixture shared with sdk-js ─────────────────────────────────
+
+_GOLDEN = json.loads((Path(__file__).parent / "fixtures" / "delta_golden.json").read_text())
+_DELTA_TYPES = {"LLMDelta": LLMDelta}
+
+
+@pytest.mark.parametrize("case", _GOLDEN["cases"], ids=lambda c: c["name"])
+def test_golden_fixture(case):
+    delta_type = _DELTA_TYPES.get(case["type"])
+    acc = DeltaAccumulator()
+    for d in case["deltas"]:
+        acc.apply(delta_type(**d) if delta_type else d)
+    assert json.loads(json.dumps(acc.to_dict(), default=str)) == case["expected"]

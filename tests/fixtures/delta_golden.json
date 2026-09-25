@@ -1,0 +1,36 @@
+{
+  "_comment": "Shared delta-merge contract, kept byte-identical in sdk-js (src/testdata/delta-golden.json) and sdk-py (tests/fixtures/delta_golden.json). Each case applies deltas in order and must produce expected. Untagged fields replace.",
+  "cases": [
+    {
+      "name": "llm_delta",
+      "type": "LLMDelta",
+      "deltas": [
+        {"reasoning": "think "},
+        {"reasoning": "more", "response": "Hel"},
+        {"response": "lo", "tool_calls": [{"index": 0, "id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{\"ci"}}]},
+        {"tool_calls": [{"index": 0, "function": {"arguments": "ty\":\"Paris\"}"}}, {"index": 1, "id": "call_2", "type": "function", "function": {"name": "noop", "arguments": ""}}]},
+        {"usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}},
+        {"usage": {"prompt_tokens": 10, "completion_tokens": 7, "total_tokens": 17}}
+      ],
+      "expected": {
+        "reasoning": "think more",
+        "response": "Hello",
+        "tool_calls": [
+          {"index": 0, "id": "call_1", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Paris\"}"}},
+          {"index": 1, "id": "call_2", "type": "function", "function": {"name": "noop", "arguments": ""}}
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 7, "total_tokens": 17}
+      }
+    },
+    {
+      "name": "untagged",
+      "type": null,
+      "deltas": [
+        {"content": "a", "count": 1},
+        {"content": "b"},
+        {"count": 5}
+      ],
+      "expected": {"content": "b", "count": 5}
+    }
+  ]
+}
