@@ -123,6 +123,66 @@ class TestBuildOpenAIMessages:
         )
         assistant = next(m for m in messages if m["role"] == "assistant")
         assert assistant["tool_calls"][0]["function"]["arguments"] == '{"q": "weather"}'
+        assert assistant["content"] is None
+
+    def test_assistant_tool_calls_with_empty_text_sets_content_null(self):
+        """Providers like MiniMax reject assistant tool_call messages with content=\"\"."""
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="What's the weather?",
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "arguments": {"q": "weather"},
+                                },
+                            }
+                        ],
+                    ),
+                ],
+                system_prompt="",
+            ),
+        )
+        assistant = next(m for m in messages if m["role"] == "assistant")
+        assert assistant["tool_calls"]
+        assert assistant["content"] is None
+        assert assistant["content"] != ""
+
+    def test_assistant_tool_calls_with_text_preserves_content(self):
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="I'll look that up.",
+                        tool_calls=[
+                            {
+                                "id": "call_1",
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "arguments": {"q": "weather"},
+                                },
+                            }
+                        ],
+                    ),
+                ],
+                system_prompt="",
+            ),
+        )
+        assistant = next(m for m in messages if m["role"] == "assistant")
+        assert assistant["content"] == "I'll look that up."
 
     def test_tool_role_message_includes_tool_call_id(self):
         messages = build_openai_messages(
@@ -491,6 +551,36 @@ class TestGeneratedTypeConsumption:
         assert len(o.tool_calls) == 1
         assert o.usage.total_tokens == 15
 
+    def test_llm_delta_covers_generated_contract_fields(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+        gen_fields = set(llm_contract.LLMDelta.model_fields)
+        assert gen_fields.issubset(set(LLMDelta.model_fields))
+
+    def test_llm_delta_construction(self):
+        from inferencesh import llm_types_gen as llm_contract
+        from inferencesh.models.llm import LLMDelta
+        delta = LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q":',
+                    ),
+                ),
+            ],
+            usage=llm_contract.LLMUsage(completion_tokens=1),
+        )
+        assert delta.response == "hel"
+        assert delta.reasoning == "think"
+        assert delta.tool_calls[0].function.arguments == '{"q":'
+        assert delta.usage.completion_tokens == 1
+
 
 class TestLLMWireContract:
     """Guard generated llm_types_gen Pydantic wire models (apitypes BaseModel migration)."""
@@ -500,7 +590,8 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         for name in [
-            "LLMOutput", "LLMInput", "LLMContextMessage", "ToolCall",
+            "LLMOutput", "LLMDelta", "LLMInput", "LLMContextMessage", "ToolCall",
+            "ToolCallDelta", "ToolCallFunctionDelta",
             "ToolCallFunction", "LLMUsage", "FileRef", "Tool", "ToolFunction",
             "ToolParameters", "ToolParameterProperty",
         ]:
@@ -552,12 +643,71 @@ class TestLLMWireContract:
         assert restored.response == "hello"
         assert restored.usage.total_tokens == 8
 
+    def test_tool_call_delta_nested_in_llm_delta_after_model_rebuild(self):
+        """model_rebuild() must resolve forward refs so tool_calls validate on LLMDelta."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        delta = llm_contract.LLMDelta(
+            response="hel",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    id="call_1",
+                    type=llm_contract.ToolCallType.TOOL_TYPE_FUNCTION,
+                    function=llm_contract.ToolCallFunctionDelta(
+                        name="search",
+                        arguments='{"q": "wea',
+                    ),
+                ),
+            ],
+        )
+        assert delta.tool_calls[0].function.arguments == '{"q": "wea'
+
+    def test_llm_delta_json_round_trip(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.LLMDelta(
+            response="hel",
+            reasoning="think",
+            tool_calls=[
+                llm_contract.ToolCallDelta(
+                    index=0,
+                    function=llm_contract.ToolCallFunctionDelta(arguments="ther"),
+                ),
+            ],
+        )
+        restored = llm_contract.LLMDelta.model_validate_json(original.model_dump_json())
+        assert restored.response == "hel"
+        assert restored.tool_calls[0].function.arguments == "ther"
+
     def test_llm_input_requires_wire_required_fields(self):
         from inferencesh import llm_types_gen as llm_contract
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
+
+    def test_delta_event_wire_model_includes_end_marker(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        fields = set(llm_contract.DeltaEvent.model_fields.keys())
+        assert {"delta", "seq", "resource_id", "end"} <= fields
+
+    def test_delta_event_end_marker_json_round_trip_without_delta(self):
+        """End frames carry completion ids; delta is null when no payload is streamed."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        original = llm_contract.DeltaEvent(
+            delta=None,
+            seq=7,
+            resource_id="msg_asst_1",
+            end="run_task_9",
+        )
+        restored = llm_contract.DeltaEvent.model_validate_json(original.model_dump_json())
+        assert restored.end == "run_task_9"
+        assert restored.resource_id == "msg_asst_1"
+        assert restored.seq == 7
+        assert restored.delta is None
 
 
 class TestDeprecatedMixins:

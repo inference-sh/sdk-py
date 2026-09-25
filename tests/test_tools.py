@@ -1,5 +1,7 @@
 """Tests for the tool builder fluent API."""
 
+import pytest
+
 from inferencesh.tools import (
     tool,
     app_tool,
@@ -395,6 +397,17 @@ class TestHTTPToolBuilder:
             "credential_id": "cred-42",
         }
 
+    def test_credential_auth_without_credential_id(self):
+        t = http_tool("gh", "https://api.github.com/user").auth(credential="github").build()
+        assert t["http"]["auth"] == {"type": "credential", "provider": "github"}
+
+    def test_http_auth_rejects_integration_keyword_aliases(self):
+        with pytest.raises(TypeError, match="integration"):
+            http_tool("gh", "https://api.github.com/user").auth(
+                integration="github",
+                integration_id="int-42",
+            )
+
     def test_api_key_auth(self):
         t = http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY").build()
         assert t["http"]["auth"] == {
@@ -433,6 +446,14 @@ class TestMCPToolBuilder:
         assert t["type"].value == "mcp"
         assert t["mcp"] == {"credential_id": "int-abc", "tool_name": "search"}
         assert t["description"] == "Search the web via MCP"
+
+    def test_mcp_tool_rejects_integration_id_keyword(self):
+        with pytest.raises(TypeError, match="integration_id"):
+            mcp_tool("web_search", integration_id="int-abc", tool_name="search")
+
+    def test_mcp_tool_requires_credential_id_and_tool_name(self):
+        with pytest.raises(TypeError, match="credential_id"):
+            mcp_tool("web_search")
 
     def test_mcp_tool_with_display_and_approval(self):
         t = (

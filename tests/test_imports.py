@@ -7,8 +7,10 @@ that slipped into 0.7.2 because no test exercised the import path.
 
 import importlib
 import pkgutil
+from pathlib import Path
 
 import pytest
+import tomllib
 
 import inferencesh
 
@@ -41,6 +43,14 @@ def test_all_exports_resolvable():
     """Every name in __all__ must be accessible on the package."""
     missing = [name for name in inferencesh.__all__ if not hasattr(inferencesh, name)]
     assert not missing, f"Names in __all__ but missing from package: {missing}"
+
+
+def test_package_version_matches_pyproject():
+    """Release bumps must keep importlib metadata in sync with pyproject (User-Agent)."""
+    pyproject = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    assert inferencesh.__version__ == pyproject["project"]["version"]
 
 
 # ── Core public API imports ──────────────────────────────────────────────────
@@ -106,6 +116,7 @@ def test_submodule_importable(module):
     "ChatInput",
     "ModelSettings",
     "ModelSettingsCapabilityMixin",
+    "LLMDelta",
 ])
 def test_models_llm_export_exists(name):
     """New LLM input types from v0.7.9 must be exported from models."""
@@ -134,6 +145,7 @@ def test_models_llm_export_exists(name):
     "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
+    "ToolCallDelta", "ToolCallFunctionDelta", "LLMDelta",
     "ToolCallType", "ToolParamType",
     # Credentials
     "CredentialProvider", "CredentialType", "CredentialStatus",
@@ -163,7 +175,7 @@ def test_models_llm_export_exists(name):
     "KnowledgeType", "KnowledgeLifecycle",
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
-    "MCPServerAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
+    "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
@@ -173,7 +185,17 @@ def test_models_llm_export_exists(name):
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
     "AgentRunDTO", "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
-    "SelectorConfig", "UtilityConfig",
+    "SelectorConfig", "UtilityConfig", "GateCondition",
+    # A2UI widget migration (v0.7.63–v0.7.65 typegen regen)
+    "A2UIComponentType", "A2UISurface", "Widget",
+    # Gate hooks + interrupts (gate hooks / InterruptDTO typegen regen)
+    "InterruptDTO", "InterruptStatus", "InterruptResolution", "InterruptResourceType",
+    "HookEventDefinition", "LifecycleHookConfig",
+    # Auth + catalog (v0.7.67+ typegen regen)
+    "AuthResponse", "PublicAppStoreDTO",
+    # User stats, flow run node state, telemetry (v0.7.97 typegen regen)
+    "MeStatsResponse", "StatBuckets",
+    "SubmitTelemetryRequest", "TelemetryReportDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""

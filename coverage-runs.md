@@ -1,5 +1,192 @@
 # Coverage automation runs
 
+## 2026-09-25 (push dev @ e99f64c, credential catalog connection_scope + app)
+
+**Recent changes reviewed:** `e99f64c` (typegen from go/api 53509cc2: `CredentialConfigDTO` replaces `grant` with `connection_scope` + nested `app`; `CredentialDTO` requires `grant`, adds `app_credential_id`; `PermissionModelDTO` drops `org_id`).
+
+**Open PRs checked:** #335 (TeamMemberDTO permissions, `10fb6a6`), #332 (harness/work_dir), #328 (v0.10.2 auth_scheme_id), #316 (CredentialRequirement labels) — no overlap on credential catalog grant/app split.
+
+**Gaps filled this run:**
+
+- `CredentialConfigDTO.connection_scope` and `app` vs removed top-level `grant`
+- `CredentialDTO.grant` + `app_credential_id` link from connection login to OAuth app row
+- `CredentialGrant` wire values (`credentials` vs `token`)
+- `PermissionModelDTO` / `MCPServerDTO` regression guard: `org_id` must not return
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py -k 'credential_config_dto_connection_scope or credential_dto_grant or credential_grant_wire or permission_model_dto_drops_org'` — passed.
+
+## 2026-09-24 (push dev @ 10fb6a6, TeamMemberDTO permission affordances / INF-868)
+
+**Recent changes reviewed:** `10fb6a6` (typegen: `TeamMemberDTO.assignable_roles`, `TeamMemberDTO.removable` on GET `/teams/{id}/members`). `60e51ac` (version bump v0.10.3 only).
+
+**Open PRs checked:** #332 (`AgentDTO.harness`, `ChatDTO.work_dir` for `89cbb87`), #328 (v0.10.2 auth_scheme_id), #322–#319 (older v0.10.x coverage) — no overlap on team member permission fields.
+
+**Gaps filled this run:**
+
+- `TeamMemberDTO.assignable_roles` — roles the caller may assign (current role included)
+- `TeamMemberDTO.removable` — whether the caller may remove the member
+- Optional omission when the API withholds permission metadata (`total=False`)
+
+**Files:** `tests/test_types.py`
+
+**Validation:** `pytest tests/test_types.py -k 'team_member_dto'` — passed.
+
+## 2026-09-24 (push dev @ 60e51ac, v0.10.3 release + harness typegen)
+
+**Recent changes reviewed:** `60e51ac` (version bump to `0.10.3` only). `89cbb87` (`AgentDTO.harness` for inference vs external agentprotocol drivers; `ChatDTO.work_dir` for remote harness cwd). Commit message also references remote launch request — no new Python symbols in that diff (`InstanceDTO.launch_configuration` unchanged).
+
+**Open PRs checked:** #332 (same harness/`work_dir` tests — rebased onto `60e51ac` here), #299 (harness `profile_id`/`remote_id`, `harness_session_id` — complementary), #328 (v0.10.2 `auth_scheme_id` / `DeltaEvent.end`), #322/#319/#316 — no overlap.
+
+**Gaps filled this run:**
+
+- `ChatDTO.work_dir` wire contract for routing harness terminal sessions to the correct folder
+- `AgentDTO.harness` values (`inference`, external registry ids) so clients do not silently lose harness selection
+- `inferencesh.__version__` stays aligned with `pyproject.toml` after release bumps (User-Agent contract)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k 'work_dir or harness_field' tests/test_imports.py::test_package_version_matches_pyproject` — passed.
+
+## 2026-09-24 (push dev @ 269ed88, live legacy `{error}` control frames / v0.10.1)
+
+**Recent changes reviewed:** `269ed88` (doc: apps on SDKs before **0.10.1** send unprefixed `{"error": ...}`; `_legacy_error` threshold was already 0.10.1 in code). `13c905a` (`$error`, plain text, schema field mapping — largely covered in `tests/test_live.py`). `c7c930a` (version bump only).
+
+**Open PRs checked:** #319 (951153f credential alias removal), #316 (v0.9.1 CredentialRequirement/SetupAction), #302 (live/socket tidy) — no overlap with legacy error gating.
+
+**Gaps filled this run:**
+
+- Unprefixed `{"error": {"message": ...}}` is treated as a control frame **only when `on_error` is registered** (matches pre-0.10.1 app wire format without mis-routing when the callback is absent)
+- `$error` without `on_error` stays in the patch (symmetric with `$clear` behavior)
+- Unprefixed `error` objects **without** a `message` key are never interpreted as control frames even when `on_error` is set
+
+**Files:** `tests/test_live.py`
+
+**Validation:** `pytest tests/test_live.py::test_without_on_error_unprefixed_error_is_an_ordinary_patch tests/test_live.py::test_without_on_error_dollar_error_stays_in_the_patch tests/test_live.py::test_unprefixed_error_without_message_is_not_control` — passed.
+
+## 2026-09-24 (push dev @ ae66d29, v0.10.0 credential keyword alias removal)
+
+**Recent changes reviewed:** `ae66d29` (version bump). `951153f` (remove `integration` / `integration_id` keyword aliases from HTTP `.auth()` and `mcp_tool()`; drop deprecated TypedDict fields; types regenerated).
+
+**Open PRs checked:** #316 (v0.9.1 CredentialRequirement/SetupAction), #309 (ToolAuthType.NONE), #306 (credential renames 0246c53 — includes deprecated-alias tests superseded by 951153f), #302 (live/socket tidy) — no overlap on alias removal contract.
+
+**Gaps filled this run:**
+
+- HTTP `.auth()` rejects `integration` / `integration_id` kwargs (breaking migration guard)
+- `mcp_tool()` requires positional `credential_id` and `tool_name`; rejects `integration_id` kwarg
+- HTTP credential auth without `credential_id` still emits provider-only auth payload
+- Generated `ToolAuthConfig` / `MCPToolConfig` no longer expose `integration_id` keys
+
+**Files:** `tests/test_tools.py`, `tests/test_types.py`
+
+**Validation:** `pytest tests/test_tools.py::TestHTTPToolBuilder tests/test_tools.py::TestMCPToolBuilder tests/test_types.py::test_tool_auth_config_uses_credential_id_not_integration_id tests/test_types.py::test_mcp_tool_config_uses_credential_id_not_integration_id` — passed.
+
+## 2026-09-23 (push dev @ 5ca1de1, v0.9.0 version bump)
+
+**Recent changes reviewed:** `5ca1de1` (`pyproject.toml` version bump to v0.9.0 only). Prior commit `ee8c597` (`ToolAuthType.NONE`) and `0246c53` (credential tool auth renames) remain the latest meaningful API surface changes on dev.
+
+**Open PRs checked:** #309 (`ToolAuthType.NONE` @ ee8c597), #306 (credential scopes + builder gaps @ 0246c53), #302 (live/socket tidy), #299 (harness profile fields), #295 (`credential_id` TypedDict) — no new overlap; no additional production diff in `5ca1de1`.
+
+**Gaps filled this run:**
+
+- Rebased open PR #309 branch onto `5ca1de1` so `ToolAuthType.NONE` regression tests apply to the v0.9.0 line (no new test cases beyond that PR).
+
+**Files:** (unchanged test files; branch maintenance on `coverage/tool-auth-type-none-ee8c597`)
+
+**Validation:** `pytest tests/test_types.py -k 'tool_auth' tests/test_imports.py::test_generated_type_exists[ToolAuthType]` — passed on rebased branch.
+
+## 2026-09-23 (push dev @ ee8c597, ToolAuthType.NONE)
+
+**Recent changes reviewed:** `ee8c597` (typegen: `ToolAuthType.NONE` — explicit opt-out of credential injection on HTTP tools). `0246c53` credential builder renames covered by open PR #306.
+
+**Open PRs checked:** #306 (credential tool auth @ 0246c53), #302 (live/socket tidy), #299 (harness profile fields), #295 (credential_id TypedDict) — no overlap on `ToolAuthType.NONE`.
+
+**Gaps filled this run:**
+
+- `ToolAuthType.NONE` wire token (`"none"`) alongside existing credential/api_key/bearer members
+- `ToolAuthConfig` shape when `type` is explicitly `none` (no credential fields)
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py -k 'tool_auth' tests/test_imports.py::test_generated_type_exists[ToolAuthType]` — passed.
+
+## 2026-09-23 (push dev @ 3700505, harness profile / remote typegen)
+
+**Recent changes reviewed:** `3700505` / `333b74a` (`profile_id`/`remote_id` on `AgentDTO` and `AgentRunDTO`; `harness_session_id`/`forked_from_message_id` on `ChatDTO`; `InternalToolsConfig.remote` for harness terminal tools). `8f8220b` (Makefile release-only-from-dev — no SDK behavior).
+
+**Open PRs checked:** #295 (`credential_id`, Socket backpressure), #293 (`ChatDTO.channel_context` + credential renames), #287–#267 — no overlap with harness profile or remote execution fields.
+
+**Gaps filled this run:**
+
+- `InternalToolsConfig.remote` wire contract for remote harness tools
+- `ChatDTO.harness_session_id` / `forked_from_message_id` for resume and chat branching
+- `AgentRunDTO` / `AgentDTO` `profile_id` and `remote_id` for remote harness attribution
+
+**Files:** `tests/test_types.py`, `coverage-runs.md`
+
+**Validation:** `pytest tests/test_types.py -k 'harness_session or fork_fields or profile_and_remote or internal_tools_config_remote'` — passed.
+
+## 2026-08-28 (push dev @ fd0ac4e, LLMDelta streaming delta yield)
+
+**Recent changes reviewed:** `fd0ac4e` (feat: `LLMDelta` app model with `_delta` serialization marker for engine routing). `04bfabe` (typegen: `LLMDelta`, `ToolCallDelta`, `ToolCallFunctionDelta` wire models). `0e08933` (`SuggestResponse.impression_id`).
+
+**Open PRs checked:** #269 (`cursor/missing-test-coverage-39e6`, v0.7.97 stats/telemetry), #267 (`cursor/missing-test-coverage-aa48`, batch-merge gaps) — no overlap.
+
+**Gaps filled this run:**
+
+- `LLMDelta.model_dump()` injects `_delta: True` for engine streaming routing
+- `LLMDelta` app model covers generated contract fields (mirrors `LLMOutput`)
+- `ToolCallDelta` / `ToolCallFunctionDelta` nested validation after `model_rebuild()`
+- `LLMDelta` wire model JSON round-trip with partial tool-call argument fragments
+- `SuggestResponse.impression_id` TypedDict field for analytics tracking
+- `LLMDelta` / `ToolCallDelta` / `ToolCallFunctionDelta` import smoke
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_llm.py::TestGeneratedTypeConsumption tests/test_llm.py::TestLLMWireContract tests/test_types.py::test_llm_delta_typeddict_shape tests/test_types.py::test_suggest_types_shape tests/test_imports.py::test_models_llm_export_exists[LLMDelta] tests/test_imports.py::test_generated_type_exists[LLMDelta]` — passed.
+
+## 2026-08-20 (push dev @ c9af3fe, user stats + flow node state + telemetry v0.7.97)
+
+**Recent changes reviewed:** `c9af3fe` (typegen v0.7.97: `MeStatsResponse`/`StatBuckets` for GET `/me/stats`; `FlowRunDTO.node_statuses`/`node_outputs`; `SubmitTelemetryRequest`; `TelemetryReportDTO`). `cc0d2be` (batch merge of test PRs #249–#264).
+
+**Open PRs checked:** #267 (`cursor/missing-test-coverage-aa48`) restores batch-merge gaps (content=null, undo/redo, is_new, A2UI, origin, gate/interrupt types) — no overlap with v0.7.97 fields.
+
+**Gaps filled this run:**
+
+- `MeStatsResponse` catalog counts with nested `StatBuckets` time windows
+- `StatBuckets` today/this_week/all_time dashboard rollup fields
+- `SubmitTelemetryRequest.payload` for client telemetry submission
+- `FlowRunDTO.node_statuses` per-node `GraphNodeStatus` map for workflow progress UIs
+- `FlowRunDTO.node_outputs` per-node result payloads alongside `node_tasks`
+- `TelemetryReportDTO` ip/level/payload shape for ingested telemetry records
+
+**Files:** `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** `pytest tests/test_types.py::test_me_stats_response_shape tests/test_types.py::test_stat_buckets_time_windows tests/test_types.py::test_submit_telemetry_request_shape tests/test_types.py::test_flow_run_dto_node_statuses_and_outputs tests/test_types.py::test_telemetry_report_dto_shape tests/test_imports.py::test_generated_type_exists[MeStatsResponse] tests/test_imports.py::test_generated_type_exists[StatBuckets] tests/test_imports.py::test_generated_type_exists[SubmitTelemetryRequest] tests/test_imports.py::test_generated_type_exists[TelemetryReportDTO]` — passed.
+
+## 2026-08-20 (push dev @ cc0d2be, restore dropped batch-merge tests + gate/interrupt typegen)
+
+**Recent changes reviewed:** `cc0d2be` (batch merge of 8 cursor test PRs — several approved tests were dropped during merge). Underlying typegen: assistant `content=null` fix (`184b649`), AuthResponse.is_new, A2UI migration, origin/generated_by fields, FlowActionType undo/redo, gate hooks / InterruptDTO (`c3e1ba5`, `527a9b4`, `f720f05`).
+
+**Open PRs checked:** #264–#249 all CLOSED/MERGED — no open overlapping PRs. This run restores tests lost in the batch merge and adds gate/interrupt gaps never covered.
+
+**Gaps filled this run:**
+
+- `build_openai_messages()` sets `content=null` (not `""`) for assistant messages with tool_calls and empty text (MiniMax/provider regression guard)
+- `FlowActionType.ACTION_UNDO` / `ACTION_REDO` and `FlowActionsRequest` undo/redo envelope
+- `AuthResponse.is_new` first-time vs returning login flag
+- A2UI migration: `A2UIComponentType`, `Widget = A2UISurface` alias, flat adjacency surfaces, `A2UIHTML` removal guard
+- `SuggestRequest.origin` and `KnowledgeVersionInput`/`KnowledgeVersionDTO.origin` provenance fields
+- `NotificationType.SUBSCRIPTION_*` kinds including `SUBSCRIPTION_PAYMENT_FAILED`
+- Gate hook interrupt types: `InterruptDTO`, `InterruptStatus`, `InterruptResolution`, `InterruptResourceType`, `HookDecision.SUSPEND`, `HookHandlerType.HOOK_HANDLER_GATE`, `InterruptReason.HOOK_GATE`
+- `LifecycleHookConfig.default_resolution`, `HookEventDefinition.can_gate`
+- `PublicAppStoreDTO.pricing_description`, `InternalToolsConfig.meta`
+
+**Files:** `tests/test_llm.py`, `tests/test_types.py`, `tests/test_imports.py`
+
+**Validation:** targeted pytest on new/changed tests — 263 passed.
+
 ## 2026-08-20 (push dev @ 3c14c20, flow utility nodes + knowledge lifecycle v0.7.86)
 
 **Recent changes reviewed:** `3c14c20` (typegen v0.7.86: `SelectorConfig`, `UtilityConfig`, `FlowNodeData.selector_config`/`utility`; `KnowledgeVersionInput`/`KnowledgeVersionDTO.generated_by`; `KnowledgeLifecycle.DRAFT`/`DEPRECATED`). `2440109` (`SecretCreateRequest.provider`, `GateCondition` — open PR #262).
