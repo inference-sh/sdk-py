@@ -678,6 +678,106 @@ def test_pending_approvals_projects_tool_approval_interrupts():
     assert pending_approvals({"id": "x"}) == []
 
 
+def test_pending_approvals_parses_json_string_meta():
+    """API may serialize interrupt meta as JSON; approvals must still project tool fields."""
+    from inferencesh import pending_approvals, PendingApproval
+    from inferencesh.types import InterruptReason, InterruptStatus
+
+    chat = {
+        "id": "chat_1",
+        "pending_interrupts": [
+            {
+                "id": "int_json",
+                "chat_id": "chat_1",
+                "reason": InterruptReason.TOOL_APPROVAL.value,
+                "status": InterruptStatus.PENDING.value,
+                "resource_id": "inv_json",
+                "meta": '{"tool_invocation_id": "inv_json", "tool_name": "migrate", "arguments": {"dry_run": true}}',
+            },
+        ],
+    }
+
+    got = pending_approvals(chat)
+
+    assert got == [
+        PendingApproval(
+            interrupt_id="int_json",
+            tool_invocation_id="inv_json",
+            chat_id="chat_1",
+            tool_name="migrate",
+            arguments={"dry_run": True},
+        ),
+    ]
+
+
+def test_pending_approvals_invalid_json_meta_falls_back_to_resource_id():
+    """Corrupt meta must not break approval listing; resource_id still identifies the tool."""
+    from inferencesh import pending_approvals
+    from inferencesh.types import InterruptReason, InterruptStatus
+
+    chat = {
+        "id": "chat_1",
+        "pending_interrupts": [
+            {
+                "id": "int_bad",
+                "reason": InterruptReason.TOOL_APPROVAL.value,
+                "status": InterruptStatus.PENDING.value,
+                "resource_id": "inv_fallback",
+                "meta": "not-json",
+            },
+        ],
+    }
+
+    got = pending_approvals(chat)
+
+    assert len(got) == 1
+    assert got[0].tool_invocation_id == "inv_fallback"
+    assert got[0].tool_name == ""
+    assert got[0].arguments == {}
+
+
+def test_agent_ad_hoc_config_forwards_channel_context(patch_agent_requests):
+    """Ad-hoc agent_config /agents/run bodies must carry channel_context like template refs."""
+    client = Inference(api_key="test")
+    config = {
+        "name": "router",
+        "core_app": {"ref": "infsh/claude-sonnet-4@xyz"},
+    }
+    agent = client.agent(config)
+    ctx = {"channel_type": "slack", "channel_metadata": {"channel": "C-ad-hoc"}}
+
+    agent.send_message("Route me", channel_context=ctx)
+
+    body = patch_agent_requests[0]["data"]
+    assert body["agent_config"] == config
+    assert body["channel_context"] == ctx
+
+
+def test_stream_all_does_not_bleed_delta_state_across_messages(monkeypatch, patch_agent_requests):
+    """Terminal messages drop per-message accumulators so a later turn does not inherit text."""
+    from inferencesh import AgentDelta
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("delta", {"delta": {"response": "first-"}, "seq": 1, "resource_id": "m1"}),
+        ("chat_messages", {"id": "m1", "status": "ready"}),
+        ("delta", {"delta": {"response": "second"}, "seq": 1, "resource_id": "m2"}),
+        ("chats", {"active_run": {"state": "completed"}}),
+    ]
+    monkeypatch.setattr(agent, "_create_typed_ndjson_generator", lambda endpoint: iter(events))
+
+    seen: list[AgentDelta] = []
+    agent.stream_all(on_delta=seen.append)
+
+    assert [(d.message_id, d.output["response"]) for d in seen] == [
+        ("m1", "first-"),
+        ("m2", "second"),
+    ]
+
+
 def test_stream_all_surfaces_deltas_per_message(monkeypatch, patch_agent_requests):
     from inferencesh import AgentDelta
 
