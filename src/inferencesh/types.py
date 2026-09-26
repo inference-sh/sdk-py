@@ -1301,8 +1301,12 @@ class ElicitationCapability(TypedDict, total=False):
     url: Optional[Dict[str, Any]]
 
 # ClientCapabilities advertises what a client can do.
+# 
+# Extensions carries the extensions the client supports, keyed by identifier
+# (e.g. ExtensionTasks), each with its extension-defined settings object.
 class ClientCapabilities(TypedDict, total=False):
     elicitation: Optional[ElicitationCapability]
+    extensions: Dict[str, Any]
 
 # InputRequest is a single server-to-client request inside an InputRequiredResult.
 class InputRequest(TypedDict, total=False):
@@ -3483,6 +3487,9 @@ class ResultType(str, Enum):
     # ResultTypeInputRequired marks a Multi Round-Trip Request interim result.
     # Recognised so the outbound client never mistakes one for tool output.
     INPUT_REQUIRED = "input_required"
+    # ResultTypeTask marks a CreateTaskResult: the server accepted the request
+    # as a task under the tasks extension and the result arrives via tasks/get.
+    TASK = "task"
 
 class CacheScope(str, Enum):
     # CacheScopePublic marks a response as free of user-specific data, so any
