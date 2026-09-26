@@ -778,6 +778,31 @@ def test_stream_all_does_not_bleed_delta_state_across_messages(monkeypatch, patc
     ]
 
 
+def test_stream_all_clears_accumulator_on_failed_terminal_message(monkeypatch, patch_agent_requests):
+    """Failed terminal messages must drop accumulators like ready, without requiring message id."""
+    from inferencesh import AgentDelta
+
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    events = [
+        ("delta", {"delta": {"response": "oops-"}, "seq": 1, "resource_id": "m1"}),
+        ("chat_messages", {"status": "failed"}),
+        ("delta", {"delta": {"response": "retry"}, "seq": 1, "resource_id": "m2"}),
+        ("chats", {"active_run": {"state": "completed"}}),
+    ]
+    monkeypatch.setattr(agent, "_create_typed_ndjson_generator", lambda endpoint: iter(events))
+
+    seen: list[AgentDelta] = []
+    agent.stream_all(on_delta=seen.append)
+
+    assert [(d.message_id, d.output["response"]) for d in seen] == [
+        ("m1", "oops-"),
+        ("m2", "retry"),
+    ]
+
+
 def test_stream_all_surfaces_deltas_per_message(monkeypatch, patch_agent_requests):
     from inferencesh import AgentDelta
 
