@@ -84,6 +84,11 @@ class AppToolConfig(TypedDict, total=False):
     session_enabled: bool
     setup: Optional[Any]
     input: Optional[Any]
+    # FixedInput pins arguments: they are merged over whatever the model sent,
+    # and removed from the tool schema the model is shown, so it neither sees
+    # nor controls them. Input only supplies defaults the model may override;
+    # this is for values an operator decides, not the model.
+    fixed_input: Optional[Any]
 
 class AgentToolConfig(TypedDict, total=False):
     ref: str
@@ -129,6 +134,7 @@ class AppToolConfigDTO(TypedDict, total=False):
     session_enabled: bool
     setup: Optional[Any]
     input: Optional[Any]
+    fixed_input: Optional[Any]
 
 class AgentToolConfigDTO(TypedDict, total=False):
     ref: str
