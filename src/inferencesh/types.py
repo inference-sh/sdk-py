@@ -381,6 +381,18 @@ class DeviceAuthPollResponse(TypedDict, total=False):
     session_token: str
     team_id: str
 
+class MeResponse(TypedDict, total=False):
+    user: Optional[UserDTO]
+    team: Optional[TeamDTO]
+    # Org of the current team, when the team belongs to one. Team.Role and
+    # Org.IsAdmin are left unset: what the caller may do is TeamView.Can
+    # and TeamView.Org.Can.
+    org: Optional[OrgDTO]
+    # TeamView is the current team as the caller sees it in settings: kind,
+    # governance and capabilities (GET /teams/{id}/view).
+    team_view: Optional[TeamViewDTO]
+    diagnostics: Optional[DiagnosticsConfig]
+
 class TeamCreateRequest(TypedDict, total=False):
     name: str
     username: str
@@ -1484,6 +1496,9 @@ class ProjectModelDTO(TypedDict, total=False):
     project_id: Optional[str]
     project: Optional[ProjectDTO]
 
+class DiagnosticsConfig(TypedDict, total=False):
+    level: int
+
 # KnowledgeCreateRequest is the request body for POST /knowledge.
 class KnowledgeCreateRequest(TypedDict, total=False):
     name: str
@@ -1902,6 +1917,38 @@ class TeamInviteDTO(TypedDict, total=False):
 class TeamInviteCreateRequest(TypedDict, total=False):
     email: str
     role: TeamRole
+
+# GovernanceSource says who decides one aspect of a team. By is
+# shared.GovernedBySelf (the team itself) or shared.GovernedByOrg; TeamID is
+# the deciding team: the team itself, or the org's workspace.
+class GovernanceSource(TypedDict, total=False):
+    by: str
+    team_id: str
+
+# TeamGovernance is who decides a team's billing and usage policy.
+class TeamGovernance(TypedDict, total=False):
+    billing: GovernanceSource
+    policy: GovernanceSource
+
+# TeamViewOrg is the org a team belongs to, as the caller sees it.
+class TeamViewOrg(TypedDict, total=False):
+    id: str
+    name: str
+    slug: str
+    avatar_url: str
+    # Can is what the caller may do on the org's workspace, by the same
+    # table as TeamViewDTO.Can: the org's settings and billing live there.
+    can: List[TeamCapability]
+
+# TeamViewDTO is a team as the caller sees it in settings: what kind of
+# workspace it is, who governs it, and what the caller may do there. Can is computed by the same table the API's route
+# gates evaluate, so clients read permissions instead of re-deriving them.
+class TeamViewDTO(TypedDict, total=False):
+    team_id: str
+    kind: TeamKind
+    org: Optional[TeamViewOrg]
+    governance: TeamGovernance
+    can: List[TeamCapability]
 
 class SubmitTelemetryRequest(TypedDict, total=False):
     payload: Dict[str, Any]
@@ -2663,6 +2710,18 @@ class KnowledgeVersionDTO(BaseModelDTO, TypedDict, total=False):
     version_notes: str
     last_confirmed_at: Optional[str]
 
+# OrgDTO is the API response for an org (enterprise layer above teams).
+class OrgDTO(BaseModelDTO, TypedDict, total=False):
+    slug: str
+    name: str
+    avatar_url: str
+    default_team_id: str
+    # UsagePolicyID of the org's usage policy ('' = ungoverned, INF-808).
+    usage_policy_id: str
+    # IsAdmin: whether the CALLER is on this org's admin grant list. Set on
+    # caller-scoped responses.
+    is_admin: bool
+
 # PlanDTO for API responses
 class PlanDTO(BaseModelDTO, TypedDict, total=False):
     name: str
@@ -2717,6 +2776,26 @@ class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
     trial_end: Optional[str]
     cancel_at_period_end: bool
     credits_per_period: int
+
+# TeamDTO is the API response for a full team.
+class TeamDTO(BaseModelDTO, TypedDict, total=False):
+    type: TeamType
+    name: str
+    username: str
+    avatar_url: str
+    email: str
+    setup_completed: bool
+    max_concurrency: int
+    status: TeamStatus
+    # Role is the CALLER's role on this team (owner/admin/member), set on
+    # caller-scoped responses (/teams, /users/me). Empty when not applicable
+    # (public team views, platform-admin impersonation).
+    role: TeamRole
+    # OrgID of the org this team belongs to ('' = standalone team).
+    org_id: str
+    # UsagePolicyID of the team's own usage policy ('' = inherit the org's,
+    # or ungoverned when standalone, INF-808).
+    usage_policy_id: str
 
 # UserDTO is the API response for a full user.
 class UserDTO(BaseModelDTO, TypedDict, total=False):
@@ -4148,6 +4227,17 @@ class TeamRole(str, Enum):
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
+
+class TeamKind(str, Enum):
+    # TeamKindPersonal is an account's own workspace.
+    PERSONAL = "personal"
+    # TeamKindTeam is a shared workspace outside any org.
+    TEAM = "team"
+    # TeamKindOrgMember is a shared workspace inside an org: billed by the
+    # org and governed by the org's usage policy.
+    ORG_MEMBER = "org_member"
+    # TeamKindOrg is an org's own workspace (TeamTypeOrg).
+    ORG = "org"
 
 class TeamCapability(str, Enum):
     EDIT_PROFILE = "edit_profile"
