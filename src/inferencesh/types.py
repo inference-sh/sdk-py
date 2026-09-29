@@ -20,8 +20,9 @@ class InternalToolsConfig(TypedDict, total=False):
     host_context: Optional[bool]
     meta: Optional[bool]
     artifact: Optional[bool]
-    spawn: Optional[bool]
+    agent: Optional[bool]
     remote: Optional[bool]
+    knowledge: Optional[bool]
 
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
