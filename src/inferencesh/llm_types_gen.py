@@ -239,9 +239,11 @@ class ChatMessageRole(str, Enum):
     TOOL = "tool"
     # Internal bookkeeping roles — never sent to the LLM provider.
     # BuildContext folds injections into the user turn and replaces
-    # compaction markers with their summary.
+    # compaction markers with their summary. Event messages are display-only
+    # system info (a hook ran, ...) and BuildContext skips them.
     INJECTION = "injection"
     COMPACTION = "compaction"
+    EVENT = "event"
 
 class MergeStrategy(str, Enum):
     CONCAT = "concat"

@@ -2127,6 +2127,26 @@ class ChatMessageContent(TypedDict, total=False):
     image: Optional[str]
     file: Optional[str]
     tool_calls: Optional[List[ToolCall]]
+    event: Optional[ChatEvent]
+
+# ChatEvent is the payload of an event-role message: system info shown in the
+# chat but never sent to the model.
+class ChatEvent(TypedDict, total=False):
+    type: ChatEventType
+    hook: Optional[ChatHookEvent]
+
+# ChatHookEvent records one lifecycle hook handler run.
+class ChatHookEvent(TypedDict, total=False):
+    event: HookEvent
+    handler_type: HookHandlerType
+    # Handler names what ran: the builtin or agent ref, or a webhook's host
+    # (never its full URL, which can carry credentials).
+    handler: str
+    decision: HookDecision
+    reason: str
+    injected: bool
+    error: str
+    duration_ms: int
 
 # ChannelContext records which channel a chat or message came through
 # (slack, telegram, an OpenAI-dialect tag, ...) and the transport metadata
@@ -3736,9 +3756,11 @@ class ChatMessageRole(str, Enum):
     TOOL = "tool"
     # Internal bookkeeping roles — never sent to the LLM provider.
     # BuildContext folds injections into the user turn and replaces
-    # compaction markers with their summary.
+    # compaction markers with their summary. Event messages are display-only
+    # system info (a hook ran, ...) and BuildContext skips them.
     INJECTION = "injection"
     COMPACTION = "compaction"
+    EVENT = "event"
 
 class ChatMessageStatus(str, Enum):
     PENDING = "pending"
@@ -3753,12 +3775,16 @@ class ChatMessageContentType(str, Enum):
     IMAGE = "image"
     FILE = "file"
     TOOL = "tool"
+    EVENT = "event"
 
 class ChannelType(str, Enum):
     SLACK = "slack"
     DISCORD = "discord"
     TEAMS = "teams"
     TELEGRAM = "telegram"
+
+class ChatEventType(str, Enum):
+    HOOK = "hook"
 
 class EngineStatus(str, Enum):
     RUNNING = "running"
