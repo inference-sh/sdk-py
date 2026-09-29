@@ -2742,8 +2742,6 @@ class OrgDTO(BaseModelDTO, TypedDict, total=False):
     name: str
     avatar_url: str
     default_team_id: str
-    # UsagePolicyID of the org's usage policy ('' = ungoverned, INF-808).
-    usage_policy_id: str
     # IsAdmin: whether the CALLER is on this org's admin grant list. Set on
     # caller-scoped responses.
     is_admin: bool
