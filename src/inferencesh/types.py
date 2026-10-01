@@ -2242,22 +2242,22 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-    _field_tags = {
-        "id": {"merge": "replace"},
-        "type": {"merge": "replace"},
-        "function": {"merge": "nested"},
-    }
-
 # ToolCallFunctionDelta carries partial tool call function data.
 # Arguments is a raw JSON string fragment — concatenate by index, parse on completion.
 class ToolCallFunctionDelta(TypedDict, total=False):
     name: str
     arguments: str
 
-    _field_tags = {
-        "name": {"merge": "replace"},
-        "arguments": {"merge": "concat"},
-    }
+# Delta merge strategies (used by DeltaAccumulator when processing TypedDict deltas).
+ToolCallDelta._field_tags = {  # type: ignore[attr-defined]
+    "id": {"merge": "replace"},
+    "type": {"merge": "replace"},
+    "function": {"merge": "nested"},
+}
+ToolCallFunctionDelta._field_tags = {  # type: ignore[attr-defined]
+    "name": {"merge": "replace"},
+    "arguments": {"merge": "concat"},
+}
 
 # ToolChoice constrains tool calling for a turn. Providers spell this
 # differently (OpenAI tool_choice, Anthropic tool_choice.type any/tool,
@@ -2463,6 +2463,9 @@ class BuiltinHookDefinition(TypedDict, total=False):
 
 # LifecycleHookConfig registers a handler for an agent lifecycle event.
 # Stored on AgentVersion alongside Tools and Skills.
+# Note: the wire key is "async" but Python uses "async_" since "async" is a
+# keyword. The builder in tools.py writes config["async"] directly (a valid
+# string key) and suppresses the mypy warning there.
 class LifecycleHookConfig(TypedDict, total=False):
     event: HookEvent
     type: HookHandlerType
@@ -3398,12 +3401,12 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
     tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
 
-    _field_tags = {
-        "response": {"merge": "concat"},
-        "reasoning": {"merge": "concat"},
-        "tool_calls": {"merge": "indexed"},
-        "usage": {"merge": "replace"},
-    }
+LLMDelta._field_tags = {  # type: ignore[attr-defined]
+    "response": {"merge": "concat"},
+    "reasoning": {"merge": "concat"},
+    "tool_calls": {"merge": "indexed"},
+    "usage": {"merge": "replace"},
+}
 
 # LLMInput is the input envelope for an LLM provider task: the settings plus
 # the conversation, with the current turn split out of the context.
