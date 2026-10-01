@@ -539,7 +539,7 @@ class LifecycleHookBuilder:
         if self._handler is not None:
             config["handler"] = self._handler
         if self._async is not None:
-            config["async"] = self._async
+            config["async"] = self._async  # type: ignore[typeddict-unknown-key]  # "async" is a reserved word; TypedDict uses async_ but the wire key is "async"
         if self._timeout is not None:
             config["timeout"] = self._timeout
         return config

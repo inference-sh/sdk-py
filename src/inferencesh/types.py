@@ -2276,7 +2276,7 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]  # TypedDict bodies allow only field declarations; _field_tags is read by delta.py at runtime via cls.__dict__
         "id": {"merge": "replace"},
         "type": {"merge": "replace"},
         "function": {"merge": "nested"},
@@ -2288,7 +2288,7 @@ class ToolCallFunctionDelta(TypedDict, total=False):
     name: str
     arguments: str
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]  # TypedDict bodies allow only field declarations; _field_tags is read by delta.py at runtime via cls.__dict__
         "name": {"merge": "replace"},
         "arguments": {"merge": "concat"},
     }
@@ -3453,7 +3453,7 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
     tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]  # TypedDict bodies allow only field declarations; _field_tags is read by delta.py at runtime via cls.__dict__
         "response": {"merge": "concat"},
         "reasoning": {"merge": "concat"},
         "tool_calls": {"merge": "indexed"},
