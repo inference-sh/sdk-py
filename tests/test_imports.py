@@ -72,6 +72,7 @@ def test_package_version_matches_pyproject():
     "Agent", "AsyncAgent",
     # Tools
     "tool", "app_tool", "agent_tool", "http_tool", "call_tool", "mcp_tool",
+    "lifecycle_hook", "learning_hooks",
     # Errors
     "APIError", "SessionError", "SessionNotFoundError",
     # Streamable

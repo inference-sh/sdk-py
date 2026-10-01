@@ -589,3 +589,18 @@ class TestLearningHooks:
             ("agent.complete", "belt:extract"),
             ("agent.pre_compact", "belt:extract"),
         ]
+
+    def test_learning_hooks_suggest_only(self):
+        from inferencesh.tools import learning_hooks
+
+        hooks = learning_hooks(suggest=True)
+        assert len(hooks) == 1
+        assert hooks[0]["event"] == "agent.turn_start"
+        assert hooks[0]["handler"] == "belt:suggest"
+
+    def test_learning_hooks_learn_only(self):
+        from inferencesh.tools import learning_hooks
+
+        hooks = learning_hooks(learn=True)
+        assert len(hooks) == 2
+        assert all(h["handler"] == "belt:extract" for h in hooks)
