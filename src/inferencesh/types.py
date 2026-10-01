@@ -17,6 +17,8 @@ class InternalToolsConfig(TypedDict, total=False):
     widget: Optional[bool]
     finish: Optional[bool]
     skills: Optional[bool]
+    # Deprecated: ignored. Host context is disabled until embed context has a
+    # replacement; agents are never offered get_host_context or send_to_host.
     host_context: Optional[bool]
     meta: Optional[bool]
     artifact: Optional[bool]
@@ -1241,6 +1243,9 @@ class InstanceTypeConfiguration(TypedDict, total=False):
 class InstanceTypeAvailability(TypedDict, total=False):
     available: bool
     region: str
+    rental_type: InstanceRentalType
+    # HourlyPrice is the spot price in cents, set on spot entries only.
+    hourly_price: int
 
 class InstanceTypeBootTime(TypedDict, total=False):
     average_seconds: int
@@ -3118,6 +3123,7 @@ class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: InstanceStatus
     cost_estimate: str
     hourly_price: int
+    rental_type: InstanceRentalType
     template_id: str
     volume_ids: List[str]
     tags: List[str]
@@ -3137,6 +3143,9 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     cloud_instance_type: str
     deployment_type: InstanceTypeDeploymentType
     hourly_price: int
+    # RentalType is set on engine-picker offers: Region and HourlyPrice are
+    # for this rental type. Empty on the raw catalog.
+    rental_type: InstanceRentalType
     configuration: Optional[InstanceTypeConfiguration]
     availability: List[InstanceTypeAvailability]
     boot_time: Optional[InstanceTypeBootTime]
@@ -3934,6 +3943,10 @@ class InstanceTypeDeploymentType(str, Enum):
     VM = "vm"
     CONTAINER = "container"
     BAREMETAL = "baremetal"
+
+class InstanceRentalType(str, Enum):
+    ON_DEMAND = "on_demand"
+    SPOT = "spot"
 
 class AppSessionStatus(str, Enum):
     ACTIVE = "active"
