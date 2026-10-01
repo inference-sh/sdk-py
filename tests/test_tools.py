@@ -501,6 +501,22 @@ class TestInternalToolsBuilder:
         config = internal_tools().all().build()
         assert "knowledge" not in config and "agent" not in config
 
+    def test_skills_enabled_by_default_when_called(self):
+        config = internal_tools().skills().build()
+        assert config == {"skills": True}
+
+    def test_none_does_not_touch_opt_in_categories(self):
+        """none() only clears legacy flags; meta/agent/knowledge stay server-default unless set."""
+        config = internal_tools().meta().knowledge().none().build()
+        assert config == {
+            "plan": False,
+            "memory": False,
+            "widget": False,
+            "finish": False,
+            "meta": True,
+            "knowledge": True,
+        }
+
     def test_chain_multiple_enables(self):
         config = internal_tools().plan().memory().widget().build()
         assert config == {"plan": True, "memory": True, "widget": True}
