@@ -541,3 +541,29 @@ class TestFluentAPIChaining:
         assert t["description"] == "A complex tool with many params"
         assert t["require_approval"] is True
         assert t["client"]["input_schema"]["required"] == ["name", "count"]
+
+
+class TestLearningHooks:
+    """Builtin hooks and the learning_hooks helper."""
+
+    def test_builtin_handler(self):
+        from inferencesh.tools import lifecycle_hook
+        from inferencesh.types import BuiltinHook, HookEvent
+
+        config = lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.BELT_SUGGEST).build()
+        assert config == {"event": HookEvent.TURN_START, "type": "builtin", "handler": "belt:suggest"}
+
+    def test_learning_hooks_off_by_default(self):
+        from inferencesh.tools import learning_hooks
+
+        assert learning_hooks() == []
+
+    def test_learning_hooks_attach_each_builtin_to_its_events(self):
+        from inferencesh.tools import learning_hooks
+
+        hooks = learning_hooks(suggest=True, learn=True)
+        assert [(h["event"], h["handler"]) for h in hooks] == [
+            ("agent.turn_start", "belt:suggest"),
+            ("agent.complete", "belt:extract"),
+            ("agent.pre_compact", "belt:extract"),
+        ]

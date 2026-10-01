@@ -10,6 +10,7 @@ from .types import (
     HTTPToolConfig,
     InternalToolsConfig,
     LifecycleHookConfig,
+    BuiltinHook,
     HookEvent,
     HookHandlerType,
     ToolAuthConfig,
@@ -514,6 +515,12 @@ class LifecycleHookBuilder:
         self._handler = agent_ref
         return self
 
+    def builtin(self, name: BuiltinHook) -> "LifecycleHookBuilder":
+        """Set hook type to a builtin the platform runs itself (e.g. belt:suggest)."""
+        self._type = HookHandlerType.HOOK_HANDLER_BUILTIN
+        self._handler = name.value if isinstance(name, BuiltinHook) else name
+        return self
+
     def async_(self, enabled: bool = True) -> "LifecycleHookBuilder":
         """Set whether the hook runs asynchronously."""
         self._async = enabled
@@ -541,3 +548,20 @@ class LifecycleHookBuilder:
 def lifecycle_hook(event: HookEvent) -> LifecycleHookBuilder:
     """Create a lifecycle hook configuration."""
     return LifecycleHookBuilder(event)
+
+
+def learning_hooks(suggest: bool = False, learn: bool = False) -> List[LifecycleHookConfig]:
+    """The built-in learning hooks, attached to the events each one runs on.
+
+    suggest: before each turn, add the team's matching skills, knowledge and apps to context.
+    learn: every 10th user turn and before compaction, save reusable knowledge from the
+        conversation to the team's registry, deduplicated. Runs on the agent's own model, and
+        only for chats by the agent's owning team.
+    """
+    hooks: List[LifecycleHookConfig] = []
+    if suggest:
+        hooks.append(lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.BELT_SUGGEST).build())
+    if learn:
+        for event in (HookEvent.AGENT_COMPLETE, HookEvent.PRE_COMPACT):
+            hooks.append(lifecycle_hook(event).builtin(BuiltinHook.BELT_EXTRACT).build())
+    return hooks
