@@ -159,6 +159,9 @@ def test_models_llm_export_exists(name):
     "SuggestRequest", "SuggestResponse", "SuggestResult",
     # Instance types (eff7d5e, 28cd082)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    # API keys + workspace principals (INF-966, 2150d23)
+    "ApiKeyScope", "ApiKeyDTO", "CreateApiKeyRequest", "TeamMemberUserDTO",
+    "TeamCapability", "ErrorCode",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -206,3 +209,53 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_api_key_scope_personal_vs_workspace_keys():
+    """Workspace keys act as the service account; personal keys act as the creator."""
+    from inferencesh.types import (
+        ApiKeyDTO,
+        ApiKeyScope,
+        CreateApiKeyRequest,
+        ErrorCode,
+        MeResponse,
+        Scope,
+        TeamCapability,
+        TeamMemberUserDTO,
+    )
+
+    assert ApiKeyScope.USER.value == "user"
+    assert ApiKeyScope.WORKSPACE.value == "workspace"
+    assert TeamCapability.CREATE_KEYS.value == "create_keys"
+    assert TeamCapability.MANAGE_KEYS.value == "manage_keys"
+    assert ErrorCode.PERSON_REQUIRED.value == "person_required"
+    assert ErrorCode.LAST_OWNER.value == "last_owner"
+
+    create: CreateApiKeyRequest = {
+        "name": "deploy-bot",
+        "scopes": [Scope.ENGINES_READ.value],
+        "scope": ApiKeyScope.WORKSPACE,
+    }
+    assert create["scope"] is ApiKeyScope.WORKSPACE
+
+    creator: TeamMemberUserDTO = {
+        "id": "user_admin",
+        "email": "admin@example.com",
+        "name": "admin",
+    }
+    listed: ApiKeyDTO = {
+        "name": "deploy-bot",
+        "scopes": [Scope.ENGINES_READ],
+        "scope": ApiKeyScope.WORKSPACE,
+        "created_by": "user_admin",
+        "creator": creator,
+        "source": "dashboard",
+    }
+    assert listed["scope"] is ApiKeyScope.WORKSPACE
+    assert listed["creator"]["id"] == "user_admin"
+
+    me: MeResponse = {
+        "personal_team_id": "team_personal",
+        "needs_username": True,
+    }
+    assert me["needs_username"] is True
