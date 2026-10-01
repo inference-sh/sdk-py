@@ -687,6 +687,64 @@ class TestLLMWireContract:
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
 
+    def test_llm_input_accepts_go_payload_without_role_or_stop(self):
+        """Go omitempty drops role/stop; wire validation must not require them (gotypegen v0.8.4)."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput.model_validate(
+            {"context": [{"role": "user", "text": "hi"}], "text": "hello"},
+        )
+        assert inp.role is None
+        assert inp.stop is None
+
+    def test_llm_input_exclude_none_omits_role_and_stop(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput(
+            context=[
+                llm_contract.LLMContextMessage(
+                    role=llm_contract.ChatMessageRole.USER,
+                    text="hi",
+                ),
+            ],
+            text="hello",
+        )
+        dumped = inp.model_dump(exclude_none=True)
+        assert "role" not in dumped
+        assert "stop" not in dumped
+
+    def test_tool_parameters_accepts_missing_properties(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        params = llm_contract.ToolParameters(type=llm_contract.ToolParamType.OBJECT)
+        assert params.properties is None
+        restored = llm_contract.ToolParameters.model_validate({"type": "object"})
+        assert restored.properties is None
+
+    def test_tool_parameter_property_accepts_anyof_without_type_or_enum(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        prop = llm_contract.ToolParameterProperty(
+            anyOf=[
+                llm_contract.ToolParameterProperty(type=llm_contract.ToolParamType.STRING),
+                llm_contract.ToolParameterProperty(type=llm_contract.ToolParamType.INTEGER),
+            ],
+        )
+        assert prop.type is None
+        assert prop.enum is None
+        dumped = prop.model_dump(exclude_none=True)
+        assert "type" not in dumped
+        assert "enum" not in dumped
+        assert "anyOf" in dumped
+
+    def test_app_llm_input_stop_inherits_contract_default(self):
+        """App stop override was removed so unset stop matches Go omitempty on the wire."""
+        from inferencesh.models.llm import LLMInput
+
+        inp = LLMInput(text="hi")
+        assert inp.stop is None
+        assert "stop" not in inp.model_dump(exclude_none=True)
+
     def test_delta_event_wire_model_includes_end_marker(self):
         from inferencesh import llm_types_gen as llm_contract
 
