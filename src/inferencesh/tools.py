@@ -433,6 +433,36 @@ class InternalToolsBuilder:
         self._config["finish"] = enabled
         return self
 
+    def skills(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable skill_get for the skills configured on the agent (on by default)."""
+        self._config["skills"] = enabled
+        return self
+
+    def meta(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable meta tools (search_tools, list_tools, execute_tool)."""
+        self._config["meta"] = enabled
+        return self
+
+    def artifact(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable artifact tools (publish shareable HTML/Markdown pages)."""
+        self._config["artifact"] = enabled
+        return self
+
+    def agent(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable the agent tool (run a copy of this agent on a side task)."""
+        self._config["agent"] = enabled
+        return self
+
+    def remote(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable remote tools (run commands on the user's connected remotes)."""
+        self._config["remote"] = enabled
+        return self
+
+    def knowledge(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable knowledge tools (search, read, save and delete the user's skills and knowledge entries)."""
+        self._config["knowledge"] = enabled
+        return self
+
     def all(self) -> "InternalToolsBuilder":
         """Enable all internal tools."""
         self._config["plan"] = True

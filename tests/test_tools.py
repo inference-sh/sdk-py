@@ -490,6 +490,17 @@ class TestInternalToolsBuilder:
         config = internal_tools().finish().build()
         assert config == {"finish": True}
 
+    def test_opt_in_categories(self):
+        config = internal_tools().meta().artifact().agent().remote().knowledge().skills(False).build()
+        assert config == {
+            "meta": True, "artifact": True, "agent": True,
+            "remote": True, "knowledge": True, "skills": False,
+        }
+
+    def test_all_leaves_opt_in_categories_unset(self):
+        config = internal_tools().all().build()
+        assert "knowledge" not in config and "agent" not in config
+
     def test_chain_multiple_enables(self):
         config = internal_tools().plan().memory().widget().build()
         assert config == {"plan": True, "memory": True, "widget": True}
