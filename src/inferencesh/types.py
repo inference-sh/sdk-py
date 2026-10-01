@@ -1247,6 +1247,24 @@ class InstanceTypeAvailability(TypedDict, total=False):
     # HourlyPrice is the spot price in cents, set on spot entries only.
     hourly_price: int
 
+# InstanceTypeOptionDTO is one launchable provider behind an engine-picker
+# offer. Launch with its cloud and shade_instance_type, one of its regions and
+# the offer's rental_type.
+class InstanceTypeOptionDTO(TypedDict, total=False):
+    cloud: InstanceCloudProvider
+    cloud_logo_url: str
+    shade_instance_type: str
+    cloud_instance_type: str
+    hourly_price: int
+    configuration: Optional[InstanceTypeConfiguration]
+    regions: List[InstanceTypeOptionRegion]
+
+# InstanceTypeOptionRegion is an in-stock region and its hourly price in
+# cents. Spot prices can differ by region.
+class InstanceTypeOptionRegion(TypedDict, total=False):
+    region: str
+    hourly_price: int
+
 class InstanceTypeBootTime(TypedDict, total=False):
     average_seconds: int
     updated_at: str
@@ -3146,6 +3164,9 @@ class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # RentalType is set on engine-picker offers: Region and HourlyPrice are
     # for this rental type. Empty on the raw catalog.
     rental_type: InstanceRentalType
+    # Options lists every in-stock provider for an engine-picker offer,
+    # cheapest first; the offer itself is the first one. Empty on the raw catalog.
+    options: List[InstanceTypeOptionDTO]
     configuration: Optional[InstanceTypeConfiguration]
     availability: List[InstanceTypeAvailability]
     boot_time: Optional[InstanceTypeBootTime]
