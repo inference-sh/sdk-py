@@ -153,7 +153,7 @@ def test_models_llm_export_exists(name):
     "ToolCallType", "ToolParamType",
     # Credentials
     "CredentialProvider", "CredentialType", "CredentialStatus",
-    "InstanceStatus",
+    "InstanceStatus", "InstanceRentalType", "InstanceDTO", "InstanceTypeAvailability",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
@@ -206,3 +206,24 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_instance_rental_type_wire_values():
+    """Engine-picker spot vs on-demand offers use these JSON enum strings."""
+    from inferencesh.types import InstanceRentalType
+
+    assert InstanceRentalType.ON_DEMAND.value == "on_demand"
+    assert InstanceRentalType.SPOT.value == "spot"
+
+
+def test_instance_type_spot_availability_includes_hourly_price_cents():
+    from inferencesh.types import InstanceRentalType, InstanceTypeAvailability
+
+    offer: InstanceTypeAvailability = {
+        "available": True,
+        "region": "us-east-1",
+        "rental_type": InstanceRentalType.SPOT,
+        "hourly_price": 199,
+    }
+    assert offer["rental_type"] is InstanceRentalType.SPOT
+    assert offer["hourly_price"] == 199

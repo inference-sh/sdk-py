@@ -768,6 +768,42 @@ class TestLLMWireContract:
         assert restored.delta is None
 
 
+class TestStreamResponseStopReason:
+    """finish_reason from the API must land on usage.stop_reason for billing/telemetry."""
+
+    @staticmethod
+    def _timing():
+        return type("Timing", (), {
+            "stats": {
+                "time_to_first_token": 0.0,
+                "generation_time": 0.0,
+                "reasoning_time": 0.0,
+                "reasoning_tokens": 0,
+            },
+        })()
+
+    def test_preempted_finish_reason_on_delta_chunk(self):
+        from inferencesh.models.llm import StreamResponse
+
+        resp = StreamResponse()
+        resp.update_from_chunk(
+            {"choices": [{"delta": {"content": "partial"}, "finish_reason": "preempted"}]},
+            self._timing(),
+        )
+        assert resp.finish_reason == "preempted"
+        assert resp.usage_stats["stop_reason"] == "preempted"
+
+    def test_preempted_finish_reason_on_message_chunk(self):
+        from inferencesh.models.llm import StreamResponse
+
+        resp = StreamResponse()
+        resp.update_from_chunk(
+            {"choices": [{"message": {"content": "done"}, "finish_reason": "preempted"}]},
+            self._timing(),
+        )
+        assert resp.usage_stats["stop_reason"] == "preempted"
+
+
 class TestDeprecatedMixins:
     """Deprecated mixins emit warnings but don't break grid apps."""
 
