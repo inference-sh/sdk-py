@@ -2915,7 +2915,8 @@ class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
 class ApiKeyDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
     key: str
-    last_used_at: str
+    # LastUsedAt is absent for a key that has never been used.
+    last_used_at: Optional[str]
     expires_at: Optional[str]
     scopes: List[Scope]
     source: str
