@@ -83,7 +83,6 @@ class LLMInput(llm_contract.LLMInput, BaseAppInput):
     top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     context_size: int = Field(default=4096)
     max_tokens: int = Field(default=64000)
-    stop: Optional[List[str]] = Field(default=None)
     reasoning_effort: ReasoningEffortEnum = Field(default=ReasoningEffortEnum.NONE)
 
 BaseLLMInput = LLMInput

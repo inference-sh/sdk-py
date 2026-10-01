@@ -84,7 +84,7 @@ class LLMSettings(BaseModel):
     presence_penalty: Optional[float] = None
     repetition_penalty: Optional[float] = None
     seed: Optional[int] = None
-    stop: List[str]
+    stop: Optional[List[str]] = None
     max_tokens: Optional[int] = None
     reasoning_effort: Optional[str] = None
     reasoning_max_tokens: Optional[int] = None
@@ -180,7 +180,7 @@ class ToolFunction(BaseModel):
 class ToolParameters(BaseModel):
     type: ToolParamType
     title: str = ""
-    properties: ToolParameterProperties
+    properties: Optional[ToolParameterProperties] = None
     required: Optional[List[str]] = None
 
 ToolParameterProperties = Dict[str, "ToolParameterProperty"]
@@ -189,16 +189,16 @@ class ToolParameterProperty(BaseModel):
     # Type is the JSON Schema type of the value. Empty when AnyOf is set: the
     # value then has one of several shapes, and naming a single type would be
     # telling the model something untrue about what it may send.
-    type: ToolParamType
+    type: Optional[ToolParamType] = None
     # AnyOf lists the shapes a value may take, each described as a property of
     # its own. Anthropic and OpenAI both accept anyOf in tool schemas. Before
     # this field existed the converter picked one branch and dropped the rest,
     # so an app that accepted "401" or 401 could only tell the model about one.
-    anyOf: List[ToolParameterProperty]
+    anyOf: Optional[List[ToolParameterProperty]] = None
     # Enum is the closed set of values a scalar may take, kept as data so a
     # consumer choosing arguments does not have to parse it back out of the
     # description.
-    enum: List[Any]
+    enum: Optional[List[Any]] = None
     title: str = ""
     description: str = ""
     properties: Optional[ToolParameterProperties] = None
@@ -223,7 +223,7 @@ class LLMDelta(StreamDelta, BaseModel):
 # the conversation, with the current turn split out of the context.
 class LLMInput(LLMSettings, BaseModel):
     context: List[LLMContextMessage]
-    role: ChatMessageRole
+    role: Optional[ChatMessageRole] = None
     text: Optional[str] = None
     reasoning: Optional[str] = None
     attachments: Optional[List[FileRef]] = None

@@ -22,7 +22,7 @@ LLM_INPUT_OVERRIDES = {
     "tools",
     # App defaults and validation Go cannot express
     "system_prompt", "text", "role", "temperature", "top_p",
-    "context_size", "max_tokens", "stop", "reasoning_effort",
+    "context_size", "max_tokens", "reasoning_effort",
 }
 
 CONTEXT_MESSAGE_OVERRIDES = {"images", "files", "tool_calls"}
