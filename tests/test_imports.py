@@ -159,7 +159,7 @@ def test_models_llm_export_exists(name):
     "SuggestRequest", "SuggestResponse", "SuggestResult",
     # Instance types (eff7d5e, 28cd082)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
-    # API keys + workspace principals (INF-966, 2150d23)
+    # API keys + workspace principals (INF-966, 2150d23 / bd09de9)
     "ApiKeyScope", "ApiKeyDTO", "CreateApiKeyRequest", "TeamMemberUserDTO",
     "TeamCapability", "ErrorCode",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
@@ -253,6 +253,10 @@ def test_api_key_scope_personal_vs_workspace_keys():
     }
     assert listed["scope"] is ApiKeyScope.WORKSPACE
     assert listed["creator"]["id"] == "user_admin"
+    assert "last_used_at" not in listed
+
+    used: ApiKeyDTO = {**listed, "last_used_at": "2026-10-01T12:00:00Z"}
+    assert used["last_used_at"] == "2026-10-01T12:00:00Z"
 
     me: MeResponse = {
         "personal_team_id": "team_personal",
