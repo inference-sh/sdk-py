@@ -157,8 +157,9 @@ def test_models_llm_export_exists(name):
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
-    # Instance types (eff7d5e, 28cd082)
+    # Instance types (eff7d5e, 28cd082; engine-picker options 9d6a811)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    "InstanceTypeOptionDTO", "InstanceTypeOptionRegion",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -206,3 +207,47 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_engine_picker_instance_type_offer_lists_provider_options():
+    """Engine-picker offers expose in-stock providers (cheapest first) on options."""
+    from inferencesh.types import (
+        InstanceCloudProvider,
+        InstanceRentalType,
+        InstanceTypeDTO,
+        InstanceTypeOptionDTO,
+        InstanceTypeOptionRegion,
+    )
+
+    us_east: InstanceTypeOptionRegion = {"region": "us-east-1", "hourly_price": 180}
+    us_west: InstanceTypeOptionRegion = {"region": "us-west-2", "hourly_price": 210}
+
+    primary: InstanceTypeOptionDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_AWS,
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "p4d.24xlarge",
+        "hourly_price": 180,
+        "regions": [us_east, us_west],
+    }
+    alternate: InstanceTypeOptionDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_LAMBDA_LABS,
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "gpu_8x_a100_80gb",
+        "hourly_price": 195,
+        "regions": [{"region": "us-east-1", "hourly_price": 195}],
+    }
+
+    offer: InstanceTypeDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_AWS,
+        "region": "us-east-1",
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "p4d.24xlarge",
+        "hourly_price": 180,
+        "rental_type": InstanceRentalType.ON_DEMAND,
+        "options": [primary, alternate],
+    }
+
+    assert offer["options"][0]["cloud"] is InstanceCloudProvider.CLOUD_AWS
+    assert offer["options"][0]["hourly_price"] <= offer["options"][1]["hourly_price"]
+    assert offer["options"][0]["regions"][1]["hourly_price"] == 210
+    assert offer["rental_type"] is InstanceRentalType.ON_DEMAND
