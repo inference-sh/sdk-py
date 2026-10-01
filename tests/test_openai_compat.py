@@ -283,3 +283,13 @@ class TestContractDeltaApp:
         contents = [c.choices[0].delta.content for c in chunks if c.choices and c.choices[0].delta.content]
         assert contents == ["Hel", "lo"]
         assert finals[0].choices[0].message.content == "Hello"
+
+
+class TestFinishReasonMapping:
+    def test_preempted_stop_reason_maps_to_openai_stop(self):
+        """Preempted runs are not a native OpenAI finish_reason; adapter falls back to stop."""
+        from inferencesh.models.llm import LLMOutput, LLMUsage
+        from inferencesh.openai.adapter import _finish_reason
+
+        out = LLMOutput(response="x", usage=LLMUsage(stop_reason="preempted"))
+        assert _finish_reason(out) == "stop"

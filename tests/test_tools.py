@@ -525,6 +525,12 @@ class TestInternalToolsBuilder:
         config = internal_tools().all().build()
         assert config == {"plan": True, "memory": True, "widget": True, "finish": True}
 
+    def test_builder_does_not_surface_deprecated_host_context(self):
+        """host_context is ignored by the platform; SDK must not offer a toggle."""
+        assert not hasattr(internal_tools(), "host_context")
+        config = internal_tools().all().build()
+        assert "host_context" not in config
+
     def test_none_disables_everything(self):
         config = internal_tools().none().build()
         assert config == {"plan": False, "memory": False, "widget": False, "finish": False}
