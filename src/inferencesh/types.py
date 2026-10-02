@@ -937,6 +937,9 @@ class ChatSettingsRequest(TypedDict, total=False):
     # DisableHooks stops the agent's lifecycle hooks (suggest, learn,
     # webhooks, gates) firing in this chat.
     disable_hooks: Optional[bool]
+    # ForgetMemory removes these keys from the chat's memory, the notes the
+    # agent keeps for this conversation. A key that is not there is ignored.
+    forget_memory: List[str]
 
 # CredentialConfigDTO is the merged view: provider catalog + credential state.
 class CredentialConfigDTO(TypedDict, total=False):
