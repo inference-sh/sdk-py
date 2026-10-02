@@ -157,8 +157,20 @@ def test_models_llm_export_exists(name):
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
-    # Instance types (eff7d5e, 28cd082)
+    # Instance types (eff7d5e, 28cd082; engine-picker options 9d6a811)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    "InstanceTypeOptionDTO", "InstanceTypeOptionRegion",
+    # API keys + workspace principals (INF-966, 2150d23 / bd09de9)
+    "ApiKeyScope", "ApiKeyDTO", "CreateApiKeyRequest", "TeamMemberUserDTO",
+    "TeamCapability", "ErrorCode",
+    # Chat settings + MCP server catalog (080030a / d26bf0d typegen regen)
+    "ChatSettingsRequest", "ChatData", "MCPServerDTO", "MCPServerSetup",
+    # Chat settings/agent responses, always-allow + tool explain (de093f5 / 1ad3abe2)
+    "ChatSettingsDTO", "ChatAgentDTO",
+    "PolicyRuleDTO", "PolicyEffect",
+    "AlwaysAllowOptionDTO", "AlwaysAllowOptionsDTO", "AlwaysAllowRequest",
+    "AlwaysAllowResultDTO", "AlwaysAllowScope",
+    "ToolExplanationDTO", "ToolRiskLevel",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -206,3 +218,239 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_engine_picker_instance_type_offer_lists_provider_options():
+    """Engine-picker offers expose in-stock providers (cheapest first) on options."""
+    from inferencesh.types import (
+        InstanceCloudProvider,
+        InstanceRentalType,
+        InstanceTypeDTO,
+        InstanceTypeOptionDTO,
+        InstanceTypeOptionRegion,
+    )
+
+    us_east: InstanceTypeOptionRegion = {"region": "us-east-1", "hourly_price": 180}
+    us_west: InstanceTypeOptionRegion = {"region": "us-west-2", "hourly_price": 210}
+
+    primary: InstanceTypeOptionDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_AWS,
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "p4d.24xlarge",
+        "hourly_price": 180,
+        "regions": [us_east, us_west],
+    }
+    alternate: InstanceTypeOptionDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_LAMBDA_LABS,
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "gpu_8x_a100_80gb",
+        "hourly_price": 195,
+        "regions": [{"region": "us-east-1", "hourly_price": 195}],
+    }
+
+    offer: InstanceTypeDTO = {
+        "cloud": InstanceCloudProvider.CLOUD_AWS,
+        "region": "us-east-1",
+        "shade_instance_type": "gpu-a100-80gb",
+        "cloud_instance_type": "p4d.24xlarge",
+        "hourly_price": 180,
+        "rental_type": InstanceRentalType.ON_DEMAND,
+        "options": [primary, alternate],
+    }
+
+    assert offer["options"][0]["cloud"] is InstanceCloudProvider.CLOUD_AWS
+    assert offer["options"][0]["hourly_price"] <= offer["options"][1]["hourly_price"]
+    assert offer["options"][0]["regions"][1]["hourly_price"] == 210
+    assert offer["rental_type"] is InstanceRentalType.ON_DEMAND
+
+
+def test_api_key_scope_personal_vs_workspace_keys():
+    """Workspace keys act as the service account; personal keys act as the creator."""
+    from inferencesh.types import (
+        ApiKeyDTO,
+        ApiKeyScope,
+        CreateApiKeyRequest,
+        ErrorCode,
+        MeResponse,
+        Scope,
+        TeamCapability,
+        TeamMemberUserDTO,
+    )
+
+    assert ApiKeyScope.USER.value == "user"
+    assert ApiKeyScope.WORKSPACE.value == "workspace"
+    assert TeamCapability.CREATE_KEYS.value == "create_keys"
+    assert TeamCapability.MANAGE_KEYS.value == "manage_keys"
+    assert ErrorCode.PERSON_REQUIRED.value == "person_required"
+    assert ErrorCode.LAST_OWNER.value == "last_owner"
+
+    create: CreateApiKeyRequest = {
+        "name": "deploy-bot",
+        "scopes": [Scope.ENGINES_READ.value],
+        "scope": ApiKeyScope.WORKSPACE,
+    }
+    assert create["scope"] is ApiKeyScope.WORKSPACE
+
+    creator: TeamMemberUserDTO = {
+        "id": "user_admin",
+        "email": "admin@example.com",
+        "name": "admin",
+    }
+    listed: ApiKeyDTO = {
+        "name": "deploy-bot",
+        "scopes": [Scope.ENGINES_READ],
+        "scope": ApiKeyScope.WORKSPACE,
+        "created_by": "user_admin",
+        "creator": creator,
+        "source": "dashboard",
+    }
+    assert listed["scope"] is ApiKeyScope.WORKSPACE
+    assert listed["creator"]["id"] == "user_admin"
+    assert "last_used_at" not in listed
+
+    used: ApiKeyDTO = {**listed, "last_used_at": "2026-10-01T12:00:00Z"}
+    assert used["last_used_at"] == "2026-10-01T12:00:00Z"
+
+    me: MeResponse = {
+        "personal_team_id": "team_personal",
+        "needs_username": True,
+    }
+    assert me["needs_username"] is True
+
+
+def test_chat_settings_partial_updates_and_mcp_admin_headers():
+    """Chat settings PATCH fields are independent; MCP catalog carries admin headers."""
+    from inferencesh.types import (
+        ChatData,
+        ChatSettingsRequest,
+        MCPServerDTO,
+        MCPServerSetup,
+        Visibility,
+    )
+
+    hooks_off: ChatSettingsRequest = {"disable_hooks": True}
+    assert hooks_off["disable_hooks"] is True
+    assert "allow_all_tools" not in hooks_off
+
+    forget_only: ChatSettingsRequest = {"forget_memory": ["user_preference", "stale_fact"]}
+    assert forget_only["forget_memory"] == ["user_preference", "stale_fact"]
+    assert "disable_hooks" not in forget_only
+    assert "name" not in forget_only
+
+    combined: ChatSettingsRequest = {
+        "disable_hooks": False,
+        "forget_memory": ["one_key"],
+    }
+    assert combined["forget_memory"] == ["one_key"]
+    assert combined["disable_hooks"] is False
+
+    full_settings: ChatSettingsRequest = {
+        "name": "review branch",
+        "visibility": Visibility.TEAM,
+        "allow_all_tools": True,
+        "disable_hooks": True,
+    }
+    assert full_settings["visibility"] is Visibility.TEAM
+
+    agent_data: ChatData = {
+        "allow_all_tools": False,
+        "disable_hooks": True,
+    }
+    assert agent_data["disable_hooks"] is True
+    assert agent_data["allow_all_tools"] is False
+
+    setup: MCPServerSetup = {
+        "resource_app_id": "00000000-0000-0000-0000-000000000000",
+        "recommended_headers": {"X-MCP-Toolsets": "read"},
+    }
+    server: MCPServerDTO = {
+        "slug": "acme-mcp",
+        "headers": {"X-MCP-Readonly": "true"},
+        "setup": setup,
+    }
+    assert server["headers"]["X-MCP-Readonly"] == "true"
+    assert server["setup"]["recommended_headers"]["X-MCP-Toolsets"] == "read"
+
+
+def test_chat_settings_response_agent_switch_and_tool_approval_contracts():
+    """Settings/agent POST bodies and always-allow/explain DTOs match merge-safe contracts."""
+    from inferencesh.types import (
+        AlwaysAllowOptionDTO,
+        AlwaysAllowOptionsDTO,
+        AlwaysAllowRequest,
+        AlwaysAllowResultDTO,
+        AlwaysAllowScope,
+        ChatAgentDTO,
+        ChatDTO,
+        ChatSettingsDTO,
+        PolicyEffect,
+        PolicyRuleDTO,
+        ToolExplanationDTO,
+        ToolRiskLevel,
+        Visibility,
+    )
+
+    assert PolicyEffect.ASK.value == "ask"
+    assert AlwaysAllowScope.EXACT.value == "exact"
+    assert ToolRiskLevel.TOOL_RISK_HIGH.value == "high"
+
+    settings_response: ChatSettingsDTO = {
+        "chat_id": "chat_1",
+        "name": "review branch",
+        "visibility": Visibility.TEAM,
+        "allow_all_tools": False,
+        "disable_hooks": True,
+        "memory": {"note": "kept"},
+    }
+    assert settings_response["disable_hooks"] is True
+    assert settings_response["memory"]["note"] == "kept"
+    assert "forget_memory" not in settings_response
+
+    agent_switch: ChatAgentDTO = {
+        "chat_id": "chat_1",
+        "agent_id": "agent_9",
+        "agent_version_id": "ver_2",
+    }
+    assert agent_switch["agent_id"] == "agent_9"
+    assert "agent" not in agent_switch
+
+    list_row: ChatDTO = {"id": "chat_1", "name": "review branch"}
+    assert "chat_messages" not in list_row
+
+    pending_rule: PolicyRuleDTO = {
+        "effect": PolicyEffect.ALLOW,
+        "kind": "RemoteExec",
+        "selector": "remote_laptop",
+        "specifier": "git push:*",
+        "label": "git push commands on Laptop",
+        "created_at": None,
+        "created_by": "",
+    }
+    assert pending_rule["created_at"] is None
+
+    narrow: AlwaysAllowOptionDTO = {
+        "key": "exact-git-push-laptop",
+        "scope": AlwaysAllowScope.PREFIX,
+        "label": pending_rule["label"],
+        "rules": [pending_rule],
+    }
+    options: AlwaysAllowOptionsDTO = {
+        "options": [narrow],
+        "default": narrow["key"],
+        "unavailable": "",
+    }
+    assert options["default"] == options["options"][0]["key"]
+
+    save: AlwaysAllowRequest = {"option": narrow["key"]}
+    assert "tool_name" not in save
+
+    saved: AlwaysAllowResultDTO = {"option": narrow, "rules": [pending_rule]}
+    assert saved["rules"][0]["specifier"] == "git push:*"
+
+    explain: ToolExplanationDTO = {
+        "risk_level": ToolRiskLevel.TOOL_RISK_MEDIUM,
+        "explanation": "Pushes commits to origin.",
+        "reasoning": "You asked to publish the branch.",
+        "risk": "Overwrites remote history if force-pushed.",
+    }
+    assert explain["risk_level"] is ToolRiskLevel.TOOL_RISK_MEDIUM
