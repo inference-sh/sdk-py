@@ -923,6 +923,21 @@ class SubmitBountyResponse(TypedDict, total=False):
     submission: BountySubmissionDTO
     granted_amount: int
 
+# ChatSettingsRequest changes a chat's settings. A field left out is left as
+# it is.
+class ChatSettingsRequest(TypedDict, total=False):
+    # Name renames the chat. It cannot be empty.
+    name: Optional[str]
+    # Visibility is who can open the chat: private (only you), team (your
+    # workspace) or public (anyone with the link).
+    visibility: Optional[Visibility]
+    # AllowAllTools runs every tool call without asking. Switching it on also
+    # approves the calls already waiting.
+    allow_all_tools: Optional[bool]
+    # DisableHooks stops the agent's lifecycle hooks (suggest, learn,
+    # webhooks, gates) firing in this chat.
+    disable_hooks: Optional[bool]
+
 # CredentialConfigDTO is the merged view: provider catalog + credential state.
 class CredentialConfigDTO(TypedDict, total=False):
     slug: str
@@ -1456,11 +1471,29 @@ class MCPServerDTO(TypedDict, total=False):
     auth_type: MCPServerAuthType
     oauth_client_id: str
     default_scopes: StringSlice
+    # Headers are static HTTP headers sent on every request to the server,
+    # set by the team's admins (e.g. X-MCP-Toolsets, X-MCP-Readonly).
+    headers: Dict[str, str]
+    # Setup is what the server's directory entry knows about setting it up.
+    setup: Optional[MCPServerSetup]
     documentation_url: str
     connection_status: str
     # ConnectionScope is who the caller's connection to this server belongs
     # to (user, team, org, platform); empty when not connected.
     connection_scope: CredentialScope
+
+# MCPServerSetup is what a server's directory entry knows about setting the
+# server up, as data: shown to whoever connects a server on the same host,
+# so no server's specifics live in code.
+class MCPServerSetup(TypedDict, total=False):
+    # ResourceAppID is the id the server's API has at its authorization
+    # server, which an organization must know before it can approve access
+    # (for a Microsoft Entra resource: the application id a tenant needs a
+    # service principal for).
+    resource_app_id: str
+    # RecommendedHeaders are the least-privilege static headers the server
+    # documents (e.g. X-MCP-Toolsets), offered by the headers editor.
+    recommended_headers: Dict[str, str]
 
 # UpdateNotificationPreferencesRequest is the request to update preferences
 class UpdateNotificationPreferencesRequest(TypedDict, total=False):
@@ -2145,6 +2178,13 @@ class ChatData(TypedDict, total=False):
     plan_steps: List[PlanStep]
     memory: StringEncodedMap
     always_allowed_tools: List[str]
+    # AllowAllTools runs every tool call in this chat without asking. The
+    # person switches it in the chat's settings, and off again at any time.
+    allow_all_tools: bool
+    # DisableHooks stops the agent's lifecycle hooks firing in this chat. A
+    # review branch is opened with it set, so a review cannot fire the hook
+    # that reviews it.
+    disable_hooks: bool
 
 # PlanStep represents a step in an agent's execution plan
 class PlanStep(TypedDict, total=False):
