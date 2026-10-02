@@ -159,6 +159,8 @@ def test_models_llm_export_exists(name):
     "SuggestRequest", "SuggestResponse", "SuggestResult",
     # Instance types (eff7d5e, 28cd082)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    # Chat settings (d26bf0d typegen regen — forget_memory on settings PATCH)
+    "ChatSettingsRequest",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -206,3 +208,20 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_chat_settings_forget_memory_keys():
+    """forget_memory is an optional partial update: drop specific memory keys only."""
+    from inferencesh.types import ChatSettingsRequest
+
+    forget_only: ChatSettingsRequest = {"forget_memory": ["user_preference", "stale_fact"]}
+    assert forget_only["forget_memory"] == ["user_preference", "stale_fact"]
+    assert "disable_hooks" not in forget_only
+    assert "name" not in forget_only
+
+    combined: ChatSettingsRequest = {
+        "disable_hooks": False,
+        "forget_memory": ["one_key"],
+    }
+    assert combined["forget_memory"] == ["one_key"]
+    assert combined["disable_hooks"] is False
