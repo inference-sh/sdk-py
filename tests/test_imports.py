@@ -159,6 +159,8 @@ def test_models_llm_export_exists(name):
     "SuggestRequest", "SuggestResponse", "SuggestResult",
     # Instance types (eff7d5e, 28cd082)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    # Chat settings + MCP server catalog (080030a typegen regen)
+    "ChatSettingsRequest", "ChatData", "MCPServerDTO", "MCPServerSetup",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -206,3 +208,47 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_chat_settings_disable_hooks_and_mcp_admin_headers():
+    """Partial chat settings updates and MCP static headers are typed for integrators."""
+    from inferencesh.types import (
+        ChatData,
+        ChatSettingsRequest,
+        MCPServerDTO,
+        MCPServerSetup,
+        Visibility,
+    )
+
+    # ChatSettingsRequest leaves omitted fields unchanged on the server.
+    hooks_off: ChatSettingsRequest = {"disable_hooks": True}
+    assert hooks_off["disable_hooks"] is True
+    assert "allow_all_tools" not in hooks_off
+
+    full_settings: ChatSettingsRequest = {
+        "name": "review branch",
+        "visibility": Visibility.TEAM,
+        "allow_all_tools": True,
+        "disable_hooks": True,
+    }
+    assert full_settings["visibility"] is Visibility.TEAM
+
+    # Review branches open with disable_hooks so lifecycle hooks cannot recurse.
+    agent_data: ChatData = {
+        "allow_all_tools": False,
+        "disable_hooks": True,
+    }
+    assert agent_data["disable_hooks"] is True
+    assert agent_data["allow_all_tools"] is False
+
+    setup: MCPServerSetup = {
+        "resource_app_id": "00000000-0000-0000-0000-000000000000",
+        "recommended_headers": {"X-MCP-Toolsets": "read"},
+    }
+    server: MCPServerDTO = {
+        "slug": "acme-mcp",
+        "headers": {"X-MCP-Readonly": "true"},
+        "setup": setup,
+    }
+    assert server["headers"]["X-MCP-Readonly"] == "true"
+    assert server["setup"]["recommended_headers"]["X-MCP-Toolsets"] == "read"
