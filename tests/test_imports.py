@@ -146,7 +146,7 @@ def test_models_llm_export_exists(name):
     "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
     # Agent config
-    "AgentConfigInput", "AgentTool", "InternalToolsConfig",
+    "AgentPermissions", "AgentConfigInput", "AgentTool", "InternalToolsConfig",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallDelta", "ToolCallFunctionDelta", "LLMDelta",
@@ -206,3 +206,31 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_agent_permissions_on_version_config_contract():
+    """Agent version permissions seed new chats; chat settings change an existing chat (INF-906)."""
+    from inferencesh.types import (
+        AgentConfigInput,
+        AgentPermissions,
+        AgentVersionDTO,
+        ChatSettingsRequest,
+    )
+
+    perms: AgentPermissions = {"allow_all_tools": True}
+    version_config: AgentConfigInput = {
+        "name": "cron-runner",
+        "permissions": perms,
+    }
+    assert version_config["permissions"]["allow_all_tools"] is True
+
+    published: AgentVersionDTO = {
+        "id": "ver_1",
+        "permissions": {"allow_all_tools": False},
+    }
+    assert published["permissions"]["allow_all_tools"] is False
+
+    # Chat-level toggle is separate from the agent default copied at chat creation.
+    chat_settings: ChatSettingsRequest = {"allow_all_tools": True}
+    assert chat_settings["allow_all_tools"] is True
+    assert "permissions" not in chat_settings
