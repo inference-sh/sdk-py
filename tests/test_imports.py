@@ -8,6 +8,7 @@ that slipped into 0.7.2 because no test exercised the import path.
 import importlib
 import pkgutil
 from pathlib import Path
+from typing import get_type_hints
 
 import pytest
 import tomllib
@@ -145,8 +146,9 @@ def test_models_llm_export_exists(name):
     "AgentToolDTO", "ToolInvocationDTO",
     "AppSessionDTO", "PageDTO", "ProjectDTO", "TeamInviteDTO",
     "FileDTO", "UsageEventDTO",
-    # Agent config
-    "AgentConfigInput", "AgentTool", "InternalToolsConfig",
+    # Agent config + policy (v0.17.0 typegen)
+    "AgentPermissions", "AgentConfigInput", "AgentTool", "InternalToolsConfig",
+    "PolicyEffect", "PolicyKind", "PolicyRuleDTO",
     # Tool schema
     "Tool", "ToolFunction", "ToolParameters", "ToolCall", "ToolCallFunction",
     "ToolCallDelta", "ToolCallFunctionDelta", "LLMDelta",
@@ -206,3 +208,76 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+def test_agent_permissions_on_version_config_contract():
+    """Agent version permissions seed new chats; chat settings toggle an existing chat (INF-906)."""
+    from inferencesh.types import (
+        AgentConfigInput,
+        AgentPermissions,
+        AgentVersionDTO,
+        ChatSettingsRequest,
+    )
+
+    perms: AgentPermissions = {"allow_all_tools": True}
+    version_config: AgentConfigInput = {
+        "name": "cron-runner",
+        "permissions": perms,
+    }
+    assert version_config["permissions"]["allow_all_tools"] is True
+
+    published: AgentVersionDTO = {
+        "id": "ver_1",
+        "permissions": {"allow_all_tools": False},
+    }
+    assert published["permissions"]["allow_all_tools"] is False
+
+    chat_settings: ChatSettingsRequest = {"allow_all_tools": True}
+    assert chat_settings["allow_all_tools"] is True
+    assert "permissions" not in chat_settings
+
+
+def test_policy_rule_kind_enum_contract():
+    """PolicyRuleDTO.kind is PolicyKind (usage + execution kinds), not an untyped string (v0.17.0)."""
+    from inferencesh.types import PolicyEffect, PolicyKind, PolicyRuleDTO
+
+    assert PolicyKind.REMOTE_EXEC.value == "RemoteExec"
+    assert PolicyKind.WEB_FETCH.value == "WebFetch"
+    assert PolicyKind.MCP.value == "Mcp"
+    assert get_type_hints(PolicyRuleDTO)["kind"] is PolicyKind
+
+    exec_rule: PolicyRuleDTO = {
+        "effect": PolicyEffect.ASK,
+        "kind": PolicyKind.REMOTE_EXEC,
+        "selector": "remote_laptop",
+        "specifier": "git push:*",
+        "label": "git push on Laptop",
+    }
+    usage_rule: PolicyRuleDTO = {
+        "effect": PolicyEffect.DENY,
+        "kind": PolicyKind.APP,
+        "selector": "",
+        "specifier": "app_storefront",
+        "label": "block storefront app",
+    }
+    assert exec_rule["kind"] is PolicyKind.REMOTE_EXEC
+    assert usage_rule["kind"] is PolicyKind.APP
+
+
+def test_chat_data_uses_allow_all_tools_not_legacy_list():
+    """Chat always-allow moved from always_allowed_tools list to allow_all_tools (v0.17.0)."""
+    from inferencesh.types import ChatData
+
+    hints = get_type_hints(ChatData)
+    assert "allow_all_tools" in hints
+    assert "always_allowed_tools" not in hints
+
+    session: ChatData = {"allow_all_tools": True, "disable_hooks": False}
+    assert session["allow_all_tools"] is True
+
+
+def test_team_dto_dropped_usage_policy_id():
+    """Team usage policy is no longer a field on TeamDTO (v0.17.0)."""
+    from inferencesh.types import TeamDTO
+
+    assert "usage_policy_id" not in get_type_hints(TeamDTO)
