@@ -26,6 +26,16 @@ class InternalToolsConfig(TypedDict, total=False):
     remote: Optional[bool]
     knowledge: Optional[bool]
 
+# AgentPermissions is what an agent's new chats may do without asking
+# (INF-906). Each is copied into a chat when it is created; the chat owns
+# it from then on. A team or org policy still asks or denies over it.
+class AgentPermissions(TypedDict, total=False):
+    # AllowAllTools starts each new chat with "allow every tool" on: loop
+    # tools, harness tools and remote_exec commands run without asking. For
+    # agents nobody watches (webhook and cron runs), where an approval would
+    # stall the run.
+    allow_all_tools: bool
+
 # AgentTool represents a unified tool that can be used by an agent
 class AgentTool(TypedDict, total=False):
     name: str
@@ -206,6 +216,7 @@ class AgentConfigInput(TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
@@ -3037,6 +3048,7 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
 
