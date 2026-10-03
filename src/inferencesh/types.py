@@ -26,9 +26,11 @@ class InternalToolsConfig(TypedDict, total=False):
     remote: Optional[bool]
     knowledge: Optional[bool]
 
-# AgentPermissions is what an agent's new chats may do without asking
-# (INF-906). Each is copied into a chat when it is created; the chat owns
-# it from then on. A team or org policy still asks or denies over it.
+# AgentPermissions is what an agent's new chats in its own workspace may do
+# without asking (INF-906). Each is copied into such a chat when it is
+# created; the chat owns it from then on. Chats other workspaces start with
+# the agent get none of it: they run on their own remotes and tools. A team
+# or org policy still asks or denies over it.
 class AgentPermissions(TypedDict, total=False):
     # AllowAllTools starts each new chat with "allow every tool" on: loop
     # tools, harness tools and remote_exec commands run without asking. For
@@ -979,9 +981,9 @@ class ChatAgentDTO(TypedDict, total=False):
 class PolicyRuleDTO(TypedDict, total=False):
     id: str
     effect: PolicyEffect
-    # Kind: RemoteExec, Workspace, Harness, Tool (and, from phase 3, App,
-    # Agent, Knowledge, Mcp, Flow, WebFetch).
-    kind: str
+    # Kind: what the rule governs (RemoteExec, Workspace, Harness, Tool,
+    # and the usage kinds App, Agent, Knowledge, Mcp, Flow).
+    kind: PolicyKind
     # Selector narrows the rule to one remote (its id) or a tag (tag:<name>);
     # empty applies everywhere.
     selector: str
@@ -2297,7 +2299,6 @@ class A2UISurface(TypedDict, total=False):
 class ChatData(TypedDict, total=False):
     plan_steps: List[PlanStep]
     memory: StringEncodedMap
-    always_allowed_tools: List[str]
     # AllowAllTools runs every tool call in this chat without asking. The
     # person switches it in the chat's settings, and off again at any time.
     allow_all_tools: bool
@@ -3016,9 +3017,6 @@ class TeamDTO(BaseModelDTO, TypedDict, total=False):
     # caller's team list (/teams) so a member of one of its teams sees whose
     # org it is without belonging to the org workspace.
     org_name: str
-    # UsagePolicyID of the team's own usage policy ('' = inherit the org's,
-    # or ungoverned when standalone, INF-808).
-    usage_policy_id: str
 
 # UserDTO is the API response for a full user.
 class UserDTO(BaseModelDTO, TypedDict, total=False):
@@ -3750,11 +3748,6 @@ class ScopeGroup(str, Enum):
     USER = "user"
     SETTINGS = "settings"
 
-class PolicyEffect(str, Enum):
-    ALLOW = "allow"
-    ASK = "ask"
-    DENY = "deny"
-
 class AlwaysAllowScope(str, Enum):
     # AlwaysAllowScopeExact: this call exactly (each piece of the command,
     # the file, the domain).
@@ -4455,6 +4448,30 @@ class NotificationStatus(str, Enum):
     FAILED = "failed"
     BOUNCED = "bounced"
     CANCELLED = "cancelled"
+
+class PolicyEffect(str, Enum):
+    ALLOW = "allow"
+    ASK = "ask"
+    DENY = "deny"
+
+class PolicyKind(str, Enum):
+    # PolicyKindRemoteExec: shell commands run on a remote.
+    REMOTE_EXEC = "RemoteExec"
+    # PolicyKindWorkspace: folders on a remote.
+    WORKSPACE = "Workspace"
+    # PolicyKindHarness: a harness's own tool approvals, e.g.
+    # Harness(Bash(git status:*)).
+    HARNESS = "Harness"
+    # PolicyKindTool: a tool call our own agent loop makes, by tool name.
+    TOOL = "Tool"
+    # Usage kinds (UsageCategory.PolicyKind): rules name resolved ids.
+    APP = "App"
+    AGENT = "Agent"
+    KNOWLEDGE = "Knowledge"
+    MCP = "Mcp"
+    FLOW = "Flow"
+    # PolicyKindWebFetch: fetched domains.
+    WEB_FETCH = "WebFetch"
 
 class FunctionKind(str, Enum):
     # FunctionKindRun takes an input and returns an output (optionally
