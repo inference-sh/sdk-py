@@ -33,6 +33,17 @@ class TestMetadata:
         meta.update(Other())
         assert meta.region == "us-east"
 
+    def test_app_variant_not_a_declared_field(self):
+        """v0.18.0 dropped first-class app_variant on runtime Metadata (29e6382)."""
+        assert "app_variant" not in Metadata.model_fields
+        schema_props = Metadata.model_json_schema()["properties"]
+        assert "app_variant" not in schema_props
+
+    def test_legacy_app_variant_accepted_as_extra(self):
+        """Unknown worker keys remain compatible via extra=allow without re-promoting the field."""
+        meta = Metadata(app_variant="legacy")
+        assert meta.app_variant == "legacy"
+
     def test_gpu_ids_defaults_to_none(self):
         meta = Metadata()
         assert meta.gpu_ids is None
