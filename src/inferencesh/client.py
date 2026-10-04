@@ -659,7 +659,6 @@ class Inference:
                 - app: App reference with version (e.g., "okaris/flux@abc1")
                 - input: Input data for the app
                 - setup: Optional setup parameters (affects worker warmth/scheduling)
-                - variant: Optional variant name
             wait: Whether to wait for task completion (default: True)
             stream: Whether to return an iterator of updates (default: False)
             auto_reconnect: Whether to automatically reconnect on connection loss
@@ -1274,7 +1273,6 @@ class AsyncInference:
                 - app: App reference with version (e.g., "okaris/flux@abc1")
                 - input: Input data for the app
                 - setup: Optional setup parameters (affects worker warmth/scheduling)
-                - variant: Optional variant name
             wait: Whether to wait for task completion (default: True)
             stream: Whether to return an async iterator of updates (default: False)
             auto_reconnect: Whether to automatically reconnect on connection loss

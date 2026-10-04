@@ -11,8 +11,7 @@ TASK_PARAMS = {
         "strings": ["world"]
     },
     "version": "53bk0yzkth5vevthqdvv81zpzy",
-    "infra": "cloud",
-    "variant": "default"
+    "infra": "cloud"
 }
 
 

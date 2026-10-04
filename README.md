@@ -39,8 +39,7 @@ client = inference(api_key="your-api-key")
 result = client.tasks.run({
     "app": "your-app",
     "input": {"key": "value"},
-    "infra": "cloud",
-    "variant": "default"
+    "infra": "cloud"
 })
 
 print(f"Task ID: {result.get('id')}")
@@ -562,8 +561,7 @@ async def main():
     result = await client.tasks.run({
         "app": "your-app",
         "input": {"key": "value"},
-        "infra": "cloud",
-        "variant": "default"
+        "infra": "cloud"
     })
     print(f"Output: {result.get('output')}")
 
