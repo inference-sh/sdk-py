@@ -27,11 +27,11 @@ class TestMetadata:
 
     def test_update_from_base_model(self):
         class Other(BaseModel):
-            app_variant: str = "prod"
+            region: str = "us-east"
 
         meta = Metadata()
         meta.update(Other())
-        assert meta.app_variant == "prod"
+        assert meta.region == "us-east"
 
     def test_gpu_ids_defaults_to_none(self):
         meta = Metadata()
