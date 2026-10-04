@@ -323,7 +323,6 @@ class AppVersionInput(TypedDict, total=False):
     output_schema: Any
     functions: Dict[str, AppFunction]
     default_function: str
-    variants: Dict[str, AppVariant]
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
@@ -627,14 +626,6 @@ class AppGPUResource(TypedDict, total=False):
 class AppResources(TypedDict, total=False):
     gpu: AppGPUResource
     ram: int
-
-# AppVariant is a named resource/env configuration variant.
-class AppVariant(TypedDict, total=False):
-    name: str
-    order: int
-    resources: AppResources
-    env: Dict[str, str]
-    python: str
 
 # SecretRequirement defines a secret that an app requires to run.
 class SecretRequirement(TypedDict, total=False):
@@ -2797,7 +2788,6 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     output_schema: Any
     functions: Dict[str, AppFunction]
     default_function: str
-    variants: Dict[str, AppVariant]
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
@@ -3530,7 +3520,6 @@ class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     app: Optional[AppDTO]
     app_version_id: str
     app_version: Optional[AppVersionDTO]
-    app_variant: str
     function: str
     infra: Infra
     workers: List[str]
@@ -4327,6 +4316,8 @@ class EntitlementResource(str, Enum):
     # Feature gates — only what has real cost/complexity
     RESOURCE_FEATURE_BYOK = "feature:byok"
     RESOURCE_FEATURE_SEEDANCE = "feature:seedance"
+    # Granted per team: the marketplace takes submissions by invitation.
+    RESOURCE_FEATURE_MARKETPLACE_PUBLISH = "feature:marketplace_publish"
     # Legacy feature gates — kept for DB compatibility, no longer gated
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
     RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
