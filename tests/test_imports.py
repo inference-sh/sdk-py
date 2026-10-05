@@ -180,6 +180,7 @@ def test_models_llm_export_exists(name):
     "OAuthAuthorizeInfoResponse", "CreateSubscriptionRequest",
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
+    "DescriptionLimit",
     "ChannelContext", "CreateAgentMessageRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
@@ -206,3 +207,18 @@ def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
     from inferencesh import types
     assert hasattr(types, name), f"inferencesh.types.{name} not found"
+
+
+class TestDescriptionLimit:
+    """Guards API description length constants (4bb3b0e typegen regen)."""
+
+    def test_listing_and_skill_limits(self):
+        from enum import IntEnum
+
+        from inferencesh.types import DescriptionLimit
+
+        assert issubclass(DescriptionLimit, IntEnum)
+        assert DescriptionLimit.LISTING == 200
+        assert DescriptionLimit.SKILL == 1024
+        assert int(DescriptionLimit.LISTING) == 200
+        assert int(DescriptionLimit.SKILL) == 1024
