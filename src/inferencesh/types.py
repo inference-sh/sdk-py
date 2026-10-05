@@ -3098,6 +3098,12 @@ class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: AppStatus
     status_message: str
     status_changed_at: Optional[str]
+    # ResolvedFunction is the function the requested ref named, when it named
+    # one: "ns/app:fn" in the ref itself, or a route on the name that pins a
+    # function (a retired dialogue app routed to "ns/new-app:dialogue"). Only
+    # set on a lookup by ref; empty means the caller picks, starting from the
+    # version's default.
+    resolved_function: str
 
 # AppSessionDTO is the external representation
 class AppSessionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
