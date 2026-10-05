@@ -138,7 +138,6 @@ from .types import (
     ChatMessageDTO,
     ChatData,
     ChatMessageContent,
-    LLMInput,
     LLMContextMessage,
     # Tool types
     ToolCall,
