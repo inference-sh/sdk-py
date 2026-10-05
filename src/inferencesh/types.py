@@ -981,10 +981,13 @@ class PolicyRuleDTO(TypedDict, total=False):
     # Specifier is the kind's pattern: a command (`npm test`, `git push:*`),
     # a folder (`~/proj/**`), a harness tool with its pattern
     # (`Bash(git status:*)`, `Edit`), or a loop tool's name. Empty is the
-    # whole kind.
+    # whole kind. A usage kind's names a resource by id, or everything a
+    # publisher owns as publisher:<team id>.
     specifier: str
     # Label is the rule in words, e.g. "git commit commands on Laptop", the
-    # same words an approval prompt's "always allow" options use.
+    # same words an approval prompt's "always allow" options use. A usage
+    # rule's is the name it was written with ("bytedance/seedance",
+    # "bytedance/*").
     label: str
     # CreatedAt is null for a rule that is not a stored row yet: an entry of
     # the chat's always-allow list from before rules existed, or the chat's
