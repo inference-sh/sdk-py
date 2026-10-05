@@ -4037,6 +4037,17 @@ class ChannelType(str, Enum):
 class ChatEventType(str, Enum):
     HOOK = "hook"
 
+class DescriptionLimit(IntEnum):
+    # DescriptionLimitListing bounds the description of an app, agent, flow,
+    # MCP server or knowledge entry. A description is shown in listings and
+    # handed to agents as a suggestion, so it is a sentence or two; anything
+    # longer belongs in the resource itself.
+    LISTING = 200
+    # DescriptionLimitSkill bounds a skill's description. It is the skill's
+    # SKILL.md frontmatter, so it follows the Agent Skills specification
+    # (https://agentskills.io/specification) rather than the listing limit.
+    SKILL = 1024
+
 class EngineStatus(str, Enum):
     RUNNING = "running"
     PENDING = "pending"
