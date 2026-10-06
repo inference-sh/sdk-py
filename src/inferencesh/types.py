@@ -659,6 +659,13 @@ class CredentialRequirement(TypedDict, total=False):
     secrets: List[str]
     scopes: List[str]
 
+# AppUIRef names the artifact an app version renders as its UI: a page a
+# host shows beside the task in place of the generic output view. Artifact
+# is a ref ("ns/name", or "ns/name@version" to pin one) or an artifact id;
+# an unpinned ref follows the artifact's current version.
+class AppUIRef(TypedDict, total=False):
+    artifact: str
+
 # AppStoreListingDTO for API responses
 class AppStoreListingDTO(TypedDict, total=False):
     id: str
@@ -1221,9 +1228,33 @@ class EntitlementErrorMeta(TypedDict, total=False):
     limit: Optional[int]
     current: Optional[int]
     upgrade_available: bool
+    requestable: bool
+    request_state: str
     addon_plan_id: str
     addon_plan_name: str
     addon_plan_price: Optional[int]
+
+# EntitlementRequested is the shape of a request's "requested" field and of
+# the grant an acceptance makes: a boolean gate switched on, or a limit.
+class EntitlementRequested(TypedDict, total=False):
+    type: EntitlementType
+    enabled: bool
+    limit: int
+
+# CreateEntitlementRequestRequest asks for a resource on behalf of the
+# caller's team. requested defaults to a switched-on boolean gate. form
+# (namespace/name or id) with data submits that form first and attaches
+# the submission; the form's own policy and validation errors apply.
+class CreateEntitlementRequestRequest(TypedDict, total=False):
+    resource: EntitlementResource
+    requested: Any
+    form: str
+    data: Any
+
+# DecideEntitlementRequestRequest is an admin's accept or decline; the note
+# reaches the requester by email.
+class DecideEntitlementRequestRequest(TypedDict, total=False):
+    note: str
 
 # TeamRoleRequiredMeta is the meta of a team_role_required error from a
 # capability gate. Only Capability is always set: a team that does not
@@ -1364,6 +1395,60 @@ class RemoveOutputMappingPayload(TypedDict, total=False):
 class RenameOutputFieldPayload(TypedDict, total=False):
     old_field: str
     new_field: str
+
+# CreateFormRequest creates a form in the caller's team namespace. The name
+# is the immutable slug behind GET /forms/{namespace}/{name}.
+class CreateFormRequest(TypedDict, total=False):
+    name: str
+    title: str
+    description: str
+    schema: Any
+    submit_policy: FormSubmitPolicy
+    visibility: Visibility
+
+# UpdateFormRequest patches a form; nil fields are left as they are.
+# bounty_name is settable by platform admins only.
+class UpdateFormRequest(TypedDict, total=False):
+    title: Optional[str]
+    description: Optional[str]
+    schema: Any
+    status: Optional[FormStatus]
+    submit_policy: Optional[FormSubmitPolicy]
+    bounty_name: Optional[str]
+
+# SubmitFormRequest is one person's answers to a form. data is validated
+# against the form's schema.
+class SubmitFormRequest(TypedDict, total=False):
+    data: Any
+    source: str
+    agent: str
+    context: str
+
+# SubmitFormResponse is returned when a submission was recorded.
+# GrantedAmount is the credit reward in microcents (0 if no reward was
+# earned). RewardBlockedReason is set when the submission was recorded but
+# the reward was withheld (see the RewardBlocked* constants).
+class SubmitFormResponse(TypedDict, total=False):
+    submission: FormSubmissionDTO
+    granted_amount: int
+    reward_blocked_reason: str
+
+# SubmitSurveyResponse is returned when submitting a survey answer.
+# GrantedAmount is the credit reward in microcents (0 if no reward was earned).
+# RewardBlockedReason is set when the answer was recorded but the reward was
+# withheld by policy (see RewardBlockedPaymentMethodRequired).
+class SubmitSurveyResponse(TypedDict, total=False):
+    response: SurveyResponseDTO
+    granted_amount: int
+    reward_blocked_reason: str
+
+# SubmitSurveyRequest is used to submit a single survey answer.
+class SubmitSurveyRequest(TypedDict, total=False):
+    question_id: str
+    response: str
+    agent: str
+    source: str
+    context: str
 
 # ChatTraceDTO is the trace response for chat observability
 class ChatTraceDTO(TypedDict, total=False):
@@ -1536,6 +1621,7 @@ class ResourceContent(TypedDict, total=False):
     mimeType: str
     text: str
     blob: str
+    _meta: Dict[str, Any]
 
 # ToolCallRequest represents a request to call a tool.
 # 
@@ -1881,23 +1967,6 @@ class StatBuckets(TypedDict, total=False):
     this_week: int
     all_time: int
 
-# SubmitSurveyResponse is returned when submitting a survey answer.
-# GrantedAmount is the credit reward in microcents (0 if no reward was earned).
-# RewardBlockedReason is set when the answer was recorded but the reward was
-# withheld by policy (see RewardBlockedPaymentMethodRequired).
-class SubmitSurveyResponse(TypedDict, total=False):
-    response: SurveyResponseDTO
-    granted_amount: int
-    reward_blocked_reason: str
-
-# SubmitSurveyRequest is used to submit a single survey answer.
-class SubmitSurveyRequest(TypedDict, total=False):
-    question_id: str
-    response: str
-    agent: str
-    source: str
-    context: str
-
 # Hardware/System related types
 class SystemInfo(TypedDict, total=False):
     hostname: str
@@ -2180,6 +2249,8 @@ class UserRelationDTO(TypedDict, total=False):
     created_at: str
     updated_at: str
     role: Role
+    # Name is omitted when empty so older generated copies of this DTO stay assignable.
+    name: str
     avatar_url: str
 
 # UserMetadataDTO is the API representation of user metadata.
@@ -2265,6 +2336,40 @@ class A2UIComponent(TypedDict, total=False):
     artifactTitle: str
     artifactUrl: str
     artifactFavicon: str
+    # Extension: McpApp. The page is stored on the component so the chat
+    # renders it from the message alone; the server, credential and tool name
+    # let the host route the page's tools/call requests.
+    mcpHtml: str
+    mcpCsp: Optional[MCPUICSP]
+    mcpResourceUri: str
+    mcpServerSlug: str
+    mcpCredentialId: str
+    mcpToolName: str
+    mcpToolInput: Dict[str, Any]
+    mcpToolResult: Optional[A2UIMcpToolResult]
+    mcpPrefersBorder: bool
+    # McpArtifactId is set when the page is one of our artifacts (an app's
+    # own UI) rather than a remote server's: the host then serves the page's
+    # runtime calls through the artifact's data endpoints, not /mcps.
+    mcpArtifactId: str
+
+# MCPUICSP is an MCP Apps resource's _meta.ui.csp: the origins the host must
+# let the page reach, by directive. Lives here rather than in apitypes
+# because A2UI components carry it and apitypes imports this package.
+class MCPUICSP(TypedDict, total=False):
+    connectDomains: List[str]
+    resourceDomains: List[str]
+    frameDomains: List[str]
+    baseUriDomains: List[str]
+
+# A2UIMcpToolResult is the tool result in the shape the page expects
+# (ui/notifications/tool-result carries a CallToolResult): the content blocks
+# as the server sent them, not the platform's mapped output.
+class A2UIMcpToolResult(TypedDict, total=False):
+    content: List[Dict[str, Any]]
+    structuredContent: Any
+    isError: bool
+    _meta: Dict[str, Any]
 
 # A2UIBoundValue is either a literal or a data model path reference.
 class A2UIBoundValue(TypedDict, total=False):
@@ -2788,6 +2893,8 @@ class ToolParameterProperty(TypedDict, total=False):
 # AppVersionDTO is the API response for an app version.
 class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
+    # UI mirrors metadata.ui so clients need not dig through the map.
+    ui: Optional[AppUIRef]
     repository: str
     flow_version_id: Optional[str]
     flow_version: Optional[FlowVersionDTO]
@@ -3262,6 +3369,20 @@ class EngineSummary(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     status: EngineStatus
     workers: List[Optional[WorkerSummary]]
 
+# EntitlementRequestDTO is a team's request for an entitlement, with the
+# form submission that came with it when there was one, so the admin queue
+# shows the answers next to the decision.
+class EntitlementRequestDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    resource: EntitlementResource
+    resource_label: str
+    requested: Any
+    submission_id: str
+    submission: Optional[FormSubmissionDTO]
+    state: EntitlementRequestState
+    decided_by: str
+    decided_at: Optional[str]
+    note: str
+
 # FileDTO for API responses
 class FileDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     path: str
@@ -3315,6 +3436,39 @@ class FlowRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     node_tasks: Dict[str, Optional[NodeTaskDTO]]
     node_statuses: Dict[str, GraphNodeStatus]
     node_outputs: Any
+
+# FormDTO is the API representation of a form: a JSON Schema plus the
+# settings that say who may submit, and how often.
+class FormDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    namespace: str
+    name: str
+    title: str
+    description: str
+    schema: Any
+    status: FormStatus
+    submit_policy: FormSubmitPolicy
+    bounty_name: str
+
+# FormSubmissionDTO is one set of answers to a form.
+class FormSubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    form_id: str
+    form_team_id: str
+    submitter_team_id: str
+    data: Any
+    source: str
+    agent: str
+    context: str
+    # RewardAmount is the credit reward in microcents (0 when none was earned).
+    reward_amount: int
+    reward_blocked_reason: str
+
+# SurveyResponseDTO is the API representation of a survey response.
+class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    question_id: str
+    response: str
+    agent: str
+    source: str
+    context: str
 
 # InstanceDTO is the API representation of a cloud instance.
 class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3514,14 +3668,6 @@ class SocketDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     client_bytes: int
     worker_frames: int
     worker_bytes: int
-
-# SurveyResponseDTO is the API representation of a survey response.
-class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    question_id: str
-    response: str
-    agent: str
-    source: str
-    context: str
 
 # TaskDTO is the full API response for a task.
 class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3819,6 +3965,14 @@ class ErrorCode(str, Enum):
     # payment method and the caller's team has none. Meta is
     # PaymentMethodRequiredMeta; clients send the user to BillingPage.
     PAYMENT_METHOD_REQUIRED = "payment_method_required"
+    # Form submissions (409): the form is not open, or its submit policy
+    # already holds the caller's submission.
+    FORM_CLOSED = "form_closed"
+    ALREADY_SUBMITTED = "already_submitted"
+    # Entitlement requests (409): the team already holds the entitlement, or
+    # already has an open request for it.
+    ALREADY_ENTITLED = "already_entitled"
+    REQUEST_OPEN = "request_open"
     # Remote harness refusals.
     AGENTS_DISABLED = "agents_disabled"
     REMOTE_OFFLINE = "remote_offline"
@@ -3913,6 +4067,10 @@ class A2UIComponentType(str, Enum):
     # Artifact embeds a published artifact (sandboxed page) with a link to
     # the viewer. Rendered from the artifact's /render endpoint.
     A2UI_ARTIFACT = "Artifact"
+    # McpApp embeds a remote MCP server's tool page (MCP Apps, SEP-1865): a
+    # sandboxed HTML document the host feeds the tool's input and result over
+    # postMessage, and whose tools/call requests it proxies to the server.
+    A2UI_MCP_APP = "McpApp"
 
 class ApiKeyScope(str, Enum):
     # ApiKeyScopeUser is a personal key: it acts as the person who created it,
@@ -4001,6 +4159,12 @@ class EnforcementMode(str, Enum):
     ENFORCEMENT_BLOCK = "block"
     ENFORCEMENT_WARN = "warn"
 
+class EntitlementRequestState(str, Enum):
+    ENTITLEMENT_REQUEST_OPEN = "open"
+    ENTITLEMENT_REQUEST_ACCEPTED = "accepted"
+    ENTITLEMENT_REQUEST_DECLINED = "declined"
+    ENTITLEMENT_REQUEST_WITHDRAWN = "withdrawn"
+
 class ChatStatus(str, Enum):
     BUSY = "busy"
     IDLE = "idle"
@@ -4084,6 +4248,21 @@ class FlowRunStatus(IntEnum):
     COMPLETED = 3
     FAILED = 4
     CANCELLED = 5
+
+class FormStatus(str, Enum):
+    DRAFT = "draft"
+    OPEN = "open"
+    CLOSED = "closed"
+
+class FormSubmitPolicy(str, Enum):
+    # FormSubmitOncePerUser: one submission per person, whichever team they
+    # selected when they answered.
+    FORM_SUBMIT_ONCE_PER_USER = "once_per_user"
+    # FormSubmitOncePerTeam: one submission per team; the submitter's
+    # selected team counts.
+    FORM_SUBMIT_ONCE_PER_TEAM = "once_per_team"
+    # FormSubmitMany: no limit.
+    FORM_SUBMIT_MANY = "many"
 
 class GraphNodeType(str, Enum):
     UNKNOWN = "unknown"
@@ -4343,6 +4522,8 @@ class EntitlementResource(str, Enum):
     RESOURCE_FEATURE_SEEDANCE = "feature:seedance"
     # Granted per team: the marketplace takes submissions by invitation.
     RESOURCE_FEATURE_MARKETPLACE_PUBLISH = "feature:marketplace_publish"
+    # Granted per team: creating forms is by invitation for now.
+    RESOURCE_FEATURE_FORMS = "feature:forms"
     # Legacy feature gates — kept for DB compatibility, no longer gated
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
     RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
@@ -4455,6 +4636,8 @@ class NotificationType(str, Enum):
     SERVICE_NOTICE = "service_notice"
     # Team notifications
     TEAM_INVITE = "team_invite"
+    # An admin decided the team's entitlement request
+    ENTITLEMENT_REQUEST = "entitlement_request"
 
 class NotificationStatus(str, Enum):
     PENDING = "pending"
