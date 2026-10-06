@@ -922,7 +922,10 @@ class AvailabilityResponse(TypedDict, total=False):
     # Reason is set only when Available is false: "taken" or "reserved".
     reason: str
 
-# SubmitBountyRequest is used to claim a bounty reward.
+# SubmitBountyRequest is used to claim a bounty reward. proof_id names the
+# proof the program's proof_type asks for: an app (id or namespace/name) for
+# "app", one of the caller's form submission ids for "form", free text
+# otherwise.
 class SubmitBountyRequest(TypedDict, total=False):
     bounty_id: str
     proof_id: str
@@ -1407,14 +1410,12 @@ class CreateFormRequest(TypedDict, total=False):
     visibility: Visibility
 
 # UpdateFormRequest patches a form; nil fields are left as they are.
-# bounty_name is settable by platform admins only.
 class UpdateFormRequest(TypedDict, total=False):
     title: Optional[str]
     description: Optional[str]
     schema: Any
     status: Optional[FormStatus]
     submit_policy: Optional[FormSubmitPolicy]
-    bounty_name: Optional[str]
 
 # SubmitFormRequest is one person's answers to a form. data is validated
 # against the form's schema.
@@ -1425,18 +1426,13 @@ class SubmitFormRequest(TypedDict, total=False):
     context: str
 
 # SubmitFormResponse is returned when a submission was recorded.
-# GrantedAmount is the credit reward in microcents (0 if no reward was
-# earned). RewardBlockedReason is set when the submission was recorded but
-# the reward was withheld (see the RewardBlocked* constants).
 class SubmitFormResponse(TypedDict, total=False):
     submission: FormSubmissionDTO
-    granted_amount: int
-    reward_blocked_reason: str
 
 # SubmitSurveyResponse is returned when submitting a survey answer.
-# GrantedAmount is the credit reward in microcents (0 if no reward was earned).
-# RewardBlockedReason is set when the answer was recorded but the reward was
-# withheld by policy (see RewardBlockedPaymentMethodRequired).
+# GrantedAmount and RewardBlockedReason are kept for the CLIs that read
+# them; the alias records answers only, so they are always 0 and empty.
+# Bounties are claimed through POST /me/bounty.
 class SubmitSurveyResponse(TypedDict, total=False):
     response: SurveyResponseDTO
     granted_amount: int
@@ -3270,9 +3266,13 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
     max_per_user: int
     max_per_day: int
     proof_type: str
+    # ProofForm is the form (namespace/name) a "form" program takes a
+    # submission to as proof; empty for every other proof type.
+    proof_form: str
     # RequiresPaymentMethod withholds the reward until the claimant's team has
-    # a saved payment method. The claim itself is refused with 402
-    # payment_method_required (survey answers are still recorded).
+    # a saved payment method. The claim is refused with 402
+    # payment_method_required and no claim is recorded, so it can be retried
+    # once a card is on file.
     requires_payment_method: bool
     status: str
     notice_text: str
@@ -3451,7 +3451,6 @@ class FormDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     schema: Any
     status: FormStatus
     submit_policy: FormSubmitPolicy
-    bounty_name: str
 
 # FormSubmissionDTO is one set of answers to a form.
 class FormSubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3462,9 +3461,6 @@ class FormSubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False
     source: str
     agent: str
     context: str
-    # RewardAmount is the credit reward in microcents (0 when none was earned).
-    reward_amount: int
-    reward_blocked_reason: str
 
 # SurveyResponseDTO is the API representation of a survey response.
 class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -3973,6 +3969,9 @@ class ErrorCode(str, Enum):
     # already holds the caller's submission.
     FORM_CLOSED = "form_closed"
     ALREADY_SUBMITTED = "already_submitted"
+    # Bounty claims (409): the caller already claimed this proof, or as many
+    # times as the program allows.
+    ALREADY_CLAIMED = "already_claimed"
     # Entitlement requests (409): the team already holds the entitlement, or
     # already has an open request for it.
     ALREADY_ENTITLED = "already_entitled"
