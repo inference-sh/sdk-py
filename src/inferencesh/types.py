@@ -2336,10 +2336,15 @@ class A2UIComponent(TypedDict, total=False):
     artifactTitle: str
     artifactUrl: str
     artifactFavicon: str
-    # Extension: McpApp. The page is stored on the component so the chat
-    # renders it from the message alone; the server, credential and tool name
-    # let the host route the page's tools/call requests.
+    # Extension: McpApp. A remote server's page is named by McpPageHash and
+    # read from GET /mcp-ui-pages/{hash}, so a chat that runs a tool many
+    # times holds one copy of its page, not one per message. McpHtml carries
+    # the page inline instead: an artifact's page, a component written
+    # before pages were stored by hash, or a page that could not be stored.
+    # The server, credential and tool name let the host route the page's
+    # tools/call requests.
     mcpHtml: str
+    mcpPageHash: str
     mcpCsp: Optional[MCPUICSP]
     mcpResourceUri: str
     mcpServerSlug: str
@@ -3265,7 +3270,6 @@ class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False)
     max_per_user: int
     max_per_day: int
     proof_type: str
-    proof_min_length: int
     # RequiresPaymentMethod withholds the reward until the claimant's team has
     # a saved payment method. The claim itself is refused with 402
     # payment_method_required (survey answers are still recorded).
