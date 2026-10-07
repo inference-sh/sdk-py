@@ -1285,6 +1285,26 @@ class FileMetadata(TypedDict, total=False):
     channels: int
     codec: str
 
+# TaskFileDTO is one file attached to a task, as GET /tasks/{id}/files lists it.
+class TaskFileDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    role: TaskFileRole
+    uri: str
+    filename: str
+    content_type: str
+    size: int
+
+# TaskFileSkipped is a file DELETE /tasks/{id}/files left in place.
+class TaskFileSkipped(TypedDict, total=False):
+    id: str
+    reason: str
+
+# DeleteTaskFilesResponse reports what DELETE /tasks/{id}/files did.
+class DeleteTaskFilesResponse(TypedDict, total=False):
+    deleted: List[str]
+    skipped: List[TaskFileSkipped]
+
 # FlowNodeData describes a node's data within a flow
 class FlowNodeData(TypedDict, total=False):
     app: Optional[AppDTO]
@@ -3982,6 +4002,10 @@ class ErrorCode(str, Enum):
     REMOTE_TIMEOUT = "remote_timeout"
     HARNESS_NOT_DRIVABLE = "harness_not_drivable"
     HARNESS_TOO_OLD = "harness_too_old"
+
+class TaskFileRole(str, Enum):
+    INPUT = "input"
+    OUTPUT = "output"
 
 # Flow graph action type constants.
 class FlowActionType(str, Enum):
