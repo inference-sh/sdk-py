@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Union, Iterator, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, Iterator, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..client import Inference, AsyncInference, TaskStream, AsyncTaskStream
@@ -99,6 +99,42 @@ class TasksAPI:
         """
         self._client.cancel(task_id)
 
+    def delete(self, task_id: str, *, files: bool = False) -> None:
+        """Delete a finished task.
+
+        Args:
+            task_id: The ID of the task to delete
+            files: Also delete the task's input and output files, even when
+                something else still uses them
+        """
+        self._client._request("delete", f"/tasks/{task_id}", params={"files": "true"} if files else None)
+
+    def files(self, task_id: str, *, role: Optional[str] = None) -> Any:
+        """List the files a task consumed and produced.
+
+        Args:
+            task_id: The ID of the task
+            role: "input" or "output" to list one side only
+
+        Returns:
+            Response wrapping a list of files, each with id, uri and role
+        """
+        return self._client._request("get", f"/tasks/{task_id}/files", params={"role": role} if role else None)
+
+    def delete_files(self, task_id: str, *, role: Optional[str] = None) -> Any:
+        """Delete a finished task's files and keep the task.
+
+        A file is deleted even when something else still uses it.
+
+        Args:
+            task_id: The ID of the task
+            role: "input" or "output" to delete one side only
+
+        Returns:
+            Response wrapping {"deleted": [...], "skipped": [...]}
+        """
+        return self._client._request("delete", f"/tasks/{task_id}/files", params={"role": role} if role else None)
+
     def stream(
         self,
         task_id: str,
@@ -192,6 +228,18 @@ class AsyncTasksAPI:
     async def cancel(self, task_id: str) -> None:
         """Cancel a running task."""
         await self._client.cancel(task_id)
+
+    async def delete(self, task_id: str, *, files: bool = False) -> None:
+        """Delete a finished task. With files=True its input and output files go too."""
+        await self._client._request("delete", f"/tasks/{task_id}", params={"files": "true"} if files else None)
+
+    async def files(self, task_id: str, *, role: Optional[str] = None) -> Any:
+        """List the files a task consumed and produced."""
+        return await self._client._request("get", f"/tasks/{task_id}/files", params={"role": role} if role else None)
+
+    async def delete_files(self, task_id: str, *, role: Optional[str] = None) -> Any:
+        """Delete a finished task's files and keep the task."""
+        return await self._client._request("delete", f"/tasks/{task_id}/files", params={"role": role} if role else None)
 
     def stream(
         self,
