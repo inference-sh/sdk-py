@@ -80,3 +80,33 @@ class TestOverridesAreDocumented:
 
     def test_llm_output_overrides(self):
         assert _overridden_fields(llm.BaseLLMOutput, contract.LLMOutput) == LLM_OUTPUT_OVERRIDES
+
+
+class TestDecisionInheritsGeneratedContract:
+    """The decision models add descriptions, limits and File images to the
+    generated contract; they do not redeclare its shape."""
+
+    def test_inputs(self):
+        from inferencesh.models import decision
+
+        assert issubclass(decision.DecisionInput, contract.DecisionInput)
+        assert issubclass(decision.DecisionVisionInput, contract.DecisionVisionInput)
+        assert issubclass(decision.DecisionVisionInput, decision.DecisionInput)
+
+    def test_questions_and_answers(self):
+        from inferencesh.models import decision
+
+        pairs = [
+            (decision.ChoiceOption, contract.DecisionChoiceOption),
+            (decision.ChoiceQuestion, contract.DecisionChoiceQuestion),
+            (decision.ScoreQuestion, contract.DecisionScoreQuestion),
+            (decision.NoulCriteria, contract.DecisionNoulCriteria),
+            (decision.NoulQuestion, contract.DecisionNoulQuestion),
+            (decision.ChoiceAnswer, contract.DecisionChoiceAnswer),
+            (decision.ScoreAnswer, contract.DecisionScoreAnswer),
+            (decision.NoulAnswer, contract.DecisionNoulAnswer),
+            (decision.DecisionOutput, contract.DecisionOutput),
+        ]
+        for app_cls, base_cls in pairs:
+            assert issubclass(app_cls, base_cls), app_cls.__name__
+            assert set(base_cls.model_fields) <= set(app_cls.model_fields), app_cls.__name__

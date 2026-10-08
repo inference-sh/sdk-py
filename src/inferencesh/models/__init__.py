@@ -18,6 +18,11 @@ from .llm import (
     stream_generate,
     timing_context,
 )
+from .decision import (
+    DecisionInput,
+    DecisionVisionInput,
+    DecisionOutput,
+)
 from .output_meta import (
     MetaItem,
     TextMeta,
@@ -50,6 +55,10 @@ __all__ = [
     "BaseAppSetup",
     "File",
     "Metadata",
+    # Decision types
+    "DecisionInput",
+    "DecisionVisionInput",
+    "DecisionOutput",
     # LLM types
     "ContextMessageRole",
     "Message",
