@@ -21,7 +21,7 @@ from .models import (
     ContextMessageRole,
     Message,
     ContextMessage,
-    LLMInput,
+    LLMInput as AppLLMInput,  # Pydantic model; types.LLMInput (TypedDict) is re-exported as LLMInput below
     LLMOutput,
     build_messages,
     stream_generate,
@@ -220,7 +220,7 @@ __all__ = [
     "ContextMessageRole",
     "Message",
     "ContextMessage",
-    "LLMInput",
+    "AppLLMInput",
     "LLMOutput",
     "build_messages",
     "stream_generate",
