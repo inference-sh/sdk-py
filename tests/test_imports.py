@@ -133,7 +133,8 @@ def test_models_llm_export_exists(name):
 @pytest.mark.parametrize("name", [
     # Enums
     "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
-    "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
+    "PlanStepStatus", "FlowRunStatus", "AppCategory", "AppTag", "AppTagTitle",
+    "Visibility",
     "AppSessionStatus", "FilterOperator", "MetaItemType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
