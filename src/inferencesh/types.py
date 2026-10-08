@@ -2655,7 +2655,7 @@ class ToolCallDelta(TypedDict, total=False):
     type: Optional[ToolCallType]
     function: Optional[ToolCallFunctionDelta]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "id": {"merge": "replace"},
         "type": {"merge": "replace"},
         "function": {"merge": "nested"},
@@ -2667,7 +2667,7 @@ class ToolCallFunctionDelta(TypedDict, total=False):
     name: str
     arguments: str
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "name": {"merge": "replace"},
         "arguments": {"merge": "concat"},
     }
@@ -3888,7 +3888,7 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
     tool_calls: Optional[List[ToolCallDelta]]
     usage: Optional[LLMUsage]
 
-    _field_tags = {
+    _field_tags = {  # type: ignore[misc]
         "response": {"merge": "concat"},
         "reasoning": {"merge": "concat"},
         "tool_calls": {"merge": "indexed"},
