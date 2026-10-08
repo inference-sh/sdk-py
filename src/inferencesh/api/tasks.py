@@ -80,7 +80,7 @@ class TasksAPI:
             reconnect_delay_ms=reconnect_delay_ms,
         )
 
-    def get(self, task_id: str) -> Dict[str, Any]:
+    def get(self, task_id: str) -> Any:
         """Get the current state of a task.
 
         Args:
@@ -221,7 +221,7 @@ class AsyncTasksAPI:
             reconnect_delay_ms=reconnect_delay_ms,
         )
 
-    async def get(self, task_id: str) -> Dict[str, Any]:
+    async def get(self, task_id: str) -> Any:
         """Get the current state of a task."""
         return await self._client.get_task(task_id)
 
