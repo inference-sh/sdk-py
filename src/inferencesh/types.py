@@ -3230,8 +3230,9 @@ class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     agent_description: str
     category: AppCategory
     images: AppImages
-    # Tags name what the app does and its traits, as lowercase slugs. Known
-    # slugs are the shared.AppTag constants; others are free-form.
+    # Tags name what the app does and its traits, as lowercase slugs
+    # (text-to-image, open-weights). GET /store/tags lists the ones in use
+    # with their titles.
     tags: List[str]
     version_id: str
     version: Optional[AppVersionDTO]
@@ -4127,96 +4128,6 @@ class AppCategory(str, Enum):
     FLOW = "flow"
     # Decision models: typed questions in, a probability for every answer out, no generation.
     DECISION = "decision"
-
-# The list holds tags that at least three public apps carry, so each one
-# leads somewhere. A tag on fewer apps stays a plain tag until it does.
-class AppTag(str, Enum):
-    TEXT_TO_IMAGE = "text-to-image"
-    IMAGE_TO_IMAGE = "image-to-image"
-    IMAGE_EDITING = "image-editing"
-    IMAGE_UPSCALING = "image-upscaling"
-    BACKGROUND_REMOVAL = "background-removal"
-    TRAINING = "training"
-    LO_RA = "lora"
-    PBR_MATERIALS = "pbr-materials"
-    TEXT_TO_VIDEO = "text-to-video"
-    IMAGE_TO_VIDEO = "image-to-video"
-    REFERENCE_TO_VIDEO = "reference-to-video"
-    VIDEO_TO_VIDEO = "video-to-video"
-    VIDEO_UPSCALING = "video-upscaling"
-    VIDEO_EXTENSION = "video-extension"
-    VIDEO_ENHANCEMENT = "video-enhancement"
-    LIP_SYNC = "lip-sync"
-    TALKING_AVATAR = "talking-avatar"
-    NATIVE_AUDIO = "native-audio"
-    TEXT_TO_SPEECH = "text-to-speech"
-    SPEECH_TO_TEXT = "speech-to-text"
-    VOICE_CLONING = "voice-cloning"
-    VOICE_DESIGN = "voice-design"
-    MUSIC_GENERATION = "music-generation"
-    SOUND_EFFECTS = "sound-effects"
-    REALTIME = "realtime"
-    REASONING = "reasoning"
-    VISION = "vision"
-    CODING = "coding"
-    OPEN_WEIGHTS = "open-weights"
-    CLASSIFICATION = "classification"
-    MODERATION = "moderation"
-    ROUTING = "routing"
-    WEB_SEARCH = "web-search"
-    WEB_SCRAPING = "web-scraping"
-    DEEP_RESEARCH = "deep-research"
-    RESEARCH_PAPERS = "research-papers"
-    SOCIAL_MEDIA = "social-media"
-    MESSAGING = "messaging"
-    PRODUCTIVITY = "productivity"
-    MEDIA_UTILITIES = "media-utilities"
-    RENDERING = "rendering"
-    EVALUATION = "evaluation"
-
-class AppTagTitle(str, Enum):
-    TEXT_TO_IMAGE = "Text to Image"
-    IMAGE_TO_IMAGE = "Image to Image"
-    IMAGE_EDITING = "Image Editing"
-    IMAGE_UPSCALING = "Image Upscaling"
-    BACKGROUND_REMOVAL = "Background Removal"
-    TRAINING = "Model Training"
-    LO_RA = "LoRA"
-    PBR_MATERIALS = "PBR Materials"
-    TEXT_TO_VIDEO = "Text to Video"
-    IMAGE_TO_VIDEO = "Image to Video"
-    REFERENCE_TO_VIDEO = "Reference to Video"
-    VIDEO_TO_VIDEO = "Video to Video"
-    VIDEO_UPSCALING = "Video Upscaling"
-    VIDEO_EXTENSION = "Video Extension"
-    VIDEO_ENHANCEMENT = "Video Enhancement"
-    LIP_SYNC = "Lip Sync"
-    TALKING_AVATAR = "Talking Avatar"
-    NATIVE_AUDIO = "Native Audio"
-    TEXT_TO_SPEECH = "Text to Speech"
-    SPEECH_TO_TEXT = "Speech to Text"
-    VOICE_CLONING = "Voice Cloning"
-    VOICE_DESIGN = "Voice Design"
-    MUSIC_GENERATION = "Music Generation"
-    SOUND_EFFECTS = "Sound Effects"
-    REALTIME = "Realtime"
-    REASONING = "Reasoning"
-    VISION = "Vision"
-    CODING = "Coding"
-    OPEN_WEIGHTS = "Open Weights"
-    CLASSIFICATION = "Classification"
-    MODERATION = "Moderation"
-    ROUTING = "Routing"
-    WEB_SEARCH = "Web Search"
-    WEB_SCRAPING = "Web Scraping"
-    DEEP_RESEARCH = "Deep Research"
-    RESEARCH_PAPERS = "Research Papers"
-    SOCIAL_MEDIA = "Social Media"
-    MESSAGING = "Messaging"
-    PRODUCTIVITY = "Productivity"
-    MEDIA_UTILITIES = "Media Utilities"
-    RENDERING = "Rendering"
-    EVALUATION = "Evaluation"
 
 class AppStatus(str, Enum):
     ACTIVE = "active"
