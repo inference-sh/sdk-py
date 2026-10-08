@@ -201,6 +201,8 @@ def test_models_llm_export_exists(name):
     # User stats, flow run node state, telemetry (v0.7.97 typegen regen)
     "MeStatsResponse", "StatBuckets",
     "SubmitTelemetryRequest", "TelemetryReportDTO",
+    # Store browse catalog (254df4b typegen regen)
+    "StoreCategoryDTO", "StoreTagDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
