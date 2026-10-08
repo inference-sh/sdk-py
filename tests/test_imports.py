@@ -105,6 +105,7 @@ def test_public_name_importable(name):
     "inferencesh.models.base",
     "inferencesh.models.file",
     "inferencesh.models.llm",
+    "inferencesh.models.decision",
     "inferencesh.models.output_meta",
     "inferencesh.models.errors",
     "inferencesh.utils",
@@ -126,6 +127,19 @@ def test_models_llm_export_exists(name):
     """New LLM input types from v0.7.9 must be exported from models."""
     from inferencesh import models
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
+
+
+@pytest.mark.parametrize("name", [
+    "DecisionInput",
+    "DecisionVisionInput",
+    "DecisionOutput",
+])
+def test_models_decision_export_exists(name):
+    """v0.20 decision contract types must be exported from models."""
+    from inferencesh import models
+
+    assert hasattr(models, name), f"inferencesh.models.{name} not found"
+    assert name in models.__all__
 
 
 # ── Generated types (from typegen) ───────────────────────────────────────────
