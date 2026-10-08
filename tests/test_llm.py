@@ -687,6 +687,64 @@ class TestLLMWireContract:
         with pytest.raises(ValidationError):
             llm_contract.LLMInput()
 
+    def test_llm_input_accepts_go_payload_without_role_or_stop(self):
+        """Go omitempty drops role/stop; wire validation must not require them (gotypegen v0.8.4)."""
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput.model_validate(
+            {"context": [{"role": "user", "text": "hi"}], "text": "hello"},
+        )
+        assert inp.role is None
+        assert inp.stop is None
+
+    def test_llm_input_exclude_none_omits_role_and_stop(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        inp = llm_contract.LLMInput(
+            context=[
+                llm_contract.LLMContextMessage(
+                    role=llm_contract.ChatMessageRole.USER,
+                    text="hi",
+                ),
+            ],
+            text="hello",
+        )
+        dumped = inp.model_dump(exclude_none=True)
+        assert "role" not in dumped
+        assert "stop" not in dumped
+
+    def test_tool_parameters_accepts_missing_properties(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        params = llm_contract.ToolParameters(type=llm_contract.ToolParamType.OBJECT)
+        assert params.properties is None
+        restored = llm_contract.ToolParameters.model_validate({"type": "object"})
+        assert restored.properties is None
+
+    def test_tool_parameter_property_accepts_anyof_without_type_or_enum(self):
+        from inferencesh import llm_types_gen as llm_contract
+
+        prop = llm_contract.ToolParameterProperty(
+            anyOf=[
+                llm_contract.ToolParameterProperty(type=llm_contract.ToolParamType.STRING),
+                llm_contract.ToolParameterProperty(type=llm_contract.ToolParamType.INTEGER),
+            ],
+        )
+        assert prop.type is None
+        assert prop.enum is None
+        dumped = prop.model_dump(exclude_none=True)
+        assert "type" not in dumped
+        assert "enum" not in dumped
+        assert "anyOf" in dumped
+
+    def test_app_llm_input_stop_inherits_contract_default(self):
+        """App stop override was removed so unset stop matches Go omitempty on the wire."""
+        from inferencesh.models.llm import LLMInput
+
+        inp = LLMInput(text="hi")
+        assert inp.stop is None
+        assert "stop" not in inp.model_dump(exclude_none=True)
+
     def test_delta_event_wire_model_includes_end_marker(self):
         from inferencesh import llm_types_gen as llm_contract
 
@@ -708,6 +766,42 @@ class TestLLMWireContract:
         assert restored.resource_id == "msg_asst_1"
         assert restored.seq == 7
         assert restored.delta is None
+
+
+class TestStreamResponseStopReason:
+    """finish_reason from the API must land on usage.stop_reason for billing/telemetry."""
+
+    @staticmethod
+    def _timing():
+        return type("Timing", (), {
+            "stats": {
+                "time_to_first_token": 0.0,
+                "generation_time": 0.0,
+                "reasoning_time": 0.0,
+                "reasoning_tokens": 0,
+            },
+        })()
+
+    def test_preempted_finish_reason_on_delta_chunk(self):
+        from inferencesh.models.llm import StreamResponse
+
+        resp = StreamResponse()
+        resp.update_from_chunk(
+            {"choices": [{"delta": {"content": "partial"}, "finish_reason": "preempted"}]},
+            self._timing(),
+        )
+        assert resp.finish_reason == "preempted"
+        assert resp.usage_stats["stop_reason"] == "preempted"
+
+    def test_preempted_finish_reason_on_message_chunk(self):
+        from inferencesh.models.llm import StreamResponse
+
+        resp = StreamResponse()
+        resp.update_from_chunk(
+            {"choices": [{"message": {"content": "done"}, "finish_reason": "preempted"}]},
+            self._timing(),
+        )
+        assert resp.usage_stats["stop_reason"] == "preempted"
 
 
 class TestDeprecatedMixins:

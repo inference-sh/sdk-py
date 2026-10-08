@@ -678,6 +678,95 @@ def test_iter_ndjson_unwraps_partial_data_envelope():
     assert list(client._iter_ndjson(resp)) == [inner]
 
 
+def test_iter_ndjson_yields_delta_events_unchanged():
+    """Delta NDJSON lines must pass through for apply_delta_event consumers."""
+    client = Inference(api_key="test")
+    delta_evt = {"event": "delta", "data": {"delta": {"response": "x"}, "seq": 1}}
+    resp = DummyResponse(status_code=200, lines=[json.dumps(delta_evt)])
+
+    assert list(client._iter_ndjson(resp)) == [delta_evt]
+
+
+def test_stream_updates_applies_delta_events_and_merges_into_completion(monkeypatch):
+    """Task streams accumulate DeltaEvent payloads and merge into the terminal output."""
+    from inferencesh import client as client_mod
+
+    stream_lines = [
+        json.dumps({"event": "delta", "data": {"delta": {"response": "Hel"}, "seq": 1}}),
+        json.dumps({"event": "delta", "data": {"delta": {"response": "lo"}, "seq": 2}}),
+        json.dumps({"id": "task_123", "status": TaskStatus.COMPLETED, "output": {}}),
+    ]
+
+    class StreamFakeRequests:
+        def request(self, method, url, **kwargs):
+            if "/tasks/task_123/stream" in url and kwargs.get("stream"):
+                return DummyResponse(status_code=200, lines=stream_lines)
+            if "/tasks/task_123" in url and method.upper() == "GET" and "/stream" not in url:
+                return DummyResponse(json_data={"id": "task_123", "status": TaskStatus.RUNNING})
+            return DummyResponse()
+
+        def put(self, *args, **kwargs):
+            return DummyResponse(status_code=200)
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: StreamFakeRequests())
+
+    client = Inference(api_key="test")
+    task = {"id": "task_123", "status": TaskStatus.RUNNING}
+    updates = list(client._stream_updates("task_123", task))
+
+    assert updates[0]["_delta"] is True
+    assert updates[0]["output"]["response"] == "Hel"
+    assert updates[1]["_delta"] is True
+    assert updates[1]["output"]["response"] == "Hello"
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+    assert updates[-1]["output"]["response"] == "Hello"
+
+
+@pytest.mark.asyncio
+async def test_async_stream_updates_applies_delta_events_and_merges_into_completion(monkeypatch):
+    """Async task streams must mirror sync delta accumulation and terminal merge."""
+    import inferencesh.client as client_mod
+
+    stream_lines = [
+        json.dumps({"event": "delta", "data": {"delta": {"response": "Hel"}, "seq": 1}}),
+        json.dumps({"event": "delta", "data": {"delta": {"response": "lo"}, "seq": 2}}),
+        json.dumps({"id": "task_async_delta", "status": TaskStatus.COMPLETED, "output": {}}),
+    ]
+
+    class DeltaStreamSession(MockClientSession):
+        def _get_response(self, method, url, kwargs):
+            if url.endswith("/tasks/task_async_delta/stream") and method.upper() == "GET":
+                encoded = [f"{line}\n".encode() for line in stream_lines]
+                return MockAsyncResponse(status=200, lines=encoded)
+            if "/tasks/task_async_delta" in url and method.upper() == "GET":
+                return MockAsyncResponse(json_data={
+                    "id": "task_async_delta",
+                    "status": TaskStatus.RUNNING,
+                })
+            return super()._get_response(method, url, kwargs)
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: DeltaStreamSession({})
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    client._base_url = "https://api.example.com"
+    task = {"id": "task_async_delta", "status": TaskStatus.RUNNING}
+    updates = [u async for u in client._stream_updates("task_async_delta", task)]
+
+    assert updates[0]["_delta"] is True
+    assert updates[0]["output"]["response"] == "Hel"
+    assert updates[1]["_delta"] is True
+    assert updates[1]["output"]["response"] == "Hello"
+    assert updates[-1]["status"] == TaskStatus.COMPLETED
+    assert updates[-1]["output"]["response"] == "Hello"
+
+
 def test_upload_and_recursive_input(monkeypatch, tmp_path, patch_requests):
     """Test that local file paths in input are uploaded and replaced with URIs."""
     # Create a small file

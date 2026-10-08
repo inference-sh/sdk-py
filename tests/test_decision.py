@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from inferencesh.models.decision import DecisionInput, DecisionOutput, DecisionVisionInput
+from inferencesh.models import DecisionInput, DecisionOutput, DecisionVisionInput
 
 CHOICE = {"id": "team", "instructions": "Which team?", "options": [{"name": "billing", "description": "Charges"}, {"name": "other"}]}
 SCORE = {"id": "urgency", "instructions": "How urgent?", "levels": ["Can wait", "Today", "Now"]}
@@ -23,6 +23,14 @@ def test_questions_use_the_shared_form():
 def test_state_and_instructions_may_be_structured():
     data = DecisionInput(state={"messages": ["hi"]}, nouls=[{"id": "q", "instructions": {"question": "Greeting?"}}])
     assert data.questions()["q"]["instructions"] == {"question": "Greeting?"}
+
+
+@pytest.mark.parametrize("state", [{}, [], {"records": []}])
+def test_structured_state_counts_as_content(state):
+    """Only the empty string is rejected; JSON state may be an empty container."""
+    data = DecisionInput(state=state, nouls=[NOUL])
+    assert data.has_content()
+    assert "refund" in data.questions()
 
 
 @pytest.mark.parametrize(
@@ -78,6 +86,17 @@ def test_from_answers_names_a_missing_answer():
     data = DecisionInput(state="x", nouls=[NOUL])
     with pytest.raises(RuntimeError, match="no answer for: \\['refund'\\]"):
         DecisionOutput.from_answers({}, data, model="m", input_tokens=0)
+
+
+def test_from_answers_ignores_unasked_ids():
+    data = DecisionInput(state="x", nouls=[NOUL])
+    out = DecisionOutput.from_answers(
+        {"refund": {"noul": 0.2}, "extra": {"noul": 0.99}},
+        data,
+        model="m",
+        input_tokens=0,
+    )
+    assert set(out.nouls) == {"refund"}
 
 
 def test_from_answers_sets_subclass_fields():

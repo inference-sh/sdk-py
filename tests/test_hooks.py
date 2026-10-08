@@ -1,7 +1,7 @@
 """Tests for the lifecycle hook builder."""
 
 from inferencesh.tools import lifecycle_hook, LifecycleHookBuilder
-from inferencesh.types import HookEvent, HookHandlerType
+from inferencesh.types import BuiltinHook, HookEvent, HookHandlerType
 
 
 class TestLifecycleHookBuilder:
@@ -19,6 +19,14 @@ class TestLifecycleHookBuilder:
 
         assert hook["type"] == HookHandlerType.HOOK_HANDLER_TASK
         assert hook["handler"] == "acme/validator@v1"
+
+    def test_builtin_accepts_enum_or_wire_string(self):
+        from_enum = lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.BELT_SUGGEST).build()
+        from_str = lifecycle_hook(HookEvent.TURN_START).builtin("belt:suggest").build()
+
+        assert from_enum == from_str
+        assert from_enum["type"] == HookHandlerType.HOOK_HANDLER_BUILTIN
+        assert from_enum["handler"] == "belt:suggest"
 
     def test_async_serializes_without_underscore(self):
         hook = lifecycle_hook(HookEvent.AGENT_START).webhook("https://example.com").async_(True).build()
