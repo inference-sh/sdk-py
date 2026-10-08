@@ -339,6 +339,10 @@ class CreateAppRequest(TypedDict, total=False):
     agent_description: str
     category: AppCategory
     images: AppImages
+    # Tags replace the app's tags when given; omitted, a deploy takes them
+    # from the version's metadata.tags, and keeps the stored ones if that is
+    # empty too.
+    tags: List[str]
     version: Optional[AppVersionInput]
     preserve_current_version: bool
 
@@ -3226,6 +3230,9 @@ class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     agent_description: str
     category: AppCategory
     images: AppImages
+    # Tags name what the app does and its traits, as lowercase slugs. Known
+    # slugs are the shared.AppTag constants; others are free-form.
+    tags: List[str]
     version_id: str
     version: Optional[AppVersionDTO]
     status: AppStatus
@@ -4118,6 +4125,98 @@ class AppCategory(str, Enum):
     _3D = "3d"
     OTHER = "other"
     FLOW = "flow"
+    # Decision models: typed questions in, a probability for every answer out, no generation.
+    DECISION = "decision"
+
+class AppTag(str, Enum):
+    TEXT_TO_IMAGE = "text-to-image"
+    IMAGE_TO_IMAGE = "image-to-image"
+    IMAGE_EDITING = "image-editing"
+    IMAGE_UPSCALING = "image-upscaling"
+    BACKGROUND_REMOVAL = "background-removal"
+    VIRTUAL_TRY_ON = "virtual-try-on"
+    FACE_SWAP = "face-swap"
+    TRAINING = "training"
+    TEXT_TO_VIDEO = "text-to-video"
+    IMAGE_TO_VIDEO = "image-to-video"
+    REFERENCE_TO_VIDEO = "reference-to-video"
+    VIDEO_TO_VIDEO = "video-to-video"
+    VIDEO_UPSCALING = "video-upscaling"
+    VIDEO_EXTENSION = "video-extension"
+    LIP_SYNC = "lip-sync"
+    TALKING_AVATAR = "talking-avatar"
+    VIDEO_CAPTIONS = "video-captions"
+    TEXT_TO_SPEECH = "text-to-speech"
+    SPEECH_TO_TEXT = "speech-to-text"
+    SPEECH_TO_SPEECH = "speech-to-speech"
+    VOICE_CLONING = "voice-cloning"
+    VOICE_DESIGN = "voice-design"
+    MUSIC_GENERATION = "music-generation"
+    SOUND_EFFECTS = "sound-effects"
+    VIDEO_TO_AUDIO = "video-to-audio"
+    DUBBING = "dubbing"
+    TEXT_TO3D = "text-to-3d"
+    IMAGE_TO3D = "image-to-3d"
+    PBR_MATERIALS = "pbr-materials"
+    WEB_SEARCH = "web-search"
+    WEB_SCRAPING = "web-scraping"
+    OCR = "ocr"
+    EMBEDDINGS = "embeddings"
+    CLASSIFICATION = "classification"
+    MODERATION = "moderation"
+    ROUTING = "routing"
+    VISION = "vision"
+    REASONING = "reasoning"
+    CODING = "coding"
+    OPEN_WEIGHTS = "open-weights"
+    REALTIME = "realtime"
+    NATIVE_AUDIO = "native-audio"
+    LO_RA = "lora"
+
+class AppTagTitle(str, Enum):
+    TEXT_TO_IMAGE = "Text to Image"
+    IMAGE_TO_IMAGE = "Image to Image"
+    IMAGE_EDITING = "Image Editing"
+    IMAGE_UPSCALING = "Image Upscaling"
+    BACKGROUND_REMOVAL = "Background Removal"
+    VIRTUAL_TRY_ON = "Virtual Try-On"
+    FACE_SWAP = "Face Swap"
+    TRAINING = "Model Training"
+    TEXT_TO_VIDEO = "Text to Video"
+    IMAGE_TO_VIDEO = "Image to Video"
+    REFERENCE_TO_VIDEO = "Reference to Video"
+    VIDEO_TO_VIDEO = "Video to Video"
+    VIDEO_UPSCALING = "Video Upscaling"
+    VIDEO_EXTENSION = "Video Extension"
+    LIP_SYNC = "Lip Sync"
+    TALKING_AVATAR = "Talking Avatar"
+    VIDEO_CAPTIONS = "Video Captions"
+    TEXT_TO_SPEECH = "Text to Speech"
+    SPEECH_TO_TEXT = "Speech to Text"
+    SPEECH_TO_SPEECH = "Speech to Speech"
+    VOICE_CLONING = "Voice Cloning"
+    VOICE_DESIGN = "Voice Design"
+    MUSIC_GENERATION = "Music Generation"
+    SOUND_EFFECTS = "Sound Effects"
+    VIDEO_TO_AUDIO = "Video to Audio"
+    DUBBING = "Dubbing"
+    TEXT_TO3D = "Text to 3D"
+    IMAGE_TO3D = "Image to 3D"
+    PBR_MATERIALS = "PBR Materials"
+    WEB_SEARCH = "Web Search"
+    WEB_SCRAPING = "Web Scraping"
+    OCR = "OCR"
+    EMBEDDINGS = "Embeddings"
+    CLASSIFICATION = "Classification"
+    MODERATION = "Moderation"
+    ROUTING = "Routing"
+    VISION = "Vision"
+    REASONING = "Reasoning"
+    CODING = "Coding"
+    OPEN_WEIGHTS = "Open Weights"
+    REALTIME = "Realtime"
+    NATIVE_AUDIO = "Native Audio"
+    LO_RA = "LoRA"
 
 class AppStatus(str, Enum):
     ACTIVE = "active"
