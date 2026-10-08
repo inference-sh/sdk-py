@@ -67,7 +67,6 @@ from .types import (
     FinishReason,
     FunctionCallByName,
     NamedToolChoice,
-    ResponseFunctionCall,
     ResponseToolCall,
 )
 
