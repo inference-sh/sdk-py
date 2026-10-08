@@ -1987,6 +1987,21 @@ class StatBuckets(TypedDict, total=False):
     this_week: int
     all_time: int
 
+class StoreCategoryDTO(TypedDict, total=False):
+    slug: str
+    name: str
+    description: str
+    icon: str
+    rank: int
+    count: int
+
+# StoreTagDTO is one app tag the store lists: a tag at least
+# shared.MinAppsPerListedTag public apps carry.
+class StoreTagDTO(TypedDict, total=False):
+    slug: str
+    title: str
+    count: int
+
 # Hardware/System related types
 class SystemInfo(TypedDict, total=False):
     hostname: str
