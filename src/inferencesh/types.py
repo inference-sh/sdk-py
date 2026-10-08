@@ -2480,6 +2480,80 @@ class ChannelContext(TypedDict, total=False):
     channel_type: Optional[ChannelType]
     channel_metadata: Any
 
+# DecisionChoiceOption is one answer option of a choice question.
+class DecisionChoiceOption(TypedDict, total=False):
+    # Name is returned as the choice and keys the probabilities.
+    name: str
+    # Description says what the option covers.
+    description: Any
+
+# DecisionChoiceQuestion asks which one of a fixed set of options holds.
+class DecisionChoiceQuestion(TypedDict, total=False):
+    # ID is the caller's key for the question; its answer comes back under it.
+    id: str
+    instructions: Any
+    options: List[DecisionChoiceOption]
+
+# DecisionScoreQuestion asks where the state sits on ordered levels.
+class DecisionScoreQuestion(TypedDict, total=False):
+    id: str
+    instructions: Any
+    # Levels are described low end to high end; a level's number is its index.
+    levels: List[Any]
+
+# DecisionNoulCriteria pins down what yes and no mean for a noul question.
+class DecisionNoulCriteria(TypedDict, total=False):
+    true: Any
+    false: Any
+
+# DecisionNoulQuestion asks for the probability that something is true.
+class DecisionNoulQuestion(TypedDict, total=False):
+    id: str
+    instructions: Any
+    criteria: Optional[DecisionNoulCriteria]
+
+# DecisionInput is one state and the questions asked of it.
+class DecisionInput(TypedDict, total=False):
+    state: Any
+    choices: List[DecisionChoiceQuestion]
+    scores: List[DecisionScoreQuestion]
+    nouls: List[DecisionNoulQuestion]
+
+# DecisionChoiceAnswer is the answer to a choice question.
+class DecisionChoiceAnswer(TypedDict, total=False):
+    # Choice is the highest-probability option.
+    choice: str
+    confidence: float
+    # Probabilities maps every option name to its probability.
+    probabilities: Dict[str, float]
+
+# DecisionScoreAnswer is the answer to a score question.
+class DecisionScoreAnswer(TypedDict, total=False):
+    # Score is the probability-weighted level, 0 to the top level number.
+    score: float
+    # Normalized is Score over the top level number: 0 to 1.
+    normalized: float
+    confidence: float
+    # Probabilities maps each level number, as a string, to its probability.
+    probabilities: Dict[str, float]
+    # Legend maps each level number back to its description.
+    legend: Dict[str, Any]
+
+# DecisionNoulAnswer is the answer to a noul question.
+class DecisionNoulAnswer(TypedDict, total=False):
+    # Noul is the probability that the answer is yes.
+    noul: float
+
+# DecisionOutput is the answers, keyed by question id within each kind.
+class DecisionOutput(TypedDict, total=False):
+    choices: Dict[str, DecisionChoiceAnswer]
+    scores: Dict[str, DecisionScoreAnswer]
+    nouls: Dict[str, DecisionNoulAnswer]
+    # Model is the model that answered.
+    model: str
+    # InputTokens is what the model read; decision models write none.
+    input_tokens: int
+
 # FlowViewport represents the viewport state of a flow canvas
 class FlowViewport(TypedDict, total=False):
     x: float
@@ -3786,6 +3860,12 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
 # Alias of shared.A2UISurface so the type generation pipeline picks it up.
 Widget = A2UISurface
 
+# DecisionVisionInput is the input of a decision model that also sees
+# images: a DecisionInput plus the images the questions are about.
+class DecisionVisionInput(DecisionInput, TypedDict, total=False):
+    # Images are file URIs. Every question sees them.
+    images: List[str]
+
 # LLMDelta is a streaming delta for LLMOutput.
 class LLMDelta(StreamDelta, TypedDict, total=False):
     response: str
@@ -3981,6 +4061,10 @@ class ErrorCode(str, Enum):
     # account is one and cannot sign in.
     PERSON_REQUIRED = "person_required"
     OTP_REQUIRED = "otp_required"
+    # ErrorCodeImpersonationReasonRequired (403): a platform admin named a
+    # team they are not a member of without a live impersonation grant.
+    # Clients stop viewing as the team on it.
+    IMPERSONATION_REASON_REQUIRED = "impersonation_reason_required"
     MCP_AUTH_EXPIRED = "mcp_auth_expired"
     # Entitlements. LimitExceeded (402) and FeatureNotAvailable (403) carry
     # EntitlementErrorMeta. EntitlementUnavailable (500) means the plan could

@@ -11,6 +11,80 @@ from datetime import datetime
 ##########
 # source: models.go
 
+# DecisionChoiceOption is one answer option of a choice question.
+class DecisionChoiceOption(BaseModel):
+    # Name is returned as the choice and keys the probabilities.
+    name: str = ""
+    # Description says what the option covers.
+    description: Optional[Any] = None
+
+# DecisionChoiceQuestion asks which one of a fixed set of options holds.
+class DecisionChoiceQuestion(BaseModel):
+    # ID is the caller's key for the question; its answer comes back under it.
+    id: str = ""
+    instructions: Any
+    options: List[DecisionChoiceOption]
+
+# DecisionScoreQuestion asks where the state sits on ordered levels.
+class DecisionScoreQuestion(BaseModel):
+    id: str = ""
+    instructions: Any
+    # Levels are described low end to high end; a level's number is its index.
+    levels: List[Any]
+
+# DecisionNoulCriteria pins down what yes and no mean for a noul question.
+class DecisionNoulCriteria(BaseModel):
+    true: Optional[Any] = None
+    false: Optional[Any] = None
+
+# DecisionNoulQuestion asks for the probability that something is true.
+class DecisionNoulQuestion(BaseModel):
+    id: str = ""
+    instructions: Any
+    criteria: Optional[DecisionNoulCriteria] = None
+
+# DecisionInput is one state and the questions asked of it.
+class DecisionInput(BaseModel):
+    state: Any
+    choices: Optional[List[DecisionChoiceQuestion]] = None
+    scores: Optional[List[DecisionScoreQuestion]] = None
+    nouls: Optional[List[DecisionNoulQuestion]] = None
+
+# DecisionChoiceAnswer is the answer to a choice question.
+class DecisionChoiceAnswer(BaseModel):
+    # Choice is the highest-probability option.
+    choice: str = ""
+    confidence: float = 0.0
+    # Probabilities maps every option name to its probability.
+    probabilities: Dict[str, float]
+
+# DecisionScoreAnswer is the answer to a score question.
+class DecisionScoreAnswer(BaseModel):
+    # Score is the probability-weighted level, 0 to the top level number.
+    score: float = 0.0
+    # Normalized is Score over the top level number: 0 to 1.
+    normalized: float = 0.0
+    confidence: float = 0.0
+    # Probabilities maps each level number, as a string, to its probability.
+    probabilities: Dict[str, float]
+    # Legend maps each level number back to its description.
+    legend: Dict[str, Any]
+
+# DecisionNoulAnswer is the answer to a noul question.
+class DecisionNoulAnswer(BaseModel):
+    # Noul is the probability that the answer is yes.
+    noul: float = 0.0
+
+# DecisionOutput is the answers, keyed by question id within each kind.
+class DecisionOutput(BaseModel):
+    choices: Dict[str, DecisionChoiceAnswer]
+    scores: Dict[str, DecisionScoreAnswer]
+    nouls: Dict[str, DecisionNoulAnswer]
+    # Model is the model that answered.
+    model: str = ""
+    # InputTokens is what the model read; decision models write none.
+    input_tokens: int = 0
+
 # StreamDelta is the marker base for all streaming delta types.
 # Types embedding StreamDelta are routed through the delta channel.
 class StreamDelta(BaseModel):
@@ -205,6 +279,12 @@ class ToolParameterProperty(BaseModel):
     items: Optional[ToolParameterProperty] = None
     required: Optional[List[str]] = None
 
+# DecisionVisionInput is the input of a decision model that also sees
+# images: a DecisionInput plus the images the questions are about.
+class DecisionVisionInput(DecisionInput, BaseModel):
+    # Images are file URIs. Every question sees them.
+    images: Optional[List[str]] = None
+
 # LLMDelta is a streaming delta for LLMOutput.
 class LLMDelta(StreamDelta, BaseModel):
     response: str = ""
@@ -278,6 +358,16 @@ class ToolParamType(str, Enum):
 
 
 # Resolve forward references
+DecisionChoiceOption.model_rebuild()
+DecisionChoiceQuestion.model_rebuild()
+DecisionScoreQuestion.model_rebuild()
+DecisionNoulCriteria.model_rebuild()
+DecisionNoulQuestion.model_rebuild()
+DecisionInput.model_rebuild()
+DecisionChoiceAnswer.model_rebuild()
+DecisionScoreAnswer.model_rebuild()
+DecisionNoulAnswer.model_rebuild()
+DecisionOutput.model_rebuild()
 StreamDelta.model_rebuild()
 LLMOutput.model_rebuild()
 ToolCallDelta.model_rebuild()
@@ -295,6 +385,7 @@ Tool.model_rebuild()
 ToolFunction.model_rebuild()
 ToolParameters.model_rebuild()
 ToolParameterProperty.model_rebuild()
+DecisionVisionInput.model_rebuild()
 LLMDelta.model_rebuild()
 LLMInput.model_rebuild()
 
