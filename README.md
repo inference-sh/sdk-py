@@ -82,7 +82,7 @@ for update in client.tasks.run(params, stream=True):
 
 ```python
 # Get current task state
-task = client.tasks.get(task_id)
+task = client.tasks.get(task_id).data
 print(f"Status: {TaskStatus(task['status']).name}")
 
 # Cancel a running task

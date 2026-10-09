@@ -46,6 +46,18 @@ def test_all_exports_resolvable():
     assert not missing, f"Names in __all__ but missing from package: {missing}"
 
 
+def test_top_level_llminput_is_pydantic_model():
+    """`from inferencesh import LLMInput` must be the app base model, not the
+    generated TypedDict of the same name (apps subclass it: `class AppInput(LLMInput)`)."""
+    from pydantic import BaseModel
+
+    from inferencesh import LLMInput
+    from inferencesh.models.llm import LLMInput as ModelLLMInput
+
+    assert LLMInput is ModelLLMInput
+    assert issubclass(LLMInput, BaseModel)
+
+
 def test_package_version_matches_pyproject():
     """Release bumps must keep importlib metadata in sync with pyproject (User-Agent)."""
     pyproject = tomllib.loads(
