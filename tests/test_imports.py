@@ -186,8 +186,19 @@ def test_models_decision_export_exists(name):
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
     "SuggestRequest", "SuggestResponse", "SuggestResult",
-    # Instance types (eff7d5e, 28cd082)
+    # Instance types (eff7d5e, 28cd082; engine-picker options 9d6a811)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
+    "InstanceTypeOptionDTO", "InstanceTypeOptionRegion",
+    # API keys + workspace principals (INF-966, 2150d23 / bd09de9)
+    "ApiKeyScope", "ApiKeyDTO", "CreateApiKeyRequest", "TeamMemberUserDTO",
+    "TeamCapability", "ErrorCode",
+    # Chat settings + MCP server catalog (080030a / d26bf0d typegen regen)
+    "ChatSettingsRequest", "ChatData", "MCPServerDTO", "MCPServerSetup",
+    # Chat settings/agent responses, always-allow + tool explain (de093f5 / 1ad3abe2)
+    "ChatSettingsDTO", "ChatAgentDTO",
+    "AlwaysAllowOptionDTO", "AlwaysAllowOptionsDTO", "AlwaysAllowRequest",
+    "AlwaysAllowResultDTO", "AlwaysAllowScope",
+    "ToolExplanationDTO", "ToolRiskLevel",
     # Billing, knowledge, oauth, notifications (0c6e23a regen)
     "SubscriptionStatus", "SubscriptionInterval", "SubscriptionDTO",
     "ResourceType", "SecretScope", "DeviceAuthStatus", "DeviceTokenKind",
@@ -218,7 +229,7 @@ def test_models_decision_export_exists(name):
     "ElicitationCapability", "ClientCapabilities", "InputRequest", "ElicitResult",
     "ServerInfo", "ResultMeta", "ResourceContent",
     "ToolCallRequest", "ToolCallResponse", "ToolContent",
-    "AgentRunDTO", "FlowDTO",
+    "FlowDTO",
     # Flow utility nodes + knowledge provenance (v0.7.86 typegen regen)
     "SelectorConfig", "UtilityConfig", "GateCondition",
     # A2UI widget migration (v0.7.63–v0.7.65 typegen regen)
@@ -347,3 +358,24 @@ class TestDescriptionLimit:
         assert DescriptionLimit.SKILL == 1024
         assert int(DescriptionLimit.LISTING) == 200
         assert int(DescriptionLimit.SKILL) == 1024
+
+
+def test_api_key_scope_personal_vs_workspace_keys():
+    """Workspace keys act as the service account; personal keys act as the creator."""
+    from inferencesh.types import ApiKeyScope, ErrorCode, TeamCapability
+
+    assert ApiKeyScope.USER.value == "user"
+    assert ApiKeyScope.WORKSPACE.value == "workspace"
+    assert TeamCapability.CREATE_KEYS.value == "create_keys"
+    assert TeamCapability.MANAGE_KEYS.value == "manage_keys"
+    assert ErrorCode.PERSON_REQUIRED.value == "person_required"
+    assert ErrorCode.LAST_OWNER.value == "last_owner"
+
+
+def test_tool_approval_enum_wire_values():
+    """Always-allow and tool-explain enums keep their wire values (de093f5 / 1ad3abe2)."""
+    from inferencesh.types import AlwaysAllowScope, PolicyEffect, ToolRiskLevel
+
+    assert PolicyEffect.ASK.value == "ask"
+    assert AlwaysAllowScope.EXACT.value == "exact"
+    assert ToolRiskLevel.TOOL_RISK_HIGH.value == "high"
