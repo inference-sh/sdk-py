@@ -34,17 +34,17 @@ steps:
     continue-on-error: true
   - name: Run lint
     run: |
-      pip install flake8
+      pip install flake8==7.4.1
       flake8 . --max-line-length=100 > /tmp/gh-aw/lint-results.txt 2>&1 || true
     continue-on-error: true
   - name: Run type check
     run: |
-      pip install mypy
+      pip install mypy==2.4.0
       mypy . --ignore-missing-imports > /tmp/gh-aw/typecheck-results.txt 2>&1 || true
     continue-on-error: true
   - name: Run tests
     run: |
-      pip install pytest pytest-cov
+      pip install pytest==9.1.1 pytest-cov==7.1.0
       pytest > /tmp/gh-aw/test-results.txt 2>&1 || true
     continue-on-error: true
 
