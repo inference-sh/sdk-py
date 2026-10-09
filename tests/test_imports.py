@@ -46,6 +46,21 @@ def test_all_exports_resolvable():
     assert not missing, f"Names in __all__ but missing from package: {missing}"
 
 
+def test_all_has_no_duplicates():
+    """Each public name is listed once; a repeat hides which import binds it."""
+    seen = set()
+    dupes = sorted({n for n in inferencesh.__all__ if n in seen or seen.add(n)})
+    assert not dupes, f"Names listed more than once in __all__: {dupes}"
+
+
+def test_star_import_matches_all():
+    """`from inferencesh import *` binds exactly the names in __all__."""
+    ns = {}
+    exec("from inferencesh import *", ns)
+    ns.pop("__builtins__", None)
+    assert set(ns) == set(inferencesh.__all__)
+
+
 def test_top_level_llminput_is_pydantic_model():
     """`from inferencesh import LLMInput` must be the app base model, not the
     generated TypedDict of the same name (apps subclass it: `class AppInput(LLMInput)`)."""

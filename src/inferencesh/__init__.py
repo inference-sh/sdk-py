@@ -266,7 +266,6 @@ __all__ = [
     "ToolType",
     "ToolInvocationStatus",
     # Generated types - Agent
-    "Agent",
     "AgentTool",
     "AgentToolDTO",
     "AgentConfig",
@@ -287,7 +286,6 @@ __all__ = [
     # Agent SDK
     "Agent",
     "AsyncAgent",
-    "AgentConfig",
     "InternalToolsConfig",
     "ToolCallInfo",
     "AgentDelta",
