@@ -1,9 +1,10 @@
 """Tasks API: delete, files and delete_files (mocked _request)."""
 
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, get_type_hints
 
 from inferencesh import AsyncInference, Inference
+from inferencesh.api.tasks import AsyncTasksAPI, TasksAPI
 from inferencesh.models.response import Response
 
 FILES = [{"id": "file-1", "uri": "https://cloud.test/a.png", "role": "output"}]
@@ -58,6 +59,12 @@ EXPECTED = [
     {"method": "DELETE", "endpoint": "/tasks/task-1/files", "params": None},
     {"method": "DELETE", "endpoint": "/tasks/task-1/files", "params": {"role": "input"}},
 ]
+
+
+def test_tasks_get_annotated_as_response():
+    """tasks.get() returns Response like client.get_task() (#464)."""
+    assert get_type_hints(TasksAPI.get)["return"] is Response
+    assert get_type_hints(AsyncTasksAPI.get)["return"] is Response
 
 
 def test_sync_task_files():
