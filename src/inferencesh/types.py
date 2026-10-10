@@ -3466,6 +3466,12 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
+    # VisitorReads is the scope groups of the team's resources (knowledge,
+    # files, artifacts, remotes) a visitor of an embed of this version can
+    # have it read by id, beyond what it configures by name. Set when the
+    # agent is read (get, version get); the value a publication of it
+    # answers. Absent elsewhere (lists, chats).
+    visitor_reads: List[ScopeGroup]
 
 class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     agent_id: str
