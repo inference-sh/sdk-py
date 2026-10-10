@@ -7,6 +7,7 @@ These mirror the Go types in the API:
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -123,6 +124,26 @@ class APIError(Exception):
         self.message = message
         self.response_body = response_body
         super().__init__(f"HTTP {status_code}: {message}")
+
+    @property
+    def code(self) -> Optional[str]:
+        """The API's error code (an ``ErrorCode`` value such as
+        ``"requires_sign_in"``), read from the problem+json ``type``
+        (".../errors/<code>") or a legacy ``error.code``; None when the
+        body carries neither."""
+        try:
+            body = json.loads(self.response_body) if self.response_body else None
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(body, dict):
+            return None
+        problem_type = body.get("type")
+        if isinstance(problem_type, str) and "/errors/" in problem_type:
+            return problem_type.rsplit("/errors/", 1)[-1] or None
+        error = body.get("error")
+        if isinstance(error, dict) and isinstance(error.get("code"), str):
+            return error["code"]
+        return None
 
     def __repr__(self) -> str:
         return f"APIError(status_code={self.status_code}, message={self.message!r})"

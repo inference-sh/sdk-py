@@ -345,11 +345,25 @@ class Agent:
         self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
 
     def approve_tool(self, tool_invocation_id: str) -> None:
-        """Approve a tool invocation that is awaiting human approval."""
+        """Approve a tool invocation that is awaiting human approval.
+
+        Needs the account holder's own sign-in (approvals:write: the web app
+        or a ``belt login`` session). With an API key or an app's token the
+        API refuses it: ``APIError`` with status 403 and
+        ``code == ErrorCode.REQUIRES_SIGN_IN`` ("requires_sign_in"); its
+        message says what to do.
+        """
         self._request("post", _tool_path(tool_invocation_id, "invoke"))
 
     def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
-        """Reject a tool invocation that is awaiting human approval."""
+        """Reject a tool invocation that is awaiting human approval.
+
+        Needs the account holder's own sign-in (approvals:write: the web app
+        or a ``belt login`` session). With an API key or an app's token the
+        API refuses it: ``APIError`` with status 403 and
+        ``code == ErrorCode.REQUIRES_SIGN_IN`` ("requires_sign_in"); its
+        message says what to do.
+        """
         self._request("post", _tool_path(tool_invocation_id, "reject"), data={"reason": reason or ""})
 
     def stream_messages(
@@ -825,9 +839,25 @@ class AsyncAgent:
         await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
 
     async def approve_tool(self, tool_invocation_id: str) -> None:
+        """Approve a tool invocation that is awaiting human approval.
+
+        Needs the account holder's own sign-in (approvals:write: the web app
+        or a ``belt login`` session). With an API key or an app's token the
+        API refuses it: ``APIError`` with status 403 and
+        ``code == ErrorCode.REQUIRES_SIGN_IN`` ("requires_sign_in"); its
+        message says what to do.
+        """
         await self._request("post", _tool_path(tool_invocation_id, "invoke"))
 
     async def reject_tool(self, tool_invocation_id: str, reason: Optional[str] = None) -> None:
+        """Reject a tool invocation that is awaiting human approval.
+
+        Needs the account holder's own sign-in (approvals:write: the web app
+        or a ``belt login`` session). With an API key or an app's token the
+        API refuses it: ``APIError`` with status 403 and
+        ``code == ErrorCode.REQUIRES_SIGN_IN`` ("requires_sign_in"); its
+        message says what to do.
+        """
         await self._request("post", _tool_path(tool_invocation_id, "reject"), data={"reason": reason or ""})
 
     async def stream_messages(self) -> AsyncIterator[ChatMessageDTO]:

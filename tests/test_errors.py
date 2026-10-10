@@ -138,3 +138,18 @@ def test_api_error_repr():
     err = APIError(500, "internal error", response_body='{"detail":"boom"}')
     assert err.status_code == 500
     assert "internal error" in repr(err)
+
+
+def test_api_error_code_from_problem_type():
+    from inferencesh.types import ErrorCode
+
+    body = '{"type":"https://api.inference.sh/errors/requires_sign_in","status":403,"detail":"sign in"}'
+    err = APIError(403, "sign in", response_body=body)
+    assert err.code == ErrorCode.REQUIRES_SIGN_IN
+
+
+def test_api_error_code_legacy_and_absent():
+    assert APIError(400, "x", response_body='{"error":{"code":"validation_error"}}').code == "validation_error"
+    assert APIError(500, "x", response_body='{"type":"about:blank"}').code is None
+    assert APIError(500, "x", response_body="not json").code is None
+    assert APIError(500, "x").code is None
