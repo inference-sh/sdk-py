@@ -1434,6 +1434,12 @@ class TeamRoleRequiredMeta(TypedDict, total=False):
     required_role: TeamRole
     requires_org_admin: Optional[bool]
 
+# ScopeRefusedMeta is the meta of an insufficient_scope or
+# requires_sign_in error: the scope the operation declares and the
+# credential does not hold. The detail says what would hold it.
+class ScopeRefusedMeta(TypedDict, total=False):
+    required_scope: Scope
+
 # PaymentMethodRequiredMeta is the meta of a payment_method_required error.
 class PaymentMethodRequiredMeta(TypedDict, total=False):
     bounty_id: str
@@ -4327,7 +4333,11 @@ class ErrorCode(str, Enum):
     # account is signed into (authenticator enrollment, RequireBrowserSession).
     # InvalidTTL (400): the elevation asked for a window outside
     # models.AdminElevationMinTTL..AdminElevationMaxTTL.
+    # AdminScopesNotApproved (403): a platform admin's CLI login was approved
+    # with a scope list that does not name the admin scopes, so it can't be
+    # elevated: log in again approving them, then elevate.
     ADMIN_SESSION_REQUIRED = "admin_session_required"
+    ADMIN_SCOPES_NOT_APPROVED = "admin_scopes_not_approved"
     CLI_SESSION_REQUIRED = "cli_session_required"
     ADMIN_REQUIRED = "admin_required"
     SAME_ADMIN_REQUIRED = "same_admin_required"
