@@ -4,7 +4,7 @@ POST /agents/run no longer accepts an LLMInput envelope or CreateAgentMessageReq
 the SDK must send MessageInput (text + attachments) inside ApiAgentRunRequest.
 """
 
-from typing import get_type_hints
+from typing import Optional, get_type_hints
 
 import pytest
 
@@ -29,6 +29,20 @@ def test_api_agent_run_request_input_is_message_input():
     hints = get_type_hints(ApiAgentRunRequest)
     assert hints["input"] is MessageInput
     assert "channel_context" not in hints
+
+
+def test_api_agent_run_request_supports_agent_id_refs():
+    hints = get_type_hints(ApiAgentRunRequest)
+    assert hints["agent_id"] == Optional[str]
+    assert hints["agent_version_id"] == Optional[str]
+
+    body: ApiAgentRunRequest = {
+        "agent_id": "agt_123",
+        "agent_version_id": "ver_abc",
+        "input": {"text": "Hi"},
+    }
+    assert body["agent_id"] == "agt_123"
+    assert body["agent_version_id"] == "ver_abc"
 
 
 def test_context_field_supports_in_prompt_flag():

@@ -154,6 +154,21 @@ def test_agent_without_context_omits_it(patch_agent_requests):
     assert "context" not in body
 
 
+def test_agent_send_message_run_body_is_message_input(patch_agent_requests):
+    """POST /agents/run must send MessageInput, not the legacy LLMInput envelope."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("Hello")
+
+    body = patch_agent_requests[0]["data"]
+    message_input = body["input"]
+    assert set(message_input) <= {"text", "attachments", "images", "files"}
+    assert message_input["text"] == "Hello"
+    for legacy_key in ("role", "context", "system_prompt", "context_size"):
+        assert legacy_key not in message_input
+
+
 def test_submit_tool_result_string_payload(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
