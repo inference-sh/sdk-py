@@ -5329,6 +5329,10 @@ class AgentEventType(str, Enum):
     AGENT_EVENT_ACCOUNT_UPDATED = "account.updated"
     # Context management
     AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
+    # Subagent lifecycle
+    AGENT_EVENT_SUBAGENT_STARTED = "subagent.started"
+    AGENT_EVENT_SUBAGENT_UPDATED = "subagent.updated"
+    AGENT_EVENT_SUBAGENT_COMPLETED = "subagent.completed"
     # Errors
     AGENT_EVENT_ERROR = "error"
 
@@ -5403,11 +5407,6 @@ class BuiltinHook(str, Enum):
     # background: on agent.complete every tenth user turn, and before
     # compaction drops the turns it would have learned from.
     BELT_EXTRACT = "belt:extract"
-
-class AgentEventType(str, Enum):
-    AGENT_EVENT_SUBAGENT_STARTED = "subagent.started"
-    AGENT_EVENT_SUBAGENT_UPDATED = "subagent.updated"
-    AGENT_EVENT_SUBAGENT_COMPLETED = "subagent.completed"
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
