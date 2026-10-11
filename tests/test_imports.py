@@ -237,6 +237,7 @@ def test_models_decision_export_exists(name):
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
     "DescriptionLimit",
     "ChannelContext",
+    "MessageInput", "ApiAgentRunRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
@@ -408,3 +409,19 @@ def test_agent_event_type_holds_every_event():
     assert AgentEventType.AGENT_EVENT_SUBAGENT_UPDATED.value == "subagent.updated"
     assert AgentEventType.AGENT_EVENT_SUBAGENT_COMPLETED.value == "subagent.completed"
     assert AgentEventType("run.started") is AgentEventType.AGENT_EVENT_RUN_STARTED
+
+
+def test_store_scopes_replace_admin_pricing():
+    from inferencesh.types import Scope, ScopeGroup
+
+    assert Scope.STORE_PRICING.value == "store:pricing"
+    assert Scope.STORE_SUBMIT.value == "store:submit"
+    assert ScopeGroup.STORE.value == "store"
+    assert "admin:pricing" not in {m.value for m in Scope}
+
+
+def test_create_agent_message_request_is_gone():
+    """/agents/run takes MessageInput; the old request type is not generated."""
+    from inferencesh import types
+
+    assert not hasattr(types, "CreateAgentMessageRequest")

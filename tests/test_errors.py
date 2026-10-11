@@ -10,6 +10,7 @@ from inferencesh.models.errors import (
     SetupAction,
     WorkerLostError,
 )
+from inferencesh.types import ErrorCode
 
 
 class TestSetupAction:
@@ -153,3 +154,20 @@ def test_api_error_code_legacy_and_absent():
     assert APIError(500, "x", response_body='{"type":"about:blank"}').code is None
     assert APIError(500, "x", response_body="not json").code is None
     assert APIError(500, "x").code is None
+
+
+class TestScopeErrorCodes:
+    def test_error_codes_for_sign_in_scope_and_admin_elevation(self):
+        assert ErrorCode.REQUIRES_SIGN_IN.value == "requires_sign_in"
+        assert ErrorCode.INSUFFICIENT_SCOPE.value == "insufficient_scope"
+        assert ErrorCode.ADMIN_SCOPES_NOT_APPROVED.value == "admin_scopes_not_approved"
+        assert ErrorCode.ADMIN_SESSION_REQUIRED.value == "admin_session_required"
+        assert ErrorCode.BROWSER_SESSION_REQUIRED.value == "browser_session_required"
+
+    def test_api_error_code_reads_insufficient_scope_from_problem_json(self):
+        body = (
+            '{"type":"https://api.inference.sh/errors/insufficient_scope",'
+            '"status":403,"detail":"missing scope","meta":{"required_scope":"approvals:write"}}'
+        )
+        err = APIError(403, "missing scope", response_body=body)
+        assert err.code == ErrorCode.INSUFFICIENT_SCOPE

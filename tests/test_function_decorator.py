@@ -93,6 +93,11 @@ def test_typed_declarations_accepted():
     assert a.__inferencesh_function__["credentials"] == [cred]
 
 
+def test_decorator_rejects_non_callable_target():
+    with pytest.raises(TypeError, match="decorates a method"):
+        function()(object())
+
+
 @pytest.mark.parametrize(
     "kwargs, exc, match",
     [

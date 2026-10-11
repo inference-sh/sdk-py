@@ -22,6 +22,12 @@ def test_explicit_api_key_wins_over_env(make, monkeypatch):
 
 
 @pytest.mark.parametrize("make", CONSTRUCTORS)
+def test_explicit_none_api_key_falls_back_to_env(make, monkeypatch):
+    monkeypatch.setenv("INFERENCE_API_KEY", "env-key")
+    assert make(api_key=None)._api_key == "env-key"
+
+
+@pytest.mark.parametrize("make", CONSTRUCTORS)
 @pytest.mark.parametrize("env", [None, ""])
 def test_missing_key_names_the_env_var(make, env, monkeypatch):
     if env is None:
