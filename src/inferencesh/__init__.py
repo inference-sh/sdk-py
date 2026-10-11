@@ -163,23 +163,31 @@ from .types import (
 )
 
 
-def inference(*, api_key: str, base_url: str | None = None) -> Inference:
+def inference(*, api_key: str | None = None, base_url: str | None = None) -> Inference:
     """Factory function for creating an Inference client (lowercase for branding).
+
+    api_key defaults to the INFERENCE_API_KEY environment variable; raises
+    ValueError if neither is set.
 
     Example:
         ```python
         client = inference(api_key="your-api-key")
+        client = inference()  # reads INFERENCE_API_KEY
         ```
     """
     return Inference(api_key=api_key, base_url=base_url)
 
 
-def async_inference(*, api_key: str, base_url: str | None = None) -> AsyncInference:
+def async_inference(*, api_key: str | None = None, base_url: str | None = None) -> AsyncInference:
     """Factory function for creating an AsyncInference client (lowercase for branding).
+
+    api_key defaults to the INFERENCE_API_KEY environment variable; raises
+    ValueError if neither is set.
 
     Example:
         ```python
         client = async_inference(api_key="your-api-key")
+        client = async_inference()  # reads INFERENCE_API_KEY
         ```
     """
     return AsyncInference(api_key=api_key, base_url=base_url)

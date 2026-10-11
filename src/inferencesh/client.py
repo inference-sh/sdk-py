@@ -468,11 +468,27 @@ class StreamManager:
                 if not self._auto_reconnect:
                     break
                 time.sleep(self._reconnect_delay_ms / 1000.0)
+
+
+API_KEY_ENV = "INFERENCE_API_KEY"
+
+
+def _resolve_api_key(api_key: Optional[str]) -> str:
+    """Return api_key, else the INFERENCE_API_KEY environment variable."""
+    key = api_key or os.getenv(API_KEY_ENV)
+    if not key:
+        raise ValueError(
+            f"No API key: pass api_key=... or set the {API_KEY_ENV} environment variable"
+        )
+    return key
+
+
 class Inference:
     """Synchronous client for inference.sh API, mirroring the JS SDK behavior.
 
     Args:
-        api_key (str): The API key for authentication
+        api_key (Optional[str]): The API key for authentication. Defaults to the
+            INFERENCE_API_KEY environment variable; ValueError if neither is set.
         base_url (Optional[str]): Override the default API base URL
         sse_chunk_size (Optional[int]): Chunk size for SSE reading (default: 8192 bytes)
         sse_mode (Optional[str]): SSE reading mode ('iter_lines' or 'raw', default: 'iter_lines')
@@ -490,7 +506,7 @@ class Inference:
         ```python
         from inferencesh import inference
 
-        client = inference(api_key="...")
+        client = inference(api_key="...")  # or inference() with INFERENCE_API_KEY set
 
         # Namespaced API (recommended)
         result = client.tasks.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
@@ -505,13 +521,13 @@ class Inference:
     def __init__(
         self,
         *,
-        api_key: str,
+        api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         sse_chunk_size: Optional[int] = None,
         sse_mode: Optional[str] = None,
         on_message: Optional[Callable[[list], None]] = None,
     ) -> None:
-        self._api_key = api_key
+        self._api_key = _resolve_api_key(api_key)
         self._base_url = base_url or "https://api.inference.sh"
         self._on_message = on_message
         
@@ -1098,11 +1114,16 @@ class Inference:
 class AsyncInference:
     """Async client for inference.sh API, mirroring the JS SDK behavior.
 
+    Args:
+        api_key (Optional[str]): The API key for authentication. Defaults to the
+            INFERENCE_API_KEY environment variable; ValueError if neither is set.
+        base_url (Optional[str]): Override the default API base URL
+
     Example:
         ```python
         from inferencesh import async_inference
 
-        client = async_inference(api_key="...")
+        client = async_inference(api_key="...")  # or async_inference() with INFERENCE_API_KEY set
 
         # Namespaced API (recommended)
         result = await client.tasks.run({"app": "okaris/flux@abc1", "input": {"prompt": "hello"}})
@@ -1114,8 +1135,14 @@ class AsyncInference:
         ```
     """
 
-    def __init__(self, *, api_key: str, base_url: Optional[str] = None, on_message: Optional[Callable[[list], None]] = None) -> None:
-        self._api_key = api_key
+    def __init__(
+        self,
+        *,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        on_message: Optional[Callable[[list], None]] = None,
+    ) -> None:
+        self._api_key = _resolve_api_key(api_key)
         self._base_url = base_url or "https://api.inference.sh"
         self._on_message = on_message
 

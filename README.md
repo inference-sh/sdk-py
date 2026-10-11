@@ -14,6 +14,20 @@ run ai models, build ai agents, and deploy generative ai applications. access mo
 pip install inferencesh
 ```
 
+## authentication
+
+`inference()`, `async_inference()`, `Inference` and `AsyncInference` take `api_key=...`. Without it they read the `INFERENCE_API_KEY` environment variable, and raise `ValueError` if neither is set.
+
+```bash
+export INFERENCE_API_KEY="your-api-key"
+```
+
+```python
+from inferencesh import inference
+
+client = inference()  # uses INFERENCE_API_KEY
+```
+
 ## client api
 
 The `Inference` client exposes namespaced APIs:
