@@ -18,12 +18,11 @@ from .types import (
     ChatMessageDTO,
     AgentConfigInput as AgentConfig,
     AgentRunState,
-    ChatMessageRole,
     ChatMessageStatus,
     FileRef,
     InterruptReason,
     InterruptStatus,
-    LLMInput,
+    MessageInput,
     ToolType,
     ToolInvocationStatus,
 )
@@ -118,14 +117,9 @@ def _run_body(
 
     /agents/run takes either "agent" (a template ref) or "agent_config" (ad-hoc).
     """
-    input_data: LLMInput = {
-        "text": text,
-        "attachments": attachments,
-        "role": ChatMessageRole.USER,
-        "context": [],
-        "system_prompt": "",
-        "context_size": 0,
-    }
+    input_data: MessageInput = {"text": text}
+    if attachments:
+        input_data["attachments"] = attachments
     body: ApiAgentRunRequest = {"chat_id": chat_id, "input": input_data}
     if context is not None:
         body["context"] = context

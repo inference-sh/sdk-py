@@ -237,6 +237,7 @@ def test_models_decision_export_exists(name):
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
     "DescriptionLimit",
     "ChannelContext",
+    "MessageInput", "ApiAgentRunRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
