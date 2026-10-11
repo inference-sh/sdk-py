@@ -218,6 +218,110 @@ class TestBuildOpenAIMessages:
         tool_msg = next(m for m in messages if m["role"] == "tool")
         assert tool_msg["tool_call_id"] == ""
 
+    def test_tool_message_images_move_to_following_user_message(self):
+        """OpenAI accepts only text in role "tool"; a tool's images follow in a user message."""
+        shot = _file("https://cdn.example.com/shot.png")
+        messages = build_openai_messages(
+            LLMInput(
+                text="what do you see?",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[{"id": "call_1", "type": "function",
+                                     "function": {"name": "screenshot", "arguments": "{}"}}],
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="https://cdn.example.com/shot.png",
+                        tool_call_id="call_1",
+                        images=[shot],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+        )
+        assert [m["role"] for m in messages] == ["assistant", "tool", "user", "user"]
+        tool_msg = messages[1]
+        assert tool_msg == {"role": "tool", "content": "https://cdn.example.com/shot.png",
+                            "tool_call_id": "call_1"}
+        media = messages[2]["content"]
+        assert media[0]["type"] == "text"
+        assert "call_1" in media[0]["text"]
+        assert media[1] == {"type": "image_url", "image_url": {"url": "https://cdn.example.com/shot.png"}}
+        assert messages[3]["content"] == "what do you see?"
+
+    def test_parallel_tool_results_stay_adjacent_before_images(self):
+        a = _file("https://cdn.example.com/a.png")
+        b = _file("https://cdn.example.com/b.png")
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[
+                            {"id": "c1", "type": "function", "function": {"name": "screenshot", "arguments": "{}"}},
+                            {"id": "c2", "type": "function", "function": {"name": "screenshot", "arguments": "{}"}},
+                        ],
+                    ),
+                    ContextMessage(role=ContextMessageRole.TOOL, text="one", tool_call_id="c1", images=[a]),
+                    ContextMessage(role=ContextMessageRole.TOOL, text="two", tool_call_id="c2", images=[b]),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+        )
+        roles = [m["role"] for m in messages]
+        assert roles[:5] == ["assistant", "tool", "tool", "user", "user"]
+        assert [m["tool_call_id"] for m in messages[1:3]] == ["c1", "c2"]
+        assert [m["content"] for m in messages[1:3]] == ["one", "two"]
+        assert messages[3]["content"][1]["image_url"]["url"] == "https://cdn.example.com/a.png"
+        assert messages[4]["content"][1]["image_url"]["url"] == "https://cdn.example.com/b.png"
+
+    def test_current_input_tool_message_images_follow_as_user_message(self):
+        shot = _file("https://cdn.example.com/shot.png")
+        messages = build_openai_messages(
+            LLMInput(
+                text="done",
+                role=ContextMessageRole.TOOL,
+                tool_call_id="call_9",
+                images=[shot],
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[{"id": "call_9", "type": "function",
+                                     "function": {"name": "screenshot", "arguments": "{}"}}],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+        )
+        assert [m["role"] for m in messages] == ["assistant", "tool", "user"]
+        assert messages[1] == {"role": "tool", "content": "done", "tool_call_id": "call_9"}
+        assert messages[2]["content"][1]["image_url"]["url"] == "https://cdn.example.com/shot.png"
+
+    def test_tool_message_without_images_is_unchanged(self):
+        messages = build_openai_messages(
+            LLMInput(
+                text="",
+                context=[
+                    ContextMessage(role=ContextMessageRole.TOOL, text="r1", tool_call_id="c1"),
+                    ContextMessage(role=ContextMessageRole.TOOL, text="r2", tool_call_id="c2"),
+                ],
+                system_prompt="",
+            ),
+        )
+        tools = [m for m in messages if m["role"] == "tool"]
+        assert tools == [
+            {"role": "tool", "content": "r1", "tool_call_id": "c1"},
+            {"role": "tool", "content": "r2", "tool_call_id": "c2"},
+        ]
+
     def test_consecutive_same_role_messages_merge_images_and_files(self):
         img1 = _file("https://cdn.example.com/a.png")
         img2 = _file("https://cdn.example.com/b.png")

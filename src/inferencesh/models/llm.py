@@ -346,69 +346,46 @@ def build_openai_messages(
 
     input_data.context.append(user_msg)
 
-    current_role = None
-    current_messages = []
-
     reasoning_index = 0
-    for msg in input_data.context:
-        if msg.role == current_role or current_role is None:
-            current_messages.append(msg)
-            current_role = msg.role
-        else:
-            # Convert role enum to string for OpenAI API compatibility
-            role_str = current_role.value if hasattr(current_role, "value") else current_role
-            msg_dict: Dict[str, Any] = {
-                "role": role_str,
-                "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
-            }
+    # Images and files a tool returned. OpenAI chat completions accepts only
+    # text in a role "tool" message, so a tool message is sent as text and
+    # its images and files follow in a user message. These wait until the
+    # run of tool messages ends, so every tool result still directly follows
+    # the assistant message that called it (parallel tool calls).
+    pending_tool_media: List[Dict[str, Any]] = []
 
-            # Only add tool_calls if not empty
-            tool_calls = merge_tool_calls(current_messages)
-            if tool_calls:
-                # Ensure arguments are JSON strings (OpenAI API requirement)
-                for tc in tool_calls:
-                    if "function" in tc and "arguments" in tc["function"]:
-                        if isinstance(tc["function"]["arguments"], dict):
-                            tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
-                msg_dict["tool_calls"] = tool_calls
-                # Assistant messages with tool_calls can have null content per OpenAI spec.
-                # Some providers (MiniMax) reject empty string content with tool_calls.
-                if msg_dict.get("content") == "":
-                    msg_dict["content"] = None
+    def flush_tool_media() -> None:
+        messages.extend(pending_tool_media)
+        pending_tool_media.clear()
 
-            # Add tool_call_id for tool role messages (required by OpenAI API)
-            if role_str == "tool":
-                if current_messages and current_messages[0].tool_call_id:
-                    msg_dict["tool_call_id"] = current_messages[0].tool_call_id
-                else:
-                    # If not provided, use empty string to satisfy schema
-                    msg_dict["tool_call_id"] = ""
-
-            if msg.reasoning and include_reasoning:
-                msg_dict["reasoning"] = msg.reasoning
-                msg_dict["reasoning_details"] = {
-                    "type": "reasoning.text",
-                    "text": msg.reasoning,
-                    "id": f"reasoning-text-{reasoning_index}",
-                    "index": reasoning_index
-                }
-                reasoning_index += 1
-
-            messages.append(msg_dict)
-            current_messages = [msg]
-            current_role = msg.role
-
-    if len(current_messages) > 0:
-        assert current_role is not None  # set whenever current_messages is non-empty
+    def emit_group(group: List[ContextMessage], role: Any, next_msg: Optional[ContextMessage]) -> None:
+        nonlocal reasoning_index
         # Convert role enum to string for OpenAI API compatibility
-        role_str = current_role.value if hasattr(current_role, "value") else current_role
-        msg_dict = {  # type already annotated above in the loop
+        role_str = role.value if hasattr(role, "value") else role
+        merged = merge_messages(group)
+        tool_media: Optional[ContextMessage] = None
+        if role_str == "tool" and (merged.images or merged.files):
+            tool_id = group[0].tool_call_id or "unknown"
+            # Role TOOL keeps transform_user_message off the label; the
+            # message is sent with role "user".
+            tool_media = ContextMessage(
+                role=ContextMessageRole.TOOL,
+                text=f"Images and files returned by tool call {tool_id}:",
+                images=merged.images,
+                files=merged.files,
+            )
+            merged = ContextMessage(role=merged.role, text=merged.text)
+
+        if role_str != "tool":
+            flush_tool_media()
+
+        msg_dict: Dict[str, Any] = {
             "role": role_str,
-            "content": render_message(merge_messages(current_messages), allow_multipart=multipart),
+            "content": render_message(merged, allow_multipart=multipart),
         }
 
         # Only add tool_calls if not empty
-        tool_calls = merge_tool_calls(current_messages)
+        tool_calls = merge_tool_calls(group)
         if tool_calls:
             # Ensure arguments are JSON strings (OpenAI API requirement)
             for tc in tool_calls:
@@ -416,18 +393,58 @@ def build_openai_messages(
                     if isinstance(tc["function"]["arguments"], dict):
                         tc["function"]["arguments"] = json.dumps(tc["function"]["arguments"])
             msg_dict["tool_calls"] = tool_calls
+            # Assistant messages with tool_calls can have null content per OpenAI spec.
+            # Some providers (MiniMax) reject empty string content with tool_calls.
             if msg_dict.get("content") == "":
                 msg_dict["content"] = None
 
         # Add tool_call_id for tool role messages (required by OpenAI API)
         if role_str == "tool":
-            if current_messages and current_messages[0].tool_call_id:
-                msg_dict["tool_call_id"] = current_messages[0].tool_call_id
+            if group and group[0].tool_call_id:
+                msg_dict["tool_call_id"] = group[0].tool_call_id
             else:
                 # If not provided, use empty string to satisfy schema
                 msg_dict["tool_call_id"] = ""
 
+        if next_msg is not None and next_msg.reasoning and include_reasoning:
+            msg_dict["reasoning"] = next_msg.reasoning
+            msg_dict["reasoning_details"] = {
+                "type": "reasoning.text",
+                "text": next_msg.reasoning,
+                "id": f"reasoning-text-{reasoning_index}",
+                "index": reasoning_index
+            }
+            reasoning_index += 1
+
         messages.append(msg_dict)
+        if tool_media is not None:
+            pending_tool_media.append({
+                "role": "user",
+                "content": render_message(tool_media, allow_multipart=True),
+            })
+
+    def is_tool(role: Any) -> bool:
+        return (role.value if hasattr(role, "value") else role) == "tool"
+
+    current_role = None
+    current_messages: List[ContextMessage] = []
+
+    for msg in input_data.context:
+        # Consecutive messages of one role merge, except tool messages: each
+        # answers its own tool call and keeps its own tool_call_id.
+        if current_role is None or (msg.role == current_role and not is_tool(msg.role)):
+            current_messages.append(msg)
+            current_role = msg.role
+        else:
+            emit_group(current_messages, current_role, next_msg=msg)
+            current_messages = [msg]
+            current_role = msg.role
+
+    if len(current_messages) > 0:
+        assert current_role is not None  # set whenever current_messages is non-empty
+        emit_group(current_messages, current_role, next_msg=None)
+
+    flush_tool_media()
 
     return messages
 
