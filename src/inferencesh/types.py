@@ -5352,6 +5352,9 @@ class AgentEventType(str, Enum):
     AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
     # Errors
     AGENT_EVENT_ERROR = "error"
+    AGENT_EVENT_SUBAGENT_STARTED = "subagent.started"
+    AGENT_EVENT_SUBAGENT_UPDATED = "subagent.updated"
+    AGENT_EVENT_SUBAGENT_COMPLETED = "subagent.completed"
 
 class ContentDeltaKind(str, Enum):
     CONTENT_DELTA_TEXT = "text"
@@ -5424,11 +5427,6 @@ class BuiltinHook(str, Enum):
     # background: on agent.complete every tenth user turn, and before
     # compaction drops the turns it would have learned from.
     BELT_EXTRACT = "belt:extract"
-
-class AgentEventType(str, Enum):
-    AGENT_EVENT_SUBAGENT_STARTED = "subagent.started"
-    AGENT_EVENT_SUBAGENT_UPDATED = "subagent.updated"
-    AGENT_EVENT_SUBAGENT_COMPLETED = "subagent.completed"
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"

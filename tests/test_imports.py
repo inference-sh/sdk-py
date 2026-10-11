@@ -394,3 +394,17 @@ def test_tool_approval_enum_wire_values():
     assert PolicyEffect.ASK.value == "ask"
     assert AlwaysAllowScope.EXACT.value == "exact"
     assert ToolRiskLevel.TOOL_RISK_HIGH.value == "high"
+
+
+def test_agent_event_type_holds_every_event():
+    """AgentEventType spans two Go const blocks (run/turn/... and subagent.*);
+    one generated enum must carry both, or the later block shadows the first."""
+    from inferencesh.types import AgentEventType
+
+    assert AgentEventType.AGENT_EVENT_RUN_STARTED.value == "run.started"
+    assert AgentEventType.AGENT_EVENT_USAGE_UPDATED.value == "usage.updated"
+    assert AgentEventType.AGENT_EVENT_ERROR.value == "error"
+    assert AgentEventType.AGENT_EVENT_SUBAGENT_STARTED.value == "subagent.started"
+    assert AgentEventType.AGENT_EVENT_SUBAGENT_UPDATED.value == "subagent.updated"
+    assert AgentEventType.AGENT_EVENT_SUBAGENT_COMPLETED.value == "subagent.completed"
+    assert AgentEventType("run.started") is AgentEventType.AGENT_EVENT_RUN_STARTED
