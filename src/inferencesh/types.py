@@ -339,9 +339,14 @@ class CreateAgentMessageResponse(TypedDict, total=False):
     user_message: Optional[ChatMessageDTO]
     assistant_message: Optional[ChatMessageDTO]
 
-# ToolResultRequest represents a tool result submission
+# ToolResultRequest is the body of POST /tools/{id}: a client's result for a
+# tool call it ran.
 class ToolResultRequest(TypedDict, total=False):
     result: str
+    # Attachments are files uploaded with POST /files, as in MessageInput.
+    # The tool message carries them; images reach the model as image input
+    # when it accepts images.
+    attachments: List[FileRef]
 
 # PartialFile is the clean DTO version (no gorm tags).
 class PartialFile(TypedDict, total=False):
