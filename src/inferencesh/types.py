@@ -726,6 +726,14 @@ class AppFunction(TypedDict, total=False):
     # Kind is how the function talks to its caller, from engine discovery:
     # a stream function declares a socket parameter. Empty means run.
     kind: FunctionKind
+    # Credentials the function needs at run time, declared on the function
+    # in app code. Each must be covered by the app-wide list in inf.yml.
+    # Empty means the function gets the app-wide list.
+    credentials: List[CredentialRequirement]
+    # Annotations are MCP tool hints (read-only, destructive, idempotent,
+    # open-world) declared on the function. Hints only: nothing trusts
+    # them for an unverified namespace.
+    annotations: Optional[ToolAnnotations]
 
 # AppImages holds developer-provided images for the app.
 class AppImages(TypedDict, total=False):
@@ -1809,6 +1817,17 @@ class ResourceContent(TypedDict, total=False):
     text: str
     blob: str
     _meta: Dict[str, Any]
+
+# ToolAnnotations describes tool behavior so clients can make trust and UX
+# decisions (e.g., auto-approve read-only tools). All fields are optional hints.
+class ToolAnnotations(TypedDict, total=False):
+    # Title is the human-readable name clients and the Claude directory show.
+    # It repeats MCPTool.Title because some clients read only this one.
+    title: str
+    readOnlyHint: Optional[bool]
+    destructiveHint: Optional[bool]
+    idempotentHint: Optional[bool]
+    openWorldHint: Optional[bool]
 
 # ToolCallRequest represents a request to call a tool.
 # 
