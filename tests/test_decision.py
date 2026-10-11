@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from inferencesh.models import DecisionInput, DecisionOutput, DecisionVisionInput
+from inferencesh.models import DecisionInput, DecisionOutput, DecisionVideoInput, DecisionVisionInput
 
 CHOICE = {"id": "team", "instructions": "Which team?", "options": [{"name": "billing", "description": "Charges"}, {"name": "other"}]}
 SCORE = {"id": "urgency", "instructions": "How urgent?", "levels": ["Can wait", "Today", "Now"]}
@@ -40,7 +40,7 @@ def test_structured_state_counts_as_content(state):
         ({"state": "x", "choices": [CHOICE], "nouls": [{"id": "team", "instructions": "y"}]}, "repeated: \\['team'\\]"),
         ({"state": "x", "nouls": [{"id": "q", "instructions": ""}]}, "empty instructions"),
         ({"state": "x", "choices": [{"id": "c", "instructions": "y", "options": [{"name": "a"}, {"name": "a"}]}]}, "repeated option names"),
-        ({"state": "", "nouls": [NOUL]}, "nothing to evaluate: send a `state` \\["),
+        ({"state": "", "nouls": [NOUL]}, "nothing to evaluate: send `state` \\["),
     ],
 )
 def test_validation(kwargs, message):
@@ -60,9 +60,19 @@ def test_vision_input_accepts_images_alone(tmp_path):
     image.write_bytes(b"\x89PNG")
     data = DecisionVisionInput(images=[str(image)], nouls=[NOUL])
     assert len(data.images) == 1
-    with pytest.raises(ValidationError, match="send a `state`, `images`, or both"):
+    with pytest.raises(ValidationError, match="send `state` or `images`, or a mix"):
         DecisionVisionInput(nouls=[NOUL])
     assert "images" not in DecisionInput.model_fields
+
+
+def test_video_input_accepts_videos_alone(tmp_path):
+    video = tmp_path / "a.mp4"
+    video.write_bytes(b"\x00")
+    data = DecisionVideoInput(videos=[str(video)], nouls=[NOUL])
+    assert len(data.videos) == 1 and data.images == []
+    with pytest.raises(ValidationError, match="send `state` or `images` or `videos`, or a mix"):
+        DecisionVideoInput(nouls=[NOUL])
+    assert "videos" not in DecisionVisionInput.model_fields
 
 
 def test_from_answers_types_normalizes_and_meters():

@@ -20,6 +20,7 @@ from .llm import (
 )
 from .decision import (
     DecisionInput,
+    DecisionVideoInput,
     DecisionVisionInput,
     DecisionOutput,
 )
@@ -57,6 +58,7 @@ __all__ = [
     "Metadata",
     # Decision types
     "DecisionInput",
+    "DecisionVideoInput",
     "DecisionVisionInput",
     "DecisionOutput",
     # LLM types

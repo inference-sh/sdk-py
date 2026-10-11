@@ -4190,6 +4190,12 @@ LLMDeltaEvent = DeltaEvent
 class ArtifactCommentThreadDTO(CommentDTO, TypedDict, total=False):
     replies: List[CommentDTO]
 
+# DecisionVideoInput is the input of a decision model that also watches
+# videos: a DecisionVisionInput plus the videos the questions are about.
+class DecisionVideoInput(DecisionVisionInput, TypedDict, total=False):
+    # Videos are file URIs. Every question sees them, after the images.
+    videos: List[str]
+
 class ToolAuthType(str, Enum):
     # ToolAuthTypeNone sends no credentials (same as leaving type empty).
     NONE = "none"

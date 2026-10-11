@@ -311,6 +311,12 @@ class LLMInput(LLMSettings, BaseModel):
     files: Optional[List[str]] = None
     tool_call_id: Optional[str] = None
 
+# DecisionVideoInput is the input of a decision model that also watches
+# videos: a DecisionVisionInput plus the videos the questions are about.
+class DecisionVideoInput(DecisionVisionInput, BaseModel):
+    # Videos are file URIs. Every question sees them, after the images.
+    videos: Optional[List[str]] = None
+
 class ChatMessageRole(str, Enum):
     # LLM wire-protocol roles
     SYSTEM = "system"
@@ -388,4 +394,5 @@ ToolParameterProperty.model_rebuild()
 DecisionVisionInput.model_rebuild()
 LLMDelta.model_rebuild()
 LLMInput.model_rebuild()
+DecisionVideoInput.model_rebuild()
 

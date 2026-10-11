@@ -2,7 +2,8 @@
 
 A decision model reads a state and answers typed questions about it with
 probabilities, without generating text. Every decision app takes
-``DecisionInput`` (or ``DecisionVisionInput`` when its model sees images) and
+``DecisionInput`` (or ``DecisionVisionInput`` when its model sees images,
+``DecisionVideoInput`` when it also watches videos) and
 returns ``DecisionOutput``, so a caller can move between them by changing the
 app name.
 
@@ -108,7 +109,9 @@ class DecisionInput(contract.DecisionInput, BaseAppInput):
             if len(set(names)) != len(names):
                 raise ValueError(f"choice '{q.id}' has repeated option names")
         if not self.has_content():
-            raise ValueError("there is nothing to evaluate: send a `state`" + (", `images`, or both" if "images" in type(self).model_fields else ""))
+            fields = ["state"] + [name for name in ("images", "videos") if name in type(self).model_fields]
+            sources = " or ".join(f"`{name}`" for name in fields)
+            raise ValueError(f"there is nothing to evaluate: send {sources}" + (", or a mix" if len(fields) > 1 else ""))
         return self
 
     def questions(self) -> Dict[str, Dict[str, Any]]:
@@ -143,6 +146,17 @@ class DecisionVisionInput(DecisionInput, contract.DecisionVisionInput):
 
     def has_content(self) -> bool:
         return super().has_content() or bool(self.images)
+
+
+class DecisionVideoInput(DecisionVisionInput, contract.DecisionVideoInput):
+    """A state, images, videos, and the typed questions asked of them."""
+    videos: List[File] = Field(
+        default_factory=list,
+        description="Videos the questions are about. Every question sees them, placed after the images. The state may be empty when the videos carry the content.",
+    )
+
+    def has_content(self) -> bool:
+        return super().has_content() or bool(self.videos)
 
 
 # ── Answers ──────────────────────────────────────────────────────────────────
