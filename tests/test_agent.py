@@ -155,6 +155,20 @@ def test_agent_without_context_omits_it(patch_agent_requests):
     assert "context" not in body
 
 
+def test_agent_follow_up_message_includes_chat_id(patch_agent_requests):
+    """After the first /agents/run, later turns must thread chat_id so the API continues the chat."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("Hello")
+    agent.send_message("Follow up")
+
+    runs = [c for c in patch_agent_requests.calls if c["url"].endswith("/agents/run")]
+    assert runs[0]["data"]["chat_id"] is None
+    assert runs[1]["data"]["chat_id"] == "chat_1"
+    assert runs[1]["data"]["input"] == {"text": "Follow up"}
+
+
 def test_agent_run_input_is_message_input(patch_agent_requests):
     """/agents/run takes MessageInput: text, plus attachments only when there are any."""
     client = Inference(api_key="test")

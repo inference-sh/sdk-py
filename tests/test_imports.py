@@ -161,10 +161,11 @@ def test_models_llm_export_exists(name):
 @pytest.mark.parametrize("name", [
     "DecisionInput",
     "DecisionVisionInput",
+    "DecisionVideoInput",
     "DecisionOutput",
 ])
 def test_models_decision_export_exists(name):
-    """v0.20 decision contract types must be exported from models."""
+    """v0.20+ decision contract types must be exported from models."""
     from inferencesh import models
 
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
@@ -237,7 +238,7 @@ def test_models_decision_export_exists(name):
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
     "DescriptionLimit",
     "ChannelContext",
-    "MessageInput", "ApiAgentRunRequest",
+    "MessageInput", "ApiAgentRunRequest", "ToolResultRequest",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
@@ -425,3 +426,20 @@ def test_create_agent_message_request_is_gone():
     from inferencesh import types
 
     assert not hasattr(types, "CreateAgentMessageRequest")
+
+
+def test_tool_result_request_includes_attachments():
+    """POST /tools/{id} may return uploaded files alongside the text result (v0.24.0)."""
+    from typing import List
+
+    from inferencesh.types import FileRef, ToolResultRequest
+
+    hints = get_type_hints(ToolResultRequest)
+    assert hints["result"] is str
+    assert hints["attachments"] == List[FileRef]
+
+    body: ToolResultRequest = {
+        "result": "screenshot taken",
+        "attachments": [{"id": "file_1", "uri": "https://cloud.inference.sh/u/user/file_1.png"}],
+    }
+    assert body["attachments"][0]["id"] == "file_1"

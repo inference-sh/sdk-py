@@ -322,6 +322,42 @@ class TestBuildOpenAIMessages:
             {"role": "tool", "content": "r2", "tool_call_id": "c2"},
         ]
 
+    def test_tool_message_files_move_to_following_user_message(self):
+        """Non-image tool attachments use the same follow-up user message as images."""
+        doc = _file("https://cdn.example.com/report.pdf")
+        messages = build_openai_messages(
+            LLMInput(
+                text="summarize",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[
+                            {
+                                "id": "call_doc",
+                                "type": "function",
+                                "function": {"name": "fetch_report", "arguments": "{}"},
+                            },
+                        ],
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="report ready",
+                        tool_call_id="call_doc",
+                        files=[doc],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            file_mode="url",
+        )
+        assert [m["role"] for m in messages] == ["assistant", "tool", "user", "user"]
+        assert messages[1]["content"] == "report ready"
+        file_parts = [p for p in messages[2]["content"] if p["type"] == "file"]
+        assert len(file_parts) == 1
+        assert file_parts[0]["file"]["file_data"] == "https://cdn.example.com/report.pdf"
+        assert messages[3]["content"] == "summarize"
+
     def test_consecutive_same_role_messages_merge_images_and_files(self):
         img1 = _file("https://cdn.example.com/a.png")
         img2 = _file("https://cdn.example.com/b.png")
