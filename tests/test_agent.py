@@ -154,6 +154,28 @@ def test_agent_without_context_omits_it(patch_agent_requests):
     assert "context" not in body
 
 
+def test_agent_run_input_is_message_input(patch_agent_requests):
+    """/agents/run takes MessageInput: text, plus attachments only when there are any."""
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("Hello")
+
+    assert patch_agent_requests[0]["data"]["input"] == {"text": "Hello"}
+
+
+def test_agent_run_input_carries_attachments(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+
+    agent.send_message("See file", files=[b"raw-bytes"])
+
+    runs = [c for c in patch_agent_requests.calls if c["url"].endswith("/agents/run")]
+    run_body = runs[0]["data"]
+    assert set(run_body["input"]) == {"text", "attachments"}
+    assert run_body["input"]["text"] == "See file"
+
+
 def test_submit_tool_result_string_payload(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
