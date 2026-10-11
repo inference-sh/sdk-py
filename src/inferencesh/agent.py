@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import inspect
 import json
+import warnings
 from typing import Any, Dict, List, Mapping, Optional, Callable, Iterator, AsyncIterator, cast, TYPE_CHECKING
 from dataclasses import dataclass
 
@@ -111,7 +112,6 @@ def _run_body(
     context: Optional[Dict[str, str]],
     text: str,
     attachments: Optional[List[FileRef]],
-    channel_context: Optional[ChannelContext],
 ) -> ApiAgentRunRequest:
     """POST /agents/run body, shared by Agent and AsyncAgent.
 
@@ -129,9 +129,20 @@ def _run_body(
         body["agent_config"] = options
         # The name dedupes ad-hoc agents.
         body["agent_name"] = options.get("name")
-    if channel_context is not None:
-        body["channel_context"] = channel_context
     return body
+
+
+def _warn_channel_context(channel_context: Optional[ChannelContext]) -> None:
+    """channel_context is accepted for compatibility and never sent: the API no
+    longer reads it from an agent run (ApiAgentRunRequest has no such field)."""
+    if channel_context is not None:
+        warnings.warn(
+            "channel_context is deprecated and ignored: the API no longer reads a "
+            "channel context from an agent run; a chat's routing comes from the "
+            "server's own channel receivers",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
 
 def _tool_path(tool_invocation_id: str, action: str = "") -> str:
@@ -267,13 +278,15 @@ class Agent:
             on_tool_call: Callback when a client tool needs execution
             on_delta: Callback for token-by-token output while the assistant
                 message is being generated
-            channel_context: Origin channel of this message (slack thread,
-                telegram chat, ...). The API stamps it on the chat the first
-                time it is seen and routes the agent's replies back there.
+            channel_context: Deprecated and ignored. The API no longer reads
+                a channel context from an agent run; a chat's routing comes
+                from the server's own channel receivers. Accepted for
+                compatibility, not sent, and warns with DeprecationWarning.
 
         Returns:
             The assistant's response message
         """
+        _warn_channel_context(channel_context)
         # Clear dispatched tools from previous message
         self._dispatched_tools.clear()
 
@@ -283,7 +296,7 @@ class Agent:
         if files:
             attachments = [self.upload_file(f) for f in files]
 
-        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
+        body = _run_body(self._options, self._chat_id, self._context, text, attachments)
 
         response = self._request("post", "/agents/run", data=body)
         if not response:
@@ -784,16 +797,17 @@ class AsyncAgent:
     ) -> ChatMessageDTO:
         """Send a message to the agent.
 
-        channel_context names the origin channel of the message (slack thread,
-        telegram chat, ...); the API stamps it on the chat the first time it is
-        seen and routes the agent's replies back there.
+        channel_context is deprecated and ignored: the API no longer reads a
+        channel context from an agent run. It is accepted for compatibility,
+        not sent, and warns with DeprecationWarning.
 
         With any callback set, streams until the agent run finishes (see
         stream_all). Callbacks may be plain functions or coroutines.
         """
+        _warn_channel_context(channel_context)
         self._dispatched_tools.clear()
 
-        body = _run_body(self._options, self._chat_id, self._context, text, attachments, channel_context)
+        body = _run_body(self._options, self._chat_id, self._context, text, attachments)
         response = await self._request("post", "/agents/run", data=body)
 
         assistant_msg = response.get("assistant_message", {})

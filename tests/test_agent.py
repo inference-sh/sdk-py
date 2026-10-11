@@ -2,6 +2,7 @@
 
 import base64
 import json
+import warnings
 
 import pytest
 
@@ -758,8 +759,8 @@ def test_pending_approvals_invalid_json_meta_falls_back_to_resource_id():
     assert got[0].arguments == {}
 
 
-def test_agent_ad_hoc_config_forwards_channel_context(patch_agent_requests):
-    """Ad-hoc agent_config /agents/run bodies must carry channel_context like template refs."""
+def test_agent_ad_hoc_config_does_not_send_channel_context(patch_agent_requests):
+    """channel_context is deprecated: accepted, warned about, never sent (ad-hoc config too)."""
     client = Inference(api_key="test")
     config = {
         "name": "router",
@@ -768,11 +769,12 @@ def test_agent_ad_hoc_config_forwards_channel_context(patch_agent_requests):
     agent = client.agent(config)
     ctx = {"channel_type": "slack", "channel_metadata": {"channel": "C-ad-hoc"}}
 
-    agent.send_message("Route me", channel_context=ctx)
+    with pytest.warns(DeprecationWarning, match="channel_context"):
+        agent.send_message("Route me", channel_context=ctx)
 
     body = patch_agent_requests[0]["data"]
     assert body["agent_config"] == config
-    assert body["channel_context"] == ctx
+    assert "channel_context" not in body
 
 
 def test_stream_all_does_not_bleed_delta_state_across_messages(monkeypatch, patch_agent_requests):
@@ -867,29 +869,36 @@ def test_send_message_with_only_on_delta_streams(monkeypatch, patch_agent_reques
     assert streamed == ["/chats/chat_1/stream"]
 
 
-def test_agent_send_message_forwards_channel_context(patch_agent_requests):
+def test_agent_send_message_channel_context_is_deprecated_and_not_sent(patch_agent_requests):
+    """The API no longer reads channel_context on /agents/run; the SDK keeps the
+    parameter for compatibility, warns, and leaves it out of the body."""
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
 
     ctx = {"channel_type": "slack", "channel_metadata": {"thread_ts": "171.9", "channel": "C1"}}
-    agent.send_message("Hello", channel_context=ctx)
+    with pytest.warns(DeprecationWarning, match="channel_context") as record:
+        agent.send_message("Hello", channel_context=ctx)
 
+    # The warning points at the caller, not at the SDK.
+    assert record[0].filename == __file__
     body = patch_agent_requests[0]["data"]
-    assert body["channel_context"] == ctx
+    assert "channel_context" not in body
 
 
 def test_agent_send_message_omits_channel_context_by_default(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
 
-    agent.send_message("Hello")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        agent.send_message("Hello")
 
     body = patch_agent_requests[0]["data"]
     assert "channel_context" not in body
 
 
 @pytest.mark.asyncio
-async def test_async_agent_send_message_forwards_channel_context(monkeypatch):
+async def test_async_agent_send_message_channel_context_is_deprecated_and_not_sent(monkeypatch):
     client = AsyncInference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
     captured: dict = {}
@@ -910,11 +919,14 @@ async def test_async_agent_send_message_forwards_channel_context(monkeypatch):
     monkeypatch.setattr(agent, "_request", fake_request)
 
     ctx = {"channel_type": "telegram", "channel_metadata": {"chat_id": "tg-99"}}
-    msg = await agent.send_message("Hello", channel_context=ctx)
+    with pytest.warns(DeprecationWarning, match="channel_context") as record:
+        msg = await agent.send_message("Hello", channel_context=ctx)
 
+    assert record[0].filename == __file__
     assert msg["text"] == "Hi"
     assert captured["endpoint"] == "/agents/run"
-    assert captured["data"]["channel_context"] == ctx
+    assert "channel_context" not in captured["data"]
+    assert captured["data"]["input"] == {"text": "Hello"}
 
 
 @pytest.mark.asyncio
@@ -929,7 +941,9 @@ async def test_async_agent_send_message_omits_channel_context_by_default(monkeyp
 
     monkeypatch.setattr(agent, "_request", fake_request)
 
-    await agent.send_message("Hello")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        await agent.send_message("Hello")
 
     assert "channel_context" not in captured["data"]
 
