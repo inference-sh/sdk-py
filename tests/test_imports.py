@@ -161,10 +161,11 @@ def test_models_llm_export_exists(name):
 @pytest.mark.parametrize("name", [
     "DecisionInput",
     "DecisionVisionInput",
+    "DecisionVideoInput",
     "DecisionOutput",
 ])
 def test_models_decision_export_exists(name):
-    """v0.20 decision contract types must be exported from models."""
+    """v0.20+ decision contract types must be exported from models."""
     from inferencesh import models
 
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
