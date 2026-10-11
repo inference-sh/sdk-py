@@ -811,6 +811,17 @@ class AppSandbox(TypedDict, total=False):
     # them.
     capabilities: List[str]
 
+# DeployWarning is something a deploy accepted but the author should fix:
+# the app works, but asks for more than it needs or says less than clients
+# use.
+class DeployWarning(TypedDict, total=False):
+    # Code identifies the check: readonly_broad_credential,
+    # unused_credential, missing_annotations.
+    code: str
+    # Function is the function the warning is about, when it is about one.
+    function: str
+    message: str
+
 # AppStoreListingDTO for API responses
 class AppStoreListingDTO(TypedDict, total=False):
     id: str
@@ -3255,6 +3266,9 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     # package's inf.yml) and on a version with no package (a flow app).
     sandbox: Optional[AppSandbox]
     checksum: str
+    # Warnings are what the deploy that created this version accepted but
+    # the author should fix. Only the deploy's own response carries them.
+    warnings: List[DeployWarning]
 
 # LicenseRecordDTO is the API response for a license record.
 class LicenseRecordDTO(BaseModelDTO, TypedDict, total=False):
