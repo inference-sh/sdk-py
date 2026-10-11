@@ -733,6 +733,25 @@ app lifecycle has three main methods:
 - `run()`: called for each inference request
 - `unload()`: called when shutting down, use it to free resources
 
+### per-function credentials and annotations
+
+`@function` declares what one function needs and how it behaves. Discovery writes it to the function's entry in `functions_schema.json` at deploy.
+
+```python
+from inferencesh import BaseApp, function
+
+class App(BaseApp):
+    @function(
+        credentials=[{"key": "google.calendar.events"}],
+        annotations={"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
+    )
+    async def create_event(self, input_data: CreateEventInput) -> CreateEventOutput: ...
+```
+
+- `credentials`: entries shaped like `inf.yml` `credentials:` entries (`CredentialRequirement`). Each must be covered by the app-wide list in `inf.yml`. A function without `credentials` gets the whole app-wide list.
+- `annotations`: MCP tool hints (`ToolAnnotations`: `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`). Hints only; nothing automatic trusts them for an unverified namespace.
+- Malformed declarations (unknown keys, wrong types, an empty `credentials` list) raise at import time. The decorator returns the method unchanged, so stream and generator functions keep working.
+
 ## resources
 
 - [documentation](https://inference.sh/docs) — getting started guides and api reference

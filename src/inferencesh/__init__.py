@@ -79,7 +79,9 @@ from .live import (
 )
 from .models.stream import CLEAR_KEY, ERROR_KEY
 from .ref import Ref
-from .types import TaskStatus, ChatMessageStatus
+from .types import TaskStatus, ChatMessageStatus, ToolAnnotations, CredentialRequirement
+# Per-function metadata (@function)
+from .decorators import function
 from .models.errors import (
     APIError,
     RequirementsNotMetError,
@@ -210,6 +212,9 @@ __all__ = [
     "media",
     # Base types
     "BaseApp",
+    "function",
+    "ToolAnnotations",
+    "CredentialRequirement",
     "BaseAppInput",
     "BaseAppOutput",
     "BaseAppSetup",
