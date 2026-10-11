@@ -236,7 +236,7 @@ def test_models_decision_export_exists(name):
     "NotificationType", "NotificationChannel", "NotificationStatus",
     "MCPServerAuthType", "ToolAuthType", "RefRouteType", "RefRouteMode", "RefRouteDTO", "ChannelType",
     "DescriptionLimit",
-    "ChannelContext", "CreateAgentMessageRequest",
+    "ChannelContext",
     # App store + user metadata (6fd3aac typegen regen)
     "AppStoreListingDTO", "UserMetadataDTO",
     # MCP elicitation + tool annotations (cc67205 typegen regen)
