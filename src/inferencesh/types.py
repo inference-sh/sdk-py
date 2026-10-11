@@ -3000,6 +3000,8 @@ class TurnCompletedPayload(TypedDict, total=False):
 class ContentDeltaPayload(TypedDict, total=False):
     kind: ContentDeltaKind
     delta: str
+    # SubagentID is set on a subagent's own output (subagent_types.go).
+    subagent_id: str
 
 class ToolStartedPayload(TypedDict, total=False):
     tool_invocation_id: str
@@ -3007,6 +3009,8 @@ class ToolStartedPayload(TypedDict, total=False):
     tool_type: ToolType
     display_name: str
     arguments: StringEncodedMap
+    # SubagentID is set on a subagent's own tool calls.
+    subagent_id: str
 
 class ToolCompletedPayload(TypedDict, total=False):
     tool_invocation_id: str
@@ -3014,12 +3018,17 @@ class ToolCompletedPayload(TypedDict, total=False):
     status: ToolInvocationStatus
     result: str
     duration_ms: int
+    # SubagentID is set on a subagent's own tool calls.
+    subagent_id: str
 
 class ApprovalRequiredPayload(TypedDict, total=False):
     tool_invocation_id: str
     tool_name: str
     arguments: StringEncodedMap
     reason: InterruptReason
+    # SubagentID is set when a subagent asks: its tool call, not the
+    # agent's.
+    subagent_id: str
 
 class ApprovalResolvedPayload(TypedDict, total=False):
     tool_invocation_id: str
@@ -3033,12 +3042,21 @@ class HookExecutedPayload(TypedDict, total=False):
     reason: str
     duration_ms: int
 
+# UsageUpdatedPayload is what one turn used, emitted once when the turn
+# ends. PromptTokens counts every input token, cached or not:
+# CachedInputTokens (read from a prompt cache) and CacheCreationTokens
+# (written to one) are parts of it. ReasoningTokens is part of
+# CompletionTokens. CostUSD is the agent's own figure, 0 when it reports
+# none.
 class UsageUpdatedPayload(TypedDict, total=False):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    cached_input_tokens: int
+    cache_creation_tokens: int
     reasoning_tokens: int
     cost_usd: float
+    status: TurnUsageStatus
 
 class ContextCompactedPayload(TypedDict, total=False):
     before_tokens: int
@@ -5266,8 +5284,13 @@ class AgentEventType(str, Enum):
     AGENT_EVENT_APPROVAL_RESOLVED = "approval.resolved"
     # Hook lifecycle
     AGENT_EVENT_HOOK_EXECUTED = "hook.executed"
-    # Usage
+    # Usage: a turn's tokens (usage.updated), the context window's fill
+    # (context.updated), the plan's rate limits (limits.updated) and the
+    # account the agent runs as (account.updated).
     AGENT_EVENT_USAGE_UPDATED = "usage.updated"
+    AGENT_EVENT_CONTEXT_UPDATED = "context.updated"
+    AGENT_EVENT_LIMITS_UPDATED = "limits.updated"
+    AGENT_EVENT_ACCOUNT_UPDATED = "account.updated"
     # Context management
     AGENT_EVENT_CONTEXT_COMPACTED = "context.compacted"
     # Errors
@@ -5345,6 +5368,11 @@ class BuiltinHook(str, Enum):
     # compaction drops the turns it would have learned from.
     BELT_EXTRACT = "belt:extract"
 
+class AgentEventType(str, Enum):
+    AGENT_EVENT_SUBAGENT_STARTED = "subagent.started"
+    AGENT_EVENT_SUBAGENT_UPDATED = "subagent.updated"
+    AGENT_EVENT_SUBAGENT_COMPLETED = "subagent.completed"
+
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -5378,4 +5406,11 @@ class ToolParamType(str, Enum):
     BOOLEAN = "boolean"
     ARRAY = "array"
     NULL = "null"
+
+class TurnUsageStatus(str, Enum):
+    # TurnUsageComplete is the whole turn, as the agent counted it.
+    TURN_USAGE_COMPLETE = "complete"
+    # TurnUsagePartial is what was reported before the turn ended early
+    # (interrupted, failed).
+    TURN_USAGE_PARTIAL = "partial"
 
