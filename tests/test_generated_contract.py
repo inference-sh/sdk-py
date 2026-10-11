@@ -92,6 +92,11 @@ class TestDecisionInheritsGeneratedContract:
         assert issubclass(decision.DecisionInput, contract.DecisionInput)
         assert issubclass(decision.DecisionVisionInput, contract.DecisionVisionInput)
         assert issubclass(decision.DecisionVisionInput, decision.DecisionInput)
+        assert issubclass(decision.DecisionVideoInput, contract.DecisionVideoInput)
+        assert issubclass(decision.DecisionVideoInput, decision.DecisionVisionInput)
+        assert set(contract.DecisionVideoInput.model_fields) <= set(
+            decision.DecisionVideoInput.model_fields
+        )
 
     def test_questions_and_answers(self):
         from inferencesh.models import decision
