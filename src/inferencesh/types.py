@@ -69,12 +69,18 @@ class SkillConfig(TypedDict, total=False):
     content: str
     preload: bool
 
-# ContextField declares a context parameter expected by the agent.
+# ContextField declares a context parameter expected by the agent. The
+# agent's prompt names it with its description, and the agent writes
+# {{context.NAME}} in a tool call's arguments for the server to fill in;
+# it does not see the value unless InPrompt.
 class ContextField(TypedDict, total=False):
     name: str
     description: str
     required: bool
     default: str
+    # InPrompt shows the value to the model too, in the system prompt,
+    # labeled as the caller's data and quoted.
+    in_prompt: bool
 
 # AgentToolDTO for API responses
 class AgentToolDTO(TypedDict, total=False):
@@ -296,30 +302,38 @@ class ApiAppRunRequest(TypedDict, total=False):
     run_at: Optional[str]
     metadata: Optional[TaskMetadata]
 
-# ApiAgentRunRequest is the request body for /agents/run endpoint.
+# MessageInput is a message a caller sends to an agent: its text and the
+# files sent with it. The model, its settings, the system prompt, the tools
+# and the history come from the agent and the chat. Every endpoint that
+# takes a message decodes this type.
+class MessageInput(TypedDict, total=False):
+    text: Optional[str]
+    # Attachments are files uploaded with POST /files. Images reach the
+    # model as image input.
+    attachments: List[FileRef]
+    # Deprecated: send Attachments. Image URIs, read only when Attachments
+    # is empty.
+    images: List[str]
+    # Deprecated: send Attachments. File URIs, read only when Attachments
+    # is empty.
+    files: List[str]
+
+# ApiAgentRunRequest is the request body of POST /agents/run and its aliases
+# /agents/message and /agents/messages. It names the agent once: by ref
+# (agent), by id (agent_id, with an optional agent_version_id), or by an
+# ad-hoc agent_config; or names none and posts into chat_id's chat.
 class ApiAgentRunRequest(TypedDict, total=False):
     chat_id: Optional[str]
     agent: Optional[str]
-    agent_config: Optional[AgentConfigInput]
-    agent_name: Optional[str]
-    input: LLMInput
-    context: Dict[str, str]
-    stream: bool
-    # ChannelContext is recorded on the chat the first time it is seen.
-    channel_context: Optional[ChannelContext]
-
-# CreateAgentMessageRequest is the request for creating agent messages.
-class CreateAgentMessageRequest(TypedDict, total=False):
-    chat_id: Optional[str]
+    # AgentID names a stored agent by id; AgentVersionID pins one of its
+    # versions (full or short id), else the agent's current version runs.
     agent_id: Optional[str]
     agent_version_id: Optional[str]
-    agent: Optional[str]
-    tool_call_id: Optional[str]
-    input: LLMInput
-    channel_context: Optional[ChannelContext]
     agent_config: Optional[AgentConfigInput]
     agent_name: Optional[str]
+    input: MessageInput
     context: Dict[str, str]
+    stream: bool
 
 class CreateAgentMessageResponse(TypedDict, total=False):
     user_message: Optional[ChatMessageDTO]
@@ -639,11 +653,6 @@ class ScopeDefinition(TypedDict, total=False):
     # CostsCredits: using the scope spends the account's credits (running
     # apps, agents, flows).
     costs_credits: bool
-    # Automation: a narrow platform-administration scope that a workspace
-    # key of the platform's automation account (the system team's service
-    # account) may hold, minted by an admin with platform power and always
-    # expiring. Every other key, token and app holds no admin scope.
-    automation: bool
 
 # ScopeGroupDefinition describes a group of scopes for UI rendering
 class ScopeGroupDefinition(TypedDict, total=False):
@@ -1463,6 +1472,7 @@ class ScopeRefusedMeta(TypedDict, total=False):
     required_scope: Scope
 
 # PaymentMethodRequiredMeta is the meta of a payment_method_required error.
+# BountyID is set when a bounty claim was refused.
 class PaymentMethodRequiredMeta(TypedDict, total=False):
     bounty_id: str
     billing_page: str
@@ -4281,12 +4291,15 @@ class Scope(str, Enum):
     # ScopeAdminWrite changes platform administration (/admin). Held only
     # by an admin's own sign-in.
     ADMIN_WRITE = "admin:write"
-    # ScopeAdminPricing reads and changes store pricing: a version's
-    # terms, its draft pricing (edit, evaluate, discard, publish, apply to
-    # the listing) and the sample tasks drafts are evaluated against. Held
-    # by an admin's own sign-in with platform power, and by a key of the
-    # platform's automation account (ScopeDefinition.Automation).
-    ADMIN_PRICING = "admin:pricing"
+    # ScopeStorePricing reads and changes store pricing: a version's terms,
+    # its draft pricing (edit, evaluate, discard, publish, apply to the
+    # listing) and the sample tasks drafts are evaluated against. Held only
+    # in the platform's workspace (the system team), by its members, their
+    # keys and runs, and its own keys.
+    STORE_PRICING = "store:pricing"
+    # ScopeStoreSubmit submits a resource version to the store on its
+    # publisher's behalf. Held like ScopeStorePricing.
+    STORE_SUBMIT = "store:submit"
 
 class ScopeGroup(str, Enum):
     AGENTS = "agents"
@@ -4309,6 +4322,7 @@ class ScopeGroup(str, Enum):
     SETTINGS = "settings"
     APPROVALS = "approvals"
     ADMIN = "admin"
+    STORE = "store"
 
 class AlwaysAllowScope(str, Enum):
     # AlwaysAllowScopeExact: this call exactly (each piece of the command,
@@ -4416,8 +4430,9 @@ class ErrorCode(str, Enum):
     FEATURE_NOT_AVAILABLE = "feature_not_available"
     ENTITLEMENT_UNAVAILABLE = "entitlement_unavailable"
     PAYMENT_REQUIRED = "payment_required"
-    # ErrorCodePaymentMethodRequired (402): a bounty program requires a saved
-    # payment method and the caller's team has none. Meta is
+    # ErrorCodePaymentMethodRequired (402): the action needs a saved payment
+    # method and the caller's team has none: a bounty program that requires
+    # one, or a free app run without a balance. Meta is
     # PaymentMethodRequiredMeta; clients send the user to BillingPage.
     PAYMENT_METHOD_REQUIRED = "payment_method_required"
     # Form submissions (409): the form is not open, or its submit policy
