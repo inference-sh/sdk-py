@@ -2898,6 +2898,27 @@ class AuthSchemeSpec(TypedDict, total=False):
     # include_granted_scopes in AddScopesParams). Without it the full list
     # is asked for again.
     incremental_add_scopes: bool
+    # Resource is the RFC 8707 resource indicator: the protected resource
+    # the token is minted for (an MCP server's URL). Sent on the authorize,
+    # code and refresh requests when the profile takes one. Empty = none.
+    resource: str
+    # Issuer is the authorization server's RFC 8414 issuer. With
+    # AuthorizationResponseIssParameterSupported, the callback's iss must
+    # name it (RFC 9207, against mix-up); an issuer alone still refuses a
+    # callback naming another one.
+    issuer: str
+    authorization_response_iss_parameter_supported: bool
+    # Callback is the name of the redirect URI the app was registered with
+    # (<app>/settings/secrets/oauth/<callback>). Empty = the slug. Schemes
+    # whose clients are registered once for many slugs share one (an MCP
+    # server's dynamically registered client and the Client ID Metadata
+    # Document name the "mcp" callback); the flow's provider then comes
+    # from the connect intent, never from the callback's path.
+    callback: str
+    # Profile names the authorization server's deviations from the specs
+    # (authprovider.AuthServerProfile: endpoints placed by app fields,
+    # scopes on refresh, actionable errors, admin consent). Empty = none.
+    profile: str
     token_endpoint: str
     # RevocationEndpoint is the RFC 7009 endpoint, when the provider has
     # one and Revoke names no style of its own: tokens are revoked there
@@ -4938,6 +4959,12 @@ class AuthSchemeClientAuth(str, Enum):
     BASIC = "basic"
     # AuthSchemeClientAuthBody sends them as form fields in the request body.
     BODY = "body"
+    # AuthSchemeClientAuthNone is a public client (RFC 8414
+    # token_endpoint_auth_method "none"): the client id goes in the body,
+    # there is no secret, and PKCE is what proves the client. Its OAuth app
+    # is complete with a client id alone (a dynamically registered client,
+    # or a Client ID Metadata Document URL).
+    NONE = "none"
 
 class AuthSchemeTokenRequest(str, Enum):
     FORM = "form"
