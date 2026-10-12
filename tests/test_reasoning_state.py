@@ -73,3 +73,66 @@ def test_merge_folds_streamed_fragments_in_order():
 def test_merge_keeps_whole_blocks_as_they_are():
     whole = [{"type": "reasoning.encrypted", "data": "x", "id": "call_1", "format": "google-gemini-v1", "index": 0}]
     assert merge_reasoning_details(whole) == whole
+
+
+def test_merge_skips_non_dict_fragments():
+    streamed = [
+        {"type": "reasoning.text", "text": "ok", "index": 0},
+        "not-a-fragment",
+        None,
+        {"type": "reasoning.text", "text": "!", "index": 0},
+    ]
+    assert merge_reasoning_details(streamed) == [
+        {"type": "reasoning.text", "text": "ok!", "index": 0},
+    ]
+
+
+def test_merge_ignores_none_field_values_when_folding():
+    streamed = [
+        {"type": "reasoning.text", "text": "part", "signature": None, "index": 0},
+        {"type": "reasoning.text", "text": " two", "signature": "sig", "index": 0},
+    ]
+    assert merge_reasoning_details(streamed) == [
+        {"type": "reasoning.text", "text": "part two", "signature": "sig", "index": 0},
+    ]
+
+
+def test_non_list_reasoning_state_entry_is_ignored():
+    msg = ContextMessage(
+        role=ContextMessageRole.ASSISTANT,
+        text="",
+        tool_calls=[CALL],
+        reasoning_state={"openrouter": {"type": "reasoning.encrypted", "data": "x"}},
+    )
+    messages = build_openai_messages(_input(msg), reasoning_state_key="openrouter")
+    assert "reasoning_details" not in _assistant(messages)
+
+
+def test_merged_assistant_group_stitches_reasoning_state_lists():
+    block_a = [{"type": "reasoning.text", "text": "first", "index": 0}]
+    block_b = [{"type": "reasoning.text", "text": "second", "index": 1}]
+    a1 = ContextMessage(
+        role=ContextMessageRole.ASSISTANT,
+        text="chunk-a",
+        reasoning_state={"openrouter": block_a},
+    )
+    a2 = ContextMessage(
+        role=ContextMessageRole.ASSISTANT,
+        text="chunk-b",
+        reasoning_state={"openrouter": block_b},
+    )
+    inp = LLMInput(
+        role=ContextMessageRole.TOOL,
+        tool_call_id="call_1",
+        text='{"temp_c": 17}',
+        context=[
+            ContextMessage(role=ContextMessageRole.USER, text="weather?"),
+            a1,
+            a2,
+        ],
+        system_prompt="",
+    )
+    messages = build_openai_messages(inp, reasoning_state_key="openrouter")
+    assistant = _assistant(messages)
+    assert assistant["reasoning_details"] == block_a + block_b
+    assert assistant["content"] == "chunk-a\n\nchunk-b"
