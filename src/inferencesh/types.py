@@ -159,7 +159,9 @@ class HTTPToolConfig(TypedDict, total=False):
 # MCPToolConfig is a tool of an MCP server: the server by its slug (the
 # agent's team's registration, its org's or the directory's) and the tool
 # to call. CredentialID pins the connection the call signs in with; without
-# it the runner's connection to the server's provider is used.
+# it the runner's connection to the server's provider is used. A tool
+# written with only a connection is saved with the server that
+# connection's provider is declared by.
 class MCPToolConfig(TypedDict, total=False):
     server: str
     tool_name: str
