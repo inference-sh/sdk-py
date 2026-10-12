@@ -658,7 +658,7 @@ class TestGeneratedTypeConsumption:
     def test_llm_output_has_all_contract_fields(self):
         from inferencesh.models.llm import LLMOutput
         fields = set(LLMOutput.model_fields.keys())
-        assert {"response", "reasoning", "tool_calls", "usage"} <= fields
+        assert {"response", "reasoning", "reasoning_state", "tool_calls", "usage"} <= fields
 
     def test_llm_input_covers_generated_contract_fields(self):
         from inferencesh import llm_types_gen as llm_contract
@@ -753,7 +753,10 @@ class TestLLMWireContract:
         from inferencesh import llm_types_gen as llm_contract
 
         fields = set(llm_contract.LLMContextMessage.model_fields.keys())
-        assert {"role", "text", "reasoning", "images", "files", "tools", "tool_calls", "tool_call_id"} <= fields
+        assert {
+            "role", "text", "reasoning", "reasoning_state",
+            "images", "files", "tools", "tool_calls", "tool_call_id",
+        } <= fields
 
     def test_tool_call_nested_in_llm_output_after_model_rebuild(self):
         """model_rebuild() must resolve forward refs so tool_calls validate on LLMOutput."""
@@ -972,4 +975,4 @@ class TestDeprecatedMixins:
             warnings.simplefilter("ignore", DeprecationWarning)
             AppOutput = type("AppOutput", (ReasoningMixin, ToolCallsMixin, LLMOutput, BaseLLMOutput), {})
         fields = set(AppOutput.model_fields.keys())
-        assert {"response", "reasoning", "tool_calls", "usage"} <= fields
+        assert {"response", "reasoning", "reasoning_state", "tool_calls", "usage"} <= fields
