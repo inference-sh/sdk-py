@@ -383,17 +383,24 @@ class MCPToolBuilder(_ToolBuilder):
     def __init__(
         self,
         name: str,
-        server: str,
-        tool_name: str,
         credential_id: Optional[str] = None,
+        tool_name: Optional[str] = None,
+        *,
+        server: Optional[str] = None,
     ):
         super().__init__(name)
+        if not tool_name:
+            raise ValueError("mcp_tool needs tool_name")
+        if not server and not credential_id:
+            raise ValueError("mcp_tool needs server (the MCP server's slug) or credential_id")
         self._server = server
         self._tool_name = tool_name
         self._credential_id = credential_id
 
     def build(self) -> AgentTool:
-        mcp: Dict[str, Any] = {"server": self._server, "tool_name": self._tool_name}
+        mcp: Dict[str, Any] = {"tool_name": self._tool_name}
+        if self._server:
+            mcp["server"] = self._server
         if self._credential_id:
             mcp["credential_id"] = self._credential_id
         return {
@@ -408,16 +415,19 @@ class MCPToolBuilder(_ToolBuilder):
 
 def mcp_tool(
     name: str,
-    server: str,
-    tool_name: str,
     credential_id: Optional[str] = None,
+    tool_name: Optional[str] = None,
+    *,
+    server: Optional[str] = None,
 ) -> MCPToolBuilder:
     """Create an MCP tool: ``tool_name`` on the MCP server ``server`` (its slug).
 
     The call signs in with the runner's connection to the provider the server
-    declares; ``credential_id`` pins one connection instead.
+    declares; ``credential_id`` pins one connection instead. The older form
+    ``mcp_tool(name, credential_id, tool_name)`` still works: the API saves
+    such a tool with the server the connection's provider is declared by.
     """
-    return MCPToolBuilder(name, server, tool_name, credential_id)
+    return MCPToolBuilder(name, credential_id, tool_name, server=server)
 
 
 # =============================================================================

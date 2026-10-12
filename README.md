@@ -433,7 +433,7 @@ notify = (
 # MCP tool: the server by slug, signed in through the provider the server
 # declares (credential_id= pins one connection)
 web_search = (
-    mcp_tool("web_search", "exa", "search")
+    mcp_tool("web_search", tool_name="search", server="exa")
     .describe("Search the web via the exa MCP server")
     .build()
 )
