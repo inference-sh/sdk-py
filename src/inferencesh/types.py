@@ -372,7 +372,7 @@ class AppVersionInput(TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_credentials: List[CredentialRequirement]
+    required_credentials: CredentialRequirements
     resources: AppResources
 
 # CreateAppRequest is the request body for POST /apps
@@ -746,7 +746,7 @@ class AppFunction(TypedDict, total=False):
     # Credentials the function needs at run time, declared on the function
     # in app code. Each must be covered by the app-wide list in inf.yml.
     # Empty means the function gets the app-wide list.
-    credentials: List[CredentialRequirement]
+    credentials: CredentialRequirements
     # Annotations are MCP tool hints (read-only, destructive, idempotent,
     # open-world) declared on the function. Hints only: nothing trusts
     # them for an unverified namespace.
@@ -775,31 +775,56 @@ class SecretRequirement(TypedDict, total=False):
     description: str
     optional: bool
 
-# CredentialRequirement is an entry under credentials: in inf.yml: keys an
-# app needs that belong to a provider. Provider names whose credential
-# supplies them; Secrets lists the keys to inject from it (an API key
-# credential), Scopes what to ask for (an OAuth one).
+# CredentialRequirement is an entry under credentials: in inf.yml: a
+# credential the app uses, keyed by the credential's slug (what
+# Credential.Provider stores). Secrets lists the keys to inject from it (an
+# API key credential), Scopes what to ask for (an OAuth one), Capabilities
+# the platform-defined grants it needs ("x.tweet.read", "google.sheets":
+# an OAuth grant with the scopes it implies), each a capability of the
+# entry's own provider. Provider seeds the catalog row for the company the
+# first time it is seen and never overwrites it; Auth seeds the auth scheme
+# when the slug is free.
 # 
 # 	credentials:
-# 	  - provider: acme
-# 	    name: Acme CRM
-# 	    website: acme.com
+# 	  slack:
+# 	    capabilities: [slack.channels.write]
+# 	  acme:
 # 	    secrets: [ACME_API_KEY]
+# 	    provider: {name: Acme CRM, website: acme.com}
 # 
-# Key is a capability of a provider the platform defines ("x.tweet.read",
-# "google.sheets"): an OAuth grant with the scopes it implies. An entry sets
-# Provider, Key, or both; with both, Key decides how it is resolved.
+# The list form that preceded it is still read: `- provider: acme` names
+# the slug, `- key: x.tweet.read` a capability (its slug is the part
+# before the first dot), `name:` and `website:` seed the provider.
 class CredentialRequirement(TypedDict, total=False):
-    provider: str
-    # Name and Website describe a provider the platform does not list: the
-    # name its credential is shown under and the site its logo comes from.
-    name: str
-    website: str
-    key: str
+    slug: str
+    capabilities: List[str]
     description: str
     optional: bool
     secrets: List[str]
     scopes: List[str]
+    # Provider describes the company the credential belongs to, for a
+    # catalog row that does not exist yet. Its slug defaults to the
+    # credential slug.
+    provider: Optional[ProviderSeed]
+    # Auth is the credential's auth scheme, for a slug no row defines yet.
+    auth: Optional[AuthSchemeSpec]
+
+# ProviderSeed is a provider (the company behind a credential) as an app
+# declares it: enough to create its catalog row when none exists.
+class ProviderSeed(TypedDict, total=False):
+    slug: str
+    name: str
+    description: str
+    website: str
+    logo_uri: str
+    docs_uri: str
+    tos_uri: str
+    policy_uri: str
+
+# CredentialRequirements is the credentials: list of a manifest. It reads
+# both forms: a map keyed by credential slug (the current one) and a list
+# of entries; it is always written as a list.
+CredentialRequirements = List["CredentialRequirement"]
 
 # AppUIRef names the artifact an app version renders as its UI: a page a
 # host shows beside the task in place of the generic output view. Artifact
@@ -1264,10 +1289,32 @@ class ToolExplanationDTO(TypedDict, total=False):
     # Risk is what could go wrong, in a few words.
     risk: str
 
+# ConnectTokens are tokens a provider minted while connecting, for grants
+# that need no redirect (OAuth client credentials): the credential service
+# saves them on the login it writes. They travel inside the process only.
+class ConnectTokens(TypedDict, total=False):
+    AccessToken: SensitiveString
+    RefreshToken: SensitiveString
+    ExpiresAt: Optional[str]
+
+# ProviderSummary is the company a credential slug belongs to: the
+# providers row's identity, for grouping and display.
+class ProviderSummary(TypedDict, total=False):
+    slug: str
+    name: str
+    icon_url: str
+    website: str
+    docs_url: str
+
 # CredentialConfigDTO is the merged view: provider catalog + credential state.
 class CredentialConfigDTO(TypedDict, total=False):
     slug: str
+    # Provider is the credential slug (what Credential.Provider stores):
+    # one way to authenticate. The company it belongs to is ProviderInfo.
     provider: str
+    # ProviderInfo is the company this slug belongs to, for grouping: the
+    # providers row its auth scheme names, else the slug's own identity.
+    provider_info: Optional[ProviderSummary]
     type: str
     name: str
     short_name: str
@@ -2158,7 +2205,7 @@ class SetupAction(TypedDict, total=False):
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
     secrets: List[SecretRequirement]
-    credentials: List[CredentialRequirement]
+    credentials: CredentialRequirements
 
 # CheckRequirementsResponse is the API response for checking requirements
 class CheckRequirementsResponse(TypedDict, total=False):
@@ -2179,6 +2226,26 @@ class ShareRequest(TypedDict, total=False):
 # 
 # To expose a type to SDK consumers: reference it in this struct.
 class SDKTypes(TypedDict, total=False):
+    pass
+
+# SensitiveString is a string type that prevents accidental exposure of secrets.
+# It redacts in JSON/fmt output unless explicitly accessed via .Expose().
+# 
+# Encryption at rest is handled by the GORM "sensitive" serializer
+# (api/internal/lib/secrets). Fields must be tagged: `gorm:"serializer:sensitive"`
+# 
+# Note: map-based GORM Updates (map[string]any{"value": ...}) bypass serializers.
+# Always use struct-based operations for SensitiveString fields.
+# 
+# Redaction:
+#   - JSON serialization: always returns "" (empty string)
+#   - fmt.Sprintf with %s, %v, %#v: always returns "[REDACTED]"
+#   - Only .Expose() returns the actual value
+# 
+# Encryption is enabled when SECRETS_ENCRYPTION_KEY env var is set.
+# Values are stored as "enc:v2:<encrypted_dek>:<encrypted_data>" in the database.
+# Key rotation only re-encrypts the DEK, not the data.
+class SensitiveString(TypedDict, total=False):
     pass
 
 # SocketAccess is where one end of a socket dials and the credential it
@@ -2677,6 +2744,197 @@ class A2UISurface(TypedDict, total=False):
     catalogId: str
     components: List[A2UIComponent]
     dataModel: Any
+
+# SecretField is one value a person pastes to connect an api_key or http
+# scheme: its vault key and how the form asks for it. Several fields make
+# a multi-secret provider (Kling's access and secret key).
+class SecretField(TypedDict, total=False):
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    optional: bool
+
+# AuthSchemeRevoke is the optional token revocation on disconnect.
+class AuthSchemeRevoke(TypedDict, total=False):
+    url: str
+    style: AuthSchemeRevokeStyle
+    # ClientAuth also sends client_id and client_secret in the form
+    # (Discord).
+    client_auth: bool
+
+# AuthSchemeAppKey is one key of the OAuth app a login goes through. The
+# client id and secret are implied (PREFIX_CLIENT_ID, PREFIX_CLIENT_SECRET);
+# listing them only overrides their label and placeholder. Other keys
+# (bot_token, signing_secret, tenant_id) are optional extras the app holds,
+# read back by name in templates as {app.<name>} and by hooks.
+class AuthSchemeAppKey(TypedDict, total=False):
+    # Name is the key's role: client_id, client_secret, bot_token, …
+    name: str
+    # Key is the vault key; default PREFIX_<NAME>.
+    key: str
+    label: str
+    placeholder: str
+    sensitive: bool
+    # Optional is implied for every name but client_id and client_secret.
+    optional: bool
+
+# AuthSchemeLookup is a call made after the token exchange, with the new
+# access token as bearer; its decoded response becomes a document root of
+# its name for the identity, metadata and later lookups ({user.email},
+# {resources.0.id}). userinfo_url is shorthand for the lookup named user.
+# URL, body and headers are templates.
+class AuthSchemeLookup(TypedDict, total=False):
+    name: str
+    url: str
+    method: str
+    # Body is sent as is; a JSON body is the default content type
+    # (Dropbox's "null", Linear's GraphQL query).
+    body: str
+    content_type: str
+    headers: Dict[str, str]
+
+# AuthSchemeCapability is something an app can ask for from this provider,
+# satisfied by a connection holding its scopes. Scopes are in the scheme's
+# own (friendly) names, the ones a credential stores.
+class AuthSchemeCapability(TypedDict, total=False):
+    key: str
+    scopes: List[str]
+    satisfies: List[str]
+    display_name: str
+    description: str
+
+# AuthSchemeSpec is one way to authenticate against a provider, as data.
+# Everything a standard OAuth2 provider needs is a field; where a provider
+# deviates in a way data cannot express, the spec names a hook and Go
+# supplies it (authprovider.RegisterTokenResponseHook and friends).
+# 
+# Templates: URLs, headers, lookup bodies, identifier, name, metadata and
+# env values are strings with {{path}} placeholders. A path is read from
+# the flow's document, which grows as the flow goes:
+# 
+# 	client_id                  from the authorize step on
+# 	vars.* (and each var bare)  what the vars hook produced, e.g. {{tenant}}
+# 	access_token, token.*      after the token exchange (token.* is the
+# 	                           decoded response)
+# 	callback.*                 the other query params the callback carried
+# 	                           (QuickBooks' realmId, Shopify's shop)
+# 	<lookup>.*                 each lookup's response, by its name; user.*
+# 	                           is the userinfo lookup
+# 	expires_at, metadata.*, app.*   env only: the token's expiry (RFC 3339),
+# 	                           the stored metadata, the app's extra keys
+# 
+# Array elements are indexed: {{resources.0.id}}. {{a|b}} takes the first
+# path present. A template none of whose placeholders resolve renders "":
+# omitted from env and metadata, blank as identifier or name.
+class AuthSchemeSpec(TypedDict, total=False):
+    kind: AuthSchemeKind
+    # Flow is the oauth2 grant; empty means authorization_code.
+    flow: AuthSchemeFlow
+    # Fields are what a person pastes (api_key and http kinds).
+    fields: List[SecretField]
+    # In and ParamName say where an api_key key goes on a request: the
+    # header or query parameter of that name. ValuePrefix is prepended to
+    # the value ("Bearer "). Not needed to connect; read by injection.
+    in_: AuthSchemeAPIKeyIn
+    param_name: str
+    value_prefix: str
+    # Scheme and BearerFormat describe an http kind's Authorization header.
+    scheme: AuthSchemeHTTPScheme
+    bearer_format: str
+    authorization_endpoint: str
+    scopes: List[str]
+    # ScopeAliases map the scheme's own scope names to what the provider
+    # wants on the wire ("gmail.send" → "https://www.googleapis.com/auth/
+    # gmail.send"). Credentials store the alias; the wire form is used only
+    # in requests. A scope with no alias is sent as is.
+    scope_aliases: Dict[str, str]
+    scope_param: str
+    scope_separator: str
+    omit_scope_param: bool
+    pkce: bool
+    # ClientIDParam is the name the client id travels under in the
+    # authorize URL and the token body; default "client_id" (TikTok:
+    # "client_key").
+    client_id_param: str
+    # ExtraAuthorizeParams are appended to the authorize URL verbatim
+    # (Google's access_type=offline). AddScopesParams override them when
+    # re-authorizing for more scopes (Google's include_granted_scopes).
+    extra_authorize_params: Dict[str, str]
+    add_scopes_params: Dict[str, str]
+    # AccountHintParam is the authorize param that names the account to sign
+    # in with (Google's and Microsoft's "login_hint"). When re-authorizing
+    # for more scopes it carries the login's account identifier, so the
+    # provider goes to that account instead of offering a chooser. Empty =
+    # no hint sent.
+    account_hint_param: str
+    # AnotherAccountParams are authorize params for connecting an account
+    # next to one already connected: the provider shows its account chooser
+    # instead of signing the user back in to the account it remembers
+    # (Google prompt=select_account). They override ExtraAuthorizeParams.
+    another_account_params: Dict[str, str]
+    # RequiredScopes are always requested, on a connect and when
+    # re-authorizing for more scopes, whatever the caller asked for: the
+    # scopes the identity lookup and token refresh need (Google's openid,
+    # email and profile; X's users.read and offline.access). In the
+    # scheme's own names, like Scopes. Empty = only what was asked for.
+    required_scopes: List[str]
+    # IncrementalAddScopes: re-authorizing for more scopes asks only for
+    # the new ones (plus RequiredScopes), and the provider returns a token
+    # that also covers what the login already holds (Google, with
+    # include_granted_scopes in AddScopesParams). Without it the full list
+    # is asked for again.
+    incremental_add_scopes: bool
+    token_endpoint: str
+    # RevocationEndpoint is the RFC 7009 endpoint, when the provider has
+    # one and Revoke names no style of its own: tokens are revoked there
+    # with a form POST.
+    revocation_endpoint: str
+    client_auth: AuthSchemeClientAuth
+    token_request: AuthSchemeTokenRequest
+    # Headers go on every request to the provider (User-Agent for Reddit,
+    # Notion-Version); values are templates ({{client_id}} for Twitch's
+    # Client-Id).
+    headers: Dict[str, str]
+    # TokenResponseHook names the Go reader for a token response that is
+    # not the RFC 6749 shape (Slack's nested authed_user). Empty = standard.
+    token_response_hook: str
+    refresh: AuthSchemeRefresh
+    revoke: Optional[AuthSchemeRevoke]
+    # UserInfoURL is fetched with the new access token; the response is the
+    # identity document (user.*). UserInfoURLPath instead reads that URL
+    # from a path within the token response (Salesforce's "id"). Lookups
+    # are further calls, each becoming a root of its name, in order, after
+    # user. With none of these, the token response is all there is.
+    userinfo_url: str
+    userinfo_url_path: str
+    lookups: List[AuthSchemeLookup]
+    # Identifier is the connected account's stable, human-readable id
+    # ("{{user.email}}", "@{{user.data.username}}"); Name its display name.
+    identifier: str
+    name: str
+    # AccountID is the account's id as the provider keeps it and never
+    # changes it ("{{user.sub}}" for Google, "{{user.data.id}}" for X), as
+    # opposed to Identifier, which the user may rename. Logins are matched
+    # and chosen by it. Empty = Identifier, for providers whose identifier
+    # already is such an id (Slack, Notion).
+    account_id: str
+    # IdentityHook names Go code that derives identifier and name when a
+    # template cannot (Discord's discriminator rule). It wins over both.
+    identity_hook: str
+    # Metadata is what the credential stores about the account, by key.
+    metadata: Dict[str, str]
+    # Env is what a run reads, by variable. Empty = PREFIX_ACCESS_TOKEN and
+    # PREFIX_ACCESS_TOKEN_EXPIRES_AT.
+    env: Dict[str, str]
+    # AppKeys are the OAuth app's keys beyond the implied client id and
+    # secret, and label overrides for those.
+    app_keys: List[AuthSchemeAppKey]
+    # VarsHook names Go code that turns the app's extra keys into the
+    # {var} values substituted into the URLs (Microsoft's tenant,
+    # Salesforce's sandbox host).
+    vars_hook: str
+    capabilities: List[AuthSchemeCapability]
 
 # ChatData contains agent-specific data for a chat session
 class ChatData(TypedDict, total=False):
@@ -3207,7 +3465,13 @@ class LLMUsage(TypedDict, total=False):
     stop_reason: str
     time_to_first_token: float
     tokens_per_second: float
+    # PromptTokens counts every input token, cached ones included
+    # (OpenAI, xAI and OpenRouter count them this way).
     prompt_tokens: int
+    # CachedTokens is how many of PromptTokens were read from the provider's
+    # prompt cache; CacheWriteTokens how many were written to it.
+    cached_tokens: int
+    cache_write_tokens: int
     completion_tokens: int
     total_tokens: int
     reasoning_tokens: int
@@ -3277,7 +3541,7 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     env: Dict[str, str]
     kernel: str
     required_secrets: List[SecretRequirement]
-    required_credentials: List[CredentialRequirement]
+    required_credentials: CredentialRequirements
     resources: AppResources
     # Sandbox is the version's declared sandbox exceptions. Absent on a
     # version deployed before the API recorded them (engines then read the
@@ -4402,6 +4666,10 @@ class ErrorCode(str, Enum):
     # scope the operation takes (an API key, an app's OAuth token or a
     # narrowed login granted less). The detail names the scope.
     INSUFFICIENT_SCOPE = "insufficient_scope"
+    # ErrorCodeInvalidScope (400): a grant request (an OAuth authorization,
+    # a device sign-in's approval) named only scopes this server does not
+    # know. The detail names them.
+    INVALID_SCOPE = "invalid_scope"
     # ErrorCodeImpersonationReasonRequired (403): a platform admin named a
     # team they are not a member of without a live impersonation grant.
     # Clients stop viewing as the team on it.
@@ -4615,6 +4883,64 @@ class GPUType(str, Enum):
     NVIDIA = "nvidia"
     AMD = "amd"
     APPLE = "apple"
+
+class AuthSchemeKind(str, Enum):
+    # AuthSchemeOAuth2 is OAuth 2.0; Flow says which grant.
+    AUTH_SCHEME_O_AUTH2 = "oauth2"
+    # AuthSchemeAPIKey is one or more keys a person pastes, sent as a
+    # header or query parameter.
+    AUTH_SCHEME_API_KEY = "api_key"
+    # AuthSchemeHTTP is a pasted secret sent as an HTTP auth scheme
+    # (Authorization: Bearer or Basic).
+    AUTH_SCHEME_HTTP = "http"
+
+# Deprecated: the kind is AuthSchemeOAuth2 with AuthSchemeFlowAuthorizationCode.
+# Same value, so comparisons keep working; rows still stored as
+# "oauth2_authorization_code" are read as oauth2 (UnmarshalJSON).
+AuthSchemeOAuth2AuthorizationCode = AuthSchemeKind.AUTH_SCHEME_O_AUTH2
+
+class AuthSchemeFlow(str, Enum):
+    # AuthSchemeFlowAuthorizationCode is the user-consent flow: authorization
+    # endpoint → code → token endpoint, optionally with PKCE. The default.
+    AUTHORIZATION_CODE = "authorization_code"
+    # AuthSchemeFlowClientCredentials is server-to-server: the app's client
+    # id and secret are exchanged at the token endpoint, no redirect, no
+    # user. The login is the app's own.
+    CLIENT_CREDENTIALS = "client_credentials"
+
+class AuthSchemeAPIKeyIn(str, Enum):
+    HEADER = "header"
+    QUERY = "query"
+
+class AuthSchemeHTTPScheme(str, Enum):
+    AUTH_SCHEME_HTTP_BEARER = "bearer"
+    AUTH_SCHEME_HTTP_BASIC = "basic"
+
+class AuthSchemeClientAuth(str, Enum):
+    # AuthSchemeClientAuthBasic sends them as an HTTP Basic Authorization
+    # header (RFC 6749 §2.3.1, the default).
+    BASIC = "basic"
+    # AuthSchemeClientAuthBody sends them as form fields in the request body.
+    BODY = "body"
+
+class AuthSchemeTokenRequest(str, Enum):
+    FORM = "form"
+    JSON = "json"
+
+class AuthSchemeRefresh(str, Enum):
+    # AuthSchemeRefreshWhenExpiring refreshes within five minutes of the
+    # reported expiry; a token with no expiry is treated as long-lived
+    # (Slack without token rotation, Notion).
+    WHEN_EXPIRING = ""
+    # AuthSchemeRefreshAlways refreshes on every read: the provider reports
+    # no expiry but the token does expire (Salesforce's session timeout is
+    # per org and not reported).
+    ALWAYS = "always"
+
+class AuthSchemeRevokeStyle(str, Enum):
+    AUTH_SCHEME_REVOKE_BEARER = "bearer"
+    AUTH_SCHEME_REVOKE_QUERY = "query"
+    AUTH_SCHEME_REVOKE_FORM = "form"
 
 class Visibility(str, Enum):
     PRIVATE = "private"
