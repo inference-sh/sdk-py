@@ -455,6 +455,10 @@ class DeviceAuthPollResponse(TypedDict, total=False):
     # CLI login that asked now carries admin power until then. No
     # credential comes with it.
     admin_until: Optional[str]
+    # Interval is the polling interval in seconds the device is now held
+    # to, set with status slow_down (RFC 8628 3.5: each one raises it by
+    # five seconds).
+    interval: int
 
 # AdminElevateRequest is the body of POST /device/auth/elevate: a platform
 # admin's CLI login asking to carry admin power for TTLSeconds (default one
@@ -4476,6 +4480,9 @@ class ErrorCode(str, Enum):
     INVALID_CODE = "invalid_code"
     ALREADY_PROCESSED = "already_processed"
     EXPIRED = "expired"
+    # A device sign-in started away from the approver is approved only
+    # with the code typed from the device (400).
+    CODE_CONFIRMATION_REQUIRED = "code_confirmation_required"
     # Run-time refusals. AppRetired (410): the app no longer runs.
     # AppMaintenance (503, Retry-After): the owner paused it; the message is
     # theirs. InvalidTransition (409): the task already moved on.
@@ -5015,6 +5022,9 @@ class DeviceAuthStatus(str, Enum):
     APPROVED = "approved"
     EXPIRED = "expired"
     DENIED = "denied"
+    # DeviceAuthStatusSlowDown: still pending, and the device polled sooner
+    # than its interval, which is now five seconds longer (RFC 8628 3.5).
+    SLOW_DOWN = "slow_down"
     VALID = "valid"
     INVALID = "invalid"
     LOADING = "loading"
