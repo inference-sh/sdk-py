@@ -19,24 +19,21 @@ class AppSDKTypes(TypedDict, total=False):
 # MetaItem represents metadata about an input or output item
 class MetaItem(TypedDict, total=False):
     type: MetaItemType
-    # Text fields
     tokens: int
-    # Image/Video shared fields
+    # CachedTokens and CacheWriteTokens are the parts of Tokens (on an input
+    # text item) read from and written to the provider's prompt cache.
+    cached_tokens: int
+    cache_write_tokens: int
     width: int
     height: int
     resolution_mp: float
-    # Image specific fields
     steps: int
     count: int
-    # Video specific fields
     resolution: VideoResolution
     seconds: float
     fps: int
-    # Audio specific fields
     sample_rate: int
-    # Raw specific fields
     cost: float
-    # App-specific key-value pairs for custom pricing factors
     extra: Dict[str, Any]
 
 # OutputMeta contains structured metadata about task inputs and outputs for pricing calculation

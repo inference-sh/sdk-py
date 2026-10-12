@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 # Import generated enums from Go source of truth
 from inferencesh.output_meta_gen import MetaItemType
+from inferencesh.llm_types_gen import LLMUsage
 
 
 def probe_video(path: str) -> dict:
@@ -64,7 +65,15 @@ class TextMeta(MetaItem):
     type: str = MetaItemType.TEXT.value
     tokens: int = Field(
         default=0,
-        description="Token count - in inputs[] = input tokens, in outputs[] = output tokens"
+        description="Token count - in inputs[] = input tokens (cached ones included), in outputs[] = output tokens"
+    )
+    cached_tokens: int = Field(
+        default=0,
+        description="Input tokens read from the provider's prompt cache, part of tokens"
+    )
+    cache_write_tokens: int = Field(
+        default=0,
+        description="Input tokens written to the provider's prompt cache, part of tokens"
     )
 
 
@@ -141,9 +150,9 @@ class OutputMeta(BaseModel):
     and what was produced (outputs). The backend uses this with CEL expressions
     to calculate app-level pricing.
 
-    Example usage in an LLM app:
+    Example usage in an LLM app (or OutputMeta.from_llm_usage(usage)):
         output_meta = OutputMeta(
-            inputs=[TextMeta(tokens=150)],
+            inputs=[TextMeta(tokens=150, cached_tokens=100)],
             outputs=[TextMeta(tokens=500)]
         )
 
@@ -165,3 +174,26 @@ class OutputMeta(BaseModel):
         default_factory=list,
         description="Metadata about produced outputs"
     )
+
+    @classmethod
+    def from_llm_usage(cls, usage: Optional["LLMUsage"]) -> "OutputMeta":
+        """The token report for an LLM response's usage.
+
+        An LLM app fills in LLMUsage once and reports both from it, so what
+        it shows and what it bills cannot disagree: prompt_tokens (cached
+        included) with cached_tokens and cache_write_tokens as the input,
+        completion_tokens as the output. A count of 0 reports no item.
+        """
+        if usage is None:
+            return cls()
+        inputs: List[MetaItemUnion] = []
+        if usage.prompt_tokens:
+            inputs.append(TextMeta(
+                tokens=usage.prompt_tokens,
+                cached_tokens=usage.cached_tokens,
+                cache_write_tokens=usage.cache_write_tokens,
+            ))
+        outputs: List[MetaItemUnion] = []
+        if usage.completion_tokens:
+            outputs.append(TextMeta(tokens=usage.completion_tokens))
+        return cls(inputs=inputs, outputs=outputs)

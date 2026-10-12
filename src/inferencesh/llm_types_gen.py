@@ -225,7 +225,13 @@ class LLMUsage(BaseModel):
     stop_reason: str = ""
     time_to_first_token: float = 0.0
     tokens_per_second: float = 0.0
+    # PromptTokens counts every input token, cached ones included
+    # (OpenAI, xAI and OpenRouter count them this way).
     prompt_tokens: int = 0
+    # CachedTokens is how many of PromptTokens were read from the provider's
+    # prompt cache; CacheWriteTokens how many were written to it.
+    cached_tokens: int = 0
+    cache_write_tokens: int = 0
     completion_tokens: int = 0
     total_tokens: int = 0
     reasoning_tokens: int = 0

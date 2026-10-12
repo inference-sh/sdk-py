@@ -2500,6 +2500,10 @@ class ToolInvocationFunction(TypedDict, total=False):
 class MetaItem(TypedDict, total=False):
     type: MetaItemType
     tokens: int
+    # CachedTokens and CacheWriteTokens are the parts of Tokens (on an input
+    # text item) read from and written to the provider's prompt cache.
+    cached_tokens: int
+    cache_write_tokens: int
     width: int
     height: int
     resolution_mp: float
@@ -3207,7 +3211,13 @@ class LLMUsage(TypedDict, total=False):
     stop_reason: str
     time_to_first_token: float
     tokens_per_second: float
+    # PromptTokens counts every input token, cached ones included
+    # (OpenAI, xAI and OpenRouter count them this way).
     prompt_tokens: int
+    # CachedTokens is how many of PromptTokens were read from the provider's
+    # prompt cache; CacheWriteTokens how many were written to it.
+    cached_tokens: int
+    cache_write_tokens: int
     completion_tokens: int
     total_tokens: int
     reasoning_tokens: int
@@ -4402,6 +4412,10 @@ class ErrorCode(str, Enum):
     # scope the operation takes (an API key, an app's OAuth token or a
     # narrowed login granted less). The detail names the scope.
     INSUFFICIENT_SCOPE = "insufficient_scope"
+    # ErrorCodeInvalidScope (400): a grant request (an OAuth authorization,
+    # a device sign-in's approval) named only scopes this server does not
+    # know. The detail names them.
+    INVALID_SCOPE = "invalid_scope"
     # ErrorCodeImpersonationReasonRequired (403): a platform admin named a
     # team they are not a member of without a live impersonation grant.
     # Clients stop viewing as the team on it.

@@ -149,3 +149,27 @@ class TestVideoMetaFromFile:
         assert meta.fps == 0
         assert meta.seconds == 0.0
         assert meta.resolution == "1080p"
+
+
+class TestOutputMetaFromLLMUsage:
+    def test_reports_cache_reads_and_writes_as_parts_of_the_input(self):
+        from inferencesh.models.llm import LLMUsage
+        from inferencesh.models.output_meta import OutputMeta
+
+        usage = LLMUsage(prompt_tokens=10000, cached_tokens=6000, cache_write_tokens=1000, completion_tokens=800)
+        meta = OutputMeta.from_llm_usage(usage).model_dump()
+
+        assert meta["inputs"] == [{
+            "type": "text", "extra": None, "tokens": 10000, "cached_tokens": 6000, "cache_write_tokens": 1000,
+        }]
+        assert meta["outputs"][0]["tokens"] == 800
+        assert meta["outputs"][0]["cached_tokens"] == 0
+
+    def test_a_zero_count_reports_no_item(self):
+        from inferencesh.models.llm import LLMUsage
+        from inferencesh.models.output_meta import OutputMeta
+
+        meta = OutputMeta.from_llm_usage(LLMUsage(completion_tokens=5))
+        assert meta.inputs == []
+        assert len(meta.outputs) == 1
+        assert OutputMeta.from_llm_usage(None) == OutputMeta()
