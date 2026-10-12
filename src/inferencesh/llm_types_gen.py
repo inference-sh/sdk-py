@@ -95,8 +95,21 @@ class StreamDelta(BaseModel):
 class LLMOutput(BaseModel):
     response: str = ""
     reasoning: Optional[str] = None
+    reasoning_state: Optional[ReasoningState] = None
     tool_calls: Optional[List[ToolCall]] = None
     usage: Optional[LLMUsage] = None
+
+# ReasoningState is the opaque state a model hands back with a response for
+# the next request to carry: a signature over its reasoning (Anthropic
+# thinking, Gemini thought_signature) or the reasoning itself encrypted
+# (OpenAI). The platform never reads it. An app writes its own entry under
+# its own key and, replaying a conversation, places only the entries it
+# wrote: another provider's signature in its request is refused. The agent
+# loop stores every assistant message's state and sends all of it back, so a
+# conversation that moves between models keeps each one's state for it.
+# 
+# Not on LLMDelta: the state is whole only on the final output.
+ReasoningState = Dict[str, Any]
 
 # ToolCallDelta is an incremental update to a tool call, identified by index.
 # First delta for an index carries ID, Type, and Function.Name.
@@ -172,6 +185,9 @@ class LLMContextMessage(BaseModel):
     role: ChatMessageRole
     text: Optional[str] = None
     reasoning: Optional[str] = None
+    # ReasoningState is what the model's output carried, on an assistant
+    # message: see ReasoningState.
+    reasoning_state: Optional[ReasoningState] = None
     images: Optional[List[str]] = None
     files: Optional[List[str]] = None
     tools: Optional[List[Tool]] = None
