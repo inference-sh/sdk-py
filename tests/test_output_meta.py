@@ -173,3 +173,30 @@ class TestOutputMetaFromLLMUsage:
         assert meta.inputs == []
         assert len(meta.outputs) == 1
         assert OutputMeta.from_llm_usage(None) == OutputMeta()
+
+    def test_prompt_only_reports_input_not_output(self):
+        from inferencesh.models.llm import LLMUsage
+        from inferencesh.models.output_meta import OutputMeta
+
+        meta = OutputMeta.from_llm_usage(LLMUsage(prompt_tokens=42, cached_tokens=10))
+        assert len(meta.inputs) == 1
+        assert meta.inputs[0].tokens == 42
+        assert meta.inputs[0].cached_tokens == 10
+        assert meta.outputs == []
+
+    def test_all_zero_counts_yield_empty_meta(self):
+        from inferencesh.models.llm import LLMUsage
+        from inferencesh.models.output_meta import OutputMeta
+
+        assert OutputMeta.from_llm_usage(LLMUsage()) == OutputMeta()
+
+    def test_cache_fields_without_prompt_tokens_omit_input_item(self):
+        """Billing uses prompt_tokens as the gate; cache-only stats must not invent inputs."""
+        from inferencesh.models.llm import LLMUsage
+        from inferencesh.models.output_meta import OutputMeta
+
+        meta = OutputMeta.from_llm_usage(
+            LLMUsage(cached_tokens=500, cache_write_tokens=100, completion_tokens=3),
+        )
+        assert meta.inputs == []
+        assert meta.outputs[0].tokens == 3

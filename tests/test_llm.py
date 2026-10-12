@@ -606,6 +606,8 @@ class TestGeneratedTypeConsumption:
         u = LLMUsage()
         assert u.stop_reason == ""
         assert u.prompt_tokens == 0
+        assert u.cached_tokens == 0
+        assert u.cache_write_tokens == 0
         assert u.tokens_per_second == 0.0
 
     def test_context_message_role_is_generated_enum(self):
