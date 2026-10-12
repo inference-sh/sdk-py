@@ -161,6 +161,7 @@ class TestScopeErrorCodes:
         assert ErrorCode.REQUIRES_SIGN_IN.value == "requires_sign_in"
         assert ErrorCode.INSUFFICIENT_SCOPE.value == "insufficient_scope"
         assert ErrorCode.INVALID_SCOPE.value == "invalid_scope"
+        assert ErrorCode.CODE_CONFIRMATION_REQUIRED.value == "code_confirmation_required"
         assert ErrorCode.ADMIN_SCOPES_NOT_APPROVED.value == "admin_scopes_not_approved"
         assert ErrorCode.ADMIN_SESSION_REQUIRED.value == "admin_session_required"
         assert ErrorCode.BROWSER_SESSION_REQUIRED.value == "browser_session_required"

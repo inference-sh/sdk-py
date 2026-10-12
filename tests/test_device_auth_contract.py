@@ -6,6 +6,7 @@ from inferencesh.models.errors import APIError
 from inferencesh.types import (
     DeviceAuthPollResponse,
     DeviceAuthStatus,
+    DeviceTokenKind,
     ErrorCode,
 )
 
@@ -19,6 +20,17 @@ class TestDeviceAuthStatusWireValues:
         assert DeviceAuthStatus.APPROVED.value == "approved"
         assert DeviceAuthStatus.DENIED.value == "denied"
         assert DeviceAuthStatus.EXPIRED.value == "expired"
+
+    def test_session_validation_statuses(self):
+        assert DeviceAuthStatus.VALID.value == "valid"
+        assert DeviceAuthStatus.INVALID.value == "invalid"
+        assert DeviceAuthStatus.LOADING.value == "loading"
+
+
+class TestDeviceTokenKindWireValues:
+    def test_session_vs_api_key_selects_credential_type(self):
+        assert DeviceTokenKind.SESSION.value == "session"
+        assert DeviceTokenKind.API_KEY.value == "api_key"
 
 
 class TestDeviceAuthPollResponseShape:
