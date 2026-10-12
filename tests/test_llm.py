@@ -218,8 +218,39 @@ class TestBuildOpenAIMessages:
         tool_msg = next(m for m in messages if m["role"] == "tool")
         assert tool_msg["tool_call_id"] == ""
 
-    def test_tool_message_images_move_to_following_user_message(self):
-        """OpenAI accepts only text in role "tool"; a tool's images follow in a user message."""
+    def test_tool_message_images_ride_in_the_tool_message(self):
+        """A tool's images are image parts of its own role "tool" message."""
+        shot = _file("https://cdn.example.com/shot.png")
+        messages = build_openai_messages(
+            LLMInput(
+                text="what do you see?",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[{"id": "call_1", "type": "function",
+                                     "function": {"name": "screenshot", "arguments": "{}"}}],
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="captured",
+                        tool_call_id="call_1",
+                        images=[shot],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="url",
+        )
+        assert [m["role"] for m in messages] == ["assistant", "tool", "user"]
+        assert messages[1] == {"role": "tool", "tool_call_id": "call_1", "content": [
+            {"type": "text", "text": "captured"},
+            {"type": "image_url", "image_url": {"url": "https://cdn.example.com/shot.png"}},
+        ]}
+        assert messages[2]["content"] == "what do you see?"
+
+    def test_tool_media_as_user_message_moves_images_after_the_tool_message(self):
+        """For a backend that takes only text in role "tool"."""
         shot = _file("https://cdn.example.com/shot.png")
         messages = build_openai_messages(
             LLMInput(
@@ -241,6 +272,7 @@ class TestBuildOpenAIMessages:
                 system_prompt="",
             ),
             image_mode="url",
+            tool_media_as_user_message=True,
         )
         assert [m["role"] for m in messages] == ["assistant", "tool", "user", "user"]
         tool_msg = messages[1]
@@ -273,6 +305,7 @@ class TestBuildOpenAIMessages:
                 system_prompt="",
             ),
             image_mode="url",
+            tool_media_as_user_message=True,
         )
         roles = [m["role"] for m in messages]
         assert roles[:5] == ["assistant", "tool", "tool", "user", "user"]
@@ -300,6 +333,7 @@ class TestBuildOpenAIMessages:
                 system_prompt="",
             ),
             image_mode="url",
+            tool_media_as_user_message=True,
         )
         assert [m["role"] for m in messages] == ["assistant", "tool", "user"]
         assert messages[1] == {"role": "tool", "content": "done", "tool_call_id": "call_9"}

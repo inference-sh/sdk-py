@@ -46,6 +46,10 @@ test = [
     # Reference for the OpenAI spec-drift guard (tests/test_openai_spec_drift.py)
     "openai>=2.37.0",
 ]
+# inferencesh.images.fit_image (downsizing images to a provider's limits)
+images = [
+    "pillow>=10.0.0",
+]
 async = [
     "aiohttp>=3.14.3; python_version >= '3.8'",
     "aiofiles>=23.2.1; python_version >= '3.8'",

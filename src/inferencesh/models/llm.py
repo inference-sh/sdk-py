@@ -10,6 +10,7 @@ import json
 
 from .base import BaseAppInput, BaseAppOutput
 from .file import File
+from inferencesh.images import ImageLimits, fit_image
 
 from inferencesh import llm_types_gen as llm_contract
 from inferencesh.delta import OutputDiffer
@@ -233,7 +234,9 @@ def build_openai_messages(
     transform_user_message: Optional[Callable[[str], str]] = None,
     include_reasoning: bool = False,
     file_mode: str = "base64",
-    image_mode: str = "base64"
+    image_mode: str = "base64",
+    image_limits: Optional[ImageLimits] = None,
+    tool_media_as_user_message: bool = False,
 ) -> List[Dict[str, Any]]:
     """Build OpenAI-format messages for chat completion.
 
@@ -241,6 +244,12 @@ def build_openai_messages(
     Otherwise, uses plain string-only format.
 
     file_mode/image_mode: "base64" encodes from local path, "url" passes original URL when available.
+    image_limits: what the provider takes; a base64 image is downsized to fit (see inferencesh.images).
+    tool_media_as_user_message: a tool result's images and files go in a user
+    message after the tool messages instead of in the tool message's content.
+    The default sends them in the tool message: OpenRouter and Melious take
+    image parts there and the model sees them. Set it for a backend that
+    accepts only text in a role "tool" message.
     """
     def _is_http_url(s: str) -> bool:
         return s.startswith("http://") or s.startswith("https://")
@@ -260,7 +269,11 @@ def build_openai_messages(
                 if image_mode == "url" and image.uri and _is_http_url(image.uri):
                     parts.append({"type": "image_url", "image_url": {"url": image.uri}})
                 elif image.path:
-                    image_data_uri = image_to_base64_data_uri(image.path)
+                    if image_limits is not None:
+                        data, mime = fit_image(image.path, image_limits)
+                        image_data_uri = f"data:{mime};base64,{base64.b64encode(data).decode()}"
+                    else:
+                        image_data_uri = image_to_base64_data_uri(image.path)
                     parts.append({"type": "image_url", "image_url": {"url": image_data_uri}})
                 elif image.uri:
                     parts.append({"type": "image_url", "image_url": {"url": image.uri}})
@@ -347,11 +360,10 @@ def build_openai_messages(
     input_data.context.append(user_msg)
 
     reasoning_index = 0
-    # Images and files a tool returned. OpenAI chat completions accepts only
-    # text in a role "tool" message, so a tool message is sent as text and
-    # its images and files follow in a user message. These wait until the
-    # run of tool messages ends, so every tool result still directly follows
-    # the assistant message that called it (parallel tool calls).
+    # With tool_media_as_user_message, the images and files a tool returned
+    # follow in a user message. These wait until the run of tool messages
+    # ends, so every tool result still directly follows the assistant message
+    # that called it (parallel tool calls).
     pending_tool_media: List[Dict[str, Any]] = []
 
     def flush_tool_media() -> None:
@@ -364,7 +376,7 @@ def build_openai_messages(
         role_str = role.value if hasattr(role, "value") else role
         merged = merge_messages(group)
         tool_media: Optional[ContextMessage] = None
-        if role_str == "tool" and (merged.images or merged.files):
+        if tool_media_as_user_message and role_str == "tool" and (merged.images or merged.files):
             tool_id = group[0].tool_call_id or "unknown"
             # Role TOOL keeps transform_user_message off the label; the
             # message is sent with role "user".
