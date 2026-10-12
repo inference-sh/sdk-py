@@ -237,6 +237,7 @@ def build_openai_messages(
     image_mode: str = "base64",
     image_limits: Optional[ImageLimits] = None,
     tool_media_as_user_message: bool = False,
+    reasoning_state_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Build OpenAI-format messages for chat completion.
 
@@ -250,6 +251,11 @@ def build_openai_messages(
     The default sends them in the tool message: OpenRouter and Melious take
     image parts there and the model sees them. Set it for a backend that
     accepts only text in a role "tool" message.
+    reasoning_state_key: the key this app writes its reasoning_details under
+    in an output's reasoning_state (see merge_reasoning_details). An assistant
+    message carrying an entry under it sends that entry back as its
+    reasoning_details, as the provider issued them; entries under other keys
+    are another provider's and are left out.
     """
     def _is_http_url(s: str) -> bool:
         return s.startswith("http://") or s.startswith("https://")
@@ -418,7 +424,16 @@ def build_openai_messages(
                 # If not provided, use empty string to satisfy schema
                 msg_dict["tool_call_id"] = ""
 
-        if next_msg is not None and next_msg.reasoning and include_reasoning:
+        stored_details: List[Dict[str, Any]] = []
+        if reasoning_state_key and role_str == "assistant":
+            for m in group:
+                entry = (m.reasoning_state or {}).get(reasoning_state_key)
+                if isinstance(entry, list):
+                    stored_details.extend(entry)
+
+        if stored_details:
+            msg_dict["reasoning_details"] = stored_details
+        elif next_msg is not None and next_msg.reasoning and include_reasoning:
             msg_dict["reasoning"] = next_msg.reasoning
             msg_dict["reasoning_details"] = {
                 "type": "reasoning.text",
@@ -463,6 +478,34 @@ def build_openai_messages(
 
 # Backwards-compatible alias
 build_messages = build_openai_messages
+
+
+def merge_reasoning_details(details: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Fold streamed reasoning_details fragments into whole blocks.
+
+    OpenAI-compatible APIs that return reasoning_details (OpenRouter, MiniMax
+    with reasoning_split) stream each block as fragments sharing its index and
+    type: text, summary or data in pieces, the signature or id on one of them.
+    Consecutive fragments of one block become one, its strings concatenated
+    and its other fields kept; the blocks stay in the order the model made
+    them, which the provider checks when they are sent back.
+    """
+    merged: List[Dict[str, Any]] = []
+    for d in details:
+        if not isinstance(d, dict):
+            continue
+        prev = merged[-1] if merged else None
+        if prev is not None and d.get("index") == prev.get("index") and d.get("type") == prev.get("type"):
+            for k, v in d.items():
+                if v is None:
+                    continue
+                if k in ("text", "summary", "data") and isinstance(v, str):
+                    prev[k] = (prev.get(k) or "") + v
+                else:
+                    prev[k] = v
+        else:
+            merged.append(dict(d))
+    return merged
 
 
 def openai_tool_choice(choice: Optional[llm_contract.ToolChoice]) -> Any:
