@@ -156,9 +156,14 @@ class HTTPToolConfig(TypedDict, total=False):
     input_schema: Any
     output_schema: Any
 
+# MCPToolConfig is a tool of an MCP server: the server by its slug (the
+# agent's team's registration, its org's or the directory's) and the tool
+# to call. CredentialID pins the connection the call signs in with; without
+# it the runner's connection to the server's provider is used.
 class MCPToolConfig(TypedDict, total=False):
-    credential_id: str
+    server: str
     tool_name: str
+    credential_id: str
 
 class AppToolConfigDTO(TypedDict, total=False):
     ref: str
@@ -201,8 +206,9 @@ class HTTPToolConfigDTO(TypedDict, total=False):
     output_schema: Any
 
 class MCPToolConfigDTO(TypedDict, total=False):
-    credential_id: str
+    server: str
     tool_name: str
+    credential_id: str
 
 # AgentImages contains display images for an agent
 class AgentImages(TypedDict, total=False):
@@ -1962,7 +1968,6 @@ class MCPServerDTO(TypedDict, total=False):
     icon_url: str
     server_url: str
     auth_type: MCPServerAuthType
-    oauth_client_id: str
     default_scopes: StringSlice
     # Headers are static HTTP headers sent on every request to the server,
     # set by the team's admins (e.g. X-MCP-Toolsets, X-MCP-Readonly).
@@ -5451,13 +5456,11 @@ class CredentialProvider(str, Enum):
     SALESFORCE = "salesforce"
     DISCORD = "discord"
     GCP = "gcp"
-    MCP = "mcp"
     REDDIT = "reddit"
 
 class CredentialType(str, Enum):
     O_AUTH = "oauth"
     API_KEY = "api_key"
-    MCP = "mcp"
     SERVICE_ACCOUNT = "service_account"
     WIF = "wif"
 
