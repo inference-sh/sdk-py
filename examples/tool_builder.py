@@ -158,10 +158,11 @@ status_check = (
 print("\nstatus_check (http tool):")
 print(json.dumps(status_check, indent=2, default=str))
 
-# MCP connector tool (the MCP server must be connected as a credential)
+# MCP tool: the server by slug, signed in through the provider the server
+# declares (credential_id= pins one connection)
 web_search = (
-    mcp_tool("web_search", "cred-abc123", "search")
-    .describe("Search via connected MCP server")
+    mcp_tool("web_search", "exa", "search")
+    .describe("Search the web via the exa MCP server")
     .build()
 )
 

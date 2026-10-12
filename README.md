@@ -430,10 +430,11 @@ notify = (
     .build()
 )
 
-# MCP connector tool (the MCP server must be connected as a credential)
+# MCP tool: the server by slug, signed in through the provider the server
+# declares (credential_id= pins one connection)
 web_search = (
-    mcp_tool("web_search", "cred-abc123", "search")
-    .describe("Search via connected MCP server")
+    mcp_tool("web_search", "exa", "search")
+    .describe("Search the web via the exa MCP server")
     .build()
 )
 ```
@@ -519,7 +520,7 @@ InstanceStatus.ACTIVE           # "active"
 InstanceStatus.ERROR            # "error"
 ```
 
-`CredentialProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, `mcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
+`CredentialProvider` includes `google`, `slack`, `notion`, `github`, `discord`, `gcp`, and others. `InstanceStatus` covers the full lifecycle from `creating` through `deleted`.
 
 ### requirements errors (HTTP 412)
 

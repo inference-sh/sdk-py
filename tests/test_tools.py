@@ -437,22 +437,27 @@ class TestMCPToolBuilder:
 
     def test_creates_mcp_tool(self):
         t = (
-            mcp_tool("web_search", "int-abc", "search")
+            mcp_tool("web_search", "exa", "search")
             .describe("Search the web via MCP")
             .build()
         )
 
         assert t["type"] == ToolType.MCP
         assert t["type"].value == "mcp"
-        assert t["mcp"] == {"credential_id": "int-abc", "tool_name": "search"}
+        assert t["mcp"] == {"server": "exa", "tool_name": "search"}
         assert t["description"] == "Search the web via MCP"
+
+    def test_mcp_tool_pins_credential(self):
+        t = mcp_tool("web_search", "exa", "search", credential_id="cred-42").build()
+
+        assert t["mcp"] == {"server": "exa", "tool_name": "search", "credential_id": "cred-42"}
 
     def test_mcp_tool_rejects_integration_id_keyword(self):
         with pytest.raises(TypeError, match="integration_id"):
             mcp_tool("web_search", integration_id="int-abc", tool_name="search")
 
-    def test_mcp_tool_requires_credential_id_and_tool_name(self):
-        with pytest.raises(TypeError, match="credential_id"):
+    def test_mcp_tool_requires_server_and_tool_name(self):
+        with pytest.raises(TypeError, match="server"):
             mcp_tool("web_search")
 
     def test_mcp_tool_with_display_and_approval(self):

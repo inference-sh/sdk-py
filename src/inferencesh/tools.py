@@ -378,30 +378,46 @@ def call_tool(name: str, url: str) -> HTTPToolBuilder:
 
 
 class MCPToolBuilder(_ToolBuilder):
-    """Builder for MCP connector tools."""
+    """Builder for MCP tools: a tool of an MCP server, named by its slug."""
 
-    def __init__(self, name: str, credential_id: str, tool_name: str):
+    def __init__(
+        self,
+        name: str,
+        server: str,
+        tool_name: str,
+        credential_id: Optional[str] = None,
+    ):
         super().__init__(name)
-        self._credential_id = credential_id
+        self._server = server
         self._tool_name = tool_name
+        self._credential_id = credential_id
 
     def build(self) -> AgentTool:
+        mcp: Dict[str, Any] = {"server": self._server, "tool_name": self._tool_name}
+        if self._credential_id:
+            mcp["credential_id"] = self._credential_id
         return {
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.MCP,
             "require_approval": self._require_approval,
-            "mcp": {"credential_id": self._credential_id, "tool_name": self._tool_name},
+            "mcp": mcp,
         }
 
 
-def mcp_tool(name: str, credential_id: str, tool_name: str) -> MCPToolBuilder:
-    """Create an MCP connector tool (calls a tool on a connected MCP server).
+def mcp_tool(
+    name: str,
+    server: str,
+    tool_name: str,
+    credential_id: Optional[str] = None,
+) -> MCPToolBuilder:
+    """Create an MCP tool: ``tool_name`` on the MCP server ``server`` (its slug).
 
-    credential_id is the connected MCP server's credential.
+    The call signs in with the runner's connection to the provider the server
+    declares; ``credential_id`` pins one connection instead.
     """
-    return MCPToolBuilder(name, credential_id, tool_name)
+    return MCPToolBuilder(name, server, tool_name, credential_id)
 
 
 # =============================================================================
