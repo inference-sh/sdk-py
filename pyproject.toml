@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "inferencesh"
-version = "0.28.0"
+version = "0.29.0"
 description = "inference.sh Python SDK"
 authors = [
     {name = "Inference Shell Inc.", email = "hello@inference.sh"},
@@ -45,6 +45,10 @@ test = [
     "httpx>=0.27.0",
     # Reference for the OpenAI spec-drift guard (tests/test_openai_spec_drift.py)
     "openai>=2.37.0",
+]
+# inferencesh.upstream (the vendor client of API-wrapper apps)
+upstream = [
+    "httpx>=0.27.0,<1.0",
 ]
 # inferencesh.images.fit_image (downsizing images to a provider's limits)
 images = [

@@ -669,7 +669,7 @@ wheels = [
 
 [[package]]
 name = "inferencesh"
-version = "0.27.4"
+version = "0.29.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -692,12 +692,16 @@ test = [
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
+upstream = [
+    { name = "httpx" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "aiofiles", marker = "python_full_version >= '3.8' and extra == 'async'", specifier = ">=23.2.1" },
     { name = "aiohttp", marker = "python_full_version >= '3.8' and extra == 'async'", specifier = ">=3.14.3" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.27.0" },
+    { name = "httpx", marker = "extra == 'upstream'", specifier = ">=0.27.0,<1.0" },
     { name = "openai", marker = "extra == 'test'", specifier = ">=2.37.0" },
     { name = "pillow", marker = "extra == 'images'", specifier = ">=10.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
@@ -707,7 +711,7 @@ requires-dist = [
     { name = "requests", specifier = ">=2.33.0" },
     { name = "tqdm", specifier = ">=4.67.0" },
 ]
-provides-extras = ["test", "images", "async"]
+provides-extras = ["test", "upstream", "images", "async"]
 
 [[package]]
 name = "iniconfig"
