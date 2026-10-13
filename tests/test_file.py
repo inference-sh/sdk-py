@@ -194,3 +194,67 @@ class TestFileJsonSchema:
             # Should have uri, not path (since not downloaded)
             assert data["image"]["uri"] == "https://example.com/image.jpg"
             assert data["image"].get("path") is None
+
+
+class TestFileCacheLastUse:
+    """The engine expires cached inputs by mtime, so reuse refreshes it."""
+
+    URL = "https://example.com/inputs/image.png"
+
+    @pytest.fixture(autouse=True)
+    def cache_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path))
+        return tmp_path
+
+    def _urlopen(self, body=b"fetched"):
+        class Response:
+            headers = {"content-length": str(len(body))}
+
+            def __init__(self):
+                self._body = body
+
+            def read(self, n=-1):
+                out, self._body = self._body, b""
+                return out
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        return patch("urllib.request.urlopen", side_effect=lambda *a, **k: Response())
+
+    def _age(self, path, seconds=48 * 3600):
+        old = os.path.getmtime(path) - seconds
+        os.utime(path, (old, old))
+        return old
+
+    def test_reuse_refreshes_mtime(self):
+        with self._urlopen():
+            path = File(uri=self.URL).path
+        old = self._age(path)
+
+        with self._urlopen() as urlopen:
+            assert File(uri=self.URL).path == path
+            urlopen.assert_not_called()
+        assert os.path.getmtime(path) > old
+
+    def test_expired_input_downloads_again(self):
+        with self._urlopen():
+            path = File(uri=self.URL).path
+        os.unlink(path)
+
+        with self._urlopen(b"again") as urlopen:
+            assert File(uri=self.URL).path == path
+            urlopen.assert_called_once()
+        with open(path, "rb") as f:
+            assert f.read() == b"again"
+
+    def test_data_uri_reuse_refreshes_mtime(self):
+        uri = "data:text/plain,hello"
+        path = File(uri=uri).path
+        old = self._age(path)
+
+        assert File(uri=uri).path == path
+        assert os.path.getmtime(path) > old

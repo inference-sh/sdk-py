@@ -171,6 +171,18 @@ class File:
         cache_dir.mkdir(exist_ok=True)
         return cache_dir / filename
 
+    @staticmethod
+    def _reuse_cached(path: Path) -> bool:
+        """Mark a cached file used, so the engine expires inputs by last use.
+
+        False if the file is gone, so a just-expired input is fetched again.
+        """
+        try:
+            os.utime(path)
+            return True
+        except FileNotFoundError:
+            return False
+
     # --- Helpers ---
 
     @classmethod
@@ -262,11 +274,11 @@ class File:
 
         # Check for existing cached file
         if cache_dir.exists():
-            cached_files = list(cache_dir.iterdir())
-            if cached_files:
-                self._path = str(cached_files[0])
-                self._populate_metadata()
-                return
+            for cached in cache_dir.iterdir():
+                if self._reuse_cached(cached):
+                    self._path = str(cached)
+                    self._populate_metadata()
+                    return
 
         # Parse and decode
         media_type, ext, data = self._parse_data_uri(uri)
@@ -295,7 +307,7 @@ class File:
         assert original_url is not None  # only called when self.uri is a URL
         cache_path = self._get_cache_path(original_url)
 
-        if cache_path.exists():
+        if self._reuse_cached(cache_path):
             print(f"Using cached file: {cache_path}")
             self._path = str(cache_path)
             self._populate_metadata()
