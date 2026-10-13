@@ -201,6 +201,60 @@ def test_submit_tool_result_with_attachments(patch_agent_requests):
     assert patch_agent_requests[-1]["data"] == {"result": "captured", "attachments": [shot]}
 
 
+@pytest.mark.parametrize("attachments", [None, []])
+def test_submit_tool_result_omits_attachments_when_empty(patch_agent_requests, attachments):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    agent.submit_tool_result("inv_3", "done", attachments=attachments)
+
+    body = patch_agent_requests[-1]["data"]
+    assert body == {"result": "done"}
+    assert "attachments" not in body
+
+
+def test_submit_tool_result_dict_payload_with_attachments(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    payload = {"action": {"type": "screenshot"}, "form_data": {}}
+    file_ref = {
+        "uri": "https://cloud.inference.sh/f/out.pdf",
+        "filename": "out.pdf",
+        "content_type": "application/pdf",
+        "id": "file_9",
+    }
+    agent.submit_tool_result("inv_4", payload, attachments=[file_ref])
+
+    assert patch_agent_requests[-1]["data"] == {
+        "result": json.dumps(payload),
+        "attachments": [file_ref],
+    }
+
+
+@pytest.mark.asyncio
+async def test_async_submit_tool_result_with_attachments(monkeypatch):
+    client = AsyncInference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    captured: dict = {}
+
+    async def fake_request(method, endpoint, data=None):
+        captured["method"] = method
+        captured["endpoint"] = endpoint
+        captured["data"] = data
+
+    monkeypatch.setattr(agent, "_request", fake_request)
+
+    shot = {"uri": "https://cloud.inference.sh/f/shot.png", "filename": "shot.png", "content_type": "image/png"}
+    await agent.submit_tool_result("inv_async", "captured", attachments=[shot])
+
+    assert captured["method"] == "post"
+    assert captured["endpoint"] == "/tools/inv_async"
+    assert captured["data"] == {"result": "captured", "attachments": [shot]}
+
+
 def test_submit_tool_result_widget_action_json(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")
