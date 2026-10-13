@@ -1309,6 +1309,13 @@ class ConnectTokens(TypedDict, total=False):
     RefreshToken: SensitiveString
     ExpiresAt: Optional[str]
 
+# CredentialSecretRef names one secret linked to a credential: the row's
+# id, the key it is stored under and when its value last changed.
+class CredentialSecretRef(TypedDict, total=False):
+    id: str
+    key: str
+    updated_at: str
+
 # ProviderSummary is the company a credential slug belongs to: the
 # providers row's identity, for grouping and display.
 class ProviderSummary(TypedDict, total=False):
@@ -4086,6 +4093,10 @@ class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
     is_primary: bool
     error_message: str
+    # Secrets are the secret rows linked to the credential (a key's values),
+    # by row and key, never by value. Filled on the vault's api_key configs
+    # and the admin provider tree.
+    secrets: List[CredentialSecretRef]
 
 # EngineDTO is the full API response for an engine.
 class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
