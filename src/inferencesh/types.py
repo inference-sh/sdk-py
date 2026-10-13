@@ -1982,8 +1982,9 @@ class MCPServerDTO(TypedDict, total=False):
     # slug: the vault entry a call sends, so a page can link to it.
     credentials: CredentialRequirements
     credential_slug: str
+    # Deprecated: Connection.Status. Kept for clients reading it.
     connection_status: str
-    # ConnectionScope is who the caller's connection to this server belongs
+    # Deprecated: Connection.Scope. ConnectionScope is who the caller's connection to this server belongs
     # to (user, team, org, platform); empty when not connected.
     connection_scope: CredentialScope
     # Connection is the whole of it: the login's status and scope above,
@@ -4466,8 +4467,9 @@ class UsageEventDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     quantity: int
     unit: str
 
-# ConnectionInfo is the caller's login for one requirement: its
-# status (connected, expired, error; "" when none) and whose it is.
+# ConnectionInfo is the caller's standing with a server: their login's
+# status (connected, expired, error; "" when they hold none) and whose it
+# is, and what the connection made with that login holds.
 class ConnectionInfo(MCPConnectionFacts, TypedDict, total=False):
     # Status and Scope are the caller's login's for the server: whether
     # they can call it, and whose the login is.
