@@ -273,12 +273,11 @@ class File:
         cache_dir = self.get_cache_dir() / "data_uri" / uri_hash
 
         # Check for existing cached file
-        if cache_dir.exists():
-            for cached in cache_dir.iterdir():
-                if self._reuse_cached(cached):
-                    self._path = str(cached)
-                    self._populate_metadata()
-                    return
+        cached_files = list(cache_dir.iterdir()) if cache_dir.exists() else []
+        if cached_files and self._reuse_cached(cached_files[0]):
+            self._path = str(cached_files[0])
+            self._populate_metadata()
+            return
 
         # Parse and decode
         media_type, ext, data = self._parse_data_uri(uri)

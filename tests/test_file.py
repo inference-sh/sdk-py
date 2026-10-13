@@ -1,5 +1,6 @@
 """Tests for File class lazy loading and JSON schema generation."""
 
+import io
 import os
 import tempfile
 import pytest
@@ -204,29 +205,12 @@ class TestFileCacheLastUse:
     @pytest.fixture(autouse=True)
     def cache_dir(self, tmp_path, monkeypatch):
         monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path))
-        return tmp_path
 
     def _urlopen(self, body=b"fetched"):
-        class Response:
-            headers = {"content-length": str(len(body))}
+        return patch("urllib.request.urlopen", side_effect=lambda *a, **k: io.BytesIO(body))
 
-            def __init__(self):
-                self._body = body
-
-            def read(self, n=-1):
-                out, self._body = self._body, b""
-                return out
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *exc):
-                return False
-
-        return patch("urllib.request.urlopen", side_effect=lambda *a, **k: Response())
-
-    def _age(self, path, seconds=48 * 3600):
-        old = os.path.getmtime(path) - seconds
+    def _age(self, path):
+        old = os.path.getmtime(path) - 48 * 3600
         os.utime(path, (old, old))
         return old
 
