@@ -1324,6 +1324,8 @@ class ProviderSummary(TypedDict, total=False):
     icon_url: str
     website: str
     docs_url: str
+    terms_url: str
+    privacy_url: str
 
 # CredentialConfigDTO is the merged view: provider catalog + credential state.
 class CredentialConfigDTO(TypedDict, total=False):
