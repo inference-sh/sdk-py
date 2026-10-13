@@ -254,3 +254,8 @@ class TestFileCacheLastUse:
         assert File(uri=uri).path == path
         with open(path, "rb") as f:
             assert f.read() == b"recreated"
+
+    def test_reuse_cached_false_when_file_missing(self, tmp_path):
+        """Data-URI hits call _reuse_cached on the first cache entry; a miss must decode."""
+        missing = tmp_path / "evicted"
+        assert File._reuse_cached(missing) is False
