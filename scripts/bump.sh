@@ -23,6 +23,16 @@ new_version="${new_tag#v}"
 # Update pyproject.toml
 sed -i "s/^version = \".*\"/version = \"${new_version}\"/" pyproject.toml
 
+# Refresh the editable install so importlib metadata (User-Agent, version test)
+# reports the new version without a manual `make install`.
+if [ -x .venv/bin/python ]; then
+  if command -v uv >/dev/null 2>&1; then
+    uv pip install -q --python .venv/bin/python -e . --no-deps
+  else
+    .venv/bin/python -m pip install -q -e . --no-deps
+  fi
+fi
+
 git add pyproject.toml
 git commit -m "chore: bump version to $new_tag"
 git tag "$new_tag"
