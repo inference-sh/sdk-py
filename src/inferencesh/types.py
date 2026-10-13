@@ -4093,6 +4093,9 @@ class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
     is_primary: bool
     error_message: str
+    # Template: the catalogue template of an api_key provider (the empty
+    # platform row teams connect their own key against), never a real key.
+    template: bool
     # Secrets are the secret rows linked to the credential (a key's values),
     # by row and key, never by value. Filled on the vault's api_key configs
     # and the admin provider tree.
