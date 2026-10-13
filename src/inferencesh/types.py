@@ -1986,6 +1986,18 @@ class MCPServerDTO(TypedDict, total=False):
     # ConnectionScope is who the caller's connection to this server belongs
     # to (user, team, org, platform); empty when not connected.
     connection_scope: CredentialScope
+    # Connection is the whole of it: the login's status and scope above,
+    # and what the connection made with that login holds.
+    connection: Optional[ConnectionInfo]
+
+# MCPConnectionFacts is what an MCP connection (a server reached through
+# one login) has recorded: the catalogue it listed, its last call.
+class MCPConnectionFacts(TypedDict, total=False):
+    connection_id: str
+    tool_count: int
+    tools_listed_at: Optional[str]
+    last_called_at: Optional[str]
+    last_error: str
 
 # MCPServerSetup is what a server's directory entry knows about setting the
 # server up, as data: shown to whoever connects a server on the same host,
@@ -4453,6 +4465,14 @@ class UsageEventDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     model: str
     quantity: int
     unit: str
+
+# ConnectionInfo is the caller's login for one requirement: its
+# status (connected, expired, error; "" when none) and whose it is.
+class ConnectionInfo(MCPConnectionFacts, TypedDict, total=False):
+    # Status and Scope are the caller's login's for the server: whether
+    # they can call it, and whose the login is.
+    status: str
+    scope: CredentialScope
 
 # AgentDTO for API responses
 class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
