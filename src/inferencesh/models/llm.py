@@ -238,6 +238,7 @@ def build_openai_messages(
     image_limits: Optional[ImageLimits] = None,
     tool_media_as_user_message: bool = False,
     reasoning_state_key: Optional[str] = None,
+    reasoning_field: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Build OpenAI-format messages for chat completion.
 
@@ -256,7 +257,15 @@ def build_openai_messages(
     message carrying an entry under it sends that entry back as its
     reasoning_details, as the provider issued them; entries under other keys
     are another provider's and are left out.
+    reasoning_field: the field an assistant message sends its own reasoning
+    text back in, for a provider that takes it as text: DeepSeek and the
+    backends serving it take "reasoning_content". Used when the message has
+    no reasoning_state entry under reasoning_state_key.
+    include_reasoning: deprecated, the same as reasoning_field="reasoning".
     """
+    if include_reasoning and reasoning_field is None:
+        reasoning_field = "reasoning"
+
     def _is_http_url(s: str) -> bool:
         return s.startswith("http://") or s.startswith("https://")
 
@@ -365,7 +374,6 @@ def build_openai_messages(
 
     input_data.context.append(user_msg)
 
-    reasoning_index = 0
     # With tool_media_as_user_message, the images and files a tool returned
     # follow in a user message. These wait until the run of tool messages
     # ends, so every tool result still directly follows the assistant message
@@ -376,8 +384,7 @@ def build_openai_messages(
         messages.extend(pending_tool_media)
         pending_tool_media.clear()
 
-    def emit_group(group: List[ContextMessage], role: Any, next_msg: Optional[ContextMessage]) -> None:
-        nonlocal reasoning_index
+    def emit_group(group: List[ContextMessage], role: Any) -> None:
         # Convert role enum to string for OpenAI API compatibility
         role_str = role.value if hasattr(role, "value") else role
         merged = merge_messages(group)
@@ -433,15 +440,10 @@ def build_openai_messages(
 
         if stored_details:
             msg_dict["reasoning_details"] = stored_details
-        elif next_msg is not None and next_msg.reasoning and include_reasoning:
-            msg_dict["reasoning"] = next_msg.reasoning
-            msg_dict["reasoning_details"] = {
-                "type": "reasoning.text",
-                "text": next_msg.reasoning,
-                "id": f"reasoning-text-{reasoning_index}",
-                "index": reasoning_index
-            }
-            reasoning_index += 1
+        elif reasoning_field and role_str == "assistant":
+            reasoning = "\n\n".join(m.reasoning for m in group if m.reasoning)
+            if reasoning:
+                msg_dict[reasoning_field] = reasoning
 
         messages.append(msg_dict)
         if tool_media is not None:
@@ -463,13 +465,13 @@ def build_openai_messages(
             current_messages.append(msg)
             current_role = msg.role
         else:
-            emit_group(current_messages, current_role, next_msg=msg)
+            emit_group(current_messages, current_role)
             current_messages = [msg]
             current_role = msg.role
 
     if len(current_messages) > 0:
         assert current_role is not None  # set whenever current_messages is non-empty
-        emit_group(current_messages, current_role, next_msg=None)
+        emit_group(current_messages, current_role)
 
     flush_tool_media()
 

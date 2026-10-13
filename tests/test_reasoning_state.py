@@ -73,3 +73,37 @@ def test_merge_folds_streamed_fragments_in_order():
 def test_merge_keeps_whole_blocks_as_they_are():
     whole = [{"type": "reasoning.encrypted", "data": "x", "id": "call_1", "format": "google-gemini-v1", "index": 0}]
     assert merge_reasoning_details(whole) == whole
+
+
+def _assistants(messages):
+    return [m for m in messages if m["role"] == "assistant"]
+
+
+def test_reasoning_field_sends_each_assistant_its_own_reasoning():
+    first = ContextMessage(role=ContextMessageRole.ASSISTANT, text="", tool_calls=[CALL], reasoning="first")
+    tool = ContextMessage(role=ContextMessageRole.TOOL, text="17", tool_call_id="call_1")
+    second = ContextMessage(role=ContextMessageRole.ASSISTANT, text="", tool_calls=[CALL], reasoning="second")
+    user = ContextMessage(role=ContextMessageRole.USER, text="and now?", reasoning="not an assistant's")
+    messages = build_openai_messages(_input(first, tool, second, user), reasoning_field="reasoning_content")
+
+    assert [m.get("reasoning_content") for m in _assistants(messages)] == ["first", "second"]
+    assert all("reasoning_content" not in m for m in messages if m["role"] != "assistant")
+
+
+def test_reasoning_field_leaves_out_an_assistant_without_reasoning():
+    msg = ContextMessage(role=ContextMessageRole.ASSISTANT, text="", tool_calls=[CALL])
+    messages = build_openai_messages(_input(msg), reasoning_field="reasoning_content")
+    assert "reasoning_content" not in _assistant(messages)
+
+
+def test_without_reasoning_field_no_reasoning_text_is_sent():
+    msg = ContextMessage(role=ContextMessageRole.ASSISTANT, text="", tool_calls=[CALL], reasoning="think")
+    messages = build_openai_messages(_input(msg))
+    assert set(_assistant(messages)) == {"role", "content", "tool_calls"}
+
+
+def test_include_reasoning_is_reasoning_field_reasoning():
+    msg = ContextMessage(role=ContextMessageRole.ASSISTANT, text="", tool_calls=[CALL], reasoning="think")
+    messages = build_openai_messages(_input(msg), include_reasoning=True)
+    assert _assistant(messages)["reasoning"] == "think"
+    assert "reasoning_details" not in _assistant(messages)
