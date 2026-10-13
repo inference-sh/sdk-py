@@ -190,6 +190,17 @@ def test_submit_tool_result_string_payload(patch_agent_requests):
     assert tool_call["data"] == {"result": '{"ok": true}'}
 
 
+def test_submit_tool_result_with_attachments(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    shot = {"uri": "https://cloud.inference.sh/f/shot.png", "filename": "shot.png", "content_type": "image/png"}
+    agent.submit_tool_result("inv_3", "captured", attachments=[shot])
+
+    assert patch_agent_requests[-1]["data"] == {"result": "captured", "attachments": [shot]}
+
+
 def test_submit_tool_result_widget_action_json(patch_agent_requests):
     client = Inference(api_key="test")
     agent = client.agent("okaris/assistant@abc123")

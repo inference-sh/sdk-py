@@ -149,11 +149,17 @@ def _tool_path(tool_invocation_id: str, action: str = "") -> str:
     return f"/tools/{tool_invocation_id}/{action}" if action else f"/tools/{tool_invocation_id}"
 
 
-def _tool_result_body(result_or_action: str | dict[str, Any]) -> Dict[str, Any]:
+def _tool_result_body(
+    result_or_action: str | dict[str, Any],
+    attachments: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     # Widget actions are sent as a JSON string
-    if isinstance(result_or_action, str):
-        return {"result": result_or_action}
-    return {"result": json.dumps(result_or_action)}
+    body: Dict[str, Any] = {
+        "result": result_or_action if isinstance(result_or_action, str) else json.dumps(result_or_action)
+    }
+    if attachments:
+        body["attachments"] = list(attachments)
+    return body
 
 
 def _chat_run_active(chat: Dict[str, Any]) -> bool:
@@ -328,7 +334,8 @@ class Agent:
     def submit_tool_result(
         self,
         tool_invocation_id: str,
-        result_or_action: str | dict[str, Any]
+        result_or_action: str | dict[str, Any],
+        attachments: Optional[List[FileRef]] = None,
     ) -> None:
         """
         Submit a tool result.
@@ -339,6 +346,11 @@ class Agent:
                 - action: { "type": str, "payload"?: dict } (for widget actions)
                 - form_data?: dict (optional form data for widgets)
                 Dict values are JSON-serialized automatically.
+            attachments: Files the tool returns, uploaded first with
+                ``client.files.upload`` and passed as FileRefs (``uri``,
+                ``filename``, ``content_type``; ``id`` and ``size`` optional),
+                at most 20. An image reaches the model as image input when
+                the model supports images.
 
         Example (raw result):
             agent.submit_tool_result("tool123", '{"success": true}')
@@ -349,7 +361,7 @@ class Agent:
                 "form_data": {"name": "John"}
             })
         """
-        self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
+        self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments))
 
     def approve_tool(self, tool_invocation_id: str) -> None:
         """Approve a tool invocation that is awaiting human approval.
@@ -832,7 +844,8 @@ class AsyncAgent:
     async def submit_tool_result(
         self,
         tool_invocation_id: str,
-        result_or_action: str | dict[str, Any]
+        result_or_action: str | dict[str, Any],
+        attachments: Optional[List[FileRef]] = None,
     ) -> None:
         """
         Submit a tool result.
@@ -843,8 +856,13 @@ class AsyncAgent:
                 - action: { "type": str, "payload"?: dict } (for widget actions)
                 - form_data?: dict (optional form data for widgets)
                 Dict values are JSON-serialized automatically.
+            attachments: Files the tool returns, uploaded first with
+                ``client.files.upload`` and passed as FileRefs (``uri``,
+                ``filename``, ``content_type``; ``id`` and ``size`` optional),
+                at most 20. An image reaches the model as image input when
+                the model supports images.
         """
-        await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action))
+        await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments))
 
     async def approve_tool(self, tool_invocation_id: str) -> None:
         """Approve a tool invocation that is awaiting human approval.
