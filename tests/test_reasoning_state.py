@@ -107,3 +107,55 @@ def test_include_reasoning_is_reasoning_field_reasoning():
     messages = build_openai_messages(_input(msg), include_reasoning=True)
     assert _assistant(messages)["reasoning"] == "think"
     assert "reasoning_details" not in _assistant(messages)
+
+
+def test_reasoning_state_list_beats_reasoning_field():
+    msg = ContextMessage(
+        role=ContextMessageRole.ASSISTANT,
+        text="",
+        tool_calls=[CALL],
+        reasoning="plain text",
+        reasoning_state={"openrouter": MINE},
+    )
+    messages = build_openai_messages(
+        _input(msg),
+        reasoning_state_key="openrouter",
+        reasoning_field="reasoning_content",
+    )
+    assistant = _assistant(messages)
+    assert assistant["reasoning_details"] == MINE
+    assert "reasoning_content" not in assistant
+
+
+def test_non_list_reasoning_state_falls_back_to_reasoning_field():
+    msg = ContextMessage(
+        role=ContextMessageRole.ASSISTANT,
+        text="",
+        tool_calls=[CALL],
+        reasoning="deepseek step",
+        reasoning_state={"openrouter": {"type": "reasoning.encrypted", "data": "x"}},
+    )
+    messages = build_openai_messages(
+        _input(msg),
+        reasoning_state_key="openrouter",
+        reasoning_field="reasoning_content",
+    )
+    assistant = _assistant(messages)
+    assert "reasoning_details" not in assistant
+    assert assistant["reasoning_content"] == "deepseek step"
+
+
+def test_merged_assistants_join_reasoning_for_reasoning_field():
+    a1 = ContextMessage(role=ContextMessageRole.ASSISTANT, text="part-a", reasoning="think-a")
+    a2 = ContextMessage(role=ContextMessageRole.ASSISTANT, text="part-b", reasoning="think-b")
+    inp = LLMInput(
+        role=ContextMessageRole.TOOL,
+        tool_call_id="call_1",
+        text='{"temp_c": 17}',
+        context=[ContextMessage(role=ContextMessageRole.USER, text="weather?"), a1, a2],
+        system_prompt="",
+    )
+    messages = build_openai_messages(inp, reasoning_field="reasoning_content")
+    assistant = _assistant(messages)
+    assert assistant["reasoning_content"] == "think-a\n\nthink-b"
+    assert assistant["content"] == "part-a\n\npart-b"
