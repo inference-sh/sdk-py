@@ -242,3 +242,15 @@ class TestFileCacheLastUse:
 
         assert File(uri=uri).path == path
         assert os.path.getmtime(path) > old
+
+    def test_data_uri_expired_recreates_file(self):
+        """Engine eviction removes the file; an empty cache dir must decode again."""
+        uri = "data:text/plain,recreated"
+        path = File(uri=uri).path
+        with open(path, "rb") as f:
+            assert f.read() == b"recreated"
+        os.unlink(path)
+
+        assert File(uri=uri).path == path
+        with open(path, "rb") as f:
+            assert f.read() == b"recreated"
