@@ -7,7 +7,6 @@ that slipped into 0.7.2 because no test exercised the import path.
 
 import importlib
 import importlib.metadata
-import json
 import pkgutil
 from pathlib import Path
 from typing import get_type_hints
@@ -16,6 +15,8 @@ import pytest
 import tomllib
 
 import inferencesh
+
+from test_package_version_metadata import should_skip_stale_editable_install
 
 
 # ── Package-wide recursive import ────────────────────────────────────────────
@@ -87,8 +88,7 @@ def test_package_version_matches_pyproject():
     )
     expected = pyproject["project"]["version"]
     direct_url = importlib.metadata.distribution("inferencesh").read_text("direct_url.json")
-    editable = bool(direct_url) and json.loads(direct_url).get("dir_info", {}).get("editable", False)
-    if editable and inferencesh.__version__ != expected:
+    if should_skip_stale_editable_install(inferencesh.__version__, expected, direct_url):
         pytest.skip(
             f"editable install metadata is {inferencesh.__version__}, pyproject is {expected}; "
             "run `make install` to refresh"
