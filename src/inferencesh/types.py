@@ -3267,7 +3267,11 @@ class ResponseFormat(TypedDict, total=False):
 # 
 # Which model runs is not a setting: the app is the model. An app that
 # fronts several models (a router) declares its own `model` input.
+# 
+# Field order is schema order: the generated pydantic model, and the input
+# form built from its JSON schema, list fields as they are declared here.
 class LLMSettings(TypedDict, total=False):
+    system_prompt: str
     context_size: int
     temperature: Optional[float]
     top_p: Optional[float]
@@ -3281,7 +3285,6 @@ class LLMSettings(TypedDict, total=False):
     max_tokens: Optional[int]
     reasoning_effort: Optional[str]
     reasoning_max_tokens: Optional[int]
-    system_prompt: str
     tools: Optional[List[Tool]]
     tool_choice: Optional[ToolChoice]
     response_format: Optional[ResponseFormat]
@@ -4533,16 +4536,19 @@ class LLMDelta(StreamDelta, TypedDict, total=False):
         "usage": {"merge": "replace"},
     }
 
-# LLMInput is the input envelope for an LLM provider task: the settings plus
-# the conversation, with the current turn split out of the context.
+# LLMInput is the input envelope for an LLM provider task: the conversation,
+# with the current turn split out of the context, plus the settings.
+# 
+# Field order is schema order (see LLMSettings): the turn comes first, the
+# settings last, so an input form shows what to say before how to say it.
 class LLMInput(LLMSettings, TypedDict, total=False):
-    context: List[LLMContextMessage]
-    role: ChatMessageRole
     text: Optional[str]
-    reasoning: Optional[str]
-    attachments: Optional[List[FileRef]]
     images: Optional[List[str]]
     files: Optional[List[str]]
+    attachments: Optional[List[FileRef]]
+    context: List[LLMContextMessage]
+    role: ChatMessageRole
+    reasoning: Optional[str]
     tool_call_id: Optional[str]
 
 # LLMDeltaEvent is a typed alias for backward compatibility.

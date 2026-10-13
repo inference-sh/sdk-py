@@ -161,7 +161,11 @@ class ResponseFormat(BaseModel):
 # 
 # Which model runs is not a setting: the app is the model. An app that
 # fronts several models (a router) declares its own `model` input.
+# 
+# Field order is schema order: the generated pydantic model, and the input
+# form built from its JSON schema, list fields as they are declared here.
 class LLMSettings(BaseModel):
+    system_prompt: str = ""
     context_size: int = 0
     temperature: Optional[float] = None
     top_p: Optional[float] = None
@@ -175,7 +179,6 @@ class LLMSettings(BaseModel):
     max_tokens: Optional[int] = None
     reasoning_effort: Optional[str] = None
     reasoning_max_tokens: Optional[int] = None
-    system_prompt: str = ""
     tools: Optional[List[Tool]] = None
     tool_choice: Optional[ToolChoice] = None
     response_format: Optional[ResponseFormat] = None
@@ -303,7 +306,11 @@ class ToolParameterProperty(BaseModel):
 
 # DecisionVisionInput is the input of a decision model that also sees
 # images: a DecisionInput plus the images the questions are about.
-class DecisionVisionInput(DecisionInput, BaseModel):
+class DecisionVisionInput(BaseModel):
+    state: Any
+    choices: Optional[List[DecisionChoiceQuestion]] = None
+    scores: Optional[List[DecisionScoreQuestion]] = None
+    nouls: Optional[List[DecisionNoulQuestion]] = None
     # Images are file URIs. Every question sees them.
     images: Optional[List[str]] = None
 
@@ -321,21 +328,47 @@ class LLMDelta(StreamDelta, BaseModel):
         "usage": {"merge": "replace"},
     }
 
-# LLMInput is the input envelope for an LLM provider task: the settings plus
-# the conversation, with the current turn split out of the context.
-class LLMInput(LLMSettings, BaseModel):
-    context: List[LLMContextMessage]
-    role: Optional[ChatMessageRole] = None
+# LLMInput is the input envelope for an LLM provider task: the conversation,
+# with the current turn split out of the context, plus the settings.
+# 
+# Field order is schema order (see LLMSettings): the turn comes first, the
+# settings last, so an input form shows what to say before how to say it.
+class LLMInput(BaseModel):
     text: Optional[str] = None
-    reasoning: Optional[str] = None
-    attachments: Optional[List[FileRef]] = None
     images: Optional[List[str]] = None
     files: Optional[List[str]] = None
+    attachments: Optional[List[FileRef]] = None
+    context: List[LLMContextMessage]
+    role: Optional[ChatMessageRole] = None
+    reasoning: Optional[str] = None
     tool_call_id: Optional[str] = None
+    system_prompt: str = ""
+    context_size: int = 0
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    min_p: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    repetition_penalty: Optional[float] = None
+    seed: Optional[int] = None
+    stop: Optional[List[str]] = None
+    max_tokens: Optional[int] = None
+    reasoning_effort: Optional[str] = None
+    reasoning_max_tokens: Optional[int] = None
+    tools: Optional[List[Tool]] = None
+    tool_choice: Optional[ToolChoice] = None
+    response_format: Optional[ResponseFormat] = None
 
 # DecisionVideoInput is the input of a decision model that also watches
 # videos: a DecisionVisionInput plus the videos the questions are about.
-class DecisionVideoInput(DecisionVisionInput, BaseModel):
+class DecisionVideoInput(BaseModel):
+    state: Any
+    choices: Optional[List[DecisionChoiceQuestion]] = None
+    scores: Optional[List[DecisionScoreQuestion]] = None
+    nouls: Optional[List[DecisionNoulQuestion]] = None
+    # Images are file URIs. Every question sees them.
+    images: Optional[List[str]] = None
     # Videos are file URIs. Every question sees them, after the images.
     videos: Optional[List[str]] = None
 

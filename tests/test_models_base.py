@@ -102,6 +102,20 @@ class TestOrderedSchemaModel:
         props = _Wrapper.NestedInput.model_json_schema()["properties"]
         assert list(props.keys()) == ["first", "second"]
 
+    def test_new_fields_lead_and_overrides_keep_their_inherited_position(self):
+        class Contract(OrderedSchemaModel):
+            text: str = ""
+            context_size: int = 0
+            temperature: float = 0.5
+
+        class AppInput(Contract):
+            context_size: int = 4096  # an override: stays where the contract put it
+            model: str = "default"  # new: leads
+
+        props = AppInput.model_json_schema()["properties"]
+        assert list(props.keys()) == ["model", "text", "context_size", "temperature"]
+        assert props["context_size"]["default"] == 4096
+
 
 class TestBaseApp:
     @pytest.mark.asyncio

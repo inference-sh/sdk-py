@@ -66,25 +66,29 @@ class ModelSettings(BaseModel):
 
 
 class LLMInput(llm_contract.LLMInput, BaseAppInput):
-    # App-layer types (File objects, not wire strings/refs)
-    context: List[ContextMessage] = Field(default=[])
+    """The generated contract with app-layer types (File objects, not wire
+    strings/refs) and app defaults. Field order is the contract's: the turn
+    first, the settings last. An override keeps its contract position, so
+    this body's order is cosmetic; it mirrors the contract for readability."""
+
+    text: str = Field(default="")
     images: Optional[List[File]] = Field(default=None)
     files: Optional[List[File]] = Field(default=None)
     attachments: Optional[List[File]] = Field(default=None)
-    # Dict for backward compat with build_openai_messages/build_tools
-    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
+    context: List[ContextMessage] = Field(default=[])
+    role: ContextMessageRole = Field(default=ContextMessageRole.USER)
 
     # App defaults and validation (Go has no annotations for these)
     system_prompt: str = Field(
         default="you are a helpful assistant that can answer questions and help with tasks.",
     )
-    text: str = Field(default="")
-    role: ContextMessageRole = Field(default=ContextMessageRole.USER)
+    context_size: int = Field(default=4096)
     temperature: float = Field(default=0.7, ge=0.0, le=1.0)
     top_p: float = Field(default=0.95, ge=0.0, le=1.0)
-    context_size: int = Field(default=4096)
     max_tokens: int = Field(default=64000)
     reasoning_effort: ReasoningEffortEnum = Field(default=ReasoningEffortEnum.NONE)
+    # Dict for backward compat with build_openai_messages/build_tools
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
 
 BaseLLMInput = LLMInput
 ChatInput = LLMInput

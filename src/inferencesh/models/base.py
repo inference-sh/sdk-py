@@ -27,7 +27,14 @@ class Metadata(BaseModel):
 
 
 class OrderedSchemaModel(BaseModel):
-    """A base model that ensures the JSON schema properties and required fields are in the order of field definition."""
+    """A base model whose JSON schema lists properties in declaration order.
+
+    The fields a class declares itself come first, as written in its source;
+    inherited fields follow in the order the base classes declared them. A
+    field that only overrides an inherited one (a new default, a narrower
+    type) keeps its inherited position: an app that sets ``context_size``
+    does not move it to the top of the form.
+    """
 
     @classmethod
     def model_json_schema(cls, by_alias: bool = True, **kwargs: Any) -> Dict[str, Any]:  # type: ignore[override]
@@ -84,13 +91,25 @@ class OrderedSchemaModel(BaseModel):
                 node for node in module.body if isinstance(node, ast.ClassDef) and node.name == cls.__name__
             )
 
-        # Extract field names in the order they were defined
-        field_order = []
+        # Fields this class declares itself, in source order
+        declared = []
         for node in class_def.body:
             if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                field_order.append(node.target.id)
+                declared.append(node.target.id)
 
-        return field_order
+        # A field also declared by a base is an override and keeps the
+        # base's position; only genuinely new fields lead.
+        inherited = set()
+        for base in cls.__mro__[1:]:
+            fields = getattr(base, "model_fields", None)
+            if isinstance(fields, dict):
+                inherited.update(fields)
+        new = [name for name in declared if name not in inherited]
+
+        # pydantic's own order: inherited fields in base-declaration order,
+        # then the new ones in source order
+        rest = [name for name in cls.model_fields if name not in new]
+        return new + rest
 
 class BaseAppSetup(OrderedSchemaModel):
     pass
