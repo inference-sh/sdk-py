@@ -555,6 +555,10 @@ class SecretCreateRequest(TypedDict, total=False):
     # logo is looked up from. Ignored for a provider the platform knows.
     provider_name: str
     provider_website: str
+    # Label names this key among the owner's keys for Provider (prod,
+    # personal): a new label adds a key beside the others, the same label
+    # replaces that key's value. Empty: the owner's default key.
+    label: str
 
 # SecretProviderRequest attaches an existing secret to a provider's
 # credential — the link a secret gets when it is created against a provider.
@@ -564,6 +568,9 @@ class SecretProviderRequest(TypedDict, total=False):
     connection_scope: CredentialScope
     provider_name: str
     provider_website: str
+    # Label names the key among the owner's keys for Provider, as on
+    # SecretCreateRequest. Empty: the owner's default key.
+    label: str
 
 class SecretUpdateRequest(TypedDict, total=False):
     value: str
@@ -1366,6 +1373,10 @@ class CredentialConfigDTO(TypedDict, total=False):
     # order (Credential first). More than one when several accounts are
     # connected.
     accounts: List[Optional[CredentialDTO]]
+    # MultiAccount: several accounts of this provider can be connected side
+    # by side, each addressed by its account_id; the default (is_primary) is
+    # used where none is named.
+    multi_account: bool
 
 # SecretFieldConfig defines a secret field for the UI
 class SecretFieldConfig(TypedDict, total=False):
