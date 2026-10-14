@@ -212,12 +212,6 @@ class MCPToolConfigDTO(TypedDict, total=False):
     tool_name: str
     credential_id: str
 
-# AgentImages contains display images for an agent
-class AgentImages(TypedDict, total=False):
-    card: str
-    thumbnail: str
-    banner: str
-
 # CoreAppConfigDTO references an app used as the agent's core
 class CoreAppConfigDTO(TypedDict, total=False):
     id: Optional[str]
@@ -235,7 +229,7 @@ class CreateAgentRequest(TypedDict, total=False):
     id: str
     name: str
     title: str
-    images: AgentImages
+    images: ResourceImages
     visibility: Visibility
     # Harness runs the agent: "inference" (ours) or an external harness.
     harness: str
@@ -392,7 +386,7 @@ class CreateAppRequest(TypedDict, total=False):
     description: str
     agent_description: str
     category: AppCategory
-    images: AppImages
+    images: ResourceImages
     # Tags replace the app's tags when given; omitted, a deploy takes them
     # from the version's metadata.tags, and keeps the stored ones if that is
     # empty too.
@@ -771,12 +765,6 @@ class AppFunction(TypedDict, total=False):
     # them for an unverified namespace.
     annotations: Optional[ToolAnnotations]
 
-# AppImages holds developer-provided images for the app.
-class AppImages(TypedDict, total=False):
-    card: str
-    thumbnail: str
-    banner: str
-
 # AppGPUResource describes GPU requirements.
 class AppGPUResource(TypedDict, total=False):
     count: int
@@ -913,22 +901,12 @@ class PublicAppStoreDTO(TypedDict, total=False):
     # Title is the human-readable name; empty falls back to Name.
     title: str
     description: str
-    images: AppImages
+    images: ResourceImages
     is_featured: bool
     rank: int
     has_approved_version: bool
     page_id: Optional[str]
     pricing_description: str
-
-# ResourceImages is the display-image set every listable resource carries:
-# a card image for grids, a thumbnail for dense rows, a banner for headers.
-# AppImages and AgentImages predate this and hold the same three fields;
-# they should collapse onto this type, but aliasing them changes what
-# gotypegen emits for existing consumers, so that migration is separate.
-class ResourceImages(TypedDict, total=False):
-    card: str
-    thumbnail: str
-    banner: str
 
 # ArtifactCreateRequest is the body for POST /artifacts. Creates the entry
 # and its first version. When an artifact with the same name already exists
@@ -1122,6 +1100,17 @@ class ResourceStatusDTO(TypedDict, total=False):
     id: str
     status: Any
     updated_at: str
+
+# ResourceImages is the display-image set every listable resource carries
+# (apps, agents, artifacts): a card image for grids, a thumbnail for dense
+# rows, a banner for headers.
+class ResourceImages(TypedDict, total=False):
+    card: str
+    thumbnail: str
+    banner: str
+    # Dark holds the same slots for a dark theme. Nil means the slots above
+    # serve both themes.
+    dark: Optional[ResourceImages]
 
 # AvailabilityResponse answers "can I use this name?" — for page slugs, team
 # usernames and voucher codes alike.
@@ -3952,7 +3941,7 @@ class AppDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     description: str
     agent_description: str
     category: AppCategory
-    images: AppImages
+    images: ResourceImages
     # Tags name what the app does and its traits, as lowercase slugs
     # (text-to-image, open-weights). GET /store/tags lists the ones in use
     # with their titles.
@@ -3995,10 +3984,6 @@ class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # Images are the cover images shown in galleries and headers, same as
     # apps and agents. The favicon stays the rendered page's tab icon.
     images: ResourceImages
-    # ImagesDark is the cover for a dark theme, set only by a capture of a
-    # page that looks different in dark. Empty means Images serve both
-    # themes.
-    images_dark: ResourceImages
     # VersionID points at the latest published version.
     version_id: str
     version: Optional[ArtifactVersionDTO]
@@ -4520,7 +4505,7 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     name: str
     # Title is the human-readable name; empty falls back to Name.
     title: str
-    images: AgentImages
+    images: ResourceImages
     version_id: str
     version: Optional[AgentVersionDTO]
     # Harness is what drives the agent: "inference" for our own loop, or an
