@@ -3984,6 +3984,10 @@ class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # Images are the cover images shown in galleries and headers, same as
     # apps and agents. The favicon stays the rendered page's tab icon.
     images: ResourceImages
+    # ImagesDark is the cover for a dark theme, set only by a capture of a
+    # page that looks different in dark. Empty means Images serve both
+    # themes.
+    images_dark: ResourceImages
     # VersionID points at the latest published version.
     version_id: str
     version: Optional[ArtifactVersionDTO]
