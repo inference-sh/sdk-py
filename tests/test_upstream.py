@@ -71,6 +71,34 @@ def test_build_sends_an_empty_object_when_nothing_is_set():
     assert op.build(None)["json"] == {}
 
 
+class LogsIn(BaseModel):
+    model_config = {"extra": "forbid"}
+
+
+def test_build_sends_empty_json_for_unset_pydantic_input():
+    op = Operation(name="logs", method="POST", path="/logs")
+    assert op.build(LogsIn())["json"] == {}
+
+
+async def test_call_sends_json_empty_object_on_post_with_no_input():
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["method"] = request.method
+        seen["content"] = request.content
+        seen["content_type"] = request.headers.get("content-type")
+        return httpx.Response(200, json={"ok": True})
+
+    op = Operation(name="logs", method="POST", path="/logs")
+    async with client(handler) as c:
+        assert await c.call(op) == {"ok": True}
+        assert await c.call(op, {}) == {"ok": True}
+        assert await c.call(op, None) == {"ok": True}
+    assert seen["method"] == "POST"
+    assert seen["content"] == b"{}"
+    assert seen["content_type"] == "application/json"
+
+
 def test_build_strips_output_meta():
     op = Operation(name="post", method="POST", path="/t")
     assert op.build({"a": 1, "output_meta": {"x": 1}})["json"] == {"a": 1}
