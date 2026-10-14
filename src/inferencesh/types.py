@@ -4407,6 +4407,19 @@ class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # CredentialID is the credential this secret is attached to; empty for
     # a plain secret.
     credential_id: str
+    # The four below are read from the credential a listing preloads; a
+    # row read without it leaves them empty.
+    # 
+    # Provider is the slug of the credential the secret belongs to.
+    provider: str
+    # ProviderName is that credential's display name ("Anthropic").
+    provider_name: str
+    # Label is the credential's account identifier: a key's label.
+    label: str
+    # CredentialDefault is whether the credential is its owner's default.
+    # Always serialised: a linked non-default row and an unlabelled row
+    # must not read the same.
+    credential_default: bool
 
 # SocketDTO is a socket and what is known of its life. The traffic figures
 # come from the relay once the socket has closed.
