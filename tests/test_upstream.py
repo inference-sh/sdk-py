@@ -205,3 +205,172 @@ def test_auth_secrets_lists_what_it_reads():
 def test_unknown_default_auth_is_refused():
     with pytest.raises(ValueError, match="default_auth"):
         UpstreamClient("https://x", auth={"a": Auth(kind="api_key", secret="K")}, default_auth="b")
+
+
+def test_build_multipart_splits_files_and_fields():
+    op = Operation(name="upload", method="POST", path="/upload", body="multipart")
+
+    class FileLike:
+        def read(self):
+            return b"bin"
+
+    kwargs = op.build({"name": "doc", "file": b"raw", "thumb": FileLike(), "note": "text"})
+    assert kwargs["data"] == {"name": "doc", "note": "text"}
+    assert kwargs["files"] == {"file": b"raw", "thumb": kwargs["files"]["thumb"]}
+
+
+def test_build_query_serializes_bools_lists_and_dicts():
+    op = Operation(name="list", method="GET", path="/items", query_params=("on", "ids", "filter"), body="none")
+    kwargs = op.build({"on": False, "ids": [1, 2], "filter": {"a": 1}})
+    assert kwargs["params"] == {"on": "false", "ids": [1, 2], "filter": '{"a": 1}'}
+
+
+def test_build_unknown_body_kind():
+    op = Operation(name="x", method="POST", path="/t", body="xml")
+    with pytest.raises(ValueError, match="unknown body kind"):
+        op.build({"a": 1})
+
+
+async def test_api_key_in_cookie(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert seen["cookie"] == "session=v"
+
+
+async def test_oauth2_injected_access_token(monkeypatch):
+    monkeypatch.setenv("ACCESS", "inj")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["auth"] = request.headers["authorization"]
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="oauth2", flow="authorization_code", secret="ACCESS")
+    async with client(handler, auth=auth) as c:
+        await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert seen["auth"] == "Bearer inj"
+
+
+async def test_retries_on_transport_errors():
+    calls = []
+
+    def handler(request: httpx.Request):
+        calls.append(1)
+        if len(calls) < 2:
+            raise httpx.ConnectError("connection reset", request=request)
+        return httpx.Response(200, json={"recovered": True})
+
+    async with client(handler, max_retries=2) as c:
+        out = await c.request("GET", "/x")
+    assert out.json() == {"recovered": True}
+    assert len(calls) == 2
+
+
+async def test_invalid_retry_after_falls_back_to_exponential_backoff():
+    calls = []
+
+    def handler(request: httpx.Request):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(503, headers={"Retry-After": "soon"})
+        return httpx.Response(200, text="ok")
+
+    async with client(handler, max_retries=1) as c:
+        response = await c.request("GET", "/x")
+    assert response.text == "ok"
+    assert len(calls) == 2
+
+
+async def test_unknown_auth_name_is_refused():
+    async with client(lambda r: httpx.Response(200)) as c:
+        with pytest.raises(ValueError, match="auth 'nope'"):
+            await c.request("GET", "/x", auth="nope")
+
+
+async def test_unknown_api_key_location_is_refused(monkeypatch):
+    monkeypatch.setenv("K", "v")
+    bad = Auth(kind="api_key", location="body", secret="K")
+    async with client(lambda r: httpx.Response(200), auth=bad) as c:
+        with pytest.raises(ValueError, match="unknown api_key location"):
+            await c.request("GET", "/x")
+
+
+async def test_unknown_http_scheme_is_refused(monkeypatch):
+    monkeypatch.setenv("K", "v")
+    bad = Auth(kind="http", scheme="digest", secret="K")
+    async with client(lambda r: httpx.Response(200), auth=bad) as c:
+        with pytest.raises(ValueError, match="unknown http scheme"):
+            await c.request("GET", "/x")
+
+
+async def test_unknown_auth_kind_is_refused(monkeypatch):
+    monkeypatch.setenv("K", "v")
+    bad = Auth(kind="mutual_tls", secret="K")
+    async with client(lambda r: httpx.Response(200), auth=bad) as c:
+        with pytest.raises(ValueError, match="unknown kind"):
+            await c.request("GET", "/x")
+
+
+async def test_client_credentials_token_endpoint_error(monkeypatch):
+    monkeypatch.setenv("CID", "id")
+    monkeypatch.setenv("CSEC", "sec")
+
+    def handler(request: httpx.Request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(401, json={"error": "invalid_client"})
+        return httpx.Response(200)
+
+    auth = Auth(
+        kind="oauth2",
+        flow="client_credentials",
+        token_url="https://api.example.com/oauth/token",
+        client_id_secret="CID",
+        client_secret_secret="CSEC",
+    )
+    async with client(handler, auth=auth) as c:
+        with pytest.raises(UpstreamError) as exc:
+            await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert exc.value.status == 401
+    assert exc.value.body == {"error": "invalid_client"}
+
+
+async def test_client_credentials_missing_access_token(monkeypatch):
+    monkeypatch.setenv("CID", "id")
+    monkeypatch.setenv("CSEC", "sec")
+
+    def handler(request: httpx.Request):
+        return httpx.Response(200, json={"token_type": "bearer"})
+
+    auth = Auth(
+        kind="oauth2",
+        flow="client_credentials",
+        token_url="https://api.example.com/oauth/token",
+        client_id_secret="CID",
+        client_secret_secret="CSEC",
+    )
+    async with client(handler, auth=auth) as c:
+        with pytest.raises(UpstreamError, match="no access_token"):
+            await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+
+
+async def test_missing_secret_when_name_is_empty():
+    async with client(lambda r: httpx.Response(200), auth=Auth(kind="api_key", secret="")) as c:
+        with pytest.raises(MissingSecret, match="none is named"):
+            await c.request("GET", "/x")
+
+
+async def test_transport_errors_exhaust_retry_budget():
+    def handler(request: httpx.Request):
+        raise httpx.ConnectError("down", request=request)
+
+    async with client(handler, max_retries=1) as c:
+        with pytest.raises(UpstreamError, match="down"):
+            await c.request("GET", "/x")
