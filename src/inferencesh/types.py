@@ -3989,12 +3989,19 @@ class ArtifactDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     version: Optional[ArtifactVersionDTO]
     # SharedVersionID pins the version viewers see. Empty = always latest.
     shared_version_id: str
+    # CoverVersionID is the version a captured cover shows. Empty means the
+    # cover (if any) was set by a person or agent, and a capture never
+    # replaces it.
+    cover_version_id: str
     # Capabilities declared by the latest version (runtime features the page
     # may use). Reserved for the artifact runtime; opaque to the API.
     capabilities: Dict[str, Any]
     views: int
     # URL is the canonical viewer URL for this artifact.
     url: str
+    # Access is the viewer's level on this artifact: read, interact (may
+    # change its data) or write (may edit it). Set on single reads only.
+    access: Permission
 
 # BountyProgramDTO is the API representation of a bounty program.
 class BountyProgramDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -5061,6 +5068,10 @@ class Visibility(str, Enum):
 class Permission(str, Enum):
     PERM_READ = "read"
     PERM_WRITE = "write"
+    # PermInteract changes what a page's people keep in it (an artifact's
+    # shared data) without editing the page. Write covers interact, and
+    # interact covers read; public and unlisted visibility grant read only.
+    PERM_INTERACT = "interact"
     # PermUse is execute intent: run an app, load a skill/knowledge into an
     # agent context, invoke an MCP tool. Distinct from read — a public
     # resource is readable by everyone, but whether this caller may USE it is
