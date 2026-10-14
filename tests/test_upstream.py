@@ -65,6 +65,12 @@ def test_build_body_field_and_form():
     assert form.build({"a": 1})["data"] == {"a": 1}
 
 
+def test_build_sends_an_empty_object_when_nothing_is_set():
+    op = Operation(name="logs", method="POST", path="/logs")
+    assert op.build({})["json"] == {}, "a bodiless POST is a 422 at vendors that validate the body"
+    assert op.build(None)["json"] == {}
+
+
 def test_build_strips_output_meta():
     op = Operation(name="post", method="POST", path="/t")
     assert op.build({"a": 1, "output_meta": {"x": 1}})["json"] == {"a": 1}

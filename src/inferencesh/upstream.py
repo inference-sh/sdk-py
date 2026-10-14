@@ -159,8 +159,8 @@ class Operation:
             return kwargs
         body: Any = values[self.body_field] if self.body_field else values
         if self.body == "json":
-            if body != {} or self.body_field:
-                kwargs["json"] = body
+            # An empty object still goes: vendors reject a bodiless POST.
+            kwargs["json"] = body
         elif self.body == "form":
             kwargs["data"] = body
         elif self.body == "multipart":
