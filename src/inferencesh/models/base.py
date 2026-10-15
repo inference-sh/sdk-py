@@ -99,7 +99,7 @@ class OrderedSchemaModel(BaseModel):
 
         # A field also declared by a base is an override and keeps the
         # base's position; only genuinely new fields lead.
-        inherited = set()
+        inherited: set[str] = set()
         for base in cls.__mro__[1:]:
             fields = getattr(base, "model_fields", None)
             if isinstance(fields, dict):

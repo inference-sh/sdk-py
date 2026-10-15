@@ -31,7 +31,6 @@ from typing import (
     Mapping,
     NamedTuple,
     Optional,
-    Tuple,
     Union,
 )
 from urllib.parse import quote

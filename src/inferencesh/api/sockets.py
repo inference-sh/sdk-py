@@ -7,10 +7,9 @@ task. The run response carries the caller's end (``task["socket"]``);
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
+from typing import Any, Dict, Optional, Union, TYPE_CHECKING
 
-from ..types import CursorListRequest, CursorListResponse, FilterOperator, SocketAccess, SocketDTO, TaskStatus
+from ..types import CursorListRequest, CursorListResponse, FilterOperator, SocketAccess, SocketDTO
 from ..live import AsyncLiveSession
 
 if TYPE_CHECKING:
@@ -21,7 +20,7 @@ SocketTarget = Union[Dict[str, Any], str]
 
 
 def _task_filter(task_id: str) -> CursorListRequest:
-    return {"limit": 1, "filters": [{"field": "task_id", "operator": FilterOperator.OP_EQUAL.value, "value": task_id}]}
+    return {"limit": 1, "filters": [{"field": "task_id", "operator": FilterOperator.OP_EQUAL, "value": task_id}]}
 
 
 class SocketsAPI:

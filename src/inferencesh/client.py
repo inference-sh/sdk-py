@@ -530,7 +530,6 @@ class Inference:
         self._api_key = _resolve_api_key(api_key)
         self._base_url = base_url or "https://api.inference.sh"
         self._on_message = on_message
-        
 
         # SSE configuration with environment variable fallbacks
         self._sse_mode = sse_mode or os.getenv("INFERENCE_SSE_MODE") or "iter_lines"

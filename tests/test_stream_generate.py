@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, List
 
-import pytest
-
 from inferencesh.llm_types_gen import (
     LLMDelta,
     ResponseFormat,

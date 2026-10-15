@@ -151,7 +151,7 @@ def _tool_path(tool_invocation_id: str, action: str = "") -> str:
 
 def _tool_result_body(
     result_or_action: str | dict[str, Any],
-    attachments: Optional[List[Dict[str, Any]]] = None,
+    attachments: Optional[List[FileRef]] = None,
 ) -> Dict[str, Any]:
     # Widget actions are sent as a JSON string
     body: Dict[str, Any] = {

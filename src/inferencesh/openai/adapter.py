@@ -27,9 +27,11 @@ from typing import (
     AsyncGenerator,
     Dict,
     List,
+    Literal,
     Optional,
     Type,
     Union,
+    cast,
     get_type_hints,
 )
 
@@ -67,7 +69,6 @@ from .types import (
     FinishReason,
     FunctionCallByName,
     NamedToolChoice,
-    ResponseFunctionCall,
     ResponseToolCall,
 )
 
@@ -368,7 +369,7 @@ class _ChunkStream:
                 ChoiceDeltaToolCall(
                     index=tc.index,
                     id=tc.id,
-                    type=tc.type,
+                    type=cast(Optional[Literal["function"]], tc.type),
                     function=ChoiceDeltaFunctionCall(
                         name=tc.function.name or None,
                         arguments=tc.function.arguments or None,
