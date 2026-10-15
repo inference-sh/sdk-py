@@ -789,7 +789,7 @@ class SecretRequirement(TypedDict, total=False):
 # the platform-defined grants it needs ("x.tweet.read", "google.sheets":
 # an OAuth grant with the scopes it implies), each a capability of the
 # entry's own provider. Provider seeds the catalog row for the company the
-# first time it is seen and never overwrites it; Auth seeds the auth scheme
+# first time it is seen and never overwrites it; Auth seeds the auth provider
 # when the slug is free.
 # 
 # 	credentials:
@@ -812,13 +812,13 @@ class CredentialRequirement(TypedDict, total=False):
     # Provider describes the company the credential belongs to, for a
     # catalog row that does not exist yet. Its slug defaults to the
     # credential slug.
-    provider: Optional[ProviderSeed]
-    # Auth is the credential's auth scheme, for a slug no row defines yet.
-    auth: Optional[AuthSchemeSpec]
+    provider: Optional[CompanySeed]
+    # Auth is the credential's auth provider, for a slug no row defines yet.
+    auth: Optional[AuthMethod]
 
-# ProviderSeed is a provider (the company behind a credential) as an app
+# CompanySeed is a provider (the company behind a credential) as an app
 # declares it: enough to create its catalog row when none exists.
-class ProviderSeed(TypedDict, total=False):
+class CompanySeed(TypedDict, total=False):
     slug: str
     name: str
     description: str
@@ -1312,9 +1312,9 @@ class CredentialSecretRef(TypedDict, total=False):
     key: str
     updated_at: str
 
-# ProviderSummary is the company a credential slug belongs to: the
+# CompanySummary is the company a credential slug belongs to: the
 # providers row's identity, for grouping and display.
-class ProviderSummary(TypedDict, total=False):
+class CompanySummary(TypedDict, total=False):
     slug: str
     name: str
     icon_url: str
@@ -1330,8 +1330,11 @@ class CredentialConfigDTO(TypedDict, total=False):
     # one way to authenticate. The company it belongs to is ProviderInfo.
     provider: str
     # ProviderInfo is the company this slug belongs to, for grouping: the
-    # providers row its auth scheme names, else the slug's own identity.
-    provider_info: Optional[ProviderSummary]
+    # providers row its auth provider names, else the slug's own identity.
+    provider_info: Optional[CompanySummary]
+    # Company is ProviderInfo under its settled name (INF-1079); provider_info
+    # stays one release.
+    company: Optional[CompanySummary]
     type: str
     name: str
     short_name: str
@@ -1352,8 +1355,8 @@ class CredentialConfigDTO(TypedDict, total=False):
     # set up yet, or when it doesn't sign in through one. Credential is the
     # login itself.
     app: Optional[CredentialDTO]
-    # AuthSchemeID is set when the provider is one the team defined
-    # itself (models.AuthScheme), so the UI can offer edit and remove.
+    # AuthProviderID is set when the provider is one the team defined
+    # itself (models.AuthProvider), so the UI can offer edit and remove.
     auth_scheme_id: str
     # Credential is the login used where no account is named: the caller's
     # own, else the workspace's default account.
@@ -2797,20 +2800,20 @@ class SecretField(TypedDict, total=False):
     sensitive: bool
     optional: bool
 
-# AuthSchemeRevoke is the optional token revocation on disconnect.
-class AuthSchemeRevoke(TypedDict, total=False):
+# AuthMethodRevoke is the optional token revocation on disconnect.
+class AuthMethodRevoke(TypedDict, total=False):
     url: str
-    style: AuthSchemeRevokeStyle
+    style: AuthMethodRevokeStyle
     # ClientAuth also sends client_id and client_secret in the form
     # (Discord).
     client_auth: bool
 
-# AuthSchemeAppKey is one key of the OAuth app a login goes through. The
+# AuthMethodAppKey is one key of the OAuth app a login goes through. The
 # client id and secret are implied (PREFIX_CLIENT_ID, PREFIX_CLIENT_SECRET);
 # listing them only overrides their label and placeholder. Other keys
 # (bot_token, signing_secret, tenant_id) are optional extras the app holds,
 # read back by name in templates as {app.<name>} and by hooks.
-class AuthSchemeAppKey(TypedDict, total=False):
+class AuthMethodAppKey(TypedDict, total=False):
     # Name is the key's role: client_id, client_secret, bot_token, …
     name: str
     # Key is the vault key; default PREFIX_<NAME>.
@@ -2821,12 +2824,12 @@ class AuthSchemeAppKey(TypedDict, total=False):
     # Optional is implied for every name but client_id and client_secret.
     optional: bool
 
-# AuthSchemeLookup is a call made after the token exchange, with the new
+# AuthMethodLookup is a call made after the token exchange, with the new
 # access token as bearer; its decoded response becomes a document root of
 # its name for the identity, metadata and later lookups ({user.email},
 # {resources.0.id}). userinfo_url is shorthand for the lookup named user.
 # URL, body and headers are templates.
-class AuthSchemeLookup(TypedDict, total=False):
+class AuthMethodLookup(TypedDict, total=False):
     name: str
     url: str
     method: str
@@ -2836,20 +2839,20 @@ class AuthSchemeLookup(TypedDict, total=False):
     content_type: str
     headers: Dict[str, str]
 
-# AuthSchemeCapability is something an app can ask for from this provider,
+# AuthMethodCapability is something an app can ask for from this provider,
 # satisfied by a connection holding its scopes. Scopes are in the scheme's
 # own (friendly) names, the ones a credential stores.
-class AuthSchemeCapability(TypedDict, total=False):
+class AuthMethodCapability(TypedDict, total=False):
     key: str
     scopes: List[str]
     satisfies: List[str]
     display_name: str
     description: str
 
-# AuthSchemeSpec is one way to authenticate against a provider, as data.
+# AuthMethod is one way to authenticate against a provider, as data.
 # Everything a standard OAuth2 provider needs is a field; where a provider
 # deviates in a way data cannot express, the spec names a hook and Go
-# supplies it (authprovider.RegisterTokenResponseHook and friends).
+# supplies it (authmethod.RegisterTokenResponseHook and friends).
 # 
 # Templates: URLs, headers, lookup bodies, identifier, name, metadata and
 # env values are strings with {{path}} placeholders. A path is read from
@@ -2869,20 +2872,20 @@ class AuthSchemeCapability(TypedDict, total=False):
 # Array elements are indexed: {{resources.0.id}}. {{a|b}} takes the first
 # path present. A template none of whose placeholders resolve renders "":
 # omitted from env and metadata, blank as identifier or name.
-class AuthSchemeSpec(TypedDict, total=False):
-    kind: AuthSchemeKind
+class AuthMethod(TypedDict, total=False):
+    kind: AuthMethodKind
     # Flow is the oauth2 grant; empty means authorization_code.
-    flow: AuthSchemeFlow
+    flow: AuthMethodFlow
     # Fields are what a person pastes (api_key and http kinds).
     fields: List[SecretField]
     # In and ParamName say where an api_key key goes on a request: the
     # header or query parameter of that name. ValuePrefix is prepended to
     # the value ("Bearer "). Not needed to connect; read by injection.
-    in_: AuthSchemeAPIKeyIn
+    in_: AuthMethodAPIKeyIn
     param_name: str
     value_prefix: str
     # Scheme and BearerFormat describe an http kind's Authorization header.
-    scheme: AuthSchemeHTTPScheme
+    scheme: AuthMethodHTTPScheme
     bearer_format: str
     authorization_endpoint: str
     scopes: List[str]
@@ -2945,7 +2948,7 @@ class AuthSchemeSpec(TypedDict, total=False):
     # from the connect intent, never from the callback's path.
     callback: str
     # Profile names the authorization server's deviations from the specs
-    # (authprovider.AuthServerProfile: endpoints placed by app fields,
+    # (authmethod.AuthServerProfile: endpoints placed by app fields,
     # scopes on refresh, actionable errors, admin consent). Empty = none.
     profile: str
     token_endpoint: str
@@ -2953,8 +2956,8 @@ class AuthSchemeSpec(TypedDict, total=False):
     # one and Revoke names no style of its own: tokens are revoked there
     # with a form POST.
     revocation_endpoint: str
-    client_auth: AuthSchemeClientAuth
-    token_request: AuthSchemeTokenRequest
+    client_auth: AuthMethodClientAuth
+    token_request: AuthMethodTokenRequest
     # Headers go on every request to the provider (User-Agent for Reddit,
     # Notion-Version); values are templates ({{client_id}} for Twitch's
     # Client-Id).
@@ -2962,8 +2965,8 @@ class AuthSchemeSpec(TypedDict, total=False):
     # TokenResponseHook names the Go reader for a token response that is
     # not the RFC 6749 shape (Slack's nested authed_user). Empty = standard.
     token_response_hook: str
-    refresh: AuthSchemeRefresh
-    revoke: Optional[AuthSchemeRevoke]
+    refresh: AuthMethodRefresh
+    revoke: Optional[AuthMethodRevoke]
     # UserInfoURL is fetched with the new access token; the response is the
     # identity document (user.*). UserInfoURLPath instead reads that URL
     # from a path within the token response (Salesforce's "id"). Lookups
@@ -2971,7 +2974,7 @@ class AuthSchemeSpec(TypedDict, total=False):
     # user. With none of these, the token response is all there is.
     userinfo_url: str
     userinfo_url_path: str
-    lookups: List[AuthSchemeLookup]
+    lookups: List[AuthMethodLookup]
     # Identifier is the connected account's stable, human-readable id
     # ("{{user.email}}", "@{{user.data.username}}"); Name its display name.
     identifier: str
@@ -2992,12 +2995,12 @@ class AuthSchemeSpec(TypedDict, total=False):
     env: Dict[str, str]
     # AppKeys are the OAuth app's keys beyond the implied client id and
     # secret, and label overrides for those.
-    app_keys: List[AuthSchemeAppKey]
+    app_keys: List[AuthMethodAppKey]
     # VarsHook names Go code that turns the app's extra keys into the
     # {var} values substituted into the URLs (Microsoft's tenant,
     # Salesforce's sandbox host).
     vars_hook: str
-    capabilities: List[AuthSchemeCapability]
+    capabilities: List[AuthMethodCapability]
 
 # ChatData contains agent-specific data for a chat session
 class ChatData(TypedDict, total=False):
@@ -4648,7 +4651,7 @@ class Scope(str, Enum):
     # existed); an app's OAuth token or a bound session never does.
     SECRETS_REVEAL = "secrets:reveal"
     # Action-level scopes for credentials (connected accounts, vaults,
-    # auth schemes, MCP servers).
+    # auth providers, MCP servers).
     CREDENTIALS_READ = "credentials:read"
     CREDENTIALS_WRITE = "credentials:write"
     # Action-level scopes for Engines
@@ -5005,69 +5008,69 @@ class GPUType(str, Enum):
     AMD = "amd"
     APPLE = "apple"
 
-class AuthSchemeKind(str, Enum):
-    # AuthSchemeOAuth2 is OAuth 2.0; Flow says which grant.
-    AUTH_SCHEME_O_AUTH2 = "oauth2"
-    # AuthSchemeAPIKey is one or more keys a person pastes, sent as a
+class AuthMethodKind(str, Enum):
+    # AuthMethodOAuth2 is OAuth 2.0; Flow says which grant.
+    AUTH_METHOD_O_AUTH2 = "oauth2"
+    # AuthMethodAPIKey is one or more keys a person pastes, sent as a
     # header or query parameter.
-    AUTH_SCHEME_API_KEY = "api_key"
-    # AuthSchemeHTTP is a pasted secret sent as an HTTP auth scheme
+    AUTH_METHOD_API_KEY = "api_key"
+    # AuthMethodHTTP is a pasted secret sent as an HTTP auth provider
     # (Authorization: Bearer or Basic).
-    AUTH_SCHEME_HTTP = "http"
+    AUTH_METHOD_HTTP = "http"
 
-# Deprecated: the kind is AuthSchemeOAuth2 with AuthSchemeFlowAuthorizationCode.
+# Deprecated: the kind is AuthMethodOAuth2 with AuthMethodFlowAuthorizationCode.
 # Same value, so comparisons keep working; rows still stored as
 # "oauth2_authorization_code" are read as oauth2 (UnmarshalJSON).
-AuthSchemeOAuth2AuthorizationCode = AuthSchemeKind.AUTH_SCHEME_O_AUTH2
+AuthMethodOAuth2AuthorizationCode = AuthMethodKind.AUTH_METHOD_O_AUTH2
 
-class AuthSchemeFlow(str, Enum):
-    # AuthSchemeFlowAuthorizationCode is the user-consent flow: authorization
+class AuthMethodFlow(str, Enum):
+    # AuthMethodFlowAuthorizationCode is the user-consent flow: authorization
     # endpoint → code → token endpoint, optionally with PKCE. The default.
     AUTHORIZATION_CODE = "authorization_code"
-    # AuthSchemeFlowClientCredentials is server-to-server: the app's client
+    # AuthMethodFlowClientCredentials is server-to-server: the app's client
     # id and secret are exchanged at the token endpoint, no redirect, no
     # user. The login is the app's own.
     CLIENT_CREDENTIALS = "client_credentials"
 
-class AuthSchemeAPIKeyIn(str, Enum):
+class AuthMethodAPIKeyIn(str, Enum):
     HEADER = "header"
     QUERY = "query"
 
-class AuthSchemeHTTPScheme(str, Enum):
-    AUTH_SCHEME_HTTP_BEARER = "bearer"
-    AUTH_SCHEME_HTTP_BASIC = "basic"
+class AuthMethodHTTPScheme(str, Enum):
+    AUTH_METHOD_HTTP_BEARER = "bearer"
+    AUTH_METHOD_HTTP_BASIC = "basic"
 
-class AuthSchemeClientAuth(str, Enum):
-    # AuthSchemeClientAuthBasic sends them as an HTTP Basic Authorization
+class AuthMethodClientAuth(str, Enum):
+    # AuthMethodClientAuthBasic sends them as an HTTP Basic Authorization
     # header (RFC 6749 §2.3.1, the default).
     BASIC = "basic"
-    # AuthSchemeClientAuthBody sends them as form fields in the request body.
+    # AuthMethodClientAuthBody sends them as form fields in the request body.
     BODY = "body"
-    # AuthSchemeClientAuthNone is a public client (RFC 8414
+    # AuthMethodClientAuthNone is a public client (RFC 8414
     # token_endpoint_auth_method "none"): the client id goes in the body,
     # there is no secret, and PKCE is what proves the client. Its OAuth app
     # is complete with a client id alone (a dynamically registered client,
     # or a Client ID Metadata Document URL).
     NONE = "none"
 
-class AuthSchemeTokenRequest(str, Enum):
+class AuthMethodTokenRequest(str, Enum):
     FORM = "form"
     JSON = "json"
 
-class AuthSchemeRefresh(str, Enum):
-    # AuthSchemeRefreshWhenExpiring refreshes within five minutes of the
+class AuthMethodRefresh(str, Enum):
+    # AuthMethodRefreshWhenExpiring refreshes within five minutes of the
     # reported expiry; a token with no expiry is treated as long-lived
     # (Slack without token rotation, Notion).
     WHEN_EXPIRING = ""
-    # AuthSchemeRefreshAlways refreshes on every read: the provider reports
+    # AuthMethodRefreshAlways refreshes on every read: the provider reports
     # no expiry but the token does expire (Salesforce's session timeout is
     # per org and not reported).
     ALWAYS = "always"
 
-class AuthSchemeRevokeStyle(str, Enum):
-    AUTH_SCHEME_REVOKE_BEARER = "bearer"
-    AUTH_SCHEME_REVOKE_QUERY = "query"
-    AUTH_SCHEME_REVOKE_FORM = "form"
+class AuthMethodRevokeStyle(str, Enum):
+    AUTH_METHOD_REVOKE_BEARER = "bearer"
+    AUTH_METHOD_REVOKE_QUERY = "query"
+    AUTH_METHOD_REVOKE_FORM = "form"
 
 class Visibility(str, Enum):
     PRIVATE = "private"
