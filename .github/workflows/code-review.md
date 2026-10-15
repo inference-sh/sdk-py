@@ -1,8 +1,8 @@
 ---
-description: "AI code review on push to main - lint/test fixes and pattern/antipattern detection"
+description: "Weekly: AI code review of the last 7 days on dev - lint/test fixes and pattern/antipattern detection"
 on:
-  push:
-    branches: [dev]
+  schedule: weekly on monday
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,14 +20,14 @@ network:
     - python
 
 steps:
-  - name: Save commit range
-    env:
-      BEFORE_SHA: ${{ github.event.before }}
-      AFTER_SHA: ${{ github.event.after }}
+  - name: Save commit range (last 7 days)
     run: |
-      echo "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-range.txt
-      git log --oneline "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-log.txt 2>&1 || true
-      git diff "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-diff.txt 2>&1 || true
+      git fetch --quiet --unshallow origin 2>/dev/null || git fetch --quiet --shallow-since="10 days ago" origin "$(git rev-parse --abbrev-ref HEAD)" || true
+      BASE=$(git rev-list -1 --before="7 days ago" HEAD 2>/dev/null || true)
+      [ -z "$BASE" ] && BASE=$(git rev-list --max-parents=0 HEAD | tail -1)
+      echo "${BASE}..HEAD" > /tmp/gh-aw/commit-range.txt
+      git log --oneline "${BASE}..HEAD" > /tmp/gh-aw/commit-log.txt 2>&1 || true
+      git diff "${BASE}..HEAD" > /tmp/gh-aw/commit-diff.txt 2>&1 || true
   - name: Install dependencies
     run: |
       pip install -e ".[dev]" 2>&1 || pip install -r requirements.txt 2>&1 || true
@@ -61,12 +61,12 @@ safe-outputs:
 timeout-minutes: 30
 ---
 
-# Code Review on Push
+# Weekly Code Review
 
 You are an expert code reviewer for a Python SDK library. You have two jobs:
 
 1. Fix any lint, type check, or test failures from the deterministic checks
-2. Review the newly pushed code for patterns/antipatterns
+2. Review the code merged in the last 7 days for patterns/antipatterns
 
 ## Step 1: Check Lint, Type Check, and Test Results
 
@@ -82,13 +82,15 @@ If there are lint errors, type errors, or test failures, fix them. These are you
 
 ## Step 2: Detect What Changed
 
-The commit range, log, and diff for this push have been pre-computed. Read them:
+The commit range, log, and diff for the last 7 days on this branch have been pre-computed. Read them:
 
 ```bash
 cat /tmp/gh-aw/commit-range.txt
 cat /tmp/gh-aw/commit-log.txt
 cat /tmp/gh-aw/commit-diff.txt
 ```
+
+**Before opening anything, list the open issues and pull requests labelled `code-review` in this repository and skip any finding already reported there.**
 
 **IMPORTANT: Only review and fix code from the commit diff. Do not scan or fix unrelated parts of the repository.**
 
