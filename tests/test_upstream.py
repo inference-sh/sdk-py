@@ -266,6 +266,7 @@ def test_build_unknown_body_kind():
         op.build({"a": 1})
 
 
+@pytest.mark.filterwarnings("error::DeprecationWarning")
 async def test_api_key_in_cookie(monkeypatch):
     monkeypatch.setenv("CK", "v")
     seen = {}
@@ -278,6 +279,21 @@ async def test_api_key_in_cookie(monkeypatch):
     async with client(handler, auth=auth) as c:
         await c.call(Operation(name="g", method="GET", path="/a", body="none"))
     assert seen["cookie"] == "session=v"
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_keeps_caller_cookie_header(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a", headers={"cookie": "theme=dark"})
+    assert seen["cookie"] == "theme=dark; session=v"
 
 
 async def test_oauth2_injected_access_token(monkeypatch):

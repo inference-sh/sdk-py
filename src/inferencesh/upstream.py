@@ -278,7 +278,10 @@ class UpstreamClient:
             elif auth.location == "query":
                 kwargs.setdefault("params", {})[auth.name] = value
             elif auth.location == "cookie":
-                kwargs.setdefault("cookies", {})[auth.name] = value
+                # httpx deprecates per-request cookies=, so send the Cookie header.
+                pair = f"{auth.name}={value}"
+                key = next((k for k in headers if k.lower() == "cookie"), "Cookie")
+                headers[key] = f"{headers[key]}; {pair}" if headers.get(key) else pair
             else:
                 raise ValueError(f"auth {name!r}: unknown api_key location {auth.location!r}")
         elif auth.kind == "http":
