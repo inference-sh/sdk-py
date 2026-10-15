@@ -452,6 +452,26 @@ class TestMCPToolBuilder:
 
         assert t["mcp"] == {"server": "exa", "tool_name": "search", "credential_id": "cred-42"}
 
+    def test_mcp_tool_three_positionals_are_credential_id_and_tool_name(self):
+        """After v0.27.2 (INF-1063), the middle positional is credential_id, not server slug."""
+        t = mcp_tool("lookup", "cred-conn", "search_repos").build()
+
+        assert t["mcp"] == {"tool_name": "search_repos", "credential_id": "cred-conn"}
+        assert "server" not in t["mcp"]
+
+    def test_mcp_tool_server_slug_requires_keyword(self):
+        t = mcp_tool("lookup", tool_name="search_repos", server="github-mcp").build()
+
+        assert t["mcp"] == {"server": "github-mcp", "tool_name": "search_repos"}
+        assert "credential_id" not in t["mcp"]
+
+    def test_mcp_tool_omits_credential_id_when_unset_or_empty(self):
+        unset = mcp_tool("web_search", tool_name="search", server="exa", credential_id=None).build()
+        empty = mcp_tool("web_search", tool_name="search", server="exa", credential_id="").build()
+
+        assert "credential_id" not in unset["mcp"]
+        assert "credential_id" not in empty["mcp"]
+
     def test_mcp_tool_rejects_integration_id_keyword(self):
         with pytest.raises(TypeError, match="integration_id"):
             mcp_tool("web_search", integration_id="int-abc", tool_name="search")

@@ -75,6 +75,14 @@ def test_video_input_accepts_videos_alone(tmp_path):
     assert "videos" not in DecisionVisionInput.model_fields
 
 
+def test_video_input_still_accepts_images_without_videos(tmp_path):
+    """Video decision models inherit vision content rules; images alone are enough."""
+    image = tmp_path / "frame.png"
+    image.write_bytes(b"\x89PNG")
+    data = DecisionVideoInput(images=[str(image)], nouls=[NOUL])
+    assert data.images and not data.videos
+
+
 def test_from_answers_types_normalizes_and_meters():
     data = DecisionInput(state="x", choices=[CHOICE], scores=[SCORE], nouls=[NOUL])
     answers = {

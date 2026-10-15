@@ -1,5 +1,7 @@
 """Tests for LLM message/tool builders (build_openai_messages, build_tools)."""
 
+import base64
+import io
 import os
 import tempfile
 from unittest.mock import patch
@@ -7,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from inferencesh import File
+from inferencesh.images import ImageLimits
 from pydantic import ValidationError
 
 from inferencesh.models.llm import (
@@ -467,6 +470,118 @@ class TestBuildOpenAIMessages:
         finally:
             os.unlink(path)
 
+    def test_image_limits_downsizes_local_images_in_base64_mode(self, tmp_path):
+        pytest.importorskip("PIL")
+        from PIL import Image
+
+        path = tmp_path / "wide.png"
+        Image.new("RGB", (3840, 2160), (0, 160, 0)).save(path, format="PNG")
+        image = File(path=str(path))
+        messages = build_openai_messages(
+            LLMInput(
+                text="describe",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.USER,
+                        text="look",
+                        images=[image],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="base64",
+            image_limits=ImageLimits(max_long_edge=1568),
+        )
+        user = next(m for m in messages if m["role"] == "user")
+        uri = next(p for p in user["content"] if p["type"] == "image_url")["image_url"]["url"]
+        assert uri.startswith("data:image/png;base64,")
+        raw = base64.b64decode(uri.split(",", 1)[1])
+        assert Image.open(io.BytesIO(raw)).size == (1568, 882)
+
+    def test_image_limits_downsizes_tool_message_images_in_base64_mode(self, tmp_path):
+        """Tool images use the same fit path when encoded for OpenRouter-style tool parts."""
+        pytest.importorskip("PIL")
+        from PIL import Image
+
+        path = tmp_path / "shot.png"
+        Image.new("RGB", (3000, 2000), (200, 0, 0)).save(path, format="PNG")
+        shot = File(path=str(path))
+        messages = build_openai_messages(
+            LLMInput(
+                text="what do you see?",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[{
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "screenshot", "arguments": "{}"},
+                        }],
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="captured",
+                        tool_call_id="call_1",
+                        images=[shot],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="base64",
+            image_limits=ImageLimits(max_long_edge=1000),
+        )
+        tool = next(m for m in messages if m["role"] == "tool")
+        uri = next(p for p in tool["content"] if p["type"] == "image_url")["image_url"]["url"]
+        raw = base64.b64decode(uri.split(",", 1)[1])
+        w, h = Image.open(io.BytesIO(raw)).size
+        assert max(w, h) == 1000
+        assert abs(w / h - 1.5) < 0.02
+
+    def test_image_limits_downsizes_tool_media_moved_to_follow_up_user_message(self, tmp_path):
+        """Backends that take tool images only in a user message still get fitted bytes."""
+        pytest.importorskip("PIL")
+        from PIL import Image
+
+        path = tmp_path / "shot.png"
+        Image.new("RGB", (2400, 1600), (10, 20, 30)).save(path, format="PNG")
+        shot = File(path=str(path))
+        messages = build_openai_messages(
+            LLMInput(
+                text="what changed?",
+                context=[
+                    ContextMessage(
+                        role=ContextMessageRole.ASSISTANT,
+                        text="",
+                        tool_calls=[{
+                            "id": "call_2",
+                            "type": "function",
+                            "function": {"name": "screenshot", "arguments": "{}"},
+                        }],
+                    ),
+                    ContextMessage(
+                        role=ContextMessageRole.TOOL,
+                        text="done",
+                        tool_call_id="call_2",
+                        images=[shot],
+                    ),
+                ],
+                system_prompt="",
+            ),
+            image_mode="base64",
+            image_limits=ImageLimits(max_long_edge=800),
+            tool_media_as_user_message=True,
+        )
+        media_user = next(
+            m for m in messages
+            if m["role"] == "user" and isinstance(m["content"], list)
+            and any(p.get("type") == "image_url" for p in m["content"])
+        )
+        uri = next(p for p in media_user["content"] if p["type"] == "image_url")["image_url"]["url"]
+        raw = base64.b64decode(uri.split(",", 1)[1])
+        w, h = Image.open(io.BytesIO(raw)).size
+        assert max(w, h) == 800
+
     def test_build_messages_is_alias_for_build_openai_messages(self):
         assert build_messages is build_openai_messages
 
@@ -640,6 +755,8 @@ class TestGeneratedTypeConsumption:
         u = LLMUsage()
         assert u.stop_reason == ""
         assert u.prompt_tokens == 0
+        assert u.cached_tokens == 0
+        assert u.cache_write_tokens == 0
         assert u.tokens_per_second == 0.0
 
     def test_context_message_role_is_generated_enum(self):
