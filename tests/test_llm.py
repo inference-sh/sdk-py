@@ -700,6 +700,13 @@ class TestModelSettingsAndSamplingParams:
         assert ChatInput is LLMInput
         assert BaseLLMInput is LLMInput
 
+    def test_llm_input_json_schema_lists_turn_before_settings(self):
+        """Gotypegen inlines the turn before settings; overrides keep inherited slots (3af7caa)."""
+        keys = list(LLMInput.model_json_schema()["properties"].keys())
+        assert keys.index("text") < keys.index("system_prompt")
+        assert keys.index("tool_call_id") < keys.index("context_size")
+        assert keys.index("context_size") > keys.index("text")
+
     def test_input_sampling_params_flat(self):
         inp = LLMInput(text="hi", temperature=0.5, top_k=40, min_p=0.1, seed=42)
         assert inp.temperature == 0.5

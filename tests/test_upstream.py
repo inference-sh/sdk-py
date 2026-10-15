@@ -6,7 +6,16 @@ import pytest
 httpx = pytest.importorskip("httpx")
 from pydantic import BaseModel, Field
 
-from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
+from inferencesh.upstream import (
+    ERROR_BODY_LIMIT,
+    Auth,
+    MissingSecret,
+    Operation,
+    UpstreamClient,
+    UpstreamError,
+    decode,
+    error_for,
+)
 
 
 class SearchIn(BaseModel):
@@ -509,3 +518,39 @@ async def test_transport_errors_exhaust_retry_budget():
     async with client(handler, max_retries=1) as c:
         with pytest.raises(UpstreamError, match="down"):
             await c.request("GET", "/x")
+
+
+def test_decode_empty_body():
+    assert decode(httpx.Response(204, content=b"")) == {}
+
+
+def test_decode_json_by_content_type():
+    assert decode(httpx.Response(200, json={"a": 1})) == {"a": 1}
+
+
+def test_decode_json_without_content_type_header():
+    response = httpx.Response(200, content=b'{"ok": true}', headers={})
+    assert decode(response) == {"ok": True}
+
+
+def test_decode_plain_text_when_not_json():
+    response = httpx.Response(200, content=b"plain", headers={"content-type": "text/plain"})
+    assert decode(response) == "plain"
+
+
+def test_error_for_includes_parsed_json_body():
+    response = httpx.Response(400, json={"detail": "bad"})
+    err = error_for(response, "POST", "/x")
+    assert err.status == 400
+    assert err.body == {"detail": "bad"}
+    assert err.method == "POST" and err.path == "/x"
+    assert "POST /x: 400" in str(err)
+
+
+def test_error_for_truncates_long_text_body():
+    long_text = "x" * 600
+    response = httpx.Response(500, content=long_text.encode())
+    err = error_for(response, "GET", "/y")
+    assert err.status == 500
+    assert isinstance(err.body, str)
+    assert len(err.body) == ERROR_BODY_LIMIT
