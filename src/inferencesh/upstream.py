@@ -239,12 +239,15 @@ class UpstreamClient:
         """One request with auth applied, retried on 429 and 5xx; raises on error."""
         import httpx
 
-        await self._apply_auth(kwargs, auth or self.default_auth)
+        cookie = await self._apply_auth(kwargs, auth or self.default_auth)
         method = method.upper()
         response: Optional[httpx.Response] = None
         for attempt in range(self.max_retries + 1):
             try:
-                response = await self.http.request(method, path, **kwargs)
+                if cookie is None:
+                    response = await self.http.request(method, path, **kwargs)
+                else:
+                    response = await self.http.send(self._with_auth_cookie(method, path, kwargs, cookie))
             except httpx.HTTPError as exc:
                 if attempt == self.max_retries:
                     raise UpstreamError(f"{method} {path}: {exc}", method=method, path=path) from exc
@@ -264,13 +267,21 @@ class UpstreamClient:
 
     # -- auth -----------------------------------------------------------------
 
-    async def _apply_auth(self, kwargs: Dict[str, Any], name: str) -> None:
+    async def _apply_auth(self, kwargs: Dict[str, Any], name: str) -> Optional[Tuple[str, str]]:
+        """Apply auth ``name`` to the request kwargs.
+
+        Returns the api-key cookie as ``(name, value)`` when the auth is one:
+        it is merged into the request's Cookie header at send time, beside the
+        jar's and any caller cookies (see :meth:`_with_auth_cookie`).
+        """
+        import httpx
+
         if not name:
-            return
+            return None
         auth = self.auth.get(name)
         if auth is None:
             raise ValueError(f"auth {name!r} is not one of {sorted(self.auth)}")
-        headers = kwargs.setdefault("headers", {})
+        headers = kwargs["headers"] = httpx.Headers(kwargs.get("headers"))
         if auth.kind == "api_key":
             value = auth.prefix + _secret(auth.secret)
             if auth.location == "header":
@@ -278,10 +289,7 @@ class UpstreamClient:
             elif auth.location == "query":
                 kwargs.setdefault("params", {})[auth.name] = value
             elif auth.location == "cookie":
-                # httpx deprecates per-request cookies=, so send the Cookie header.
-                pair = f"{auth.name}={value}"
-                key = next((k for k in headers if k.lower() == "cookie"), "Cookie")
-                headers[key] = f"{headers[key]}; {pair}" if headers.get(key) else pair
+                return (auth.name, value)
             else:
                 raise ValueError(f"auth {name!r}: unknown api_key location {auth.location!r}")
         elif auth.kind == "http":
@@ -299,6 +307,27 @@ class UpstreamClient:
                 headers["Authorization"] = "Bearer " + _secret(auth.secret)
         else:
             raise ValueError(f"auth {name!r}: unknown kind {auth.kind!r}")
+        return None
+
+    def _with_auth_cookie(self, method: str, path: str, kwargs: Dict[str, Any], cookie: Tuple[str, str]) -> "httpx.Request":
+        """Build the request with the api-key cookie added to its Cookie header.
+
+        httpx deprecates per-request ``cookies=``, and it leaves its cookie jar
+        out of any request that already carries a Cookie header, so the header
+        is assembled here: the jar's cookies for this URL, the client's default
+        Cookie header, the caller's, then the api key, which wins a name clash.
+        """
+        import httpx
+
+        request = self.http.build_request(method, path, **kwargs)
+        jar = httpx.Request(method, request.url)
+        self.http.cookies.set_cookie_header(jar)
+        sources = [jar.headers.get("cookie"), self.http.headers.get("cookie"), kwargs["headers"].get("cookie")]
+        name, value = cookie
+        pairs = [p.strip() for src in sources if src for p in src.split(";") if p.strip()]
+        pairs = [p for p in pairs if p.split("=", 1)[0].strip() != name]
+        request.headers["Cookie"] = "; ".join(list(dict.fromkeys(pairs)) + [f"{name}={value}"])
+        return request
 
     async def _client_credentials_token(self, name: str, auth: Auth) -> str:
         lock = self._token_locks.setdefault(name, asyncio.Lock())

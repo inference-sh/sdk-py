@@ -296,6 +296,53 @@ async def test_api_key_cookie_keeps_caller_cookie_header(monkeypatch):
     assert seen["cookie"] == "theme=dark; session=v"
 
 
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_keeps_cookies_the_upstream_set(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = []
+
+    def handler(request: httpx.Request):
+        seen.append(request.headers.get("cookie"))
+        return httpx.Response(200, json={}, headers={"set-cookie": "sid=abc; Path=/"})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a")
+        await c.request("GET", "/b")
+    assert seen == ["session=v", "sid=abc; session=v"]
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_keeps_client_default_cookie_header(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth, headers={"Cookie": "theme=dark"}) as c:
+        await c.request("GET", "/a")
+    assert seen["cookie"] == "theme=dark; session=v"
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_with_header_tuples_and_name_clash(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        seen["x"] = request.headers.get("x-trace")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a", headers=[("X-Trace", "1"), ("Cookie", "session=stale; theme=dark")])
+    assert seen == {"cookie": "theme=dark; session=v", "x": "1"}
+
+
 async def test_oauth2_injected_access_token(monkeypatch):
     monkeypatch.setenv("ACCESS", "inj")
     seen = {}
