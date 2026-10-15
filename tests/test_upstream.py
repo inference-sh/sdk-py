@@ -2,8 +2,8 @@
 
 import json
 
-import httpx
 import pytest
+httpx = pytest.importorskip("httpx")
 from pydantic import BaseModel, Field
 
 from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
