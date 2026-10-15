@@ -1,5 +1,7 @@
 """Tests for the tool builder fluent API."""
 
+import json
+
 import pytest
 
 from inferencesh.tools import (
@@ -419,6 +421,31 @@ class TestHTTPToolBuilder:
     def test_bearer_auth(self):
         t = http_tool("svc", "https://api.example.com").auth(bearer="TOKEN").build()
         assert t["http"]["auth"] == {"type": "bearer", "secret": "TOKEN"}
+
+    @pytest.mark.parametrize(
+        "builder, expected_auth",
+        [
+            (
+                lambda: http_tool("gh", "https://api.github.com/user").auth(
+                    credential="github", credential_id="cred-42"
+                ),
+                {"type": "credential", "provider": "github", "credential_id": "cred-42"},
+            ),
+            (
+                lambda: http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY"),
+                {"type": "api_key", "secret": "MY_KEY", "header": "X-API-Key"},
+            ),
+            (
+                lambda: http_tool("svc", "https://api.example.com").auth(bearer="TOKEN"),
+                {"type": "bearer", "secret": "TOKEN"},
+            ),
+        ],
+    )
+    def test_http_auth_serializes_with_tool_auth_type_enums(self, builder, expected_auth):
+        """HTTPToolBuilder stores ToolAuthType enums; wire JSON must stay string-typed."""
+        auth = builder().build()["http"]["auth"]
+        assert auth == expected_auth
+        assert json.loads(json.dumps(auth)) == expected_auth
 
     def test_static_headers_and_params(self):
         t = (

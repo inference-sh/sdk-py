@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import pytest
 
 from inferencesh import AsyncInference, Inference, LiveState, TaskStatus
-from inferencesh.api.sockets import AsyncSocketsAPI, SocketsAPI
+from inferencesh.api.sockets import AsyncSocketsAPI, SocketsAPI, _task_filter
 from inferencesh.models.response import Response
 
 from test_live import FakeWS, tick
@@ -76,6 +76,16 @@ def test_sync_sockets_http_methods():
     client.sockets.delete("sock-1")
     assert requests(calls) == ["GET /sockets/sock-1", "POST /sockets/list", "POST /sockets/sock-1/access", "DELETE /sockets/sock-1"]
     assert calls[1]["data"] == {"limit": 1, "filters": [{"field": "task_id", "operator": "eq", "value": "task-1"}]}
+
+
+def test_task_filter_operator_serializes_for_http_client():
+    """for_task passes FilterOperator enum members; Inference._request json.dumps the body."""
+    payload = _task_filter("task-abc")
+    wire = json.loads(json.dumps(payload))
+    assert wire == {
+        "limit": 1,
+        "filters": [{"field": "task_id", "operator": "eq", "value": "task-abc"}],
+    }
 
 
 def test_sync_for_task_without_socket_is_none():
