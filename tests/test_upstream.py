@@ -343,6 +343,43 @@ async def test_api_key_cookie_with_header_tuples_and_name_clash(monkeypatch):
     assert seen == {"cookie": "theme=dark; session=v", "x": "1"}
 
 
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_applies_prefix(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", prefix="sess_", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a")
+    assert seen["cookie"] == "session=sess_v"
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_build_request_omits_cookies_kwarg(monkeypatch):
+    """Cookie auth must not use httpx's per-request cookies= (jar is merged in send)."""
+    monkeypatch.setenv("CK", "v")
+    captured = {}
+
+    def handler(request: httpx.Request):
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        real_build = c.http.build_request
+
+        def spy(method, url, **kwargs):
+            captured.update(kwargs)
+            return real_build(method, url, **kwargs)
+
+        monkeypatch.setattr(c.http, "build_request", spy)
+        await c.request("GET", "/a")
+    assert "cookies" not in captured
+
+
 async def test_oauth2_injected_access_token(monkeypatch):
     monkeypatch.setenv("ACCESS", "inj")
     seen = {}
