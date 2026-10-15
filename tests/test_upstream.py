@@ -296,6 +296,53 @@ async def test_api_key_cookie_keeps_caller_cookie_header(monkeypatch):
     assert seen["cookie"] == "theme=dark; session=v"
 
 
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_applies_prefix(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", prefix="sess_", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a")
+    assert seen["cookie"] == "session=sess_v"
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_merges_into_existing_cookie_header_key(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    seen = {}
+
+    def handler(request: httpx.Request):
+        seen["cookie"] = request.headers.get("cookie")
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(handler, auth=auth) as c:
+        await c.request("GET", "/a", headers={"Cookie": "theme=dark"})
+    assert seen["cookie"] == "theme=dark; session=v"
+
+
+@pytest.mark.filterwarnings("error::DeprecationWarning")
+async def test_api_key_cookie_does_not_pass_cookies_kwarg_to_httpx(monkeypatch):
+    monkeypatch.setenv("CK", "v")
+    captured = {}
+
+    async def record_request(self, method, url, **kwargs):
+        captured.update(kwargs)
+        return httpx.Response(200, json={})
+
+    auth = Auth(kind="api_key", location="cookie", name="session", secret="CK")
+    async with client(lambda r: httpx.Response(200), auth=auth) as c:
+        monkeypatch.setattr(c.http, "request", record_request.__get__(c.http, type(c.http)))
+        await c.request("GET", "/a")
+    assert "cookies" not in captured
+    assert captured["headers"]["Cookie"] == "session=v"
+
+
 async def test_oauth2_injected_access_token(monkeypatch):
     monkeypatch.setenv("ACCESS", "inj")
     seen = {}
