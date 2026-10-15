@@ -1,5 +1,7 @@
 """Tests for the lifecycle hook builder."""
 
+import json
+
 from inferencesh.tools import lifecycle_hook
 from inferencesh.types import BuiltinHook, HookEvent, HookHandlerType
 
@@ -34,6 +36,25 @@ class TestLifecycleHookBuilder:
         assert "async" in hook
         assert "async_" not in hook
         assert hook["async"] is True
+
+    def test_built_hook_json_uses_wire_keys_and_string_enums(self):
+        """Agent definitions are json.dumps'd before upload; enums must become wire strings."""
+        hook = (
+            lifecycle_hook(HookEvent.AGENT_START)
+            .webhook("https://example.com/hook")
+            .async_(True)
+            .timeout(30)
+            .build()
+        )
+        wire = json.loads(json.dumps(hook))
+        assert wire == {
+            "event": "agent.start",
+            "type": "webhook",
+            "handler": "https://example.com/hook",
+            "async": True,
+            "timeout": 30,
+        }
+        assert "async_" not in wire
 
     def test_timeout_is_included(self):
         hook = (
