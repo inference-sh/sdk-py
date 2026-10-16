@@ -43,13 +43,13 @@ def test_stores_metadata_and_returns_same_function():
 
 def test_only_declared_parts_are_stored():
     @function(annotations={"readOnlyHint": True})
-    async def a(self, input_data: In) -> Out: ...
+    async def a(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     @function(credentials=[{"provider": "acme", "secrets": ["ACME_KEY"]}])
-    async def b(self, input_data: In) -> Out: ...
+    async def b(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     @function()
-    async def c(self, input_data: In) -> Out: ...
+    async def c(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     assert a.__inferencesh_function__ == {"annotations": {"readOnlyHint": True}}
     assert b.__inferencesh_function__ == {"credentials": [{"slug": "acme", "secrets": ["ACME_KEY"]}]}
@@ -58,12 +58,12 @@ def test_only_declared_parts_are_stored():
 
 def test_none_hints_are_dropped():
     @function(annotations={"title": "List", "readOnlyHint": True, "destructiveHint": None})
-    async def a(self, input_data: In) -> Out: ...
+    async def a(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     assert a.__inferencesh_function__ == {"annotations": {"title": "List", "readOnlyHint": True}}
 
     @function(annotations={"readOnlyHint": None})
-    async def b(self, input_data: In) -> Out: ...
+    async def b(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     assert b.__inferencesh_function__ == {}
 
@@ -73,7 +73,7 @@ def test_declaration_is_copied():
     ann = {"readOnlyHint": True}
 
     @function(credentials=creds, annotations=ann)
-    async def a(self, input_data: In) -> Out: ...
+    async def a(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     creds[0]["key"] = "changed"
     creds[0]["scopes"].append("x")
@@ -85,11 +85,13 @@ def test_declaration_is_copied():
 
 
 def test_typed_declarations_accepted():
-    cred: CredentialRequirement = {"key": "google.calendar.events", "optional": True}
+    # Use the canonical CredentialRequirement shape (slug + capabilities), not the
+    # legacy "key" alias, so the TypedDict annotation is valid for mypy.
+    cred: CredentialRequirement = {"slug": "google", "capabilities": ["google.calendar.events"], "optional": True}
     ann: ToolAnnotations = {"title": "Create event", "openWorldHint": True}
 
     @function(credentials=[cred], annotations=ann)
-    async def a(self, input_data: In) -> Out: ...
+    async def a(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
     assert a.__inferencesh_function__["credentials"] == [
         {"slug": "google", "capabilities": ["google.calendar.events"], "optional": True}
@@ -170,11 +172,11 @@ def test_bare_decorator_is_an_error():
     with pytest.raises(TypeError):
 
         @function  # type: ignore[arg-type]
-        async def a(self, input_data: In) -> Out: ...
+        async def a(self, input_data: In) -> Out: ...  # type: ignore[empty-body]
 
 
 class App(BaseApp):
-    @function(credentials=[{"key": "google.calendar.events"}], annotations={"readOnlyHint": True})
+    @function(credentials=[{"slug": "google", "capabilities": ["google.calendar.events"]}], annotations={"readOnlyHint": True})
     async def listen(self, input_data: In, socket: Socket) -> Out:
         """Stream function."""
         return Out()
