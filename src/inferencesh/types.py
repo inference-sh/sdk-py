@@ -865,7 +865,7 @@ class AppSandbox(TypedDict, total=False):
 # use.
 class DeployWarning(TypedDict, total=False):
     # Code identifies the check: readonly_broad_credential,
-    # unused_credential, missing_annotations.
+    # unused_credential, missing_annotations, unapproved_platform_scope.
     code: str
     # Function is the function the warning is about, when it is about one.
     function: str
@@ -908,6 +908,22 @@ class PublicAppStoreDTO(TypedDict, total=False):
     page_id: Optional[str]
     pricing_description: str
 
+# ArtifactVersionFileDTO is one file published beside a version's index.
+class ArtifactVersionFileDTO(TypedDict, total=False):
+    path: str
+    size_bytes: int
+    content_type: str
+
+# ArtifactFileInput is one extra file in a publish, served at Path relative
+# to the index page: another page (.html, .md), or css, js, json, svg, txt,
+# xml, csv.
+class ArtifactFileInput(TypedDict, total=False):
+    path: str
+    content: str
+    # ContentEncoding is "base64" when Content is base64-encoded, as for the
+    # main content.
+    content_encoding: str
+
 # ArtifactCreateRequest is the body for POST /artifacts. Creates the entry
 # and its first version. When an artifact with the same name already exists
 # in the caller's namespace a new version is published instead.
@@ -924,6 +940,9 @@ class ArtifactCreateRequest(TypedDict, total=False):
     # ContentEncoding is "base64" when Content is base64-encoded UTF-8. Use it
     # from browsers and CLIs: edge firewalls reject raw <script> in JSON bodies.
     content_encoding: str
+    # Files are published beside the index page. A publish is the whole
+    # site: files of the previous version are not carried over.
+    files: List[ArtifactFileInput]
     label: str
     notes: str
     origin: str
@@ -954,6 +973,9 @@ class ArtifactPublishRequest(TypedDict, total=False):
     content: str
     # ContentEncoding is "base64" when Content is base64-encoded UTF-8.
     content_encoding: str
+    # Files are published beside the index page. A publish is the whole
+    # site: files of the previous version are not carried over.
+    files: List[ArtifactFileInput]
     label: str
     notes: str
     origin: str
@@ -1327,14 +1349,16 @@ class CompanySummary(TypedDict, total=False):
 class CredentialConfigDTO(TypedDict, total=False):
     slug: str
     # Provider is the credential slug (what Credential.Provider stores):
-    # one way to authenticate. The company it belongs to is ProviderInfo.
+    # one way to authenticate. The company it belongs to is Company.
     provider: str
-    # ProviderInfo is the company this slug belongs to, for grouping: the
-    # providers row its auth provider names, else the slug's own identity.
-    provider_info: Optional[CompanySummary]
-    # Company is ProviderInfo under its settled name (INF-1079); provider_info
-    # stays one release.
+    # Company is the company this slug belongs to, for grouping: the
+    # companies row its auth provider names, else the slug's own identity.
     company: Optional[CompanySummary]
+    # ProviderInfo is Company under its pre-INF-1079 name. Deprecated; it
+    # stays while released belt CLIs (v1.25.x) and the api-key scripts that
+    # read /credentials/configs still use it, and goes once a CLI that reads
+    # Company has shipped.
+    provider_info: Optional[CompanySummary]
     type: str
     name: str
     short_name: str
@@ -1453,6 +1477,21 @@ class WorkerCPUConfig(TypedDict, total=False):
 class WorkerConfig(TypedDict, total=False):
     gpu: List[WorkerGPUConfig]
     cpu: WorkerCPUConfig
+
+# EngineUpdateRequest names the release an engine should install: "stable",
+# "canary", or a version such as v1.9.3. Empty is stable.
+class EngineUpdateRequest(TypedDict, total=False):
+    version: str
+
+# EngineRelease is one published engine build.
+class EngineRelease(TypedDict, total=False):
+    version: str
+    release_date: str
+
+# EngineReleasesResponse is the head of each engine release channel.
+class EngineReleasesResponse(TypedDict, total=False):
+    stable: Optional[EngineRelease]
+    canary: Optional[EngineRelease]
 
 # WorkerSummary is a lightweight worker response.
 class WorkerSummary(TypedDict, total=False):
@@ -3520,6 +3559,14 @@ class ContextInjection(TypedDict, total=False):
     # the two stay in step.
     items: List[str]
 
+# CompactionMeta is stored on ChatMessage for context compaction markers.
+class CompactionMeta(TypedDict, total=False):
+    compacted_up_to_order: int
+    compacted_count: int
+    estimated_tokens: int
+    method: str
+    analysis: str
+
 # ToolCallEventData is the typed payload for agent.tool_call events.
 class ToolCallEventData(TypedDict, total=False):
     tool: str
@@ -3666,6 +3713,8 @@ class ArtifactVersionDTO(BaseModelDTO, TypedDict, total=False):
     generated_by: str
     capabilities: Dict[str, Any]
     created_by_user_id: str
+    # Files are the pages and data served beside the index page.
+    files: List[ArtifactVersionFileDTO]
 
 # WorkerDTO is the full API response for a worker.
 class WorkerDTO(BaseModelDTO, TypedDict, total=False):
@@ -4087,6 +4136,8 @@ class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     tools: Optional[List[Tool]]
     tool_call_id: Optional[str]
     tool_invocations: Optional[List[ToolInvocationDTO]]
+    # CompactionMeta is what a compaction (role compaction) retired.
+    compaction_meta: Optional[CompactionMeta]
 
 # CredentialDTO is the API response for a credential (never exposes secrets).
 class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -4105,6 +4156,10 @@ class CredentialDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     account_identifier: str
     account_name: str
     scopes: StringSlice
+    # AllowedScopes, on an OAuth app row (grant credentials), is every
+    # scope a login through it may request; absent when any scope may be
+    # (a team's own client by default). Never set on a login.
+    allowed_scopes: StringSlice
     expires_at: Optional[str]
     vault_id: Optional[str]
     metadata: Dict[str, Any]
@@ -4123,6 +4178,8 @@ class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     api_url: str
     status: EngineStatus
     engine_version: str
+    # EnginePin is the version the engine is held on; empty follows stable.
+    engine_pin: str
     system_info: Optional[SystemInfo]
     workers: List[Optional[WorkerDTO]]
 
