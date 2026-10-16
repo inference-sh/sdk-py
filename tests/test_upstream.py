@@ -3,7 +3,8 @@
 import json
 
 import pytest
-httpx = pytest.importorskip("httpx")
+pytest.importorskip("httpx")
+import httpx  # noqa: E402 - after importorskip so the module is skipped when httpx is absent
 from pydantic import BaseModel, Field
 
 from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
