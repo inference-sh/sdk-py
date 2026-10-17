@@ -1,8 +1,8 @@
 """Auth provider + company naming (INF-1079 / f9d5620 typegen).
 
 Credential vault UIs group auth methods under a company row. ``CompanySummary``
-is that row's identity and outbound links; ``CredentialConfigDTO.company`` is the
-settled name for the same payload as ``provider_info`` during the rename window.
+is that row's identity and outbound links; ``CredentialConfigDTO.company`` carries
+it (``provider_info``, its old name, is gone).
 ``AuthMethod*`` types replace ``AuthScheme*`` with unchanged JSON wire values.
 """
 
@@ -49,27 +49,24 @@ def test_company_summary_accepts_legal_urls():
     assert row["privacy_url"].endswith("/privacy")
 
 
-def test_credential_config_company_and_provider_info_share_shape():
-    """During the rename, API may send either key; both must type-check."""
+def test_credential_config_names_company_and_auth_provider_id():
+    """INF-1079 retired provider_info and auth_scheme_id."""
     links: CompanySummary = {
         "slug": "acme",
         "name": "Acme",
         "terms_url": "https://acme.example/terms",
-        "privacy_url": "https://acme.example/privacy",
     }
-    via_legacy: CredentialConfigDTO = {
-        "slug": "acme-oauth",
-        "provider": "acme-oauth",
-        "provider_info": links,
-    }
-    via_company: CredentialConfigDTO = {
+    cfg: CredentialConfigDTO = {
         "slug": "acme-oauth",
         "provider": "acme-oauth",
         "company": links,
+        "auth_provider_id": "ap1",
     }
     hints = get_type_hints(CredentialConfigDTO)
-    assert hints["provider_info"] == hints["company"]
-    assert via_legacy["provider_info"]["terms_url"] == via_company["company"]["terms_url"]
+    assert "provider_info" not in hints
+    assert "auth_scheme_id" not in hints
+    assert hints["auth_provider_id"] is str
+    assert cfg["company"]["terms_url"].endswith("/terms")
 
 
 def test_credential_requirement_seeds_company_and_auth_method():

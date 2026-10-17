@@ -1364,11 +1364,6 @@ class CredentialConfigDTO(TypedDict, total=False):
     # Company is the company this slug belongs to, for grouping: the
     # companies row its auth provider names, else the slug's own identity.
     company: Optional[CompanySummary]
-    # ProviderInfo is Company under its pre-INF-1079 name. Deprecated; it
-    # stays while released belt CLIs (v1.25.x) and the api-key scripts that
-    # read /credentials/configs still use it, and goes once a CLI that reads
-    # Company has shipped.
-    provider_info: Optional[CompanySummary]
     type: str
     name: str
     short_name: str
@@ -1391,7 +1386,7 @@ class CredentialConfigDTO(TypedDict, total=False):
     app: Optional[CredentialDTO]
     # AuthProviderID is set when the provider is one the team defined
     # itself (models.AuthProvider), so the UI can offer edit and remove.
-    auth_scheme_id: str
+    auth_provider_id: str
     # Credential is the login used where no account is named: the caller's
     # own, else the workspace's default account.
     credential: Optional[CredentialDTO]
