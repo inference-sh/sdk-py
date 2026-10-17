@@ -815,6 +815,10 @@ class CredentialRequirement(TypedDict, total=False):
     provider: Optional[CompanySeed]
     # Auth is the credential's auth provider, for a slug no row defines yet.
     auth: Optional[AuthMethod]
+    # Legacy input key: a capability string (slug is derived from the prefix
+    # before the first dot). Normalized by `normalize_credentials` into
+    # `slug` and `capabilities`. Accepted for backwards compatibility.
+    key: str
 
 # CompanySeed is a provider (the company behind a credential) as an app
 # declares it: enough to create its catalog row when none exists.
