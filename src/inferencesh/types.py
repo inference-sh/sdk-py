@@ -1023,14 +1023,24 @@ class ArtifactDataRequest(TypedDict, total=False):
     doc_id: str
     # Data is the document body for set and update.
     data: Dict[str, Any]
-    # Limit caps a list; the server clamps it.
+    # Limit caps a list; the server clamps it to 200.
     limit: int
+    # Cursor continues a list from the next_cursor of the page before.
+    cursor: str
+    # Order is the list order: -updated_at (the default), updated_at,
+    # -created_at or created_at.
+    order: str
+    # Where keeps only documents whose top-level fields equal these values
+    # (string, number, boolean, or null for a missing field).
+    where: Dict[str, Any]
 
 # ArtifactDataListResponse is a page of documents from one collection.
 class ArtifactDataListResponse(TypedDict, total=False):
     collection: str
     documents: List[ArtifactDataDTO]
     count: int
+    # NextCursor fetches the page after this one; empty on the last page.
+    next_cursor: str
 
 # ArtifactViewerDTO is what the user capability tells a page about whoever
 # has it open. It carries no credential and no email.
@@ -1534,6 +1544,10 @@ class WorkerRAM(TypedDict, total=False):
     id: str
     worker_id: str
     total: int
+
+# EngineCapabilities is a set of capabilities, kept as a list. Nil and
+# empty are the same: nothing beyond the base contract.
+EngineCapabilities = List["EngineCapability"]
 
 # EntitlementErrorMeta is the structured metadata returned in entitlement error responses.
 class EntitlementErrorMeta(TypedDict, total=False):
@@ -4180,6 +4194,8 @@ class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     engine_version: str
     # EnginePin is the version the engine is held on; empty follows stable.
     engine_pin: str
+    # Capabilities are what the engine last reported it can do.
+    capabilities: EngineCapabilities
     system_info: Optional[SystemInfo]
     workers: List[Optional[WorkerDTO]]
 
@@ -4800,6 +4816,9 @@ class ToolRiskLevel(str, Enum):
     TOOL_RISK_MEDIUM = "medium"
     # ToolRiskHigh: dangerous or irreversible changes.
     TOOL_RISK_HIGH = "high"
+
+class EngineCapability(str, Enum):
+    EGRESS_GATEWAY = "egress_gateway"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
