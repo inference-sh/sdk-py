@@ -275,7 +275,7 @@ def build_openai_messages(
 
     def render_message(msg: ContextMessage, allow_multipart: bool) -> str | List[dict]:
         parts: List[Dict[str, Any]] = []
-        text = transform_user_message(msg.text) if transform_user_message and msg.role == ContextMessageRole.USER else msg.text
+        text = transform_user_message(msg.text) if transform_user_message and msg.text is not None and msg.role == ContextMessageRole.USER else msg.text
 
 
         if text:
