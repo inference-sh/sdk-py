@@ -9,6 +9,7 @@ import pytest
 
 from inferencesh import AsyncLiveSession, LiveEnd, LiveState, LiveUpdate, alternative_label, alternative_tag, binary_live_field, parse_media_type, pcm_format, split_live_schema
 from inferencesh.live import WSMsgType
+from inferencesh.types import SocketAccess
 
 
 @dataclass
@@ -69,8 +70,8 @@ class FakeWS:
         self.queue.put_nowait(Msg(WSMsgType.CLOSE, code, reason))
 
 
-def access(n: int = 1) -> dict:
-    return {"id": "sock-1", "url": "wss://relay.test/sockets/sock-1", "token": f"tok-{n}", "expires_at": "2030-01-01T00:00:00Z"}
+def access(n: int = 1) -> SocketAccess:
+    return SocketAccess(id="sock-1", url="wss://relay.test/sockets/sock-1", token=f"tok-{n}", expires_at="2030-01-01T00:00:00Z")
 
 
 async def tick(n: int = 4) -> None:
