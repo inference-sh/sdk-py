@@ -40,6 +40,11 @@ class TestIsTerminalStatus:
         assert is_terminal_status("completed") is True
         assert is_terminal_status(10) is True
 
+    def test_rejected_is_terminal(self):
+        assert is_terminal_status(TaskStatus.REJECTED) is True
+        assert is_terminal_status("rejected") is True
+        assert is_terminal_status(13) is True
+
     def test_running_is_not_terminal(self):
         assert is_terminal_status(TaskStatus.RUNNING) is False
         assert is_terminal_status("running") is False
@@ -99,6 +104,20 @@ class TestProcessStreamEvent:
         with pytest.raises(RuntimeError, match="cancelled"):
             _process_stream_event(
                 {"status": TaskStatus.CANCELLED},
+                task={},
+            )
+
+    def test_rejected_raises(self):
+        with pytest.raises(RuntimeError, match="task rejected"):
+            _process_stream_event(
+                {"status": TaskStatus.REJECTED, "error": "no balance"},
+                task={},
+            )
+
+    def test_rejected_raises_without_error_message(self):
+        with pytest.raises(RuntimeError, match="task rejected"):
+            _process_stream_event(
+                {"status": TaskStatus.REJECTED},
                 task={},
             )
 

@@ -34,6 +34,8 @@ _STATUS_STRING_MAP = {
     "cancelled": TaskStatus.CANCELLED,
     "rejected": TaskStatus.REJECTED,
 }
+
+
 def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
     """Parse task status from int or string to TaskStatus enum.
 
@@ -49,6 +51,8 @@ def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
     if isinstance(status, str):
         return _STATUS_STRING_MAP.get(status.lower(), TaskStatus.UNKNOWN)
     return TaskStatus.UNKNOWN
+
+
 def is_terminal_status(status: Union[int, str, None]) -> bool:
     """Check if a task status is terminal (completed, failed, cancelled, or rejected).
 
@@ -57,6 +61,8 @@ def is_terminal_status(status: Union[int, str, None]) -> bool:
     """
     parsed = parse_status(status)
     return parsed in TERMINAL_STATUSES if parsed else False
+
+
 def is_message_ready(status: str | None) -> bool:
     """Check if a chat message status is terminal (ready, failed, or cancelled).
 
@@ -70,6 +76,8 @@ def is_message_ready(status: str | None) -> bool:
     if not status:
         return False
     return status not in (ChatMessageStatus.PENDING, ChatMessageStatus.PENDING.value)
+
+
 if TYPE_CHECKING:
     from .types import AgentConfigInput as AgentConfig
     from .delta import DeltaAccumulator
@@ -1783,6 +1791,8 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     if task.get("socket"):
         result["socket"] = task["socket"]
     return result
+
+
 def _process_stream_event(
     data: Dict[str, Any], *, task: Dict[str, Any], stopper: Optional[Callable[[], None]] = None
 ) -> Optional[Dict[str, Any]]:
