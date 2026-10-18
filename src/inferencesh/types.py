@@ -815,6 +815,25 @@ class CredentialRequirement(TypedDict, total=False):
     provider: Optional[CompanySeed]
     # Auth is the credential's auth provider, for a slug no row defines yet.
     auth: Optional[AuthMethod]
+    # The rest describe the platform api_key scheme a platform app's deploy
+    # catalogues for the slug: set on the scheme it creates, and filled into
+    # an existing one only where that is still empty (an admin's edit
+    # stands). Any other deploy ignores them.
+    # 
+    # DisplayName is the scheme's name ("Claude Code"); at most
+    # MaxCredentialDisplayName characters.
+    display_name: str
+    # ConnectionScope is who a connection belongs to: team (empty) or user.
+    connection_scope: CredentialScope
+    # Instructions tell a person how to get the key (markdown, at most
+    # MaxAuthProviderInstructions characters).
+    instructions: str
+    # DocsURL is the scheme's documentation link.
+    docs_url: str
+    # ExpiresAfterDays is how long a saved key lasts: it counts as expired
+    # this many days after it is saved. 0 is never; at most
+    # MaxExpiresAfterDays.
+    expires_after_days: int
 
 # CompanySeed is a provider (the company behind a credential) as an app
 # declares it: enough to create its catalog row when none exists.
@@ -1370,9 +1389,16 @@ class CredentialConfigDTO(TypedDict, total=False):
     description: str
     icon_url: str
     how_it_works: List[str]
+    # Instructions tell a person how to get what this credential asks for
+    # (markdown, links allowed): the auth scheme's.
+    instructions: str
     docs_url: str
     secret_fields: List[SecretFieldConfig]
     allows_byok: bool
+    # ExpiresAfterDays is how long a saved key lasts, in days: a key counts
+    # as expired that long after it is saved (its credential's expires_at).
+    # 0 is never.
+    expires_after_days: int
     available: bool
     has_managed: bool
     # ConnectionScope is who a new connection belongs to by default: the
@@ -1406,6 +1432,8 @@ class SecretFieldConfig(TypedDict, total=False):
     placeholder: str
     sensitive: bool
     optional: bool
+    # Pattern is the scheme field's pattern (shared.SecretField.Pattern).
+    pattern: str
 
 # SearchRequest represents a search request.
 # Each model declares its own SearchFields() on the repository.
@@ -2290,6 +2318,9 @@ class SetupAction(TypedDict, total=False):
     # ProviderWebsite is where the logo of a provider the platform does not
     # list comes from; sent back when the keys are saved.
     provider_website: str
+    # Instructions tell a person how to get what the provider's scheme
+    # asks for (markdown, links allowed).
+    instructions: str
 
 # CheckRequirementsRequest is the request body for checking requirements
 class CheckRequirementsRequest(TypedDict, total=False):
@@ -2847,6 +2878,10 @@ class SecretField(TypedDict, total=False):
     placeholder: str
     sensitive: bool
     optional: bool
+    # Pattern, when set, is a regular expression (RE2) a saved value must
+    # match, so a pasted login link or the wrong key is refused on save
+    # instead of failing the first run ("^sk-ant-oat01-").
+    pattern: str
 
 # AuthMethodRevoke is the optional token revocation on disconnect.
 class AuthMethodRevoke(TypedDict, total=False):
@@ -4828,6 +4863,10 @@ class ErrorCode(str, Enum):
     METHOD_NOT_ALLOWED = "method_not_allowed"
     RATE_LIMITED = "rate_limited"
     INTERNAL_ERROR = "internal_error"
+    # ErrorCodeRequirementsNotMet (412): the run needs a secret or a
+    # credential the caller has not set up. Meta "errors" lists each
+    # RequirementError, its action saying how to set it up.
+    REQUIREMENTS_NOT_MET = "requirements_not_met"
     # ErrorCodeTeamRoleRequired: the caller's team role or org-admin status
     # does not allow the action. Meta is TeamRoleRequiredMeta when a
     # capability gate refused it.
@@ -5347,6 +5386,14 @@ class GraphEdgeType(str, Enum):
     INPUT = "input"
     OUTPUT = "output"
 
+# InterruptResourceTurn is an interrupt that holds a run's next turn before
+# its model call, with nothing in flight; its ResourceID is the run's. An
+# allow starts the turn, a deny ends the run.
+class InterruptResourceType(str, Enum):
+    INTERRUPT_RESOURCE_TURN = "turn"
+    INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
+    INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
+
 class MergeStrategy(str, Enum):
     CONCAT = "concat"
     REPLACE = "replace"
@@ -5778,6 +5825,10 @@ class TaskStatus(IntEnum):
     COMPLETED = 10
     FAILED = 11
     CANCELLED = 12
+    # TaskStatusRejected is a run admission refused (no balance, no payment
+    # method). The task is written already ended, keeping what was asked
+    # for; it never ran and no status leads to it.
+    REJECTED = 13
 
 class Infra(str, Enum):
     PRIVATE = "private"
@@ -5926,10 +5977,6 @@ class InterruptStatus(str, Enum):
 class InterruptResolution(str, Enum):
     ALLOW = "allow"
     DENY = "deny"
-
-class InterruptResourceType(str, Enum):
-    INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
-    INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
 
 class HookEvent(str, Enum):
     AGENT_START = "agent.start"

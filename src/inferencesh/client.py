@@ -15,7 +15,7 @@ from .models.response import Response
 from .types import TaskStatus, ChatMessageStatus
 
 # Terminal statuses where a task is considered "done"
-TERMINAL_STATUSES = {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}
+TERMINAL_STATUSES = {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED, TaskStatus.REJECTED}
 
 # Map string status names to TaskStatus enum (for future string-based API)
 _STATUS_STRING_MAP = {
@@ -32,6 +32,7 @@ _STATUS_STRING_MAP = {
     "completed": TaskStatus.COMPLETED,
     "failed": TaskStatus.FAILED,
     "cancelled": TaskStatus.CANCELLED,
+    "rejected": TaskStatus.REJECTED,
 }
 def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
     """Parse task status from int or string to TaskStatus enum.
@@ -49,7 +50,7 @@ def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
         return _STATUS_STRING_MAP.get(status.lower(), TaskStatus.UNKNOWN)
     return TaskStatus.UNKNOWN
 def is_terminal_status(status: Union[int, str, None]) -> bool:
-    """Check if a task status is terminal (completed, failed, or cancelled).
+    """Check if a task status is terminal (completed, failed, cancelled, or rejected).
 
     Handles both int and string status values.
     Deprecated: For ChatMessage status, use is_message_ready() instead.
@@ -207,6 +208,8 @@ class TaskStream(AbstractContextManager['TaskStream']):
                         raise RuntimeError(reconciled.get("error") or "Task failed")
                     elif status == TaskStatus.CANCELLED:
                         raise RuntimeError("Task cancelled")
+                    elif status == TaskStatus.REJECTED:
+                        raise RuntimeError(f"Task rejected: {reconciled.get('error')}" if reconciled.get("error") else "Task rejected")
                     break
                 if not self.auto_reconnect or reconnects >= self.max_reconnects:
                     break
@@ -325,6 +328,8 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
                         raise RuntimeError(reconciled.get("error") or "Task failed")
                     elif status == TaskStatus.CANCELLED:
                         raise RuntimeError("Task cancelled")
+                    elif status == TaskStatus.REJECTED:
+                        raise RuntimeError(f"Task rejected: {reconciled.get('error')}" if reconciled.get("error") else "Task rejected")
                     break
                 if not self.auto_reconnect or reconnects >= self.max_reconnects:
                     break
@@ -774,6 +779,8 @@ class Inference:
                     raise RuntimeError(update.get("error") or "Task failed")
                 if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
+                if status == TaskStatus.REJECTED:
+                    raise RuntimeError(f"Task rejected: {update.get('error')}" if update.get("error") else "Task rejected")
                 if deadline is not None and time.monotonic() >= deadline:
                     break
         # Stream ended — final GET reconciliation
@@ -785,6 +792,8 @@ class Inference:
             raise RuntimeError(task.get("error") or "Task failed")
         if status == TaskStatus.CANCELLED:
             raise RuntimeError("Task cancelled")
+        if status == TaskStatus.REJECTED:
+            raise RuntimeError(f"Task rejected: {task.get('error')}" if task.get("error") else "Task rejected")
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError(f"Task {task_id} did not complete within {timeout}s (status: {task.get('status')})")
         raise RuntimeError("Stream ended without completion")
@@ -1397,6 +1406,8 @@ class AsyncInference:
                     raise RuntimeError(update.get("error") or "Task failed")
                 if status == TaskStatus.CANCELLED:
                     raise RuntimeError("Task cancelled")
+                if status == TaskStatus.REJECTED:
+                    raise RuntimeError(f"Task rejected: {update.get('error')}" if update.get("error") else "Task rejected")
                 if deadline is not None and time.monotonic() >= deadline:
                     break
         # Stream ended — final GET reconciliation
@@ -1408,6 +1419,8 @@ class AsyncInference:
             raise RuntimeError(task.get("error") or "Task failed")
         if status == TaskStatus.CANCELLED:
             raise RuntimeError("Task cancelled")
+        if status == TaskStatus.REJECTED:
+            raise RuntimeError(f"Task rejected: {task.get('error')}" if task.get("error") else "Task rejected")
         if deadline is not None and time.monotonic() >= deadline:
             raise TimeoutError(f"Task {task_id} did not complete within {timeout}s (status: {task.get('status')})")
         raise RuntimeError("Stream ended without completion")
@@ -1791,4 +1804,8 @@ def _process_stream_event(
         if stopper:
             stopper()
         raise RuntimeError("task cancelled")
+    if status == TaskStatus.REJECTED:
+        if stopper:
+            stopper()
+        raise RuntimeError(f"task rejected: {data.get('error')}" if data.get("error") else "task rejected")
     return None
