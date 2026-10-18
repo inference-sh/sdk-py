@@ -522,6 +522,29 @@ def test_stream_reconcile_raises_on_cancelled_task(monkeypatch):
             list(stream)
 
 
+def test_stream_reconcile_raises_on_rejected_task(monkeypatch):
+    """GET reconciliation must surface REJECTED admission failures as RuntimeError."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: Response({
+            "id": tid,
+            "status": TaskStatus.REJECTED,
+            "error": "insufficient balance",
+        }),
+    )
+
+    with pytest.raises(RuntimeError, match="Task rejected: insufficient balance"):
+        with client.run({"app": "some/app", "input": {}}, stream=True, auto_reconnect=False) as stream:
+            list(stream)
+
+
 def test_wait_for_completion_reconciles_via_get_when_stream_ends_without_terminal(monkeypatch):
     """wait_for_completion GET-reconciles when the stream ends without a terminal event."""
     client = Inference(api_key="test")
@@ -610,6 +633,37 @@ def test_wait_for_completion_raises_on_cancelled_stream_event(monkeypatch):
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
 
     with pytest.raises(RuntimeError, match="Task cancelled"):
+        client.wait_for_completion("task_123")
+
+
+def test_wait_for_completion_raises_on_rejected_stream_event(monkeypatch):
+    """wait_for_completion must surface REJECTED stream events immediately."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": TaskStatus.REJECTED, "error": "no payment method"}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with pytest.raises(RuntimeError, match="Task rejected: no payment method"):
+        client.wait_for_completion("task_123")
+
+
+def test_wait_for_completion_get_reconcile_raises_on_rejected_task(monkeypatch):
+    """GET reconciliation after stream end must raise on REJECTED tasks."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: Response({"id": tid, "status": TaskStatus.REJECTED}),
+    )
+
+    with pytest.raises(RuntimeError, match="Task rejected"):
         client.wait_for_completion("task_123")
 
 
@@ -829,6 +883,7 @@ def test_task_status_enum():
     assert TaskStatus.COMPLETED == 10
     assert TaskStatus.FAILED == 11
     assert TaskStatus.CANCELLED == 12
+    assert TaskStatus.REJECTED == 13
 
 
 # ==================== Async Tests ====================
@@ -1295,6 +1350,46 @@ async def test_async_stream_reconcile_raises_on_cancelled_task(monkeypatch, patc
         ) as stream:
             async for _ in stream:
                 pass
+
+
+@pytest.mark.asyncio
+async def test_async_stream_reconcile_raises_on_rejected_task(monkeypatch, patch_aiohttp):
+    """AsyncTaskStream GET reconciliation must surface REJECTED tasks as RuntimeError."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return Response({
+            "id": tid,
+            "status": TaskStatus.REJECTED,
+            "error": "admission refused",
+        })
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    with pytest.raises(RuntimeError, match="Task rejected: admission refused"):
+        async with await client.run(
+            {"app": "some/app", "input": {}}, stream=True, auto_reconnect=False,
+        ) as stream:
+            async for _ in stream:
+                pass
+
+
+@pytest.mark.asyncio
+async def test_async_wait_for_completion_raises_on_rejected_stream_event(monkeypatch, patch_aiohttp):
+    """Async wait_for_completion must surface REJECTED stream events immediately."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": TaskStatus.REJECTED, "error": "no balance"}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+
+    with pytest.raises(RuntimeError, match="Task rejected: no balance"):
+        await client.wait_for_completion("task_async_123")
 
 
 @pytest.mark.asyncio

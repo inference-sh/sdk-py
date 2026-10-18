@@ -105,6 +105,18 @@ class TestProcessStreamEvent:
                 task={},
             )
 
+    def test_rejected_raises_with_error_and_calls_stopper(self):
+        stopper_called = []
+
+        with pytest.raises(RuntimeError, match="task rejected: admission refused"):
+            _process_stream_event(
+                {"status": TaskStatus.REJECTED, "error": "admission refused"},
+                task={},
+                stopper=lambda: stopper_called.append(1),
+            )
+
+        assert stopper_called == [1]
+
     def test_non_terminal_returns_none(self):
         assert _process_stream_event(
             {"status": TaskStatus.RUNNING, "id": "t1"},

@@ -26,6 +26,10 @@ class TestParseStatus:
     def test_string_status_names(self):
         assert parse_status("running") == TaskStatus.RUNNING
         assert parse_status("COMPLETED") == TaskStatus.COMPLETED
+        assert parse_status("rejected") == TaskStatus.REJECTED
+
+    def test_int_rejected_status(self):
+        assert parse_status(13) == TaskStatus.REJECTED
 
     def test_unknown_string_returns_unknown(self):
         assert parse_status("not-a-real-status") == TaskStatus.UNKNOWN
@@ -39,6 +43,11 @@ class TestIsTerminalStatus:
         assert is_terminal_status(TaskStatus.COMPLETED) is True
         assert is_terminal_status("completed") is True
         assert is_terminal_status(10) is True
+
+    def test_rejected_is_terminal(self):
+        assert is_terminal_status(TaskStatus.REJECTED) is True
+        assert is_terminal_status("rejected") is True
+        assert is_terminal_status(13) is True
 
     def test_running_is_not_terminal(self):
         assert is_terminal_status(TaskStatus.RUNNING) is False
@@ -99,6 +108,25 @@ class TestProcessStreamEvent:
         with pytest.raises(RuntimeError, match="cancelled"):
             _process_stream_event(
                 {"status": TaskStatus.CANCELLED},
+                task={},
+            )
+
+    def test_rejected_raises_with_error_message(self):
+        stopper_calls = []
+
+        with pytest.raises(RuntimeError, match="task rejected: no balance"):
+            _process_stream_event(
+                {"status": TaskStatus.REJECTED, "error": "no balance"},
+                task={},
+                stopper=lambda: stopper_calls.append(1),
+            )
+
+        assert stopper_calls == [1]
+
+    def test_rejected_raises_default_message_without_error(self):
+        with pytest.raises(RuntimeError, match="task rejected"):
+            _process_stream_event(
+                {"status": TaskStatus.REJECTED},
                 task={},
             )
 
