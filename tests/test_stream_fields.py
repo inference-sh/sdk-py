@@ -1,5 +1,7 @@
 """Live fields: schema shape, request-body validation, and the frame mapping."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 from typing import List, Literal, Optional, Union
