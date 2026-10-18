@@ -2521,13 +2521,6 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
-# TaskDTO is the full API response for a task.
-# TaskEgress is what a task's sandbox sent to and received from the
-# internet through the engine's egress gateway, in bytes.
-class TaskEgress(TypedDict, total=False):
-    bytes_out: int
-    bytes_in: int
-
 # TaskResultDTO is a slim response for task run/result endpoints.
 class TaskResultDTO(TypedDict, total=False):
     id: str
@@ -4547,6 +4540,7 @@ class SocketDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     worker_frames: int
     worker_bytes: int
 
+# TaskDTO is the full API response for a task.
 class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     graph_id: Optional[str]
     user_public_key: bytes
@@ -4580,10 +4574,6 @@ class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     events: List[TaskEvent]
     logs: List[TaskLog]
     usage_events: List[Optional[UsageEventDTO]]
-    # Egress is what the task's sandbox moved through the engine's egress
-    # gateway, reported by the engine when the task ended. Absent for a
-    # task that ran without the gateway.
-    egress: Optional[TaskEgress]
     session_id: Optional[str]
     session_timeout: Optional[int]
 
