@@ -3,7 +3,7 @@
 Store and agent UIs list MCP servers with the caller's login status on each row.
 ``connection`` replaces the deprecated ``connection_status`` / ``connection_scope``
 pair with a single nested object that also carries connection facts (tool catalogue,
-last call). Tool configs reference servers by slug with an optional credential pin.
+last call). Tool configs reference servers by slug; calls sign in with the runner's own login.
 """
 
 from typing import Optional, get_type_hints
@@ -44,20 +44,10 @@ def test_connection_info_merges_login_status_with_connection_facts():
     assert row["tool_count"] == 12
 
 
-def test_mcp_tool_config_server_slug_and_optional_credential_id():
+def test_mcp_tool_config_is_server_slug_and_tool_name_only():
+    """INF-1012: no credential pin; the runner's own login is used at run time."""
     hints = get_type_hints(MCPToolConfig)
-    assert hints["server"] is str
-    assert hints["tool_name"] is str
-    assert hints["credential_id"] is str
+    assert hints == {"server": str, "tool_name": str}
 
-    pinned: MCPToolConfig = {
-        "server": "github-mcp",
-        "tool_name": "search_repos",
-        "credential_id": "cred-42",
-    }
-    default_login: MCPToolConfig = {
-        "server": "exa",
-        "tool_name": "search",
-    }
-    assert pinned["credential_id"] == "cred-42"
-    assert "credential_id" not in default_login
+    cfg: MCPToolConfig = {"server": "exa", "tool_name": "search"}
+    assert cfg == {"server": "exa", "tool_name": "search"}

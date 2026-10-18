@@ -303,18 +303,16 @@ class HTTPToolBuilder(_ToolBuilder):
         self._method = m
         return self
 
-    def auth(self, *, credential: Optional[str] = None, credential_id: Optional[str] = None,
+    def auth(self, *, credential: Optional[str] = None,
              api_key: Optional[str] = None, bearer: Optional[str] = None,
              header: Optional[str] = None) -> "HTTPToolBuilder":
         """Set authentication.
 
-        credential sends a connected account's access token (pick the account
-        with credential_id); api_key / bearer send a vault secret.
+        credential sends the access token of the runner's own login to that
+        provider, resolved at run time; api_key / bearer send a vault secret.
         """
         if credential:
             self._auth = {"type": ToolAuthType.CREDENTIAL, "provider": credential}
-            if credential_id:
-                self._auth["credential_id"] = credential_id
         elif api_key:
             self._auth = {"type": ToolAuthType.API_KEY, "secret": api_key, "header": header or "X-API-Key"}
         elif bearer:
@@ -384,51 +382,42 @@ class MCPToolBuilder(_ToolBuilder):
     def __init__(
         self,
         name: str,
-        credential_id: Optional[str] = None,
-        tool_name: Optional[str] = None,
         *,
         server: Optional[str] = None,
+        tool_name: Optional[str] = None,
     ):
         super().__init__(name)
+        if not server:
+            raise ValueError("mcp_tool needs server= (the MCP server's slug, e.g. server=\"exa\")")
         if not tool_name:
-            raise ValueError("mcp_tool needs tool_name")
-        if not server and not credential_id:
-            raise ValueError("mcp_tool needs server (the MCP server's slug) or credential_id")
+            raise ValueError("mcp_tool needs tool_name= (the tool to call on the MCP server)")
         self._server = server
         self._tool_name = tool_name
-        self._credential_id = credential_id
 
     def build(self) -> AgentTool:
-        mcp: Dict[str, Any] = {"tool_name": self._tool_name}
-        if self._server:
-            mcp["server"] = self._server
-        if self._credential_id:
-            mcp["credential_id"] = self._credential_id
+        mcp: MCPToolConfig = {"server": self._server, "tool_name": self._tool_name}
         return {
             "name": self._name,
             "display_name": self._display_name or self._name,
             "description": self._description,
             "type": ToolType.MCP,
             "require_approval": self._require_approval,
-            "mcp": cast(MCPToolConfig, mcp),
+            "mcp": mcp,
         }
 
 
 def mcp_tool(
     name: str,
-    credential_id: Optional[str] = None,
-    tool_name: Optional[str] = None,
     *,
     server: Optional[str] = None,
+    tool_name: Optional[str] = None,
 ) -> MCPToolBuilder:
     """Create an MCP tool: ``tool_name`` on the MCP server ``server`` (its slug).
 
-    The call signs in with the runner's connection to the provider the server
-    declares; ``credential_id`` pins one connection instead. The older form
-    ``mcp_tool(name, credential_id, tool_name)`` still works: the API saves
-    such a tool with the server the connection's provider is declared by.
+    Both are required keywords. Each call signs in with the runner's own
+    login to the provider the server declares, resolved at run time.
     """
-    return MCPToolBuilder(name, credential_id, tool_name, server=server)
+    return MCPToolBuilder(name, server=server, tool_name=tool_name)
 
 
 # =============================================================================

@@ -387,21 +387,18 @@ class TestHTTPToolBuilder:
         t = http_tool("read", "https://api.example.com").method("GET").build()
         assert t["http"]["method"] == "GET"
 
-    def test_credential_auth(self):
-        t = (
-            http_tool("gh", "https://api.github.com/user")
-            .auth(credential="github", credential_id="cred-42")
-            .build()
-        )
-        assert t["http"]["auth"] == {
-            "type": "credential",
-            "provider": "github",
-            "credential_id": "cred-42",
-        }
-
-    def test_credential_auth_without_credential_id(self):
+    def test_credential_auth_is_provider_only(self):
+        """Credential auth uses the runner's own login; there is no connection pin (INF-1012)."""
         t = http_tool("gh", "https://api.github.com/user").auth(credential="github").build()
-        assert t["http"]["auth"] == {"type": "credential", "provider": "github"}
+        auth = t["http"]["auth"]
+        assert json.loads(json.dumps(auth)) == {"type": "credential", "provider": "github"}
+        assert "credential_id" not in auth
+
+    def test_credential_auth_rejects_credential_id(self):
+        with pytest.raises(TypeError, match="credential_id"):
+            http_tool("gh", "https://api.github.com/user").auth(
+                credential="github", credential_id="cred-42"
+            )
 
     def test_http_auth_rejects_integration_keyword_aliases(self):
         with pytest.raises(TypeError, match="integration"):
@@ -426,10 +423,8 @@ class TestHTTPToolBuilder:
         "builder, expected_auth",
         [
             (
-                lambda: http_tool("gh", "https://api.github.com/user").auth(
-                    credential="github", credential_id="cred-42"
-                ),
-                {"type": "credential", "provider": "github", "credential_id": "cred-42"},
+                lambda: http_tool("gh", "https://api.github.com/user").auth(credential="github"),
+                {"type": "credential", "provider": "github"},
             ),
             (
                 lambda: http_tool("svc", "https://api.example.com").auth(api_key="MY_KEY"),
@@ -462,11 +457,11 @@ class TestHTTPToolBuilder:
 class TestMCPToolBuilder:
     """Tests for MCP connector tool builder."""
 
-    def test_mcp_tool_json_serializes_tool_type_enum(self):
-        tool_def = mcp_tool("web_search", tool_name="search", server="exa", credential_id="cred-1").build()
+    def test_mcp_tool_wire_shape_is_server_and_tool_name(self):
+        tool_def = mcp_tool("web_search", tool_name="search", server="exa").build()
         wire = json.loads(json.dumps(tool_def))
         assert wire["type"] == "mcp"
-        assert wire["mcp"] == {"tool_name": "search", "server": "exa", "credential_id": "cred-1"}
+        assert wire["mcp"] == {"server": "exa", "tool_name": "search"}
 
     def test_creates_mcp_tool(self):
         t = (
@@ -480,48 +475,31 @@ class TestMCPToolBuilder:
         assert t["mcp"] == {"server": "exa", "tool_name": "search"}
         assert t["description"] == "Search the web via MCP"
 
-    def test_mcp_tool_pins_credential(self):
-        t = mcp_tool("web_search", tool_name="search", server="exa", credential_id="cred-42").build()
+    def test_mcp_tool_rejects_credential_id(self):
+        with pytest.raises(TypeError, match="credential_id"):
+            mcp_tool("web_search", tool_name="search", server="exa", credential_id="cred-42")
 
-        assert t["mcp"] == {"server": "exa", "tool_name": "search", "credential_id": "cred-42"}
-
-    def test_mcp_tool_three_positionals_are_credential_id_and_tool_name(self):
-        """After v0.27.2 (INF-1063), the middle positional is credential_id, not server slug."""
-        t = mcp_tool("lookup", "cred-conn", "search_repos").build()
-
-        assert t["mcp"] == {"tool_name": "search_repos", "credential_id": "cred-conn"}
-        assert "server" not in t["mcp"]
-
-    def test_mcp_tool_server_slug_requires_keyword(self):
-        t = mcp_tool("lookup", tool_name="search_repos", server="github-mcp").build()
-
-        assert t["mcp"] == {"server": "github-mcp", "tool_name": "search_repos"}
-        assert "credential_id" not in t["mcp"]
-
-    def test_mcp_tool_omits_credential_id_when_unset_or_empty(self):
-        unset = mcp_tool("web_search", tool_name="search", server="exa", credential_id=None).build()
-        empty = mcp_tool("web_search", tool_name="search", server="exa", credential_id="").build()
-
-        assert "credential_id" not in unset["mcp"]
-        assert "credential_id" not in empty["mcp"]
+    def test_mcp_tool_rejects_positional_form(self):
+        with pytest.raises(TypeError):
+            mcp_tool("web_search", "cred-42", "search")
+        with pytest.raises(TypeError):
+            mcp_tool("web_search", "exa")
 
     def test_mcp_tool_rejects_integration_id_keyword(self):
         with pytest.raises(TypeError, match="integration_id"):
-            mcp_tool("web_search", integration_id="int-abc", tool_name="search")
+            mcp_tool("web_search", integration_id="int-abc", tool_name="search", server="exa")
 
-    def test_mcp_tool_requires_tool_name_and_a_target(self):
-        with pytest.raises(ValueError, match="tool_name"):
-            mcp_tool("web_search")
+    def test_mcp_tool_requires_server_and_tool_name(self):
         with pytest.raises(ValueError, match="server"):
             mcp_tool("web_search", tool_name="search")
-
-    def test_mcp_tool_old_form_names_the_connection(self):
-        t = mcp_tool("web_search", "cred-42", "search").build()
-        assert t["mcp"] == {"tool_name": "search", "credential_id": "cred-42"}
+        with pytest.raises(ValueError, match="server"):
+            mcp_tool("web_search", tool_name="search", server="")
+        with pytest.raises(ValueError, match="tool_name"):
+            mcp_tool("web_search", server="exa")
 
     def test_mcp_tool_with_display_and_approval(self):
         t = (
-            mcp_tool("run_query", "int-1", "query")
+            mcp_tool("run_query", server="db-mcp", tool_name="query")
             .display("Run Query")
             .require_approval()
             .build()

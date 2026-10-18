@@ -136,7 +136,6 @@ class ClientToolConfig(TypedDict, total=False):
 class ToolAuthConfig(TypedDict, total=False):
     type: ToolAuthType
     provider: str
-    credential_id: str
     secret: str
     header: str
 
@@ -158,14 +157,11 @@ class HTTPToolConfig(TypedDict, total=False):
 
 # MCPToolConfig is a tool of an MCP server: the server by its slug (the
 # agent's team's registration, its org's or the directory's) and the tool
-# to call. CredentialID pins the connection the call signs in with; without
-# it the runner's connection to the server's provider is used. A tool
-# written with only a connection is saved with the server that
-# connection's provider is declared by.
+# to call. Each call signs in with the runner's connection to the
+# server's provider (Credential.ToolConnection).
 class MCPToolConfig(TypedDict, total=False):
     server: str
     tool_name: str
-    credential_id: str
 
 class AppToolConfigDTO(TypedDict, total=False):
     ref: str
@@ -210,7 +206,6 @@ class HTTPToolConfigDTO(TypedDict, total=False):
 class MCPToolConfigDTO(TypedDict, total=False):
     server: str
     tool_name: str
-    credential_id: str
 
 # CoreAppConfigDTO references an app used as the agent's core
 class CoreAppConfigDTO(TypedDict, total=False):
