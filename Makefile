@@ -133,7 +133,8 @@ major:
 # the two never drift (a release from main once left dev a month behind).
 release:
 	@test "$$(git branch --show-current)" = dev || { echo "release from dev (on $$(git branch --show-current))"; exit 1; }
-	@VERSION=$$(git describe --tags --abbrev=0) && \
+	@VERSION=v$$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml) && \
+	{ test "$$(git rev-parse -q --verify "$$VERSION^{commit}")" = "$$(git rev-parse HEAD)" || { echo "$$VERSION is not tagged at HEAD: run make patch, minor or major"; exit 1; }; } && \
 	git push origin HEAD:dev HEAD:main "$$VERSION" && \
 	gh release create "$$VERSION" --title "$$VERSION" --generate-notes && \
 	echo "Released $$VERSION"
