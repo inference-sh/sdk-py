@@ -45,7 +45,7 @@ def test_agent_tool_approval_timeout_round_trips_wire_json():
 def test_internal_tools_config_declares_wait_toggle():
     hints = get_type_hints(InternalToolsConfig)
     assert "wait" in hints
-    assert hints["wait"] is bool | None or hints["wait"] == bool | None  # Optional[bool]
+    assert hints["wait"] == Optional[bool]
 
 
 def test_internal_tools_config_wait_round_trips_wire_json():
