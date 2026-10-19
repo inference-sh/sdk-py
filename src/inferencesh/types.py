@@ -25,6 +25,7 @@ class InternalToolsConfig(TypedDict, total=False):
     agent: Optional[bool]
     remote: Optional[bool]
     knowledge: Optional[bool]
+    wait: Optional[bool]
 
 # AgentPermissions is what an agent's new chats in its own workspace may do
 # without asking (INF-906). Each is copied into such a chat when it is
@@ -45,6 +46,9 @@ class AgentTool(TypedDict, total=False):
     description: str
     type: ToolType
     require_approval: bool
+    # ApprovalTimeout is how many seconds a call of this tool waits for its
+    # approval before it is refused. 0 waits until someone answers.
+    approval_timeout: int
     app: Optional[AppToolConfig]
     agent: Optional[AgentToolConfig]
     hook: Optional[HookToolConfig]
@@ -89,6 +93,7 @@ class AgentToolDTO(TypedDict, total=False):
     description: str
     type: ToolType
     require_approval: bool
+    approval_timeout: int
     app: Optional[AppToolConfigDTO]
     agent: Optional[AgentToolConfigDTO]
     hook: Optional[HookToolConfigDTO]
@@ -5389,6 +5394,19 @@ class InterruptResourceType(str, Enum):
     INTERRUPT_RESOURCE_TOOL_INVOCATION = "tool_invocation"
     INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
 
+# InterruptReasonWait is a tool call the agent made to wait: the run is
+# paused until the interrupt's deadline, when its own expiry trigger settles
+# it (allow), or until a person ends the wait sooner. Its resource is the
+# wait call (InterruptResourceToolInvocation).
+class InterruptReason(str, Enum):
+    WAIT = "wait"
+    TOOL_APPROVAL = "tool_approval"
+    CLIENT_TOOL = "client_tool"
+    WIDGET = "widget"
+    AUTH = "auth"
+    CONFIRMATION = "confirmation"
+    HOOK_GATE = "hook_gate"
+
 class MergeStrategy(str, Enum):
     CONCAT = "concat"
     REPLACE = "replace"
@@ -5954,14 +5972,6 @@ class AgentRunState(str, Enum):
     FAILED = "failed"
     CANCELED = "canceled"
     REJECTED = "rejected"
-
-class InterruptReason(str, Enum):
-    TOOL_APPROVAL = "tool_approval"
-    CLIENT_TOOL = "client_tool"
-    WIDGET = "widget"
-    AUTH = "auth"
-    CONFIRMATION = "confirmation"
-    HOOK_GATE = "hook_gate"
 
 class InterruptStatus(str, Enum):
     PENDING = "pending"
