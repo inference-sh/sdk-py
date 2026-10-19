@@ -6,6 +6,7 @@ it (``provider_info``, its old name, is gone).
 ``AuthMethod*`` types replace ``AuthScheme*`` with unchanged JSON wire values.
 """
 
+import json
 from typing import get_type_hints
 
 import pytest
@@ -67,6 +68,58 @@ def test_credential_config_names_company_and_auth_provider_id():
     assert "auth_scheme_id" not in hints
     assert hints["auth_provider_id"] is str
     assert cfg["company"]["terms_url"].endswith("/terms")
+
+
+@pytest.mark.parametrize("removed_field", ["auth_scheme_id", "provider_info"])
+def test_credential_config_dto_dropped_legacy_inf1079_fields(removed_field):
+    hints = get_type_hints(CredentialConfigDTO)
+    assert removed_field not in hints
+
+
+def test_credential_config_parses_auth_provider_id_from_api_json():
+    """Vault list rows use auth_provider_id on the wire (not auth_scheme_id)."""
+    payload = json.loads(
+        """
+        {
+          "slug": "acme-oauth",
+          "provider": "acme-oauth",
+          "auth_provider_id": "ap-7f3c",
+          "company": {"slug": "acme", "name": "Acme Corp"}
+        }
+        """
+    )
+    cfg: CredentialConfigDTO = payload
+    assert cfg["auth_provider_id"] == "ap-7f3c"
+    assert "auth_scheme_id" not in cfg
+    assert "provider_info" not in cfg
+    assert cfg["company"]["name"] == "Acme Corp"
+
+
+def test_credential_config_team_auth_provider_with_multi_account():
+    """Team-defined providers expose auth_provider_id alongside account lists."""
+    primary = {
+        "provider": "acme-oauth",
+        "account_id": "acct-work",
+        "account_identifier": "work@acme.example",
+        "is_primary": True,
+    }
+    secondary = {
+        "provider": "acme-oauth",
+        "account_id": "acct-personal",
+        "account_identifier": "me@acme.example",
+        "is_primary": False,
+    }
+    cfg: CredentialConfigDTO = {
+        "slug": "acme-oauth",
+        "provider": "acme-oauth",
+        "auth_provider_id": "ap-team-1",
+        "multi_account": True,
+        "credential": primary,
+        "accounts": [primary, secondary],
+        "company": {"slug": "acme", "name": "Acme"},
+    }
+    assert cfg["auth_provider_id"] == "ap-team-1"
+    assert [a["account_id"] for a in cfg["accounts"]] == ["acct-work", "acct-personal"]
 
 
 def test_credential_requirement_seeds_company_and_auth_method():
