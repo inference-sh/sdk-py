@@ -1873,6 +1873,21 @@ class InstanceTypeBootTime(TypedDict, total=False):
     updated_at: str
     sample_size: int
 
+# InstancePriceHistoryPointDTO is one day's cheapest hourly prices, in cents,
+# for a GPU type. List prices rarely move; the in-stock price does, as stock
+# comes and goes. A price with no listing (or no stock) that day is omitted.
+class InstancePriceHistoryPointDTO(TypedDict, total=False):
+    day: str
+    # OnDemand and Spot are the cheapest listed prices, in stock or not.
+    on_demand: int
+    spot: int
+    # OnDemandInStock and SpotInStock are the cheapest prices that had stock.
+    on_demand_in_stock: int
+    spot_in_stock: int
+    providers: int
+    # Regions is the number of provider regions with on-demand stock.
+    regions: int
+
 # KnowledgeFile represents a file in a knowledge entry
 class KnowledgeFile(TypedDict, total=False):
     path: str
