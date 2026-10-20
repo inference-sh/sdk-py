@@ -220,6 +220,7 @@ def test_models_decision_export_exists(name):
     # Instance types (eff7d5e, 28cd082; engine-picker options 9d6a811)
     "InstanceTypeDTO", "InstanceTypeConfiguration",
     "InstanceTypeOptionDTO", "InstanceTypeOptionRegion",
+    "InstancePriceHistoryPointDTO",
     # API keys + workspace principals (INF-966, 2150d23 / bd09de9)
     "ApiKeyScope", "ApiKeyDTO", "CreateApiKeyRequest", "TeamMemberUserDTO",
     "TeamCapability", "ErrorCode",
