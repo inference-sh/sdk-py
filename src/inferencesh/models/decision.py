@@ -120,20 +120,20 @@ class DecisionInput(contract.DecisionInput, BaseAppInput):
         Criteria are ``{name: description}`` for a choice, the list of levels for a
         score, and ``{"true": ..., "false": ...}`` for a noul that gives any."""
         out: Dict[str, Dict[str, Any]] = {}
-        for q in self.choices:
-            out[q.id] = {
+        for cq in self.choices:
+            out[cq.id] = {
                 "type": "choice",
-                "instructions": q.instructions,
-                "criteria": {o.name: o.description for o in q.options},
+                "instructions": cq.instructions,
+                "criteria": {o.name: o.description for o in cq.options},
             }
-        for q in self.scores:
-            out[q.id] = {"type": "score", "instructions": q.instructions, "criteria": list(q.levels)}
-        for q in self.nouls:
-            question: Dict[str, Any] = {"type": "noul", "instructions": q.instructions}
-            criteria = q.criteria.model_dump(exclude_none=True) if q.criteria is not None else {}
+        for sq in self.scores:
+            out[sq.id] = {"type": "score", "instructions": sq.instructions, "criteria": list(sq.levels)}
+        for nq in self.nouls:
+            question: Dict[str, Any] = {"type": "noul", "instructions": nq.instructions}
+            criteria = nq.criteria.model_dump(exclude_none=True) if nq.criteria is not None else {}
             if criteria:
                 question["criteria"] = criteria
-            out[q.id] = question
+            out[nq.id] = question
         return out
 
 
