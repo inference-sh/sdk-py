@@ -194,7 +194,7 @@ def test_models_decision_export_exists(name):
     "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
     "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
     "AppSessionStatus", "FilterOperator", "MetaItemType",
-    "ToolType", "ToolInvocationStatus", "TaskStatus",
+    "ToolType", "ToolInvocationStatus", "TaskStatus", "SecondFactor",
     "PageStatus", "PageType", "ProjectType", "TeamInviteStatus",
     "TeamRole", "TeamType", "TeamStatus", "ContentRating",
     "UsageEventResourceTier", "Infra", "TaskLogType", "Role",
@@ -432,7 +432,9 @@ def test_store_scopes_replace_admin_pricing():
 
     assert Scope.STORE_PRICING.value == "store:pricing"
     assert Scope.STORE_SUBMIT.value == "store:submit"
+    assert Scope.CONTENT_WRITE.value == "content:write"
     assert ScopeGroup.STORE.value == "store"
+    assert ScopeGroup.CONTENT.value == "content"
     assert "admin:pricing" not in {m.value for m in Scope}
 
 
