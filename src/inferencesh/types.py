@@ -424,7 +424,9 @@ class AuthResponse(TypedDict, total=False):
     session_id: str
     is_new: bool
     otp_required: bool
-    otp_method: str
+    # OTPMethods are the second factors the sign-in may be finished with,
+    # the default first (POST /auth/otp/verify with method).
+    otp_methods: List[SecondFactor]
     challenge_token: str
     redirect_to: str
     provider: str
@@ -3986,7 +3988,14 @@ class UserDTO(BaseModelDTO, TypedDict, total=False):
     avatar_url: str
     banned_at: Optional[str]
     ban_note: str
+    # TOTPEnabled mirrors TwoFactorEnabled for clients built before it
+    # (the Swift SDK decodes it as required).
+    # 
+    # Deprecated: read TwoFactorEnabled. Kept until no Swift app build older
+    # than sdk-swift 0.23.0 is in use, since those fail to decode /me without it.
     totp_enabled: bool
+    # TwoFactorEnabled is the account's two-step verification switch.
+    two_factor_enabled: bool
     metadata: Optional[UserMetadataDTO]
 
 class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -4826,6 +4835,12 @@ class Scope(str, Enum):
     # ScopeStoreSubmit submits a resource version to the store on its
     # publisher's behalf. Held like ScopeStorePricing.
     STORE_SUBMIT = "store:submit"
+    # ScopeContentWrite writes the site's content (/content): blog and docs
+    # pages, menus and the platform media library. Held like
+    # ScopeStorePricing: only in the platform's workspace, by its members,
+    # their keys and runs, and its own keys. Reads of published content take
+    # no scope.
+    CONTENT_WRITE = "content:write"
 
 class ScopeGroup(str, Enum):
     AGENTS = "agents"
@@ -4849,6 +4864,7 @@ class ScopeGroup(str, Enum):
     APPROVALS = "approvals"
     ADMIN = "admin"
     STORE = "store"
+    CONTENT = "content"
 
 class AlwaysAllowScope(str, Enum):
     # AlwaysAllowScopeExact: this call exactly (each piece of the command,
@@ -4960,6 +4976,11 @@ class ErrorCode(str, Enum):
     # works as an ordinary member. An admin who has one but whose session
     # has not proved it gets otp_required instead: re-authenticate with it.
     ADMIN_AUTHENTICATOR_REQUIRED = "admin_authenticator_required"
+    # ErrorCodeLastAuthenticator (409): the change would leave two-step
+    # verification on with no method to prove it (removing the last
+    # authenticator app or passkey), or turn it on with none enrolled.
+    # Turn two-step verification off first, or enroll a method.
+    LAST_AUTHENTICATOR = "last_authenticator"
     # Entitlements. LimitExceeded (402) and FeatureNotAvailable (403) carry
     # EntitlementErrorMeta. EntitlementUnavailable (500) means the plan could
     # not be checked and the request is retriable.
@@ -5276,6 +5297,9 @@ class ChatStatus(str, Enum):
     BUSY = "busy"
     IDLE = "idle"
     AWAITING_INPUT = "awaiting_input"
+    # ChatStatusWaiting: the run is paused on the agent's own wait call. A
+    # message ends the wait early; nobody has to act on it.
+    WAITING = "waiting"
     COMPLETED = "completed"
 
 class PlanStepStatus(str, Enum):
@@ -5420,8 +5444,8 @@ class InterruptResourceType(str, Enum):
     INTERRUPT_RESOURCE_HOOK_EVENT = "hook_event"
 
 # InterruptReasonWait is a tool call the agent made to wait: the run is
-# paused until the interrupt's deadline, when its own expiry trigger settles
-# it (allow), or until a person ends the wait sooner. Its resource is the
+# paused until the interrupt's deadline, when the expiry sweep settles it
+# (allow), or until a person ends the wait sooner. Its resource is the
 # wait call (InterruptResourceToolInvocation).
 class InterruptReason(str, Enum):
     WAIT = "wait"
@@ -5556,6 +5580,20 @@ class MCPServerAuthType(str, Enum):
     MCP_SERVER_AUTH_O_AUTH = "oauth"
     MCP_SERVER_AUTH_API_KEY = "api_key"
     MCP_SERVER_AUTH_NONE = "none"
+
+class SecondFactor(str, Enum):
+    # SecondFactorTOTP: a code from an enrolled authenticator app.
+    TOTP = "totp"
+    # SecondFactorPasskey: a WebAuthn assertion from an enrolled passkey.
+    PASSKEY = "passkey"
+    # SecondFactorRecovery: one of the account's single-use recovery codes.
+    # Not enrolled on its own: issued once an authenticator exists.
+    RECOVERY = "recovery"
+    # SecondFactorEmail: a code emailed to the account. The weakest: the
+    # same mailbox a magic link lands in, so it is offered only to an
+    # account with two-step verification off (a platform admin's first
+    # sign-in, re-auth before they enroll).
+    EMAIL = "email"
 
 class TeamInviteStatus(str, Enum):
     PENDING = "pending"
@@ -6049,6 +6087,7 @@ class ToolInvocationStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     AWAITING_INPUT = "awaiting_input"
     AWAITING_APPROVAL = "awaiting_approval"
+    WAITING = "waiting"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
