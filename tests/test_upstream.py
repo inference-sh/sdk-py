@@ -3,7 +3,10 @@
 import json
 
 import pytest
-httpx = pytest.importorskip("httpx")
+try:
+    import httpx
+except ImportError:
+    pytest.skip("httpx not installed", allow_module_level=True)
 from pydantic import BaseModel, Field
 
 from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
