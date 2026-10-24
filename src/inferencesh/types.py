@@ -805,6 +805,9 @@ class SecretRequirement(TypedDict, total=False):
 # before the first dot), `name:` and `website:` seed the provider.
 class CredentialRequirement(TypedDict, total=False):
     slug: str
+    # Legacy alias: a dotted key like "google.calendar.events" is split into
+    # slug + capabilities; a plain slug is equivalent to the `slug` field.
+    key: str
     capabilities: List[str]
     description: str
     optional: bool
