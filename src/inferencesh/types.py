@@ -806,6 +806,9 @@ class SecretRequirement(TypedDict, total=False):
 # before the first dot), `name:` and `website:` seed the provider.
 class CredentialRequirement(TypedDict, total=False):
     slug: str
+    # key is the legacy dotted-capability form ("google.calendar.events");
+    # normalize_credentials folds it into slug/capabilities.
+    key: str
     capabilities: List[str]
     description: str
     optional: bool
