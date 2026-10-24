@@ -2,8 +2,14 @@
 
 import json
 
+from typing import TYPE_CHECKING
+
 import pytest
-httpx = pytest.importorskip("httpx")
+
+if TYPE_CHECKING:
+    import httpx
+else:
+    httpx = pytest.importorskip("httpx")
 from pydantic import BaseModel, Field
 
 from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
