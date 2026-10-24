@@ -291,6 +291,20 @@ def test_instance_rental_type_wire_values():
     assert InstanceRentalType.SPOT.value == "spot"
 
 
+def test_infra_includes_remote_wire_value():
+    """Harness model calls on the caller's remote use Infra.remote (fafc131 typegen)."""
+    from inferencesh.types import Infra
+
+    assert Infra.REMOTE.value == "remote"
+    assert Infra("remote") is Infra.REMOTE
+    assert set(Infra.__members__) >= {
+        "PRIVATE",
+        "CLOUD",
+        "PRIVATE_FIRST",
+        "REMOTE",
+    }
+
+
 def test_instance_type_spot_availability_includes_hourly_price_cents():
     from inferencesh.types import InstanceRentalType, InstanceTypeAvailability
 
