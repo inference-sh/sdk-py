@@ -5345,6 +5345,9 @@ class ChannelType(str, Enum):
 
 class ChatEventType(str, Enum):
     HOOK = "hook"
+    # ChatEventTypeRunFailed marks the point a run ended in failure; the
+    # content's text is the run's error.
+    RUN_FAILED = "run_failed"
 
 class DescriptionLimit(IntEnum):
     # DescriptionLimitListing bounds the description of an app, agent, flow,
