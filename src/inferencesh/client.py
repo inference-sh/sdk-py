@@ -34,6 +34,8 @@ _STATUS_STRING_MAP = {
     "cancelled": TaskStatus.CANCELLED,
     "rejected": TaskStatus.REJECTED,
 }
+
+
 def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
     """Parse task status from int or string to TaskStatus enum.
 
@@ -49,6 +51,8 @@ def parse_status(status: Union[int, str, None]) -> Optional[TaskStatus]:
     if isinstance(status, str):
         return _STATUS_STRING_MAP.get(status.lower(), TaskStatus.UNKNOWN)
     return TaskStatus.UNKNOWN
+
+
 def is_terminal_status(status: Union[int, str, None]) -> bool:
     """Check if a task status is terminal (completed, failed, cancelled, or rejected).
 
@@ -57,6 +61,8 @@ def is_terminal_status(status: Union[int, str, None]) -> bool:
     """
     parsed = parse_status(status)
     return parsed in TERMINAL_STATUSES if parsed else False
+
+
 def is_message_ready(status: str | None) -> bool:
     """Check if a chat message status is terminal (ready, failed, or cancelled).
 
@@ -70,6 +76,8 @@ def is_message_ready(status: str | None) -> bool:
     if not status:
         return False
     return status not in (ChatMessageStatus.PENDING, ChatMessageStatus.PENDING.value)
+
+
 if TYPE_CHECKING:
     from .types import AgentConfigInput as AgentConfig
     from .delta import DeltaAccumulator
@@ -89,6 +97,8 @@ if TYPE_CHECKING:
         AsyncSocketsAPI,
     )
     from .live import AsyncLiveSession
+
+
 class TaskStream(AbstractContextManager['TaskStream']):
     """A context manager for streaming task updates.
 
@@ -218,6 +228,8 @@ class TaskStream(AbstractContextManager['TaskStream']):
         except Exception as exc:
             self._error = exc
             raise
+
+
 class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
     """An async context manager for streaming task updates.
 
@@ -338,6 +350,8 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
         except Exception as exc:
             self._error = exc
             raise
+
+
 @runtime_checkable
 class TaskCallback(Protocol):
     """Protocol for task streaming callbacks."""
@@ -352,6 +366,8 @@ class TaskCallback(Protocol):
     def on_complete(self, task: Dict[str, Any]) -> None:
         """Called when a task completes successfully."""
         ...
+
+
 # Deliberately do lazy imports for requests/aiohttp to avoid hard dependency at import time
 def _require_requests():
     try:
@@ -361,6 +377,8 @@ def _require_requests():
         raise RuntimeError(
             "The 'requests' package is required for synchronous HTTP calls. Install with: pip install requests"
         ) from exc
+
+
 async def _require_aiohttp():
     try:
         import aiohttp  # type: ignore
@@ -370,12 +388,16 @@ async def _require_aiohttp():
             "The 'aiohttp' package is required for async HTTP calls. Install with: pip install aiohttp"
         ) from exc
 Base64_RE = re.compile(r"^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$")
+
+
 @dataclass
 class UploadFileOptions:
     filename: Optional[str] = None
     content_type: Optional[str] = None
     path: Optional[str] = None
     public: Optional[bool] = None
+
+
 class StreamManager:
     """Simple SSE stream manager with optional auto-reconnect."""
 
@@ -1119,6 +1141,8 @@ class Inference:
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")
         return SessionHandle(self, app, session_id)
+
+
 class AsyncInference:
     """Async client for inference.sh API, mirroring the JS SDK behavior.
 
@@ -1710,15 +1734,21 @@ class AsyncInference:
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")
         return AsyncSessionHandle(self, app, session_id)
+
+
 # --------------- small async utilities ---------------
 async def _async_sleep(seconds: float) -> None:
     import asyncio
 
     await asyncio.sleep(seconds)
+
+
 def _b64_to_bytes(b64: str) -> bytes:
     import base64
 
     return base64.b64decode(b64)
+
+
 def _aio_open_file(path: str, mode: str):
     try:
         import aiofiles  # type: ignore
@@ -1727,6 +1757,8 @@ def _aio_open_file(path: str, mode: str):
             "The 'aiofiles' package is required for async file I/O. Install with: pip install aiofiles"
         ) from exc
     return aiofiles.open(path, mode)
+
+
 def _looks_like_base64(value: str) -> bool:
     # Reject very short strings to avoid matching normal words like "hi"
     if len(value) < 16:
@@ -1783,6 +1815,8 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     if task.get("socket"):
         result["socket"] = task["socket"]
     return result
+
+
 def _process_stream_event(
     data: Dict[str, Any], *, task: Dict[str, Any], stopper: Optional[Callable[[], None]] = None
 ) -> Optional[Dict[str, Any]]:
