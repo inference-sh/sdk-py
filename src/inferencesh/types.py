@@ -744,7 +744,6 @@ class AppPricing(TypedDict, total=False):
     description: str
     description_rendered: str
 
-# AppFunction represents a callable entry point within an app version.
 class AppFunction(TypedDict, total=False):
     name: str
     description: str
@@ -3140,11 +3139,18 @@ class ChatMessageContent(TypedDict, total=False):
     tool_calls: Optional[List[ToolCall]]
     event: Optional[ChatEvent]
 
+# ChatRunEvent is how a run ended, on a run_ended event.
+class ChatRunEvent(TypedDict, total=False):
+    run_id: str
+    state: AgentRunState
+    reason: RunEndReason
+
 # ChatEvent is the payload of an event-role message: system info shown in the
 # chat but never sent to the model.
 class ChatEvent(TypedDict, total=False):
     type: ChatEventType
     hook: Optional[ChatHookEvent]
+    run: Optional[ChatRunEvent]
 
 # ChatHookEvent records one lifecycle hook handler run.
 class ChatHookEvent(TypedDict, total=False):
@@ -5348,6 +5354,17 @@ class ChatEventType(str, Enum):
     # ChatEventTypeRunFailed marks the point a run ended in failure; the
     # content's text is the run's error.
     RUN_FAILED = "run_failed"
+    # ChatEventTypeRunEnded marks the point a run completed or was stopped;
+    # the event's run says how, and the content's text, when set, why.
+    RUN_ENDED = "run_ended"
+
+class RunEndReason(str, Enum):
+    # RunEndReasonOutputLimit: the model's last turn hit its output limit
+    # (max_tokens) before it replied or called a tool.
+    OUTPUT_LIMIT = "output_limit"
+    # RunEndReasonNoReply: the model ended its last turn with no reply and
+    # no tool call.
+    NO_REPLY = "no_reply"
 
 class DescriptionLimit(IntEnum):
     # DescriptionLimitListing bounds the description of an app, agent, flow,
@@ -5913,6 +5930,11 @@ class Infra(str, Enum):
     PRIVATE = "private"
     CLOUD = "cloud"
     PRIVATE_FIRST = "private_first"
+    # InfraRemote is a model call a harness on the caller's own remote
+    # answers (an agent whose model app is a harness model app). The
+    # scheduler never takes it: the remote model service sends it to the
+    # remote's daemon, whose frames end it.
+    REMOTE = "remote"
 
 class TaskLogType(IntEnum):
     BUILD = 0
