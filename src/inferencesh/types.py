@@ -2946,8 +2946,8 @@ class AuthMethodLookup(TypedDict, total=False):
     headers: Dict[str, str]
 
 # AuthMethodCapability is something an app can ask for from this provider,
-# satisfied by a connection holding its scopes. Scopes are in the scheme's
-# own (friendly) names, the ones a credential stores.
+# satisfied by a connection holding its scopes. Scopes are the provider's
+# own names (Wire form), the ones a credential stores.
 class AuthMethodCapability(TypedDict, total=False):
     key: str
     scopes: List[str]
@@ -2995,10 +2995,11 @@ AuthMethod = TypedDict('AuthMethod', {
     'bearer_format': 'str',
     'authorization_endpoint': 'str',
     'scopes': 'List[str]',
-    # ScopeAliases map the scheme's own scope names to what the provider
-    # wants on the wire ("gmail.send" → "https://www.googleapis.com/auth/
-    # gmail.send"). Credentials store the alias; the wire form is used only
-    # in requests. A scope with no alias is sent as is.
+    # ScopeAliases are shorthand a caller may write for a provider scope
+    # ("gmail.send" → "https://www.googleapis.com/auth/gmail.send"). They
+    # are accepted on input only: credentials, capabilities and allowed
+    # lists hold the provider's own name (Wire), and every comparison is
+    # in that form. A scope with no alias is the provider's name as is.
     'scope_aliases': 'Dict[str, str]',
     'scope_param': 'str',
     'scope_separator': 'str',
@@ -3028,7 +3029,7 @@ AuthMethod = TypedDict('AuthMethod', {
     # re-authorizing for more scopes, whatever the caller asked for: the
     # scopes the identity lookup and token refresh need (Google's openid,
     # email and profile; X's users.read and offline.access). In the
-    # scheme's own names, like Scopes. Empty = only what was asked for.
+    # provider's own names, like Scopes. Empty = only what was asked for.
     'required_scopes': 'List[str]',
     # IncrementalAddScopes: re-authorizing for more scopes asks only for
     # the new ones (plus RequiredScopes), and the provider returns a token
