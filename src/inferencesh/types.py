@@ -1456,7 +1456,6 @@ class SortOrder(TypedDict, total=False):
 # CursorListRequest represents a cursor-based list request with all options
 class CursorListRequest(TypedDict, total=False):
     cursor: str
-    page: Optional[int]
     limit: int
     direction: str
     search: Optional[SearchRequest]
@@ -1478,7 +1477,6 @@ class CursorListResponse(TypedDict, total=False):
     has_next: bool
     has_previous: bool
     items_per_page: int
-    total_items: int
 
 # CountResponse is the response for count endpoints.
 class CountResponse(TypedDict, total=False):
