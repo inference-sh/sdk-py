@@ -3143,6 +3143,9 @@ class ChatRunEvent(TypedDict, total=False):
     run_id: str
     state: AgentRunState
     reason: RunEndReason
+    # DurationMs is how long the run took, from its start to its end. The
+    # event message's created_at is when it ended.
+    duration_ms: int
 
 # ChatEvent is the payload of an event-role message: system info shown in the
 # chat but never sent to the model.
@@ -4031,6 +4034,8 @@ class AgentRunDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     state: AgentRunState
     error: Optional[str]
     output: Optional[Any]
+    # FinishedAt is when the run reached a terminal state; nil while it runs.
+    finished_at: Optional[str]
     interrupt_reason: Optional[InterruptReason]
     interrupt_tool_id: Optional[str]
     interrupt_meta: Any
