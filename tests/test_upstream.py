@@ -1,9 +1,15 @@
 """inferencesh.upstream: the shared client of API-wrapper apps."""
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
-httpx = pytest.importorskip("httpx")
+
+httpx = pytest.importorskip("httpx")  # skip module if httpx is not installed
+
+if TYPE_CHECKING:
+    import httpx  # noqa: F811 — runtime binding above; this line is for mypy only
+
 from pydantic import BaseModel, Field
 
 from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
