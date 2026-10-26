@@ -4637,6 +4637,9 @@ class ToolInvocationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False
     tool_invocation_id: str
     type: ToolType
     display_name: str
+    # Action is what the model said the call does, as an imperative phrase
+    # ("Fetch unread emails from alice@x.com"). Empty when it left it out.
+    action: str
     execution_id: Optional[str]
     function: ToolInvocationFunction
     status: ToolInvocationStatus
