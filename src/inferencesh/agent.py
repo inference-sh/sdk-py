@@ -44,6 +44,8 @@ class ToolCallInfo:
     id: str
     name: str
     args: Dict[str, Any]
+    # Imperative phrase from the model ("Fetch unread emails…"); empty when omitted.
+    action: str = ""
 
 
 @dataclass
@@ -218,6 +220,7 @@ class _ChatStreamRouter:
                     id=inv_id,
                     name=inv.get("function", {}).get("name", ""),
                     args=inv.get("function", {}).get("arguments", {}),
+                    action=inv.get("action") or "",
                 ))
         return calls
 

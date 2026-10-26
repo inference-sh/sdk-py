@@ -71,3 +71,35 @@ def test_message_dispatches_client_tool_only_once():
 
     assert len(first) == 1 and first[0].name == "confirm"
     assert second == []
+
+
+def test_message_tool_call_info_includes_model_action_phrase():
+    router = _ChatStreamRouter(set())
+    inv = {
+        "id": "inv_action",
+        "type": ToolType.CLIENT,
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "action": "Confirm deleting the production database",
+        "function": {"name": "confirm", "arguments": {"dangerous": True}},
+    }
+
+    calls = router.message({"tool_invocations": [inv]}, dispatch_tools=True)
+
+    assert len(calls) == 1
+    assert calls[0].action == "Confirm deleting the production database"
+    assert calls[0].name == "confirm"
+
+
+def test_message_tool_call_info_action_defaults_empty_when_omitted():
+    router = _ChatStreamRouter(set())
+    inv = {
+        "id": "inv_no_action",
+        "type": ToolType.CLIENT,
+        "status": ToolInvocationStatus.AWAITING_INPUT,
+        "function": {"name": "ping", "arguments": {}},
+    }
+
+    calls = router.message({"tool_invocations": [inv]}, dispatch_tools=True)
+
+    assert len(calls) == 1
+    assert calls[0].action == ""
