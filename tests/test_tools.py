@@ -614,8 +614,8 @@ class TestLearningHooks:
         from inferencesh.tools import lifecycle_hook
         from inferencesh.types import BuiltinHook, HookEvent
 
-        config = lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.BELT_SUGGEST).build()
-        assert config == {"event": HookEvent.TURN_START, "type": "builtin", "handler": "belt:suggest"}
+        config = lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.SUGGEST).build()
+        assert config == {"event": HookEvent.TURN_START, "type": "builtin", "handler": "suggest"}
 
     def test_learning_hooks_off_by_default(self):
         from inferencesh.tools import learning_hooks
@@ -627,9 +627,9 @@ class TestLearningHooks:
 
         hooks = learning_hooks(suggest=True, learn=True)
         assert [(h["event"], h["handler"]) for h in hooks] == [
-            ("agent.turn_start", "belt:suggest"),
-            ("agent.complete", "belt:extract"),
-            ("agent.pre_compact", "belt:extract"),
+            ("agent.turn_start", "suggest"),
+            ("agent.complete", "extract"),
+            ("agent.pre_compact", "extract"),
         ]
 
     def test_learning_hooks_suggest_only(self):
@@ -638,11 +638,11 @@ class TestLearningHooks:
         hooks = learning_hooks(suggest=True)
         assert len(hooks) == 1
         assert hooks[0]["event"] == "agent.turn_start"
-        assert hooks[0]["handler"] == "belt:suggest"
+        assert hooks[0]["handler"] == "suggest"
 
     def test_learning_hooks_learn_only(self):
         from inferencesh.tools import learning_hooks
 
         hooks = learning_hooks(learn=True)
         assert len(hooks) == 2
-        assert all(h["handler"] == "belt:extract" for h in hooks)
+        assert all(h["handler"] == "extract" for h in hooks)

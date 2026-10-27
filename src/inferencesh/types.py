@@ -3164,6 +3164,9 @@ class ChatHookEvent(TypedDict, total=False):
     decision: HookDecision
     reason: str
     injected: bool
+    # InjectionIDs are the injection messages the run wrote, so a reader
+    # shows what the hook added with the run instead of as rows of its own.
+    injection_ids: List[str]
     error: str
     duration_ms: int
 
@@ -6103,16 +6106,16 @@ class HookHandlerType(str, Enum):
     HOOK_HANDLER_BUILTIN = "builtin"
 
 class BuiltinHook(str, Enum):
-    # BuiltinHookBeltSuggest searches the team's skills, knowledge and apps
+    # BuiltinHookSuggest searches the team's skills, knowledge and apps
     # for what the turn is about and injects the matches, so an agent picks up
     # procedural knowledge it was never prompted with.
-    BELT_SUGGEST = "belt:suggest"
-    # BuiltinHookBeltExtract reviews the conversation for reusable knowledge
+    SUGGEST = "suggest"
+    # BuiltinHookExtract reviews the conversation for reusable knowledge
     # and saves it to the team's registry, deduplicated against what is
-    # there, so belt:suggest can hand it back later. It runs in the
+    # there, so suggest can hand it back later. It runs in the
     # background: on agent.complete every tenth user turn, and before
     # compaction drops the turns it would have learned from.
-    BELT_EXTRACT = "belt:extract"
+    EXTRACT = "extract"
 
 class ToolInvocationStatus(str, Enum):
     PENDING = "pending"

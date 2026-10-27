@@ -532,7 +532,7 @@ class LifecycleHookBuilder:
         return self
 
     def builtin(self, name: BuiltinHook) -> "LifecycleHookBuilder":
-        """Set hook type to a builtin the platform runs itself (e.g. belt:suggest)."""
+        """Set hook type to a builtin the platform runs itself (e.g. suggest)."""
         self._type = HookHandlerType.HOOK_HANDLER_BUILTIN
         self._handler = name.value if isinstance(name, BuiltinHook) else name
         return self
@@ -576,8 +576,8 @@ def learning_hooks(suggest: bool = False, learn: bool = False) -> List[Lifecycle
     """
     hooks: List[LifecycleHookConfig] = []
     if suggest:
-        hooks.append(lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.BELT_SUGGEST).build())
+        hooks.append(lifecycle_hook(HookEvent.TURN_START).builtin(BuiltinHook.SUGGEST).build())
     if learn:
         for event in (HookEvent.AGENT_COMPLETE, HookEvent.PRE_COMPACT):
-            hooks.append(lifecycle_hook(event).builtin(BuiltinHook.BELT_EXTRACT).build())
+            hooks.append(lifecycle_hook(event).builtin(BuiltinHook.EXTRACT).build())
     return hooks
