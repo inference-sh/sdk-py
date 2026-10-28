@@ -336,6 +336,10 @@ class ApiAgentRunRequest(TypedDict, total=False):
     input: MessageInput
     context: Dict[str, str]
     stream: bool
+    # ProjectID files the chat this message starts in a project. Ignored
+    # when the message posts into an existing chat (chat_id): a chat moves
+    # with POST /chats/{id}/project.
+    project_id: Optional[str]
 
 class CreateAgentMessageResponse(TypedDict, total=False):
     user_message: Optional[ChatMessageDTO]
@@ -4179,38 +4183,6 @@ class BountySubmissionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=Fal
     agent: str
     source: str
 
-# ChatDTO for API responses
-class ChatDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
-    parent_id: Optional[str]
-    parent: Optional[ChatDTO]
-    children: List[Optional[ChatDTO]]
-    status: ChatStatus
-    output: Optional[Any]
-    context: Dict[str, str]
-    # ChannelContext names the channel this chat came through (slack, a
-    # wearable's tag, ...). Unset for chats started in the app or the SDK.
-    channel_context: Optional[ChannelContext]
-    agent_id: Optional[str]
-    agent: Optional[AgentDTO]
-    agent_version_id: Optional[str]
-    agent_version: Optional[AgentVersionDTO]
-    name: str
-    description: str
-    # ChatMessages is left out when the messages were not loaded. The chat
-    # endpoints do not load them; read them from GET /chats/{id}/messages.
-    # An absent field says nothing about whether the chat has messages.
-    chat_messages: List[ChatMessageDTO]
-    agent_data: ChatData
-    active_run: Optional[AgentRunDTO]
-    pending_interrupts: List[InterruptDTO]
-    # HarnessSessionID is the harness's own session id when a remote profile
-    # thinks for this chat; `claude --resume <id>` opens it on that machine.
-    harness_session_id: Optional[str]
-    # WorkDir is the folder a harness works in for this chat.
-    work_dir: str
-    # ForkedFromMessageID is the message this chat was branched at.
-    forked_from_message_id: Optional[str]
-
 # ChatMessageDTO for API responses
 class ChatMessageDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     chat_id: str
@@ -4688,6 +4660,38 @@ class AgentDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tot
     profile_id: Optional[str]
     # RemoteID is the machine the agent's terminal tools run on by default.
     remote_id: Optional[str]
+
+# ChatDTO for API responses
+class ChatDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, total=False):
+    parent_id: Optional[str]
+    parent: Optional[ChatDTO]
+    children: List[Optional[ChatDTO]]
+    status: ChatStatus
+    output: Optional[Any]
+    context: Dict[str, str]
+    # ChannelContext names the channel this chat came through (slack, a
+    # wearable's tag, ...). Unset for chats started in the app or the SDK.
+    channel_context: Optional[ChannelContext]
+    agent_id: Optional[str]
+    agent: Optional[AgentDTO]
+    agent_version_id: Optional[str]
+    agent_version: Optional[AgentVersionDTO]
+    name: str
+    description: str
+    # ChatMessages is left out when the messages were not loaded. The chat
+    # endpoints do not load them; read them from GET /chats/{id}/messages.
+    # An absent field says nothing about whether the chat has messages.
+    chat_messages: List[ChatMessageDTO]
+    agent_data: ChatData
+    active_run: Optional[AgentRunDTO]
+    pending_interrupts: List[InterruptDTO]
+    # HarnessSessionID is the harness's own session id when a remote profile
+    # thinks for this chat; `claude --resume <id>` opens it on that machine.
+    harness_session_id: Optional[str]
+    # WorkDir is the folder a harness works in for this chat.
+    work_dir: str
+    # ForkedFromMessageID is the message this chat was branched at.
+    forked_from_message_id: Optional[str]
 
 # Widget is an A2UI surface stored on a ToolInvocation.
 # Alias of shared.A2UISurface so the type generation pipeline picks it up.
