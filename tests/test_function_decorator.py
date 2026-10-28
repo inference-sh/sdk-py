@@ -85,7 +85,7 @@ def test_declaration_is_copied():
 
 
 def test_typed_declarations_accepted():
-    cred: CredentialRequirement = {"key": "google.calendar.events", "optional": True}
+    cred: CredentialRequirement = {"slug": "google", "capabilities": ["google.calendar.events"], "optional": True}
     ann: ToolAnnotations = {"title": "Create event", "openWorldHint": True}
 
     @function(credentials=[cred], annotations=ann)
@@ -174,7 +174,7 @@ def test_bare_decorator_is_an_error():
 
 
 class App(BaseApp):
-    @function(credentials=[{"key": "google.calendar.events"}], annotations={"readOnlyHint": True})
+    @function(credentials=[{"key": "google.calendar.events"}], annotations={"readOnlyHint": True})  # type: ignore[list-item]
     async def listen(self, input_data: In, socket: Socket) -> Out:
         """Stream function."""
         return Out()
