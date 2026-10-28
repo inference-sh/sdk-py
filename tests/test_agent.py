@@ -282,6 +282,29 @@ def test_submit_tool_result_widget_action_json(patch_agent_requests):
     }
 
 
+def test_submit_tool_result_with_error(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    agent.submit_tool_result("inv_err", "", error="No handler for this tool")
+
+    body = patch_agent_requests[-1]["data"]
+    assert body["error"] == "No handler for this tool"
+    assert body["result"] == ""
+
+
+def test_submit_tool_result_error_omitted_when_none(patch_agent_requests):
+    client = Inference(api_key="test")
+    agent = client.agent("okaris/assistant@abc123")
+    agent.send_message("Hi")
+
+    agent.submit_tool_result("inv_5", "ok")
+
+    body = patch_agent_requests[-1]["data"]
+    assert "error" not in body
+
+
 def test_stream_all_dispatches_client_tool_once(monkeypatch, patch_agent_requests):
     from inferencesh.types import ToolInvocationStatus, ToolType
 

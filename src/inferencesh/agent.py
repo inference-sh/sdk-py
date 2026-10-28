@@ -152,6 +152,7 @@ def _tool_path(tool_invocation_id: str, action: str = "") -> str:
 def _tool_result_body(
     result_or_action: str | dict[str, Any],
     attachments: Optional[List[FileRef]] = None,
+    error: Optional[str] = None,
 ) -> Dict[str, Any]:
     # Widget actions are sent as a JSON string
     body: Dict[str, Any] = {
@@ -159,6 +160,8 @@ def _tool_result_body(
     }
     if attachments:
         body["attachments"] = list(attachments)
+    if error is not None:
+        body["error"] = error
     return body
 
 
@@ -336,6 +339,7 @@ class Agent:
         tool_invocation_id: str,
         result_or_action: str | dict[str, Any],
         attachments: Optional[List[FileRef]] = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Submit a tool result.
@@ -351,6 +355,9 @@ class Agent:
                 ``filename``, ``content_type``; ``id`` and ``size`` optional),
                 at most 20. An image reaches the model as image input when
                 the model supports images.
+            error: When set, marks the tool call as failed. The model reads
+                this message in place of the result. Use when the handler has
+                no implementation for the tool or the call itself failed.
 
         Example (raw result):
             agent.submit_tool_result("tool123", '{"success": true}')
@@ -360,8 +367,11 @@ class Agent:
                 "action": {"type": "confirm"},
                 "form_data": {"name": "John"}
             })
+
+        Example (tool failure):
+            agent.submit_tool_result("tool123", "", error="Tool not supported")
         """
-        self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments))
+        self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments, error))
 
     def approve_tool(self, tool_invocation_id: str) -> None:
         """Approve a tool invocation that is awaiting human approval.
@@ -846,6 +856,7 @@ class AsyncAgent:
         tool_invocation_id: str,
         result_or_action: str | dict[str, Any],
         attachments: Optional[List[FileRef]] = None,
+        error: Optional[str] = None,
     ) -> None:
         """
         Submit a tool result.
@@ -861,8 +872,11 @@ class AsyncAgent:
                 ``filename``, ``content_type``; ``id`` and ``size`` optional),
                 at most 20. An image reaches the model as image input when
                 the model supports images.
+            error: When set, marks the tool call as failed. The model reads
+                this message in place of the result. Use when the handler has
+                no implementation for the tool or the call itself failed.
         """
-        await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments))
+        await self._request("post", _tool_path(tool_invocation_id), data=_tool_result_body(result_or_action, attachments, error))
 
     async def approve_tool(self, tool_invocation_id: str) -> None:
         """Approve a tool invocation that is awaiting human approval.
