@@ -3127,6 +3127,10 @@ class ChatData(TypedDict, total=False):
     # review branch is opened with it set, so a review cannot fire the hook
     # that reviews it.
     disable_hooks: bool
+    # Client is the app the chat was started from (web, mac, ios, cli,
+    # sdk-js), as the request named itself (X-Client-Source). Shown, never
+    # trusted or filtered on: Chat.Origin is what a chat list filters.
+    client: str
 
 # PlanStep represents a step in an agent's execution plan
 class PlanStep(TypedDict, total=False):
@@ -4696,6 +4700,10 @@ class ChatDTO(BaseModelDTO, PermissionModelDTO, ProjectModelDTO, TypedDict, tota
     work_dir: str
     # ForkedFromMessageID is the message this chat was branched at.
     forked_from_message_id: Optional[str]
+    # Origin is how the chat came to be: "ui" for a person in one of our
+    # apps, else api, trigger, integration, openai_client, embed, hook,
+    # subagent or branch. GET /chats filters on it.
+    origin: ChatOrigin
 
 # Widget is an A2UI surface stored on a ToolInvocation.
 # Alias of shared.A2UISurface so the type generation pipeline picks it up.
@@ -5367,6 +5375,30 @@ class ChannelType(str, Enum):
     TEAMS = "teams"
     TELEGRAM = "telegram"
 
+class ChatOrigin(str, Enum):
+    # ChatOriginUI is a person in one of our apps: web, mac, ios, watch or
+    # the CLI.
+    UI = "ui"
+    # ChatOriginAPI is anything else that called the API: a key, an SDK, A2A.
+    API = "api"
+    # ChatOriginTrigger is a trigger firing (Chat.TriggerID).
+    TRIGGER = "trigger"
+    # ChatOriginIntegration is a message on a messaging channel: Slack,
+    # Telegram, Discord or Teams.
+    INTEGRATION = "integration"
+    # ChatOriginOpenAIClient is a client of the OpenAI-compatible agent route.
+    OPEN_AI_CLIENT = "openai_client"
+    # ChatOriginEmbed is a visitor to an embedded agent.
+    EMBED = "embed"
+    # ChatOriginHook is a lifecycle hook handing its event to an agent.
+    HOOK = "hook"
+    # ChatOriginSubagent is a sub-agent's chat, started by a tool call
+    # (Chat.ParentID).
+    SUBAGENT = "subagent"
+    # ChatOriginBranch is a fork of another chat, a review branch among them
+    # (Chat.ForkedFromMessageID).
+    BRANCH = "branch"
+
 class ChatEventType(str, Enum):
     HOOK = "hook"
     # ChatEventTypeRunFailed marks the point a run ended in failure; the
@@ -5769,6 +5801,8 @@ class CredentialType(str, Enum):
     WIF = "wif"
 
 class CredentialStatus(str, Enum):
+    # CredentialStatusPending is no longer written: a credential row exists
+    # once it holds a key or a login. Rows soft-deleted before then carry it.
     PENDING = "pending"
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
