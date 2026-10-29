@@ -5814,11 +5814,11 @@ class CredentialScope(str, Enum):
     # CredentialScopeOrg: shared across all teams of an org. In the enum for
     # end-to-end typing (connect-level pickers); connects with it are refused
     # until the org domain lands (INF-795 Phase 2). Resolution order once
-    # live: agent > user > team > org > platform.
+    # live: user > team > org > platform. Credentials an agent uses are
+    # composed by vaults (INF-737), not by a scope.
     ORG = "org"
     TEAM = "team"
     USER = "user"
-    AGENT = "agent"
 
 class CredentialGrant(str, Enum):
     # CredentialGrantCredentials: an OAuth app. Never a connection.
