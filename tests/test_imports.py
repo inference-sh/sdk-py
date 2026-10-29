@@ -191,7 +191,7 @@ def test_models_decision_export_exists(name):
 
 @pytest.mark.parametrize("name", [
     # Enums
-    "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType",
+    "ChatStatus", "ChatMessageRole", "ChatMessageStatus", "ChatMessageContentType", "ChatOrigin",
     "PlanStepStatus", "FlowRunStatus", "AppCategory", "Visibility",
     "AppSessionStatus", "FilterOperator", "MetaItemType",
     "ToolType", "ToolInvocationStatus", "TaskStatus",

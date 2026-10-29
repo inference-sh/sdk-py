@@ -128,6 +128,7 @@ from .types import (
     ChatStatus,
     ChatMessageRole,
     ChatMessageContentType,
+    ChatOrigin,
     ToolType,
     ToolInvocationStatus,
     # Agent types
