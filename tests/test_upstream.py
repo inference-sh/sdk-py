@@ -1,8 +1,11 @@
 """inferencesh.upstream: the shared client of API-wrapper apps."""
 
 import json
+from typing import TYPE_CHECKING
 
 import pytest
+if TYPE_CHECKING:
+    import httpx
 httpx = pytest.importorskip("httpx")
 from pydantic import BaseModel, Field
 
