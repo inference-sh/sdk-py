@@ -255,6 +255,47 @@ class TestFileCacheLastUse:
         with open(path, "rb") as f:
             assert f.read() == b"recreated"
 
+    def test_concurrent_downloads_of_one_url_do_not_collide(self):
+        """Two tasks on a worker fetch the same URL at once: each gets its own
+        tmp file, and neither deletes the other's in-flight download."""
+        import threading
+
+        both_open = threading.Barrier(2)
+        tmp_files = []
+
+        class Body(io.BytesIO):
+            def read(self, *a):
+                chunk = super().read(*a)
+                if chunk:
+                    both_open.wait(timeout=5)
+                return chunk
+
+        def urlopen(*a, **k):
+            return Body(b"fetched")
+
+        results, errors = [], []
+
+        def fetch():
+            try:
+                f = File(uri=self.URL)
+                tmp_files.append(f)
+                results.append(f.path)
+            except Exception as e:  # pragma: no cover - the failure being tested
+                errors.append(e)
+
+        with patch("urllib.request.urlopen", side_effect=urlopen):
+            threads = [threading.Thread(target=fetch) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=10)
+
+        assert errors == []
+        assert len(results) == 2 and results[0] == results[1]
+        with open(results[0], "rb") as f:
+            assert f.read() == b"fetched"
+        assert not [p for p in os.listdir(os.path.dirname(results[0])) if p.endswith(".tmp")]
+
     def test_reuse_cached_false_when_file_missing(self, tmp_path):
         """Data-URI hits call _reuse_cached on the first cache entry; a miss must decode."""
         missing = tmp_path / "evicted"

@@ -8,6 +8,7 @@ import re
 import urllib.request
 import urllib.parse
 import hashlib
+import tempfile
 from pathlib import Path
 from tqdm import tqdm
 
@@ -291,13 +292,25 @@ class File:
         filename = f"file{ext}" if ext else "file"
         cache_path = cache_dir / filename
 
+        # Written next to cache_dir and renamed in, so a concurrent decode of
+        # the same URI never sees a half-written file in cache_dir.
+        tmp_path = None
         try:
-            with open(cache_path, "wb") as f:
+            fd, tmp_path = tempfile.mkstemp(dir=cache_dir.parent, prefix=uri_hash + ".", suffix=".tmp")
+            with os.fdopen(fd, "wb") as f:
                 f.write(data)
+            os.replace(tmp_path, cache_path)
+            tmp_path = None
             self._path = str(cache_path)
             self._populate_metadata()
         except IOError as e:
             raise RuntimeError(f"Failed to write decoded data URI to {cache_path}: {e}")
+        finally:
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
     def _download_url(self, retries: int = 1) -> None:
         import time
@@ -314,8 +327,6 @@ class File:
 
         print(f"Downloading URL: {original_url} to {cache_path}")
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = str(cache_path) + ".tmp"
-        self._tmp_path = tmp_path
 
         headers = {
             "User-Agent": "inferencesh-sdk-py"
@@ -339,8 +350,13 @@ class File:
 
                     block_size = 65536
 
+                    # One tmp file per download: concurrent downloads of the
+                    # same URL on a worker must not share or unlink each
+                    # other's in-flight file.
+                    fd, tmp_path = tempfile.mkstemp(dir=cache_path.parent, prefix=cache_path.name + ".", suffix=".tmp")
+                    self._tmp_path = tmp_path
                     with tqdm(total=total_size, unit="iB", unit_scale=True) as pbar:
-                        with open(tmp_path, "wb") as out_file:
+                        with os.fdopen(fd, "wb") as out_file:
                             while True:
                                 non_chunking = False
                                 try:
@@ -358,7 +374,7 @@ class File:
                                 if non_chunking:
                                     break
 
-                os.rename(tmp_path, cache_path)
+                os.replace(tmp_path, cache_path)
                 self._tmp_path = None
                 self._path = str(cache_path)
                 self._populate_metadata()
@@ -370,6 +386,7 @@ class File:
                         os.unlink(self._tmp_path)
                     except (OSError, IOError):
                         pass
+                    self._tmp_path = None
                 if attempt < retries:
                     wait = 2 ** attempt
                     print(f"Download failed (attempt {attempt + 1}/{retries + 1}): {e}, retrying in {wait}s...")
