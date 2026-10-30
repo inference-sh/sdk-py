@@ -51,7 +51,18 @@ def download(url: str, directory: Union[str, Path, StorageDir]) -> str:
     # Download the file
     file = File(url)
     if file.path:
-        shutil.copy2(file.path, output_path)
+        # Write to a per-process temp file first, then atomically replace the
+        # destination.  Two tasks fetching the same URL concurrently each write
+        # to their own .tmp file; os.replace() is atomic on POSIX so the winner
+        # leaves a complete file and the loser's replace() is a no-op overwrite
+        # of an already-complete file — no partial reads are possible.
+        tmp_path = hash_dir / f".{filename}.{os.getpid()}.tmp"
+        try:
+            shutil.copy2(file.path, str(tmp_path))
+            os.replace(str(tmp_path), str(output_path))
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
         # Prevent the File instance from deleting its temporary file
         file._tmp_path = None
         return str(output_path)

@@ -119,3 +119,39 @@ def test_download_cache_hit_skips_file_when_not_temp(tmp_path):
     assert path == str(cached)
     mock_file_cls.assert_not_called()
     assert StorageDir.TEMP != tmp_path
+
+
+def test_download_leaves_no_temp_files_on_success(tmp_path):
+    """After a successful download no .tmp files should remain in the hash dir."""
+    url = "https://cdn.example.com/assets/clean.bin"
+    src = tmp_path / "source.bin"
+    src.write_bytes(b"payload")
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+
+        download(url, tmp_path)
+
+    hash_dir = tmp_path / _url_hash(url)
+    leftover = list(hash_dir.glob("*.tmp"))
+    assert leftover == [], f"Unexpected temp files left behind: {leftover}"
+
+
+def test_download_cleans_up_temp_file_on_copy_error(tmp_path):
+    """If shutil.copy2 fails the .tmp file must be removed."""
+    url = "https://cdn.example.com/assets/fail.bin"
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = "/does/not/exist/source.bin"
+        mock_file_cls.return_value = mock_file
+
+        with pytest.raises(Exception):
+            download(url, tmp_path)
+
+    hash_dir = tmp_path / _url_hash(url)
+    if hash_dir.exists():
+        leftover = list(hash_dir.glob("*.tmp"))
+        assert leftover == [], f"Temp file not cleaned up on error: {leftover}"
