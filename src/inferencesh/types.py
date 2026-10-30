@@ -2370,6 +2370,14 @@ class ShareRequest(TypedDict, total=False):
     org: bool
     permission: Permission
 
+# CreateSandboxRequest is POST /sandboxes. Sizes left at zero take the
+# defaults.
+class CreateSandboxRequest(TypedDict, total=False):
+    name: str
+    vcpus: int
+    memory_mib: int
+    disk_mib: int
+
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
 # in the generated SDK output (TypeScript, Python, Go).
@@ -4604,6 +4612,27 @@ class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     parent: Optional[ProjectDTO]
     children: List[Optional[ProjectDTO]]
 
+# SandboxDTO is the API response for a sandbox.
+class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    name: str
+    image: str
+    vcpus: int
+    memory_mib: int
+    disk_mib: int
+    desired_state: SandboxDesiredState
+    status: SandboxStatus
+    status_reason: str
+    # Generation counts starts, restarts included.
+    generation: int
+    # EngineID and WorkerID place the current generation; empty while
+    # pending or stopped.
+    engine_id: Optional[str]
+    worker_id: Optional[str]
+    # RemoteID is the Remote the box connects as; the same across restarts.
+    remote_id: Optional[str]
+    started_at: Optional[str]
+    stopped_at: Optional[str]
+
 # SecretDTO for API responses - VALUE IS NEVER EXPOSED
 class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     key: str
@@ -4907,6 +4936,9 @@ class Scope(str, Enum):
     # Action-level scopes for Remotes
     REMOTES_READ = "remotes:read"
     REMOTES_WRITE = "remotes:write"
+    # Action-level scopes for Sandboxes (managed boxes that run a remote)
+    SANDBOXES_READ = "sandboxes:read"
+    SANDBOXES_WRITE = "sandboxes:write"
     # Action-level scopes for API Keys
     API_KEYS_READ = "apikeys:read"
     API_KEYS_WRITE = "apikeys:write"
@@ -4973,6 +5005,7 @@ class ScopeGroup(str, Enum):
     CREDENTIALS = "credentials"
     ENGINES = "engines"
     REMOTES = "remotes"
+    SANDBOXES = "sandboxes"
     API_KEYS = "apikeys"
     KNOWLEDGE = "knowledge"
     ARTIFACTS = "artifacts"
@@ -5008,7 +5041,13 @@ class ToolRiskLevel(str, Enum):
     TOOL_RISK_HIGH = "high"
 
 class EngineCapability(str, Enum):
+    # EngineCapabilityEgressGateway: the engine runs its sandboxes behind
+    # the egress gateway, so it can take bound secrets (the v2 secrets
+    # envelope) and place each value only toward its hosts (INF-1076).
     EGRESS_GATEWAY = "egress_gateway"
+    # EngineCapabilitySandboxes: the engine has boxd connected and a VM
+    # space up, so it can take sandbox_start (INF-833).
+    SANDBOXES = "sandboxes"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
@@ -5221,6 +5260,19 @@ class SetupActionType(str, Enum):
     SETUP_ACTION_ADD_SECRET = "add_secret"
     SETUP_ACTION_CONNECT = "connect"
     SETUP_ACTION_ADD_SCOPES = "add_scopes"
+
+class SandboxStatus(str, Enum):
+    PENDING = "pending"
+    STARTING = "starting"
+    RUNNING = "running"
+    STOPPING = "stopping"
+    STOPPED = "stopped"
+    FAILED = "failed"
+
+class SandboxDesiredState(str, Enum):
+    SANDBOX_DESIRED_RUNNING = "running"
+    SANDBOX_DESIRED_STOPPED = "stopped"
+    SANDBOX_DESIRED_DELETED = "deleted"
 
 class UpdateState(str, Enum):
     # UpdateRequested: the request was sent and nothing has answered it yet.
@@ -5885,6 +5937,9 @@ class EntitlementResource(str, Enum):
     RESOURCE_FEATURE_MARKETPLACE_PUBLISH = "feature:marketplace_publish"
     # Granted per team: creating forms is by invitation for now.
     RESOURCE_FEATURE_FORMS = "feature:forms"
+    # Managed sandboxes (INF-833): open to every team; a row with enabled
+    # false shuts one team out.
+    RESOURCE_FEATURE_SANDBOXES = "feature:sandboxes"
     # Legacy feature gates — kept for DB compatibility, no longer gated
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
     RESOURCE_FEATURE_WEBHOOKS = "feature:webhooks"
