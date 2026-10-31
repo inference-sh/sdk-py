@@ -1579,6 +1579,37 @@ class WorkerRAM(TypedDict, total=False):
 # empty are the same: nothing beyond the base contract.
 EngineCapabilities = List["EngineCapability"]
 
+# EngineCapacity is what an engine offers and what it has given out
+# (INF-1156): the machine, the host reserve kept back from it, what is
+# left to give (allocatable), what it has promised (committed: app
+# workers' quotas and sandbox boxes' sizes) and what is in use now.
+# Reported by engines with EngineCapabilityCapacity.
+class EngineCapacity(TypedDict, total=False):
+    # CPUs are the logical CPUs (hardware threads) the engine may use;
+    # Cores the physical cores they are on.
+    cpus: int
+    cores: int
+    memory_bytes: int
+    # DiskBytes and DiskFreeBytes are the volume the engine's data is on.
+    disk_bytes: int
+    disk_free_bytes: int
+    gpus: List[CapacityGPU]
+    reserve: CapacityAmount
+    allocatable: CapacityAmount
+    committed: CapacityAmount
+    used: CapacityAmount
+
+# CapacityAmount is an amount of CPU and memory. CPUs are logical CPUs,
+# fractional for use (1.5 is one and a half CPUs busy).
+class CapacityAmount(TypedDict, total=False):
+    cpus: float
+    memory_bytes: int
+
+# CapacityGPU is one GPU of an engine.
+class CapacityGPU(TypedDict, total=False):
+    id: str
+    vram_bytes: int
+
 # EntitlementErrorMeta is the structured metadata returned in entitlement error responses.
 class EntitlementErrorMeta(TypedDict, total=False):
     resource: EntitlementResource
@@ -4333,6 +4364,9 @@ class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # went; nil when it was never asked.
     last_update: Optional[UpdateStatus]
     system_info: Optional[SystemInfo]
+    # Capacity is what the engine last reported it offers and has given
+    # out; nil from an engine that does not report it.
+    capacity: Optional[EngineCapacity]
     workers: List[Optional[WorkerDTO]]
 
 # EngineSummary is a lightweight engine response embedded in tasks.
@@ -5048,6 +5082,9 @@ class EngineCapability(str, Enum):
     # EngineCapabilitySandboxes: the engine has boxd connected and a VM
     # space up, so it can take sandbox_start (INF-833).
     SANDBOXES = "sandboxes"
+    # EngineCapabilityCapacity: the engine reports EngineTelemetry.Capacity
+    # (INF-1156).
+    CAPACITY = "capacity"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
