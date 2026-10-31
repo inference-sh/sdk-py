@@ -285,6 +285,34 @@ class TestContractDeltaApp:
         assert finals[0].choices[0].message.content == "Hello"
 
 
+class SafetyRefusalApp(OpenAIChatMixin, BaseApp):
+    """App whose provider ended the turn for safety (Anthropic refusal, xAI usage_violation)."""
+
+    stop_reason: str = "refusal"
+
+    async def run(self, input_data: AppInput) -> AsyncGenerator[AppOutput, None]:
+        yield AppOutput(
+            response="",
+            usage=LLMUsage(stop_reason=self.stop_reason),
+        )
+
+
+class TestSafetyRefusalFinishReason:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stop_reason", ("refusal", "usage_violation", "content_filter"))
+    async def test_stream_and_completion_use_content_filter(self, stop_reason):
+        app = SafetyRefusalApp()
+        app.stop_reason = stop_reason
+        chunks, finals = await collect(app)
+
+        finish_chunks = [
+            c for c in chunks if c.choices and c.choices[0].finish_reason
+        ]
+        assert finish_chunks[-1].choices[0].finish_reason == "content_filter"
+        assert len(finals) == 1
+        assert finals[0].choices[0].finish_reason == "content_filter"
+
+
 class TestFinishReasonMapping:
     def test_preempted_stop_reason_maps_to_openai_stop(self):
         """Preempted runs are not a native OpenAI finish_reason; adapter falls back to stop."""
