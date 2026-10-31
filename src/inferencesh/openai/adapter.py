@@ -305,7 +305,8 @@ def _finish_reason(out: BaseLLMOutput) -> FinishReason:
     stop = (out.usage.stop_reason if out.usage else "") or ""
     if stop in ("length", "max_tokens"):
         return "length"
-    if stop == "content_filter":
+    # A provider's safety refusal: Anthropic's refusal, xAI's usage_violation.
+    if stop in ("content_filter", "refusal", "usage_violation"):
         return "content_filter"
     return "stop"
 

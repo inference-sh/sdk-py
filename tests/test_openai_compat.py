@@ -293,3 +293,12 @@ class TestFinishReasonMapping:
 
         out = LLMOutput(response="x", usage=LLMUsage(stop_reason="preempted"))
         assert _finish_reason(out) == "stop"
+
+    def test_safety_refusals_map_to_content_filter(self):
+        """Each provider's safety stop reason is OpenAI's content_filter."""
+        from inferencesh.models.llm import LLMOutput, LLMUsage
+        from inferencesh.openai.adapter import _finish_reason
+
+        for stop in ("content_filter", "refusal", "usage_violation"):
+            out = LLMOutput(response="", usage=LLMUsage(stop_reason=stop))
+            assert _finish_reason(out) == "content_filter", stop
