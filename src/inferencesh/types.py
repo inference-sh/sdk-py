@@ -813,6 +813,9 @@ class SecretRequirement(TypedDict, total=False):
 # before the first dot), `name:` and `website:` seed the provider.
 class CredentialRequirement(TypedDict, total=False):
     slug: str
+    # key is a legacy spelling: a dotted capability key like "slack.channels.write"
+    # (the part before the first dot becomes the slug). Accepted by normalize_credentials.
+    key: str
     capabilities: List[str]
     description: str
     optional: bool
