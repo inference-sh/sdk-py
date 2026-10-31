@@ -25,11 +25,11 @@ class Message(BaseAppInput):
     content: str
 
 class ContextMessage(llm_contract.LLMContextMessage, BaseAppInput):
-    # App-layer File types instead of wire URL strings
-    images: Optional[List[File]] = None
-    files: Optional[List[File]] = None
-    # Dict access for backward compat with build_openai_messages
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    # App-layer File types instead of wire URL strings (wire uses List[str])
+    images: Optional[List[File]] = None  # type: ignore[assignment]
+    files: Optional[List[File]] = None  # type: ignore[assignment]
+    # Dict access for backward compat with build_openai_messages (wire uses List[ToolCall])
+    tool_calls: Optional[List[Dict[str, Any]]] = None  # type: ignore[assignment]
 
 class ReasoningEffortEnum(str, Enum):
     LOW = "low"
@@ -72,10 +72,12 @@ class LLMInput(llm_contract.LLMInput, BaseAppInput):
     this body's order is cosmetic; it mirrors the contract for readability."""
 
     text: str = Field(default="")
-    images: Optional[List[File]] = Field(default=None)
-    files: Optional[List[File]] = Field(default=None)
-    attachments: Optional[List[File]] = Field(default=None)
-    context: List[ContextMessage] = Field(default=[])
+    # App-layer File objects replace the wire's List[str] (URL strings) and List[FileRef]
+    images: Optional[List[File]] = Field(default=None)  # type: ignore[assignment]
+    files: Optional[List[File]] = Field(default=None)  # type: ignore[assignment]
+    attachments: Optional[List[File]] = Field(default=None)  # type: ignore[assignment]
+    # ContextMessage is a subtype of LLMContextMessage; list is invariant so ignored
+    context: List[ContextMessage] = Field(default=[])  # type: ignore[assignment]
     role: ContextMessageRole = Field(default=ContextMessageRole.USER)
 
     # App defaults and validation (Go has no annotations for these)
@@ -87,8 +89,8 @@ class LLMInput(llm_contract.LLMInput, BaseAppInput):
     top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     max_tokens: int = Field(default=64000)
     reasoning_effort: ReasoningEffortEnum = Field(default=ReasoningEffortEnum.NONE)
-    # Dict for backward compat with build_openai_messages/build_tools
-    tools: Optional[List[Dict[str, Any]]] = Field(default=None)
+    # Dict for backward compat with build_openai_messages/build_tools (wire uses List[Tool])
+    tools: Optional[List[Dict[str, Any]]] = Field(default=None)  # type: ignore[assignment]
 
 BaseLLMInput = LLMInput
 ChatInput = LLMInput
@@ -122,8 +124,8 @@ class ModelSettingsCapabilityMixin(_DeprecatedInputMixin): pass
 
 class BaseLLMOutput(llm_contract.LLMOutput, BaseAppOutput):
     # Dict for backward compat: apps build tool_calls as dicts and
-    # build_openai_messages reads them dict-style.
-    tool_calls: Optional[List[Dict[str, Any]]] = None
+    # build_openai_messages reads them dict-style (wire uses List[ToolCall])
+    tool_calls: Optional[List[Dict[str, Any]]] = None  # type: ignore[assignment]
 
 class LLMOutput(BaseLLMOutput): pass
 
@@ -275,7 +277,7 @@ def build_openai_messages(
 
     def render_message(msg: ContextMessage, allow_multipart: bool) -> str | List[dict]:
         parts: List[Dict[str, Any]] = []
-        text = transform_user_message(msg.text) if transform_user_message and msg.role == ContextMessageRole.USER else msg.text
+        text = transform_user_message(msg.text) if transform_user_message and msg.role == ContextMessageRole.USER and msg.text is not None else msg.text
 
 
         if text:
