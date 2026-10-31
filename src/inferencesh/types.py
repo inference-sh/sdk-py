@@ -824,6 +824,12 @@ class CredentialRequirement(TypedDict, total=False):
     provider: Optional[CompanySeed]
     # Auth is the credential's auth provider, for a slug no row defines yet.
     auth: Optional[AuthMethod]
+    # Legacy keys from the old list form: key is a capability specifier
+    # (e.g. "google.calendar.events") from which the slug is derived;
+    # name and website seed the provider row.
+    key: str
+    name: str
+    website: str
     # The rest describe the platform api_key scheme a platform app's deploy
     # catalogues for the slug: set on the scheme it creates, and filled into
     # an existing one only where that is still empty (an admin's edit
