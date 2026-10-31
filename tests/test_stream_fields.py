@@ -23,7 +23,7 @@ class UserText(BaseModel):
 class TalkInput(BaseAppInput):
     voice: Literal["ara", "eve"] = "ara"
     gain: float = 1.0
-    audio: Stream[PCM16(16000)]
+    audio: Stream[PCM16(16000)]  # type: ignore[valid-type]
     events: Stream[Union[Interrupt, UserText]]
 
 
@@ -33,7 +33,7 @@ class Word(BaseModel):
 
 
 class TalkOutput(BaseAppOutput):
-    audio: Stream[PCM16(24000)]
+    audio: Stream[PCM16(24000)]  # type: ignore[valid-type]
     transcript: Stream[Word]
     voice: str = "ara"
     seconds: float = 0
