@@ -6006,6 +6006,7 @@ class CredentialProvider(str, Enum):
     SLACK = "slack"
     NOTION = "notion"
     GIT_HUB = "github"
+    GIT_HUB_APP = "github-app"
     X = "x"
     MICROSOFT = "microsoft"
     SALESFORCE = "salesforce"
