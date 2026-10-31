@@ -8,8 +8,14 @@ Note: Format negotiation tests may be skipped if server doesn't support NDJSON y
 """
 
 import os
+
 import pytest
-httpx = pytest.importorskip("httpx")
+
+try:
+    import httpx  # noqa: F401
+except ImportError:
+    pytest.skip("httpx not installed", allow_module_level=True)
+
 from inferencesh import Inference
 from inferencesh.streamable import streamable, stream_get
 from inferencesh.types import TaskStatus
@@ -17,8 +23,10 @@ from inferencesh.types import TaskStatus
 # Terminal statuses
 TERMINAL_STATUSES = {TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED}
 
+
 def is_terminal_status(status: int) -> bool:
     return status in TERMINAL_STATUSES
+
 
 # Get API configuration from environment
 API_KEY = os.environ.get("INFERENCE_API_KEY")
