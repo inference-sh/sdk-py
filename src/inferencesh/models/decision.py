@@ -48,7 +48,8 @@ class ChoiceQuestion(contract.DecisionChoiceQuestion):
     """Which of these options? For a fixed set of unordered options."""
     id: str = Field(min_length=1, description="Your key for this question; the answer comes back under it. Not sent to the model.")
     instructions: Structured = Field(description="What the model should decide, written as a complete question.")
-    options: List[ChoiceOption] = Field(
+    # ChoiceOption is a subtype of DecisionChoiceOption; list is invariant
+    options: List[ChoiceOption] = Field(  # type: ignore[assignment]
         min_length=2,
         max_length=255,
         description="The answer options (2 to 255). Give the full list, and add an `other` option when the list might not cover every input.",
@@ -84,9 +85,10 @@ class DecisionInput(contract.DecisionInput, BaseAppInput):
         default="",
         description="The text to evaluate: a string, or a JSON object / array of related context (messages, records, a policy). Every question sees the same state.",
     )
-    choices: List[ChoiceQuestion] = Field(default_factory=list, description="Choice questions: pick one option from a set.")
-    scores: List[ScoreQuestion] = Field(default_factory=list, description="Score questions: place the state on ordered levels.")
-    nouls: List[NoulQuestion] = Field(default_factory=list, description="Noul questions: probability that the answer is yes.")
+    # Subtype narrowing: parent uses Optional[List[Decision*Question]]; app layer uses non-optional subtypes
+    choices: List[ChoiceQuestion] = Field(default_factory=list, description="Choice questions: pick one option from a set.")  # type: ignore[assignment]
+    scores: List[ScoreQuestion] = Field(default_factory=list, description="Score questions: place the state on ordered levels.")  # type: ignore[assignment]
+    nouls: List[NoulQuestion] = Field(default_factory=list, description="Noul questions: probability that the answer is yes.")  # type: ignore[assignment]
 
     def has_content(self) -> bool:
         """Whether there is anything to ask about. An input with another medium (audio, ...) extends this."""
@@ -120,26 +122,27 @@ class DecisionInput(contract.DecisionInput, BaseAppInput):
         Criteria are ``{name: description}`` for a choice, the list of levels for a
         score, and ``{"true": ..., "false": ...}`` for a noul that gives any."""
         out: Dict[str, Dict[str, Any]] = {}
-        for q in self.choices:
-            out[q.id] = {
+        for choice in self.choices:
+            out[choice.id] = {
                 "type": "choice",
-                "instructions": q.instructions,
-                "criteria": {o.name: o.description for o in q.options},
+                "instructions": choice.instructions,
+                "criteria": {o.name: o.description for o in choice.options},
             }
-        for q in self.scores:
-            out[q.id] = {"type": "score", "instructions": q.instructions, "criteria": list(q.levels)}
-        for q in self.nouls:
-            question: Dict[str, Any] = {"type": "noul", "instructions": q.instructions}
-            criteria = q.criteria.model_dump(exclude_none=True) if q.criteria is not None else {}
+        for score in self.scores:
+            out[score.id] = {"type": "score", "instructions": score.instructions, "criteria": list(score.levels)}
+        for noul in self.nouls:
+            question: Dict[str, Any] = {"type": "noul", "instructions": noul.instructions}
+            criteria = noul.criteria.model_dump(exclude_none=True) if noul.criteria is not None else {}
             if criteria:
                 question["criteria"] = criteria
-            out[q.id] = question
+            out[noul.id] = question
         return out
 
 
-class DecisionVisionInput(DecisionInput, contract.DecisionVisionInput):
+class DecisionVisionInput(DecisionInput, contract.DecisionVisionInput):  # type: ignore[misc]
     """A state, images, and the typed questions asked of them."""
-    images: List[File] = Field(
+    # App-layer File objects replace the wire's Optional[List[str]] (URL strings)
+    images: List[File] = Field(  # type: ignore[assignment]
         default_factory=list,
         description="Images the questions are about. Every question sees them, placed before the state. The state may be empty when the images carry the content.",
     )
@@ -148,9 +151,10 @@ class DecisionVisionInput(DecisionInput, contract.DecisionVisionInput):
         return super().has_content() or bool(self.images)
 
 
-class DecisionVideoInput(DecisionVisionInput, contract.DecisionVideoInput):
+class DecisionVideoInput(DecisionVisionInput, contract.DecisionVideoInput):  # type: ignore[misc]
     """A state, images, videos, and the typed questions asked of them."""
-    videos: List[File] = Field(
+    # App-layer File objects replace the wire's Optional[List[str]] (URL strings)
+    videos: List[File] = Field(  # type: ignore[assignment]
         default_factory=list,
         description="Videos the questions are about. Every question sees them, placed after the images. The state may be empty when the videos carry the content.",
     )
@@ -181,9 +185,11 @@ class NoulAnswer(contract.DecisionNoulAnswer):
 
 class DecisionOutput(contract.DecisionOutput, BaseAppOutput):
     """The answers, keyed by question id within each kind."""
-    choices: Dict[str, ChoiceAnswer] = Field(default_factory=dict, description="Choice answers by question id.")
-    scores: Dict[str, ScoreAnswer] = Field(default_factory=dict, description="Score answers by question id.")
-    nouls: Dict[str, NoulAnswer] = Field(default_factory=dict, description="Noul answers by question id.")
+    # Subtype narrowing: parent uses Decision*Answer; app layer uses richer subtypes.
+    # dict is invariant so mypy flags these — the narrowing is safe at runtime.
+    choices: Dict[str, ChoiceAnswer] = Field(default_factory=dict, description="Choice answers by question id.")  # type: ignore[assignment]
+    scores: Dict[str, ScoreAnswer] = Field(default_factory=dict, description="Score answers by question id.")  # type: ignore[assignment]
+    nouls: Dict[str, NoulAnswer] = Field(default_factory=dict, description="Noul answers by question id.")  # type: ignore[assignment]
     model: str = Field(description="The model that answered.")
     input_tokens: int = Field(default=0, description="Input tokens the model read. Image tokens are included. Decision models write no output tokens.")
 
