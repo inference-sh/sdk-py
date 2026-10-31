@@ -814,6 +814,9 @@ class SecretRequirement(TypedDict, total=False):
 class CredentialRequirement(TypedDict, total=False):
     slug: str
     capabilities: List[str]
+    # Legacy: a dotted capability string (e.g. "slack.channels.write"). The
+    # slug is inferred from the part before the first dot.
+    key: str
     description: str
     optional: bool
     secrets: List[str]
