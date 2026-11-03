@@ -533,6 +533,9 @@ class MeResponse(TypedDict, total=False):
     notice: str
     notice_reference: str
     notice_contact: str
+    # AccessNotice is the same notice in structured form: its stage (lure
+    # or legal) and, on the lure, how to install the CLI.
+    access_notice: Optional[AccessNoticeDTO]
     # PersonalTeamID is the caller's personal workspace, empty for a managed
     # account, which has none.
     personal_team_id: str
@@ -2303,6 +2306,22 @@ PlanLimits = Dict["EntitlementResource", "PlanLimit"]
 class ProjectModelDTO(TypedDict, total=False):
     project_id: Optional[str]
     project: Optional[ProjectDTO]
+
+# AccessNoticeDTO is the redlist's notice to a restricted caller, as a
+# refusal's meta.notice and /me's access_notice carry it.
+class AccessNoticeDTO(TypedDict, total=False):
+    # Stage: lure (install the CLI and sign in) or legal (the legal
+    # warning).
+    stage: str
+    text: str
+    reference: str
+    contact: str
+    # InstallURL and InstallCommand, on the lure: where to get the belt
+    # CLI.
+    install_url: str
+    install_command: str
+    # Case, on the legal notice when a report reference is configured.
+    case: str
 
 class DiagnosticsConfig(TypedDict, total=False):
     level: int
