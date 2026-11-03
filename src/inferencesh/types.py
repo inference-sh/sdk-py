@@ -525,10 +525,14 @@ class MeResponse(TypedDict, total=False):
     # governance and capabilities (GET /teams/{id}/view).
     team_view: Optional[TeamViewDTO]
     diagnostics: Optional[DiagnosticsConfig]
-    # Notice is an operator's notice about the caller's access, set only
-    # when the request comes from an address restricted to sign-in and the
-    # CLI. Empty otherwise.
+    # Notice is a notice about the caller's access, set only when the
+    # redlist restricts this request (a restricted address, or a
+    # restricted account): the text an access_restricted refusal carries
+    # as its detail. Empty otherwise. NoticeReference and NoticeContact
+    # are that refusal's meta.reference and meta.contact.
     notice: str
+    notice_reference: str
+    notice_contact: str
     # PersonalTeamID is the caller's personal workspace, empty for a managed
     # account, which has none.
     personal_team_id: str
@@ -1521,6 +1525,34 @@ class CursorListResponse(TypedDict, total=False):
 # CountResponse is the response for count endpoints.
 class CountResponse(TypedDict, total=False):
     count: int
+
+# EgressGrantDTO is one decision that a task or a sandbox may use a
+# provider's login through the engine's egress gateway: what was allowed,
+# who allowed it and why, and which login answers (INF-1173). It never
+# holds a value. GET /sandboxes/{id}/grants, GET /tasks/{id}/grants.
+class EgressGrantDTO(TypedDict, total=False):
+    id: str
+    scope: EgressGrantScope
+    scope_id: str
+    # Provider is the provider's slug.
+    provider: str
+    mode: SandboxCredentialMode
+    state: EgressGrantState
+    source: EgressGrantSource
+    # GrantedBy is the user who allowed it: the task's user for an app's
+    # declaration, the agent config's owner for its own, the answering
+    # owner for an approval.
+    granted_by: str
+    # CredentialID is the login that answers; empty until first use picks
+    # one.
+    credential_id: str
+    # Host is the first host it was wanted for.
+    host: str
+    # Reason is why it was declined or ended.
+    reason: EgressGrantReason
+    created_at: str
+    updated_at: str
+    ended_at: Optional[str]
 
 # EngineConfig holds engine configuration (no gorm tags).
 class EngineConfig(TypedDict, total=False):
@@ -5174,6 +5206,42 @@ class ToolRiskLevel(str, Enum):
     # ToolRiskHigh: dangerous or irreversible changes.
     TOOL_RISK_HIGH = "high"
 
+class EgressGrantScope(str, Enum):
+    TASK = "task"
+    SANDBOX = "sandbox"
+
+class EgressGrantState(str, Enum):
+    # EgressGrantOpen: the scope may be asked for the login; nobody has
+    # been yet.
+    EGRESS_GRANT_OPEN = "open"
+    # EgressGrantAsked: a card is open (EgressGrantDTO.InterruptID).
+    EGRESS_GRANT_ASKED = "asked"
+    # EgressGrantAllowed: the scope gets the login.
+    EGRESS_GRANT_ALLOWED = "allowed"
+    # EgressGrantDeclined: a person said no, for the scope's life.
+    EGRESS_GRANT_DECLINED = "declined"
+    # EgressGrantEnded: the grant no longer holds (Reason says why); the
+    # scope keeps running, and its next use decides again.
+    EGRESS_GRANT_ENDED = "ended"
+
+class EgressGrantSource(str, Enum):
+    APP_DECLARED = "app_declared"
+    AGENT_CONFIG = "agent_config"
+    SANDBOX_CREATE = "sandbox_create"
+    OWNER_APPROVAL = "owner_approval"
+    CONNECTED_OFFER = "connected_offer"
+    RECONNECT = "reconnect"
+
+class EgressGrantReason(str, Enum):
+    DECLINED = "declined"
+    LOGIN_DELETED = "login_deleted"
+    LOGIN_DISCONNECTED = "login_disconnected"
+    NOT_OWNER = "not_owner"
+    EXPIRED_LIFETIME = "expired_lifetime"
+    SCOPES_MISSING = "scopes_missing"
+    SCOPE_ENDED = "scope_ended"
+    REVOKED_BY_OWNER = "revoked_by_owner"
+
 class EngineCapability(str, Enum):
     # EngineCapabilityEgressGateway: the engine runs its sandboxes behind
     # the egress gateway, so it can take bound secrets (the v2 secrets
@@ -5191,6 +5259,13 @@ class EngineCapability(str, Enum):
     # triggers EgressTrigger names; it also reports the hosts its boxes
     # reach (POST /engines/{id}/egress/hosts) (INF-1173).
     EGRESS_PENDING = "egress_pending"
+    # EngineCapabilityEgressGrants: the engine's gateway holds a fetched
+    # value only BoundSecret.KeepFor (at most until it expires), answers a
+    # refused binding with EgressResolveResponse.Reason, wipes a binding's
+    # held value when it is declined, and takes egress_revoke
+    # (WsEgressRevokePayload). Tasks are sent pending bindings only on such
+    # an engine (INF-1173).
+    EGRESS_GRANTS = "egress_grants"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
@@ -5205,9 +5280,14 @@ class ErrorCode(str, Enum):
     METHOD_NOT_ALLOWED = "method_not_allowed"
     RATE_LIMITED = "rate_limited"
     INTERNAL_ERROR = "internal_error"
-    # ErrorCodeWebAccessRestricted (403): the request comes from an address
-    # restricted to sign-in and the CLI; detail is the operator's notice
-    # and meta is WebAccessRestrictedMeta.
+    # ErrorCodeAccessRestricted (403): the redlist refuses the request (a
+    # restricted address, or a restricted account outside sign-in, /me,
+    # telemetry and balance). detail is the notice to show the person, as
+    # is; meta is AccessRestrictedMeta: a reference to quote and who to
+    # contact.
+    ACCESS_RESTRICTED = "access_restricted"
+    # ErrorCodeWebAccessRestricted is no longer sent: refusals are
+    # access_restricted. Kept so clients that name it still build.
     WEB_ACCESS_RESTRICTED = "web_access_restricted"
     # ErrorCodeRequirementsNotMet (412): the run needs a secret or a
     # credential the caller has not set up. Meta "errors" lists each
