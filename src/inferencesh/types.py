@@ -30,8 +30,10 @@ class InternalToolsConfig(TypedDict, total=False):
     # (Remote on), declared as an app's credentials are (provider slug,
     # scopes): the runner's own, as a task of theirs resolves it; a runner
     # with none is asked to connect it and the call waits. None declared,
-    # none given. The model's arguments never add any.
-    sandbox_credentials: List[CredentialRequirement]
+    # none given. The model's arguments never add any. Each entry's mode
+    # says when the box gets it: auto (the default) at once, ask on first
+    # use once a person approves it (SandboxCredential).
+    sandbox_credentials: List[SandboxCredential]
 
 # AgentPermissions is what an agent's new chats in its own workspace may do
 # without asking (INF-906). Each is copied into such a chat when it is
@@ -2452,7 +2454,45 @@ class CreateSandboxRequest(TypedDict, total=False):
     # keys a provider binds to hosts: the box holds placeholders, the
     # engine's gateway places the values toward those hosts and renews
     # the ones that expire, always from the login chosen here.
-    credentials: List[CredentialRequirement]
+    credentials: List[SandboxCredential]
+
+# SandboxCredential is a login a sandbox's box gets: a requirement by
+# provider, as an app declares one, and when it is given (Mode, auto when
+# unset). It reads and writes as the requirement's fields plus "mode", so
+# a plain requirement is an auto one.
+class SandboxCredential(TypedDict, total=False):
+    slug: str
+    capabilities: List[str]
+    description: str
+    optional: bool
+    secrets: List[str]
+    scopes: List[str]
+    # Provider describes the company the credential belongs to, for a
+    # catalog row that does not exist yet. Its slug defaults to the
+    # credential slug.
+    provider: Optional[CompanySeed]
+    # Auth is the credential's auth provider, for a slug no row defines yet.
+    auth: Optional[AuthMethod]
+    # The rest describe the platform api_key scheme a platform app's deploy
+    # catalogues for the slug: set on the scheme it creates, and filled into
+    # an existing one only where that is still empty (an admin's edit
+    # stands). Any other deploy ignores them.
+    # 
+    # DisplayName is the scheme's name ("Claude Code"); at most
+    # MaxCredentialDisplayName characters.
+    display_name: str
+    # ConnectionScope is who a connection belongs to: team (empty) or user.
+    connection_scope: CredentialScope
+    # Instructions tell a person how to get the key (markdown, at most
+    # MaxAuthProviderInstructions characters).
+    instructions: str
+    # DocsURL is the scheme's documentation link.
+    docs_url: str
+    # ExpiresAfterDays is how long a saved key lasts: it counts as expired
+    # this many days after it is saved. 0 is never; at most
+    # MaxExpiresAfterDays.
+    expires_after_days: int
+    mode: SandboxCredentialMode
 
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
@@ -5139,6 +5179,12 @@ class EngineCapability(str, Enum):
     # EngineCapabilityCapacity: the engine reports EngineTelemetry.Capacity
     # (INF-1156).
     CAPACITY = "capacity"
+    # EngineCapabilityEgressPending: the engine's gateway takes pending
+    # bound secrets (BoundSecret.Pending: no value) and fetches each value
+    # on first use through POST /engines/{id}/egress/resolve, with the
+    # triggers EgressTrigger names; it also reports the hosts its boxes
+    # reach (POST /engines/{id}/egress/hosts) (INF-1173).
+    EGRESS_PENDING = "egress_pending"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
@@ -5368,6 +5414,16 @@ class SandboxDesiredState(str, Enum):
     SANDBOX_DESIRED_RUNNING = "running"
     SANDBOX_DESIRED_STOPPED = "stopped"
     SANDBOX_DESIRED_DELETED = "deleted"
+
+class SandboxCredentialMode(str, Enum):
+    # SandboxCredentialAuto (the default): the login is chosen when the
+    # sandbox is made and given without asking.
+    SANDBOX_CREDENTIAL_AUTO = "auto"
+    # SandboxCredentialAsk: the box gets the login on first use, once a
+    # person approves it on the tool call running there; a run nobody
+    # watches (a trigger, a schedule) never gets it (INF-1173). Needs an
+    # engine with EngineCapabilityEgressPending.
+    SANDBOX_CREDENTIAL_ASK = "ask"
 
 class UpdateState(str, Enum):
     # UpdateRequested: the request was sent and nothing has answered it yet.
@@ -5792,6 +5848,14 @@ class InterruptResourceType(str, Enum):
 # wait call (InterruptResourceToolInvocation).
 class InterruptReason(str, Enum):
     WAIT = "wait"
+    # InterruptReasonEgressLogin asks whether a sandbox's box gets one of its
+    # owner's logins, on the tool call running there (a remote_exec) when the
+    # box first reaches the login's host (INF-1173). Its resource is that call
+    # (InterruptResourceToolInvocation), which keeps running: the engine holds
+    # the request until the answer, and asks for it again
+    # (POST /engines/{id}/egress/resolve). Allow gives the login, deny or no
+    # answer in time refuses it for the sandbox. Meta is EgressLoginAskMeta.
+    EGRESS_LOGIN = "egress_login"
     TOOL_APPROVAL = "tool_approval"
     CLIENT_TOOL = "client_tool"
     WIDGET = "widget"
