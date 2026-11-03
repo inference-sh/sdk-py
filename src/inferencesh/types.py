@@ -26,6 +26,12 @@ class InternalToolsConfig(TypedDict, total=False):
     remote: Optional[bool]
     knowledge: Optional[bool]
     wait: Optional[bool]
+    # SandboxCredentials are the logins a sandbox sandbox_create makes gets
+    # (Remote on), declared as an app's credentials are (provider slug,
+    # scopes): the runner's own, as a task of theirs resolves it; a runner
+    # with none is asked to connect it and the call waits. None declared,
+    # none given. The model's arguments never add any.
+    sandbox_credentials: List[CredentialRequirement]
 
 # AgentPermissions is what an agent's new chats in its own workspace may do
 # without asking (INF-906). Each is copied into such a chat when it is
@@ -446,6 +452,11 @@ class DeviceAuthInitRequest(TypedDict, total=False):
     token_kind: DeviceTokenKind
     code_challenge: str
     code_challenge_method: str
+    # Scopes the device asks for ("belt login --admin" names the admin
+    # scopes). Empty: the default, every scope but user:write and admin.
+    # The approval page shows them and the person confirms; the approval
+    # grants at most these.
+    scopes: List[Scope]
 
 class DeviceAuthResponse(TypedDict, total=False):
     user_code: str
@@ -512,6 +523,10 @@ class MeResponse(TypedDict, total=False):
     # governance and capabilities (GET /teams/{id}/view).
     team_view: Optional[TeamViewDTO]
     diagnostics: Optional[DiagnosticsConfig]
+    # Notice is an operator's notice about the caller's access, set only
+    # when the request comes from an address restricted to sign-in and the
+    # CLI. Empty otherwise.
+    notice: str
     # PersonalTeamID is the caller's personal workspace, empty for a managed
     # account, which has none.
     personal_team_id: str
@@ -1619,6 +1634,12 @@ class CapacityGPU(TypedDict, total=False):
     id: str
     vram_bytes: int
 
+# FeatureAccess is whether the caller's team may use feature gate
+# Resource, as the API decides it (CheckFeatureGate): what a client shows.
+class FeatureAccess(TypedDict, total=False):
+    resource: EntitlementResource
+    allowed: bool
+
 # EntitlementErrorMeta is the structured metadata returned in entitlement error responses.
 class EntitlementErrorMeta(TypedDict, total=False):
     resource: EntitlementResource
@@ -2300,6 +2321,15 @@ class OAuthAuthorizeInfoResponse(TypedDict, total=False):
     verified: bool
     scopes: List[Scope]
     redirect_host: str
+    # StepUpRequired: the caller has not approved this client, to this
+    # redirect, for these scopes and this team (team_id query parameter,
+    # else the session's) since the fix, with a grant still live, so
+    # approving takes a step-up: StepUpAction for StepUpTarget, proved via
+    # POST /auth/otp/verify (an emailed code via POST /auth/otp/resend
+    # {action, target}); the form submits the token as step_up_token.
+    step_up_required: bool
+    step_up_action: StepUpAction
+    step_up_target: str
 
 # OAuthApproveRequest is the request body for POST /oauth/authorize/approve.
 class OAuthApproveRequest(TypedDict, total=False):
@@ -2417,6 +2447,12 @@ class CreateSandboxRequest(TypedDict, total=False):
     vcpus: int
     memory_mib: int
     disk_mib: int
+    # Credentials are the logins the box gets, by provider (slug), as a
+    # run of its owner resolves them (e.g. [{"slug":"github-app"}]). Only
+    # keys a provider binds to hosts: the box holds placeholders, the
+    # engine's gateway places the values toward those hosts and renews
+    # the ones that expire, always from the login chosen here.
+    credentials: List[CredentialRequirement]
 
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
@@ -2658,6 +2694,14 @@ class TaskTimingsDTO(TypedDict, total=False):
     total_duration_ms: int
     groups: List[TaskTimingGroup]
     events: List[TaskTimingEvent]
+
+# TeamMemberAddResultDTO is what POST /teams/{id}/members did: added the
+# account (member) or, for an account the team's org does not own, sent it
+# an invite (invite).
+class TeamMemberAddResultDTO(TypedDict, total=False):
+    outcome: TeamMemberAddOutcome
+    member: Optional[TeamMemberDTO]
+    invite: Optional[TeamInviteDTO]
 
 # TeamMemberDTO is the API response for a team member.
 class TeamMemberDTO(TypedDict, total=False):
@@ -5109,6 +5153,10 @@ class ErrorCode(str, Enum):
     METHOD_NOT_ALLOWED = "method_not_allowed"
     RATE_LIMITED = "rate_limited"
     INTERNAL_ERROR = "internal_error"
+    # ErrorCodeWebAccessRestricted (403): the request comes from an address
+    # restricted to sign-in and the CLI; detail is the operator's notice
+    # and meta is WebAccessRestrictedMeta.
+    WEB_ACCESS_RESTRICTED = "web_access_restricted"
     # ErrorCodeRequirementsNotMet (412): the run needs a secret or a
     # credential the caller has not set up. Meta "errors" lists each
     # RequirementError, its action saying how to set it up.
@@ -5891,6 +5939,52 @@ class SecondFactor(str, Enum):
     # sign-in, re-auth before they enroll).
     EMAIL = "email"
 
+class StepUpAction(str, Enum):
+    # StepUpExport: request an account data export, or a download link.
+    STEP_UP_EXPORT = "export"
+    # StepUpDelete: schedule the account's deletion.
+    STEP_UP_DELETE = "delete"
+    # StepUpFactorEnroll: start enrolling an authenticator or passkey, or
+    # turn two-step verification on (which hands out recovery codes).
+    STEP_UP_FACTOR_ENROLL = "factor_enroll"
+    # StepUpFactorChange: turn two-step verification off, remove a method,
+    # or regenerate recovery codes.
+    STEP_UP_FACTOR_CHANGE = "factor_change"
+    # StepUpDeviceApprove: approve a device (CLI) sign-in.
+    STEP_UP_DEVICE_APPROVE = "device_approve"
+    # StepUpAdminElevationApprove: approve an admin elevation of a CLI login.
+    STEP_UP_ADMIN_ELEVATION_APPROVE = "admin_elevation_approve"
+    # StepUpOAuthApprove: approve an OAuth app the account has not approved
+    # before (for this redirect URI, these scopes and this team).
+    STEP_UP_O_AUTH_APPROVE = "oauth_approve"
+    # StepUpAPIKeyCreate: create an API key from the browser (target: its
+    # scopes and team).
+    STEP_UP_API_KEY_CREATE = "api_key_create"
+    # StepUpSecretReveal: read a stored secret's value or a webhook signing
+    # secret, or generate a new signing secret (target: the request).
+    STEP_UP_SECRET_REVEAL = "secret_reveal"
+    # StepUpAdminSession: open the staff browser session's ten-minute admin
+    # action window, inside which admin writes pass.
+    STEP_UP_ADMIN_SESSION = "admin_session"
+    # StepUpAdminSensitive: one sensitive admin action, every time, window
+    # or not (impersonation, revealing a setting's secret, a device
+    # identity, exporting voucher codes). Target: the request.
+    STEP_UP_ADMIN_SENSITIVE = "admin_sensitive"
+    # StepUpTeamMemberChange: add someone to a team, invite them, or change
+    # a member's role (target: team|email or user|role).
+    STEP_UP_TEAM_MEMBER_CHANGE = "team_member_change"
+    # StepUpTeamSSOChange: change who can enter a team through SSO.
+    STEP_UP_TEAM_SSO_CHANGE = "team_sso_change"
+
+class TeamMemberAddOutcome(str, Enum):
+    # TeamMemberAddAdded: the team's org owns the account (it manages it,
+    # it is already in the org, or it is at a verified domain), so it
+    # joined straight away.
+    TEAM_MEMBER_ADD_ADDED = "added"
+    # TeamMemberAddInvited: the account is not the org's to place, so an
+    # invite was sent; it joins when it accepts.
+    TEAM_MEMBER_ADD_INVITED = "invited"
+
 class TeamInviteStatus(str, Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
@@ -5989,8 +6083,8 @@ class EntitlementResource(str, Enum):
     RESOURCE_FEATURE_MARKETPLACE_PUBLISH = "feature:marketplace_publish"
     # Granted per team: creating forms is by invitation for now.
     RESOURCE_FEATURE_FORMS = "feature:forms"
-    # Managed sandboxes (INF-833): open to every team; a row with enabled
-    # false shuts one team out.
+    # Managed sandboxes (INF-833): open to every team unless turned off
+    # for one (FeatureOpen).
     RESOURCE_FEATURE_SANDBOXES = "feature:sandboxes"
     # Legacy feature gates — kept for DB compatibility, no longer gated
     RESOURCE_FEATURE_SCOPES = "feature:scopes"
