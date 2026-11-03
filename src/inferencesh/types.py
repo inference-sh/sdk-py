@@ -891,6 +891,7 @@ class AppUIRef(TypedDict, total=False):
 # 	sandbox:
 # 	  host_network: true          # share the host's network namespace
 # 	  capabilities: [SYS_PTRACE]  # Linux capabilities the app's processes keep
+# 	  user_namespaces: true       # unprivileged user namespaces (Chromium's sandbox)
 # 
 # The API reads it from the package when the version is deployed and stores
 # it on the version (server-owned: no caller writes it). Engines enforce the
@@ -904,6 +905,11 @@ class AppSandbox(TypedDict, total=False):
     # upper case. The container is given them and the app's processes keep
     # them.
     capabilities: List[str]
+    # UserNamespaces lets the app's processes create unprivileged user
+    # namespaces, which Chromium's sandbox needs. The container's seccomp
+    # profile allows clone, unshare, setns and chroot; it gains no
+    # capability on the host.
+    user_namespaces: bool
 
 # DeployWarning is something a deploy accepted but the author should fix:
 # the app works, but asks for more than it needs or says less than clients
