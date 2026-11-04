@@ -65,6 +65,9 @@ class AgentTool(TypedDict, total=False):
     mcp: Optional[MCPToolConfig]
     client: Optional[ClientToolConfig]
     internal: Optional[InternalToolConfig]
+    # ContentTier overrides the tier the tool-result guard reads this
+    # tool's output at; empty is the tool type's.
+    content_tier: ContentTier
 
 # InternalToolConfig contains configuration for internal/built-in tools
 class InternalToolConfig(TypedDict, total=False):
@@ -102,6 +105,7 @@ class AgentToolDTO(TypedDict, total=False):
     type: ToolType
     require_approval: bool
     approval_timeout: int
+    content_tier: ContentTier
     app: Optional[AppToolConfigDTO]
     agent: Optional[AgentToolConfigDTO]
     hook: Optional[HookToolConfigDTO]
@@ -264,6 +268,7 @@ class AgentConfigInput(TypedDict, total=False):
     permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
+    content_guard: Optional[ContentGuardConfig]
 
 # CoreAppConfigInput is the API input shape for core app configuration.
 class CoreAppConfigInput(TypedDict, total=False):
@@ -310,7 +315,6 @@ class ApiAppRunRequest(TypedDict, total=False):
     session: Optional[str]
     session_timeout: Optional[int]
     run_at: Optional[str]
-    metadata: Optional[TaskMetadata]
 
 # MessageInput is a message a caller sends to an agent: its text and the
 # files sent with it. The model, its settings, the system prompt, the tools
@@ -507,9 +511,17 @@ class AdminElevateResponse(TypedDict, total=False):
 class AdminElevationStatus(TypedDict, total=False):
     elevated: bool
     admin_until: Optional[str]
+    # AdminPower: a staff browser sign-in holds platform power on this
+    # request, until AdminPowerUntil (INF-1190). AdminPowerWithheld says
+    # why one that proved an authenticator holds none here: expired,
+    # other_client or wrong_origin.
+    admin_power: bool
+    admin_power_until: Optional[str]
+    admin_power_withheld: str
 
 # AdminElevationDropResponse is DELETE /device/auth/elevate. Dropped is
-# false when the session held no elevation.
+# false when the session held no elevation (a CLI login) or no staff power
+# or admin action window (a browser sign-in).
 class AdminElevationDropResponse(TypedDict, total=False):
     elevated: bool
     dropped: bool
@@ -635,6 +647,11 @@ class CredentialCompleteOAuthRequest(TypedDict, total=False):
 class CredentialConnectResponse(TypedDict, total=False):
     credential: Optional[CredentialDTO]
     auth_url: str
+    # ConnectURL is a short link on our app that sends the person who
+    # started this connect on to AuthURL. A client that does not finish the
+    # flow in its own browser tab (a CLI, an agent) shows this one: the
+    # app's callback completes only a flow its browser started.
+    connect_url: str
     state: str
     code_verifier: str
     instructions: str
@@ -1395,6 +1412,15 @@ class ConnectTokens(TypedDict, total=False):
     RefreshToken: SensitiveString
     ExpiresAt: Optional[str]
 
+# ContentGuardConfig is an agent's tool-result guard (content_guard).
+class ContentGuardConfig(TypedDict, total=False):
+    # Mode: shadow (default), off, annotate or strict. Empty is the
+    # platform's (content_guard.mode, itself shadow by default).
+    mode: ContentGuardMode
+    # IgnoreRules are rule ids not to apply (INF-PI-005 for an agent whose
+    # job is reading Slack mentions).
+    ignore_rules: List[str]
+
 # CredentialSecretRef names one secret linked to a credential: the row's
 # id, the key it is stored under and when its value last changed.
 class CredentialSecretRef(TypedDict, total=False):
@@ -1664,6 +1690,12 @@ class EngineCapacity(TypedDict, total=False):
     reserve: CapacityAmount
     allocatable: CapacityAmount
     committed: CapacityAmount
+    # CommittedApps is the apps' part of Committed: the CPU quota of the
+    # workers running an app and the memory their containers use. Workers
+    # are slots registered ahead of time, so an idle one holds nothing
+    # until it runs something (INF-1159 gives apps real requests). Sized
+    # sandbox placement adds the boxes the API placed to it.
+    committed_apps: CapacityAmount
     used: CapacityAmount
 
 # CapacityAmount is an amount of CPU and memory. CPUs are logical CPUs,
@@ -1695,6 +1727,11 @@ class EntitlementErrorMeta(TypedDict, total=False):
     addon_plan_id: str
     addon_plan_name: str
     addon_plan_price: Optional[int]
+    # Requirement is the unmet requirement of a purchase_required refusal,
+    # WithinDays its window, BillingPage where to meet it.
+    requirement: FeatureRequirement
+    within_days: int
+    billing_page: str
 
 # EntitlementRequested is the shape of a request's "requested" field and of
 # the grant an acceptance makes: a boolean gate switched on, or a limit.
@@ -1733,6 +1770,13 @@ class TeamRoleRequiredMeta(TypedDict, total=False):
 class InOtherWorkspaceMeta(TypedDict, total=False):
     team_id: str
 
+# VisibilityNotAllowedMeta is the meta of a visibility_not_allowed error:
+# the resource, the visibility refused and the ones it may take.
+class VisibilityNotAllowedMeta(TypedDict, total=False):
+    resource: str
+    visibility: Visibility
+    allowed: List[Visibility]
+
 # ScopeRefusedMeta is the meta of an insufficient_scope or
 # requires_sign_in error: the scope the operation declares and the
 # credential does not hold. The detail says what would hold it.
@@ -1744,6 +1788,15 @@ class ScopeRefusedMeta(TypedDict, total=False):
 class PaymentMethodRequiredMeta(TypedDict, total=False):
     bounty_id: str
     billing_page: str
+
+# PublishQuarantinedMeta is the meta of a publish_quarantined error: the
+# resource and visibility refused, why, and for a new account from when
+# it may publish.
+class PublishQuarantinedMeta(TypedDict, total=False):
+    resource: str
+    visibility: Visibility
+    reason: PublishQuarantineReason
+    until: Optional[str]
 
 # FileMetadata holds probed media metadata cached on File records.
 class FileMetadata(TypedDict, total=False):
@@ -2307,6 +2360,19 @@ class ProjectModelDTO(TypedDict, total=False):
     project_id: Optional[str]
     project: Optional[ProjectDTO]
 
+# PublicationThemeColors defines the core colors for one mode (light or dark).
+class PublicationThemeColors(TypedDict, total=False):
+    primary: str
+    secondary: str
+    background: str
+    text: str
+    border: str
+
+# PublicationTheme defines branding colors for embedded UIs.
+class PublicationTheme(TypedDict, total=False):
+    light: PublicationThemeColors
+    dark: Optional[PublicationThemeColors]
+
 # AccessNoticeDTO is the redlist's notice to a restricted caller, as a
 # refusal's meta.notice and /me's access_notice carry it.
 class AccessNoticeDTO(TypedDict, total=False):
@@ -2737,7 +2803,6 @@ class TaskLog(TypedDict, total=False):
     log_type: TaskLogType
     content: bytes
 
-# TaskDTO is the full API response for a task.
 # TaskEgress is what a task's sandbox sent to and received from the
 # internet through the engine's egress gateway, in bytes.
 class TaskEgress(TypedDict, total=False):
@@ -3693,16 +3758,6 @@ class DeltaEvent(TypedDict, total=False):
     # when the stream is over. The stream layer never sends it to clients.
     end: str
 
-# TaskAction defines an action to execute when a task reaches a specific status.
-class TaskAction(TypedDict, total=False):
-    key: str
-    on: str
-    params: Any
-
-# TaskMetadata holds optional metadata attached to a task.
-class TaskMetadata(TypedDict, total=False):
-    action: Optional[TaskAction]
-
 # UtilityConfig defines a flow utility node — gate, selector, merge, or custom CEL.
 class UtilityConfig(TypedDict, total=False):
     preset: UtilityPreset
@@ -4074,6 +4129,17 @@ class WorkerDTO(BaseModelDTO, TypedDict, total=False):
     app_id: str
     app_version_id: str
     active_session_id: Optional[str]
+    # Kind is "app" for a sized app worker (INF-1159), made when a run was
+    # placed and kept while warm; empty for a slot the engine registered.
+    kind: WorkerKind
+    # VCPUs, MemoryMiB and MemoryLimitMiB are a sized app worker's request
+    # and memory cap (WorkerSize); 0 on a slot.
+    vcpus: int
+    memory_mib: int
+    memory_limit_mib: int
+    # MemoryDeclaredMiB is what the app declared when the request was
+    # capped below it (workers.max_app_ram_mib); 0 when not capped.
+    memory_declared_mib: int
     gpus: List[WorkerGPU]
     cpus: List[WorkerCPU]
     rams: List[WorkerRAM]
@@ -4293,6 +4359,9 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
+    # ContentGuard is the agent's tool-result guard; absent is the
+    # platform's mode.
+    content_guard: Optional[ContentGuardConfig]
     # VisitorReads is the scope groups of the team's resources (knowledge,
     # files, artifacts, remotes) a visitor of an embed of this version can
     # have it read by id, beyond what it configures by name. Set when the
@@ -4797,6 +4866,25 @@ class ProjectDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     parent: Optional[ProjectDTO]
     children: List[Optional[ProjectDTO]]
 
+# PublicationDTO for API responses.
+class PublicationDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
+    resource_type: str
+    resource_id: str
+    namespace: str
+    name: str
+    # Title is the human-readable name; empty falls back to Name.
+    title: str
+    allowed_origins: List[str]
+    rate_limit_rpm: Optional[int]
+    theme: Optional[PublicationTheme]
+    label: str
+    enabled: bool
+    # VisitorReads is the scope groups of the team's resources (knowledge,
+    # artifacts, files, remotes) a visitor can ask the published agent's
+    # current version to reach by id: what its built-in tools add to an
+    # embed run. Empty when its tools reach only what it names itself.
+    visitor_reads: List[ScopeGroup]
+
 # SandboxDTO is the API response for a sandbox.
 class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     name: str
@@ -4857,6 +4945,14 @@ class SocketDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     worker_frames: int
     worker_bytes: int
 
+# TaskDTO is the full API response for a task.
+# 
+# A reader who may not inspect the task (shared.PermInspect: anyone but its
+# owner, whatever its visibility) gets it without its runtime internals
+# (task.withoutInternals): webhook, setup, engine and worker, egress and
+# session are absent, logs, workers and usage_events null, infra empty.
+# Those four keep their key, so a client that requires them (the Swift
+# SDK's infra) still decodes the task.
 class TaskDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     graph_id: Optional[str]
     user_public_key: bytes
@@ -5225,6 +5321,25 @@ class ToolRiskLevel(str, Enum):
     # ToolRiskHigh: dangerous or irreversible changes.
     TOOL_RISK_HIGH = "high"
 
+class ContentGuardMode(str, Enum):
+    # ContentGuardShadow scans and logs; the agent reads the result as the
+    # tool returned it. The default.
+    CONTENT_GUARD_SHADOW = "shadow"
+    # ContentGuardOff does nothing.
+    CONTENT_GUARD_OFF = "off"
+    # ContentGuardAnnotate frames third-party and content results as
+    # untrusted data, notes findings under the frame's header, and judges
+    # without waiting (a flag found later taints the run).
+    CONTENT_GUARD_ANNOTATE = "annotate"
+    # ContentGuardStrict is annotate with the judge waited for, and a judge
+    # that does not answer in time read as a flag.
+    CONTENT_GUARD_STRICT = "strict"
+
+class ContentTier(str, Enum):
+    INTERNAL = "internal"
+    CONTENT = "content"
+    THIRD_PARTY = "third_party"
+
 class EgressGrantScope(str, Enum):
     TASK = "task"
     SANDBOX = "sandbox"
@@ -5291,6 +5406,21 @@ class EngineCapability(str, Enum):
     # MaxHoldMs, Resend, the retry status); it wakes held requests on
     # egress_answer and acks egress_revoke (INF-1173).
     EGRESS_DECIDE = "egress_decide"
+    # EngineCapabilitySizedSandboxes: the engine runs a sandbox's box that
+    # holds no worker, sized by the start, and refuses one it has no room
+    # for (SandboxBoxReasonNoRoom). The API then places sandboxes there by
+    # size, against the engine's capacity, instead of leasing a worker
+    # (INF-1158).
+    SIZED_SANDBOXES = "sized_sandboxes"
+    # EngineCapabilitySizedWorkers: the engine registers no CPU slots
+    # (EngineRegisterRequest.SizedWorkers) and makes a CPU app worker when a
+    # run is dispatched to one it does not have, sized by the dispatch
+    # (WsTaskRunPayload.Worker): its vCPUs as the CPU quota, its memory
+    # limit as the cgroup cap. It refuses one it has no room for
+    # (RejectionNoRoom), ends one on worker_release, and its committed_apps
+    # counts its slot (GPU) workers only. The API then places CPU app runs
+    # there by size, against the engine's capacity (INF-1159).
+    SIZED_WORKERS = "sized_workers"
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
@@ -5325,6 +5455,11 @@ class ErrorCode(str, Enum):
     # ErrorCodeInOtherWorkspace: the resource lives in another workspace
     # the caller belongs to and could open there (InOtherWorkspaceMeta).
     IN_OTHER_WORKSPACE = "in_other_workspace"
+    # ErrorCodeVisibilityNotAllowed (400): the resource cannot take the
+    # visibility asked for (models.VisibilityDeclarer): a task, a flow run
+    # or an engine is private or team, never org, public or unlisted.
+    # Meta is VisibilityNotAllowedMeta.
+    VISIBILITY_NOT_ALLOWED = "visibility_not_allowed"
     # ErrorCodeBlockedByUsagePolicy: the resource is outside the team or org
     # usage policy. The message names who to ask.
     BLOCKED_BY_USAGE_POLICY = "blocked_by_usage_policy"
@@ -5337,6 +5472,11 @@ class ErrorCode(str, Enum):
     # the account.
     ACCOUNT_DEACTIVATED = "account_deactivated"
     ACCOUNT_BANNED = "account_banned"
+    # ErrorCodePublishQuarantined (403): the account may not make the row
+    # public or unlisted yet: it is new (younger than 72 hours), its email
+    # is not verified, or it is flagged (abuse.CheckPublish). Meta is
+    # PublishQuarantinedMeta; Until says from when a new account can.
+    PUBLISH_QUARANTINED = "publish_quarantined"
     # ErrorCodePersonRequired (403): only a person may do this, and the
     # caller is a workspace's service account (a workspace API key), or the
     # account is one and cannot sign in.
@@ -5372,7 +5512,7 @@ class ErrorCode(str, Enum):
     # grants one, and only the person's own browser sign-in changes how the
     # account is signed into (authenticator enrollment, RequireBrowserSession).
     # InvalidTTL (400): the elevation asked for a window outside
-    # models.AdminElevationMinTTL..AdminElevationMaxTTL.
+    # models.AdminElevationMinTTL..admin.elevation.max_ttl.
     # AdminScopesNotApproved (403): a platform admin's CLI login was approved
     # with a scope list that does not name the admin scopes, so it can't be
     # elevated: log in again approving them, then elevate.
@@ -5383,6 +5523,10 @@ class ErrorCode(str, Enum):
     SAME_ADMIN_REQUIRED = "same_admin_required"
     BROWSER_SESSION_REQUIRED = "browser_session_required"
     INVALID_TTL = "invalid_ttl"
+    # AdminOriginRequired (403): a staff browser sign-in's power is used
+    # only from the admin origin (ADMIN_URL), never from the app where user
+    # content renders, a frame or another site (INF-1190).
+    ADMIN_ORIGIN_REQUIRED = "admin_origin_required"
     # AdminAuthenticatorRequired (403): a platform admin without an
     # authenticator app (TOTP) enrolled. Admin power needs one; until it is
     # enrolled (POST /auth/totp/enroll, then /auth/totp/confirm) the admin
@@ -5400,6 +5544,11 @@ class ErrorCode(str, Enum):
     LIMIT_EXCEEDED = "limit_exceeded"
     FEATURE_NOT_AVAILABLE = "feature_not_available"
     ENTITLEMENT_UNAVAILABLE = "entitlement_unavailable"
+    # ErrorCodePurchaseRequired (402): the feature requires a purchase
+    # within the last EntitlementErrorMeta.WithinDays days
+    # (shared.RequireRecentPurchase) and the team's payer made none. Meta is
+    # EntitlementErrorMeta, with BillingPage where to make one.
+    PURCHASE_REQUIRED = "purchase_required"
     PAYMENT_REQUIRED = "payment_required"
     # ErrorCodePaymentMethodRequired (402): the action needs a saved payment
     # method and the caller's team has none: a bounty program that requires
@@ -5453,6 +5602,15 @@ class ErrorCode(str, Enum):
     REMOTE_TIMEOUT = "remote_timeout"
     HARNESS_NOT_DRIVABLE = "harness_not_drivable"
     HARNESS_TOO_OLD = "harness_too_old"
+
+class PublishQuarantineReason(str, Enum):
+    # PublishQuarantineNewAccount: the account is younger than the
+    # quarantine (72 hours by default); Until is when it ends.
+    PUBLISH_QUARANTINE_NEW_ACCOUNT = "new_account"
+    # PublishQuarantineUnverifiedEmail: the account's email is not verified.
+    PUBLISH_QUARANTINE_UNVERIFIED_EMAIL = "unverified_email"
+    # PublishQuarantineFlagged: the account is banned or flagged.
+    PUBLISH_QUARANTINE_FLAGGED = "flagged"
 
 class TaskFileRole(str, Enum):
     INPUT = "input"
@@ -5592,6 +5750,49 @@ class A2UIComponentType(str, Enum):
     # postMessage, and whose tools/call requests it proxies to the server.
     A2UI_MCP_APP = "McpApp"
 
+class DeadRunReason(str, Enum):
+    # DeadRunReasonModelStoppedEarly: the agent owes its output through
+    # finish and the model ended its turn with text or reasoning and no tool
+    # call.
+    MODEL_STOPPED_EARLY = "model_stopped_early"
+    # DeadRunReasonModelEmptyReply: the agent owes its output through finish
+    # and the model ended its turn with no content.
+    MODEL_EMPTY_REPLY = "model_empty_reply"
+    # DeadRunReasonModelOutputLimit: the agent owes its output through
+    # finish and the model's turn was cut at its output token limit.
+    MODEL_OUTPUT_LIMIT = "model_output_limit"
+    # DeadRunReasonModelRefused: the agent owes its output through finish
+    # and the provider's safety system refused the turn of a run a trigger
+    # started.
+    MODEL_REFUSED = "model_refused"
+    # DeadRunReasonProviderError: the model call failed: the provider's or
+    # engine's error, a timeout, or the error a remote harness reported.
+    PROVIDER_ERROR = "provider_error"
+    # DeadRunReasonNoProgress: the platform ended a run that went quiet, or
+    # a run a trigger started that was still working past its bound.
+    NO_PROGRESS = "no_progress"
+    # DeadRunReasonPlatformError: the run failed for the platform's own
+    # reasons: storage, dispatch, a turn that could not start, a harness
+    # session or remote lost.
+    PLATFORM_ERROR = "platform_error"
+    # DeadRunReasonOwnerSetup: a turn could not start because of something
+    # the agent's owner has to fix: a missing secret or key, a credential
+    # without the scope the call needs, no balance or payment method, an
+    # agent with no model configured, an app outside the team's usage
+    # policy.
+    OWNER_SETUP = "owner_setup"
+
+class DeadRunSource(str, Enum):
+    # DeadRunSourceModel: the model ended without the output it owed.
+    MODEL = "model"
+    # DeadRunSourceProvider: the model's provider (or the engine running
+    # it) failed the call.
+    PROVIDER = "provider"
+    # DeadRunSourcePlatform: the platform failed or ended the run.
+    PLATFORM = "platform"
+    # DeadRunSourceOwner: the agent's owner has to fix its setup.
+    OWNER = "owner"
+
 class ApiKeyScope(str, Enum):
     # ApiKeyScopeUser is a personal key: it acts as the person who created it,
     # in the workspace it was created in, and ends when they can no longer
@@ -5713,6 +5914,12 @@ class Permission(str, Enum):
     # resource is readable by everyone, but whether this caller may USE it is
     # governed by their team/org usage policy (reach, INF-808).
     PERM_USE = "use"
+    # PermInspect reads a row's runtime internals: a task's logs,
+    # telemetry, webhook, setup, engine and worker. The row's owner and the
+    # stored entries on it grant it; no visibility does. Making a task
+    # public shares what it was asked and what it answered, not how its run
+    # went on the machine.
+    PERM_INSPECT = "inspect"
 
 class ACLGrantee(str, Enum):
     USER = "user"
@@ -5888,6 +6095,10 @@ class WorkerStatus(str, Enum):
     BUSY = "busy"
     IDLE = "idle"
     INACTIVE = "inactive"
+
+class WorkerKind(str, Enum):
+    SLOT = ""
+    APP = "app"
 
 class FlowRunStatus(IntEnum):
     UNKNOWN = 0
@@ -6255,6 +6466,10 @@ class EntitlementResource(str, Enum):
     RESOURCE_SEATS = "seats"
     RESOURCE_TRIGGERS = "triggers"
     RESOURCE_RETENTION_DAYS = "retention_days"
+    # Sandboxes a team may hold placed at once, and their vCPUs together
+    # (INF-1158). No row: the platform default (setting sandboxes.placement).
+    RESOURCE_SANDBOXES = "sandboxes"
+    RESOURCE_SANDBOX_VCP_US = "sandbox_vcpus"
     # Legacy — kept for DB compatibility, no longer in plan seeds
     RESOURCE_PRIVATE_APPS = "private_apps"
     RESOURCE_TASK_EXECUTIONS = "task_executions"
@@ -6275,6 +6490,9 @@ class EntitlementResource(str, Enum):
     RESOURCE_FEATURE_AUTO_RECHARGE = "feature:auto_recharge"
     RESOURCE_FEATURE_INVOICES = "feature:invoices"
     RESOURCE_FEATURE_PUBLISH_APPS = "feature:publish_apps"
+
+class FeatureRequirement(str, Enum):
+    REQUIRE_RECENT_PURCHASE = "recent_purchase"
 
 class ContentRating(str, Enum):
     CONTENT_SAFE = "safe"
