@@ -5410,6 +5410,9 @@ class ErrorCode(str, Enum):
     # already holds the caller's submission.
     FORM_CLOSED = "form_closed"
     ALREADY_SUBMITTED = "already_submitted"
+    # ErrorCodeNotificationsDisabled (409): the recipient switched this
+    # notification off in their notification preferences.
+    NOTIFICATIONS_DISABLED = "notifications_disabled"
     # Bounty claims (409): the caller already claimed this proof, or as many
     # times as the program allows.
     ALREADY_CLAIMED = "already_claimed"
