@@ -5425,6 +5425,10 @@ class ErrorCode(str, Enum):
     APP_RETIRED = "app_retired"
     APP_MAINTENANCE = "app_maintenance"
     INVALID_TRANSITION = "invalid_transition"
+    # Maintenance (503, Retry-After): the platform is draining for
+    # maintenance (platform.maintenance) and the route starts new work.
+    # The message is the operator's; meta is MaintenanceMeta.
+    MAINTENANCE = "maintenance"
     # Session-bound runs. SessionNotFound (404), SessionExpired and
     # SessionEnded (410), WorkerLeased, AppMismatch and VersionMismatch
     # (409). The SDKs match these upper-case strings.
