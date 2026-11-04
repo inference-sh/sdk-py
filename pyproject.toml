@@ -52,9 +52,9 @@ upstream = [
 ]
 # inferencesh.images.fit_image (downsizing images to a provider's limits)
 images = [
-    "pillow>=10.0.0",
+    "pillow>=13.0.0",
 ]
 async = [
-    "aiohttp>=3.14.3; python_version >= '3.8'",
-    "aiofiles>=23.2.1; python_version >= '3.8'",
+    "aiohttp>=3.14.3",
+    "aiofiles>=23.2.1",
 ]
