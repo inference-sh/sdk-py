@@ -1745,6 +1745,12 @@ class PaymentMethodRequiredMeta(TypedDict, total=False):
     bounty_id: str
     billing_page: str
 
+# MaintenanceMeta is the meta of a maintenance error (503): the platform is
+# temporarily draining for maintenance. retry_after is the number of seconds
+# the caller should wait before retrying (mirrors the Retry-After header).
+class MaintenanceMeta(TypedDict, total=False):
+    retry_after: int
+
 # FileMetadata holds probed media metadata cached on File records.
 class FileMetadata(TypedDict, total=False):
     type: str

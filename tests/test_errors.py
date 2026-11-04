@@ -171,3 +171,22 @@ class TestScopeErrorCodes:
         )
         err = APIError(403, "missing scope", response_body=body)
         assert err.code == ErrorCode.INSUFFICIENT_SCOPE
+
+
+class TestMaintenanceErrorCode:
+    def test_maintenance_error_code_value(self):
+        assert ErrorCode.MAINTENANCE.value == "maintenance"
+        assert ErrorCode.APP_MAINTENANCE.value == "app_maintenance"
+
+    def test_api_error_code_reads_maintenance_from_problem_json(self):
+        body = (
+            '{"type":"https://api.inference.sh/errors/maintenance",'
+            '"status":503,"detail":"platform maintenance in progress","meta":{"retry_after":30}}'
+        )
+        err = APIError(503, "platform maintenance in progress", response_body=body)
+        assert err.code == ErrorCode.MAINTENANCE
+
+    def test_maintenance_meta_shape(self):
+        from inferencesh.types import MaintenanceMeta
+        meta: MaintenanceMeta = {"retry_after": 60}
+        assert meta["retry_after"] == 60
