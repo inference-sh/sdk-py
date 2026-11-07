@@ -723,11 +723,20 @@ class ScopeDefinition(TypedDict, total=False):
     # apps, agents, flows).
     costs_credits: bool
 
+# ScopeCategoryDefinition describes a category of scope groups for UI
+# rendering: a section heading over the groups in it.
+class ScopeCategoryDefinition(TypedDict, total=False):
+    id: ScopeCategory
+    label: str
+    description: str
+
 # ScopeGroupDefinition describes a group of scopes for UI rendering
 class ScopeGroupDefinition(TypedDict, total=False):
     id: ScopeGroup
     label: str
     description: str
+    # Category is the section the group is listed under (ScopesResponse.Categories).
+    category: ScopeCategory
     # PublicRows: the resource's rows can be public, so a credential
     # without its read scope still reads what a signed-out caller reads
     # (its public rows) instead of being refused.
@@ -741,6 +750,9 @@ class ScopesResponse(TypedDict, total=False):
     scopes: List[ScopeDefinition]
     groups: List[ScopeGroupDefinition]
     presets: List[ScopePreset]
+    # Categories are the sections Groups and AccountGroups fall in, in
+    # display order: every category a listed group names.
+    categories: List[ScopeCategoryDefinition]
     # AccountScopes are the account holder's own scopes (approvals,
     # profile and sessions, keys, billing writes) a sign-in may be approved
     # for: the device approval page offers them as their own section. No
@@ -5298,6 +5310,12 @@ class ScopeGroup(str, Enum):
     ADMIN = "admin"
     STORE = "store"
     CONTENT = "content"
+
+class ScopeCategory(str, Enum):
+    RESOURCES = "resources"
+    WORKSPACE = "workspace"
+    ACCOUNT = "account"
+    PLATFORM = "platform"
 
 class AlwaysAllowScope(str, Enum):
     # AlwaysAllowScopeExact: this call exactly (each piece of the command,
