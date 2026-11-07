@@ -536,6 +536,21 @@ except RequirementsNotMetError as e:
         print(f"{err.type}: {err.key} — {err.message}")
 ```
 
+### cancelled and failed tasks
+
+`run()`, `wait_for_completion()` and task streams raise `TaskCancelled` when the task ends cancelled and `TaskFailed` when it ends failed. Both subclass `RuntimeError` and carry the final task as `.task`. A cancelled task keeps the app's result as `output` if the app returned before it was stopped (that result is billed); `output` is `None` when nothing was returned.
+
+```python
+from inferencesh import TaskCancelled, TaskFailed
+
+try:
+    result = client.tasks.run({"app": "my-app", "input": {...}})
+except TaskCancelled as e:
+    partial = e.task.get("output")  # the result the app returned before cancel, or None
+except TaskFailed as e:
+    print(f"failed: {e} ({e.task.get('error')})")
+```
+
 ### agent methods
 
 | Method | Description |

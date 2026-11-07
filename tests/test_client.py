@@ -6,7 +6,7 @@ import pytest
 
 from inferencesh import Inference, AsyncInference, TaskStatus
 from inferencesh.client import StreamManager
-from inferencesh.models.errors import APIError, RequirementsNotMetError
+from inferencesh.models.errors import APIError, RequirementsNotMetError, TaskCancelled, TaskFailed
 
 
 class DummyResponse:
@@ -522,6 +522,38 @@ def test_stream_reconcile_raises_on_cancelled_task(monkeypatch):
             list(stream)
 
 
+def test_stream_reconcile_cancelled_task_keeps_output(monkeypatch):
+    """A task cancelled after its app returned ends CANCELLED with the result as output;
+    TaskCancelled carries that task so the output stays reachable."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: Response({
+            "id": tid,
+            "status": TaskStatus.CANCELLED,
+            "output": {"partial": True},
+        }),
+    )
+
+    with pytest.raises(TaskCancelled, match="Task cancelled") as exc_info:
+        with client.run(
+            {"app": "some/app", "input": {}}, stream=True, auto_reconnect=False,
+        ) as stream:
+            list(stream)
+
+    assert exc_info.value.task["id"] == "task_123"
+    assert exc_info.value.task["status"] == TaskStatus.CANCELLED
+    assert exc_info.value.task["output"] == {"partial": True}
+    assert stream.error is exc_info.value
+    assert stream.result is None
+
+
 def test_stream_reconcile_raises_on_rejected_task(monkeypatch):
     """GET reconciliation must surface REJECTED admission failures as RuntimeError."""
     client = Inference(api_key="test")
@@ -628,12 +660,65 @@ def test_wait_for_completion_raises_on_cancelled_stream_event(monkeypatch):
     client = Inference(api_key="test")
 
     def fake_stream_updates(task_id, task):
-        yield {"id": task_id, "status": TaskStatus.CANCELLED}
+        yield {"id": task_id, "status": TaskStatus.CANCELLED, "output": {"partial": True}}
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
 
-    with pytest.raises(RuntimeError, match="Task cancelled"):
+    with pytest.raises(TaskCancelled, match="Task cancelled") as exc_info:
         client.wait_for_completion("task_123")
+
+    assert exc_info.value.task["output"] == {"partial": True}
+
+
+def test_wait_for_completion_get_reconcile_raises_on_cancelled_task(monkeypatch):
+    """GET reconciliation after stream end raises TaskCancelled carrying the task;
+    output is None when the app returned nothing."""
+    client = Inference(api_key="test")
+
+    def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(
+        client,
+        "get_task",
+        lambda tid: Response({"id": tid, "status": TaskStatus.CANCELLED, "output": None}),
+    )
+
+    with pytest.raises(TaskCancelled, match="Task cancelled") as exc_info:
+        client.wait_for_completion("task_123")
+
+    assert exc_info.value.task["id"] == "task_123"
+    assert exc_info.value.task["output"] is None
+
+
+def test_run_cancelled_via_stream_event_raises_task_cancelled_with_output(monkeypatch):
+    """run(wait=True) surfaces a CANCELLED NDJSON event as TaskCancelled with the
+    stripped task (output included), through _process_stream_event."""
+    client = Inference(api_key="test")
+    original_request = client._request
+
+    def fake_request(method, url, **kwargs):
+        if url.endswith("/stream"):
+            return DummyResponse(lines=[
+                json.dumps({"id": "task_123", "status": TaskStatus.RUNNING}),
+                json.dumps({
+                    "id": "task_123",
+                    "status": TaskStatus.CANCELLED,
+                    "output": {"partial": True},
+                    "worker_id": "w-1",
+                }),
+            ])
+        return original_request(method, url, **kwargs)
+
+    monkeypatch.setattr(client, "_request", fake_request)
+
+    with pytest.raises(TaskCancelled, match="task cancelled") as exc_info:
+        client.run({"app": "some/app", "input": {}})
+
+    assert exc_info.value.task["output"] == {"partial": True}
+    assert exc_info.value.task["status"] == TaskStatus.CANCELLED
+    assert "worker_id" not in exc_info.value.task
 
 
 def test_wait_for_completion_raises_on_rejected_stream_event(monkeypatch):
@@ -681,8 +766,11 @@ def test_wait_for_completion_get_reconcile_raises_on_failed_task(monkeypatch):
         lambda tid: Response({"id": tid, "status": TaskStatus.FAILED, "error": "worker crashed"},)
     )
 
-    with pytest.raises(RuntimeError, match="worker crashed"):
+    with pytest.raises(TaskFailed, match="worker crashed") as exc_info:
         client.wait_for_completion("task_123")
+
+    assert exc_info.value.task["error"] == "worker crashed"
+    assert exc_info.value.task["status"] == TaskStatus.FAILED
 
 
 def test_stream_manager_routes_partial_data_to_on_partial_data():
@@ -1339,17 +1427,49 @@ async def test_async_stream_reconcile_raises_on_cancelled_task(monkeypatch, patc
         yield {"id": task_id, "status": 7}
 
     async def fake_get_task(tid):
-        return Response({"id": tid, "status": TaskStatus.CANCELLED})
+        return Response({
+            "id": tid,
+            "status": TaskStatus.CANCELLED,
+            "output": {"partial": True},
+        })
 
     monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
     monkeypatch.setattr(client, "get_task", fake_get_task)
 
-    with pytest.raises(RuntimeError, match="Task cancelled"):
+    with pytest.raises(TaskCancelled, match="Task cancelled") as exc_info:
         async with await client.run(
             {"app": "some/app", "input": {}}, stream=True, auto_reconnect=False,
         ) as stream:
             async for _ in stream:
                 pass
+
+    assert exc_info.value.task["output"] == {"partial": True}
+
+
+@pytest.mark.asyncio
+async def test_async_wait_for_completion_raises_task_cancelled_with_output(
+    monkeypatch, patch_aiohttp,
+):
+    """Async wait_for_completion raises TaskCancelled carrying the cancelled task's output."""
+    client = AsyncInference(api_key="test")
+
+    async def fake_stream_updates(task_id, task):
+        yield {"id": task_id, "status": 7}
+
+    async def fake_get_task(tid):
+        return Response({
+            "id": tid,
+            "status": TaskStatus.CANCELLED,
+            "output": {"partial": True},
+        })
+
+    monkeypatch.setattr(client, "_stream_updates", fake_stream_updates)
+    monkeypatch.setattr(client, "get_task", fake_get_task)
+
+    with pytest.raises(TaskCancelled, match="Task cancelled") as exc_info:
+        await client.wait_for_completion("task_async_123")
+
+    assert exc_info.value.task["output"] == {"partial": True}
 
 
 @pytest.mark.asyncio

@@ -149,6 +149,51 @@ class APIError(Exception):
         return f"APIError(status_code={self.status_code}, message={self.message!r})"
 
 
+# Terminal task errors
+
+class TaskCancelled(RuntimeError):
+    """Raised when a waited-on task ends cancelled.
+
+    A cancelled task may still carry a result: if the app returned before
+    it was stopped, the API keeps that result on the task as ``output``
+    (and bills it) and the task still ends ``cancelled``. ``task`` is the
+    final task dict, so the output stays reachable after the raise.
+    ``task["output"]`` is None when the app returned nothing.
+
+    Subclasses ``RuntimeError`` so existing ``except RuntimeError`` handlers
+    keep working.
+
+    Example:
+        ```python
+        try:
+            result = client.run(params)
+        except TaskCancelled as e:
+            partial = e.task.get("output")  # None if nothing was returned
+        ```
+    """
+    def __init__(self, task: Dict[str, Any], message: str = "Task cancelled"):
+        self.task = task
+        super().__init__(message)
+
+    def __repr__(self) -> str:
+        return f"TaskCancelled(task_id={self.task.get('id')!r})"
+
+
+class TaskFailed(RuntimeError):
+    """Raised when a waited-on task ends failed.
+
+    ``task`` is the final task dict; ``task["error"]`` carries the failure
+    reason when the API supplied one. Subclasses ``RuntimeError`` so existing
+    ``except RuntimeError`` handlers keep working.
+    """
+    def __init__(self, task: Dict[str, Any], message: Optional[str] = None):
+        self.task = task
+        super().__init__(message or task.get("error") or "Task failed")
+
+    def __repr__(self) -> str:
+        return f"TaskFailed(task_id={self.task.get('id')!r}, message={str(self)!r})"
+
+
 # Session-specific errors
 
 class SessionError(APIError):

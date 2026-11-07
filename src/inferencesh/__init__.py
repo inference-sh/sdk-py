@@ -92,6 +92,8 @@ from .models.errors import (
     SessionExpiredError,
     SessionEndedError,
     WorkerLostError,
+    TaskCancelled,
+    TaskFailed,
 )
 
 # Agent SDK (headless)
@@ -272,6 +274,8 @@ __all__ = [
     "SessionExpiredError",
     "SessionEndedError",
     "WorkerLostError",
+    "TaskCancelled",
+    "TaskFailed",
     # Generated types - Enums
     "ChatStatus",
     "ChatMessageRole",

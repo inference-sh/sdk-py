@@ -10,7 +10,7 @@ import os
 from contextlib import AbstractContextManager, AbstractAsyncContextManager
 from typing import Protocol, runtime_checkable
 
-from .models.errors import APIError, RequirementsNotMetError
+from .models.errors import APIError, RequirementsNotMetError, TaskCancelled, TaskFailed
 from .models.response import Response
 from .types import TaskStatus, ChatMessageStatus
 
@@ -168,7 +168,11 @@ class TaskStream(AbstractContextManager['TaskStream']):
             Dict[str, Any]: Task update events
 
         Raises:
-            RuntimeError: If the task fails or is cancelled
+            TaskFailed: If the task fails. ``exc.task`` is the final task.
+            TaskCancelled: If the task is cancelled. ``exc.task`` is the final
+                task; ``exc.task["output"]`` is the result when the app returned
+                one before it was stopped, else None.
+            RuntimeError: If the task is rejected. Both classes above subclass it.
         """
         import time as _time
         reconnects = 0
@@ -205,9 +209,9 @@ class TaskStream(AbstractContextManager['TaskStream']):
                         self._final_task = reconciled
                         yield reconciled
                     elif status == TaskStatus.FAILED:
-                        raise RuntimeError(reconciled.get("error") or "Task failed")
+                        raise TaskFailed(reconciled)
                     elif status == TaskStatus.CANCELLED:
-                        raise RuntimeError("Task cancelled")
+                        raise TaskCancelled(reconciled)
                     elif status == TaskStatus.REJECTED:
                         raise RuntimeError(f"Task rejected: {reconciled.get('error')}" if reconciled.get("error") else "Task rejected")
                     break
@@ -291,7 +295,11 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
             Dict[str, Any]: Task update events
 
         Raises:
-            RuntimeError: If the task fails or is cancelled
+            TaskFailed: If the task fails. ``exc.task`` is the final task.
+            TaskCancelled: If the task is cancelled. ``exc.task`` is the final
+                task; ``exc.task["output"]`` is the result when the app returned
+                one before it was stopped, else None.
+            RuntimeError: If the task is rejected. Both classes above subclass it.
         """
         import asyncio as _asyncio
         reconnects = 0
@@ -325,9 +333,9 @@ class AsyncTaskStream(AbstractAsyncContextManager['AsyncTaskStream']):
                         self._final_task = reconciled
                         yield reconciled
                     elif status == TaskStatus.FAILED:
-                        raise RuntimeError(reconciled.get("error") or "Task failed")
+                        raise TaskFailed(reconciled)
                     elif status == TaskStatus.CANCELLED:
-                        raise RuntimeError("Task cancelled")
+                        raise TaskCancelled(reconciled)
                     elif status == TaskStatus.REJECTED:
                         raise RuntimeError(f"Task rejected: {reconciled.get('error')}" if reconciled.get("error") else "Task rejected")
                     break
@@ -766,7 +774,11 @@ class Inference:
             Dict[str, Any]: The final task state
 
         Raises:
-            RuntimeError: If the task fails or is cancelled
+            TaskFailed: If the task fails. ``exc.task`` is the final task.
+            TaskCancelled: If the task is cancelled. ``exc.task`` is the final
+                task; ``exc.task["output"]`` is the result when the app returned
+                one before it was stopped, else None.
+            RuntimeError: If the task is rejected. Both classes above subclass it.
             TimeoutError: If *timeout* expires and the task is not terminal
         """
         deadline = (time.monotonic() + timeout) if timeout is not None else None
@@ -776,9 +788,9 @@ class Inference:
                 if status == TaskStatus.COMPLETED:
                     return update
                 if status == TaskStatus.FAILED:
-                    raise RuntimeError(update.get("error") or "Task failed")
+                    raise TaskFailed(update)
                 if status == TaskStatus.CANCELLED:
-                    raise RuntimeError("Task cancelled")
+                    raise TaskCancelled(update)
                 if status == TaskStatus.REJECTED:
                     raise RuntimeError(f"Task rejected: {update.get('error')}" if update.get("error") else "Task rejected")
                 if deadline is not None and time.monotonic() >= deadline:
@@ -789,9 +801,9 @@ class Inference:
         if status == TaskStatus.COMPLETED:
             return task
         if status == TaskStatus.FAILED:
-            raise RuntimeError(task.get("error") or "Task failed")
+            raise TaskFailed(task)
         if status == TaskStatus.CANCELLED:
-            raise RuntimeError("Task cancelled")
+            raise TaskCancelled(task)
         if status == TaskStatus.REJECTED:
             raise RuntimeError(f"Task rejected: {task.get('error')}" if task.get("error") else "Task rejected")
         if deadline is not None and time.monotonic() >= deadline:
@@ -1393,7 +1405,11 @@ class AsyncInference:
             Dict[str, Any]: The final task state
 
         Raises:
-            RuntimeError: If the task fails or is cancelled
+            TaskFailed: If the task fails. ``exc.task`` is the final task.
+            TaskCancelled: If the task is cancelled. ``exc.task`` is the final
+                task; ``exc.task["output"]`` is the result when the app returned
+                one before it was stopped, else None.
+            RuntimeError: If the task is rejected. Both classes above subclass it.
             TimeoutError: If *timeout* expires and the task is not terminal
         """
         deadline = (time.monotonic() + timeout) if timeout is not None else None
@@ -1403,9 +1419,9 @@ class AsyncInference:
                 if status == TaskStatus.COMPLETED:
                     return update
                 if status == TaskStatus.FAILED:
-                    raise RuntimeError(update.get("error") or "Task failed")
+                    raise TaskFailed(update)
                 if status == TaskStatus.CANCELLED:
-                    raise RuntimeError("Task cancelled")
+                    raise TaskCancelled(update)
                 if status == TaskStatus.REJECTED:
                     raise RuntimeError(f"Task rejected: {update.get('error')}" if update.get("error") else "Task rejected")
                 if deadline is not None and time.monotonic() >= deadline:
@@ -1416,9 +1432,9 @@ class AsyncInference:
         if status == TaskStatus.COMPLETED:
             return task
         if status == TaskStatus.FAILED:
-            raise RuntimeError(task.get("error") or "Task failed")
+            raise TaskFailed(task)
         if status == TaskStatus.CANCELLED:
-            raise RuntimeError("Task cancelled")
+            raise TaskCancelled(task)
         if status == TaskStatus.REJECTED:
             raise RuntimeError(f"Task rejected: {task.get('error')}" if task.get("error") else "Task rejected")
         if deadline is not None and time.monotonic() >= deadline:
@@ -1779,6 +1795,9 @@ def _strip_task(task: Dict[str, Any]) -> Dict[str, Any]:
     # Include session_id if present
     if task.get("session_id"):
         result["session_id"] = task["session_id"]
+    # Failed tasks carry their reason
+    if task.get("error"):
+        result["error"] = task["error"]
     # A stream task's run response carries the caller's end of its socket
     if task.get("socket"):
         result["socket"] = task["socket"]
@@ -1799,11 +1818,11 @@ def _process_stream_event(
     if status == TaskStatus.FAILED:
         if stopper:
             stopper()
-        raise RuntimeError(data.get("error") or "task failed")
+        raise TaskFailed(_strip_task(data), data.get("error") or "task failed")
     if status == TaskStatus.CANCELLED:
         if stopper:
             stopper()
-        raise RuntimeError("task cancelled")
+        raise TaskCancelled(_strip_task(data), "task cancelled")
     if status == TaskStatus.REJECTED:
         if stopper:
             stopper()

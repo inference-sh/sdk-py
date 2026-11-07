@@ -10,6 +10,7 @@ from inferencesh import (
     parse_status,
 )
 from inferencesh.client import _process_stream_event
+from inferencesh.models.errors import TaskCancelled, TaskFailed
 
 
 class TestParseStatus:
@@ -98,18 +99,36 @@ class TestProcessStreamEvent:
         assert stopper_calls == [1]
 
     def test_failed_raises_with_error_message(self):
-        with pytest.raises(RuntimeError, match="boom"):
+        with pytest.raises(TaskFailed, match="boom") as exc_info:
             _process_stream_event(
-                {"status": TaskStatus.FAILED, "error": "boom"},
+                {"id": "t1", "status": TaskStatus.FAILED, "error": "boom"},
                 task={},
             )
+        assert isinstance(exc_info.value, RuntimeError)
+        assert exc_info.value.task["id"] == "t1"
+        assert exc_info.value.task["error"] == "boom"
 
     def test_cancelled_raises(self):
-        with pytest.raises(RuntimeError, match="cancelled"):
+        with pytest.raises(TaskCancelled, match="cancelled") as exc_info:
             _process_stream_event(
                 {"status": TaskStatus.CANCELLED},
                 task={},
             )
+        assert isinstance(exc_info.value, RuntimeError)
+        assert exc_info.value.task["output"] is None
+
+    def test_cancelled_carries_output_when_app_returned(self):
+        stopper_calls = []
+        with pytest.raises(TaskCancelled, match="task cancelled") as exc_info:
+            _process_stream_event(
+                {"id": "t1", "status": TaskStatus.CANCELLED, "output": {"ok": True}, "extra": 1},
+                task={},
+                stopper=lambda: stopper_calls.append(1),
+            )
+        assert exc_info.value.task["output"] == {"ok": True}
+        assert exc_info.value.task["status"] == TaskStatus.CANCELLED
+        assert "extra" not in exc_info.value.task
+        assert stopper_calls == [1]
 
     def test_rejected_raises_with_error_message(self):
         stopper_calls = []
