@@ -2596,6 +2596,19 @@ class CreateSandboxRequest(TypedDict, total=False):
     # engine's gateway places the values toward those hosts and renews
     # the ones that expire, always from the login chosen here.
     credentials: List[SandboxCredential]
+    # IdleTimeoutSeconds stops the running box this long after it was last
+    # used through the API (an exec, an agent session, a keepalive); what
+    # runs inside it does not count, but an exec still running holds it.
+    # Unset is 1800 (30 minutes), 0 never stops it; otherwise 60 to
+    # 2592000 (30 days).
+    idle_timeout_seconds: Optional[int]
+
+# UpdateSandboxRequest is PATCH /sandboxes/{id}: the fields to change,
+# nil left as they are.
+class UpdateSandboxRequest(TypedDict, total=False):
+    # IdleTimeoutSeconds is as in CreateSandboxRequest. Changing it counts
+    # as activity.
+    idle_timeout_seconds: Optional[int]
 
 # SandboxCredential is a login a sandbox's box gets: a requirement by
 # provider, as an app declares one, and when it is given (Mode, auto when
@@ -4971,6 +4984,12 @@ class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # drop it sooner when its host runs short of disk.
     disk_kept: bool
     disk_kept_until: Optional[str]
+    # IdleTimeoutSeconds stops the running box this long after
+    # LastActivityAt; 0 never does.
+    idle_timeout_seconds: int
+    # LastActivityAt is when the sandbox was last used through the API, or
+    # its box started, whichever is later.
+    last_activity_at: Optional[str]
 
 # SecretDTO for API responses - VALUE IS NEVER EXPOSED
 class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
