@@ -2712,6 +2712,42 @@ class SystemInfo(TypedDict, total=False):
     volumes: List[Volume]
     hf_cache: HFCacheInfo
     gpus: List[GPU]
+    # HostCPU is how the host runs its CPUs (INF-1244); nil off Linux
+    # and from engines that predate it.
+    host_cpu: Optional[HostCPU]
+
+# HostCPU is how a host runs its CPUs: the settings that make the same
+# cores fast or slow (INF-1244), as the engine reads them from /sys.
+class HostCPU(TypedDict, total=False):
+    # Governor and Driver are cpu0's cpufreq scaling_governor and
+    # scaling_driver.
+    governor: str
+    driver: str
+    # Boost is turbo/boost on or off; nil when the host does not say.
+    boost: Optional[bool]
+    # CurMHz is the mean current frequency across CPUs, MaxMHz cpu0's
+    # hardware maximum.
+    cur_mhz: float
+    max_mhz: float
+    # SMT is simultaneous multithreading on or off; nil when unknown.
+    smt: Optional[bool]
+    threads_per_core: int
+    # HugePages2M are the reserved 2 MiB huge pages; THP the transparent
+    # huge page mode (always, madvise or never).
+    hugepages_2m_total: int
+    hugepages_2m_free: int
+    thp: str
+    # KVM is /dev/kvm present.
+    kvm: bool
+    # Score is the engine's startup CPU benchmark; nil until it has run.
+    cpu_score: Optional[CPUScore]
+
+# CPUScore is the engine's startup CPU benchmark: a fixed loop on one
+# thread, then on every thread.
+class CPUScore(TypedDict, total=False):
+    single_ops_per_sec: float
+    all_ops_per_sec: float
+    threads: int
 
 class Docker(TypedDict, total=False):
     binary_path: str
@@ -2957,6 +2993,12 @@ class TeamViewDTO(TypedDict, total=False):
     org: Optional[TeamViewOrg]
     governance: TeamGovernance
     can: List[TeamCapability]
+    # NeedsAdminAccess lists what the caller would also hold with admin
+    # access on: set only for staff whose browser sign-in holds no platform
+    # power now and would after proving the authenticator again here
+    # (AuthContext.AdminPowerRenewable). Clients show these as needing admin
+    # access instead of hiding them.
+    needs_admin_access: List[TeamCapability]
 
 # SubmitTelemetryRequest is the CLI's diagnostics report for an account the
 # abuse redlist flags. Payload is the host report (platform, locale,
