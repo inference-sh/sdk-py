@@ -2577,6 +2577,12 @@ class ShareRequest(TypedDict, total=False):
     org: bool
     permission: Permission
 
+# StartSandboxRequest is POST /sandboxes/{id}/start; the body is optional.
+class StartSandboxRequest(TypedDict, total=False):
+    # FreshDisk starts the stopped sandbox on a new, empty disk: the one
+    # its engine keeps is dropped (INF-1163).
+    fresh_disk: bool
+
 # CreateSandboxRequest is POST /sandboxes. Sizes left at zero take the
 # defaults.
 class CreateSandboxRequest(TypedDict, total=False):
@@ -4959,6 +4965,12 @@ class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     remote_id: Optional[str]
     started_at: Optional[str]
     stopped_at: Optional[str]
+    # DiskKept: the engine the sandbox last ran on keeps its disk, and its
+    # next start goes back there for it (INF-1163). DiskKeptUntil is when
+    # a stopped sandbox's disk goes (stopped_at + 7 days); the engine may
+    # drop it sooner when its host runs short of disk.
+    disk_kept: bool
+    disk_kept_until: Optional[str]
 
 # SecretDTO for API responses - VALUE IS NEVER EXPOSED
 class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
