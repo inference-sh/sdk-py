@@ -2599,7 +2599,7 @@ class CreateSandboxRequest(TypedDict, total=False):
     # IdleTimeoutSeconds stops the running box this long after it was last
     # used through the API (an exec, an agent session, a keepalive); what
     # runs inside it does not count, but an exec still running holds it.
-    # Unset is 1800 (30 minutes), 0 never stops it; otherwise 60 to
+    # Unset is 900 (15 minutes), 0 never stops it; otherwise 60 to
     # 2592000 (30 days).
     idle_timeout_seconds: Optional[int]
 
