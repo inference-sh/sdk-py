@@ -276,6 +276,18 @@ def test_models_decision_export_exists(name):
     "SubmitTelemetryRequest", "TelemetryReportDTO",
     # Store browse catalog (254df4b typegen regen)
     "StoreCategoryDTO", "StoreTagDTO",
+    # Sandbox limits, snapshots, ports (6f8f533 / INF-1251)
+    "ResourceUsage",
+    "SandboxRange",
+    "SandboxLimitsDTO",
+    "SandboxPortRequest",
+    "SandboxPortDTO",
+    "SandboxPortList",
+    "CreateSandboxSnapshotRequest",
+    "ForkSandboxRequest",
+    "ForkSandboxResponse",
+    "SandboxSnapshotDTO",
+    "SandboxSnapshotStatus",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
