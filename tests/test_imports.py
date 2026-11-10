@@ -276,6 +276,9 @@ def test_models_decision_export_exists(name):
     "SubmitTelemetryRequest", "TelemetryReportDTO",
     # Store browse catalog (254df4b typegen regen)
     "StoreCategoryDTO", "StoreTagDTO",
+    # Sandbox vault access + box API scopes (c8aed89 / INF-1062)
+    "CreateSandboxRequest",
+    "SandboxDTO",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
