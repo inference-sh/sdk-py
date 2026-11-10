@@ -276,6 +276,8 @@ def test_models_decision_export_exists(name):
     "SubmitTelemetryRequest", "TelemetryReportDTO",
     # Store browse catalog (254df4b typegen regen)
     "StoreCategoryDTO", "StoreTagDTO",
+    # Engine capacity policy + sandbox plan limits (79493f8)
+    "EngineCapacityPolicy", "EngineCapacityLimit",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
