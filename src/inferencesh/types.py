@@ -318,6 +318,10 @@ class ApiAppRunRequest(TypedDict, total=False):
     session: Optional[str]
     session_timeout: Optional[int]
     run_at: Optional[str]
+    # StartTimeout, in seconds (1-86400): if no worker has started the task
+    # within it (counted from run_at when set), it is cancelled, not
+    # billed, and leaves the queue. Unset, it waits as any task does.
+    start_timeout: Optional[int]
 
 # MessageInput is a message a caller sends to an agent: its text and the
 # files sent with it. The model, its settings, the system prompt, the tools
