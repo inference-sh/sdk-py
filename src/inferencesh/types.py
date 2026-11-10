@@ -3351,6 +3351,15 @@ AuthMethod = TypedDict('AuthMethod', {
     # Scheme and BearerFormat describe an http kind's Authorization header.
     'scheme': 'AuthMethodHTTPScheme',
     'bearer_format': 'str',
+    # Hosts are the hosts the credential's value is sent to, each exact
+    # ("api.anthropic.com", "db.example.com:5432"): the key a person
+    # pastes, or an oauth2 scheme's access token. A scheme with hosts
+    # binds its secrets: a run behind the egress gateway holds a
+    # placeholder for each, and the gateway puts the value in only on the
+    # way to these hosts (authmethod.HostBinder). Empty: the secrets are
+    # environment variables, as they were. A catalogued provider's hosts
+    # come from the catalog when the row names none.
+    'hosts': 'List[str]',
     'authorization_endpoint': 'str',
     'scopes': 'List[str]',
     # ScopeAliases are shorthand a caller may write for a provider scope
