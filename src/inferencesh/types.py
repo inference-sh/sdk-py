@@ -1721,6 +1721,28 @@ class CapacityGPU(TypedDict, total=False):
     id: str
     vram_bytes: int
 
+# EngineCapacityPolicy is what the engine's owner set for its room from the
+# app (POST /engines/{id}/capacity): whether it hosts sandboxes and how far
+# the API may give out more than it has. The API applies it; the engine is
+# told nothing but the CPU slots it gets at its next register. A nil field
+# keeps the default.
+class EngineCapacityPolicy(TypedDict, total=False):
+    # Sandboxes false keeps new sandboxes off the engine; boxes already on
+    # it run until they stop. Nil is on, for an engine that reports
+    # EngineCapabilitySandboxes.
+    sandboxes: Optional[bool]
+    # CPUOvercommit and MemoryOvercommit multiply the engine's allocatable
+    # for sandbox placement: 2 gives out twice its CPUs. Nil is the pool's
+    # (setting sandboxes.placement, 1 when unset). An engine on CPU slots
+    # is checked against them only when one is set.
+    cpu_overcommit: Optional[float]
+    memory_overcommit: Optional[float]
+    # CPUSlots is the CPU app worker slots the engine gets at its next
+    # register, over the count its engine.yml asks for (workers.cpu.count).
+    # Each slot runs one app task, or holds one sandbox on an engine on
+    # slots. Nil is the engine's count.
+    cpu_slots: Optional[int]
+
 # FeatureAccess is whether the caller's team may use feature gate
 # Resource, as the API decides it (CheckFeatureGate): what a client shows.
 class FeatureAccess(TypedDict, total=False):
@@ -4669,6 +4691,9 @@ class EngineDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # Capacity is what the engine last reported it offers and has given
     # out; nil from an engine that does not report it.
     capacity: Optional[EngineCapacity]
+    # CapacityPolicy is what its owner set for its room from the app:
+    # sandboxes on or off, over-commit, CPU slots. Nil keeps the defaults.
+    capacity_policy: Optional[EngineCapacityPolicy]
     workers: List[Optional[WorkerDTO]]
 
 # EngineSummary is a lightweight engine response embedded in tasks.
@@ -5521,6 +5546,11 @@ class EngineCapability(str, Enum):
     # counts its slot (GPU) workers only. The API then places CPU app runs
     # there by size, against the engine's capacity (INF-1159).
     SIZED_WORKERS = "sized_workers"
+
+# MaxOvercommit and MaxCPUSlots bound what EngineCapacityPolicy may say.
+class EngineCapacityLimit(IntEnum):
+    MAX_OVERCOMMIT = 8
+    MAX_CPU_SLOTS = 1024
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "invalid_request"
@@ -6570,6 +6600,15 @@ class EntitlementResource(str, Enum):
     # (INF-1158). No row: the platform default (setting sandboxes.placement).
     RESOURCE_SANDBOXES = "sandboxes"
     RESOURCE_SANDBOX_VCP_US = "sandbox_vcpus"
+    # ResourceSandboxMaxVCPUs is the largest sandbox a team may make: its
+    # vCPUs, and memory up to 2 GiB for each.
+    RESOURCE_SANDBOX_MAX_VCP_US = "sandbox_max_vcpus"
+    # ResourceSandboxStartsPerMin is how many sandboxes a team may create
+    # or start in a minute.
+    RESOURCE_SANDBOX_STARTS_PER_MIN = "sandbox_starts_per_min"
+    # ResourceSandboxKeptDisks is how many stopped sandboxes may keep their
+    # disk at once. It only warns: past it a stop still keeps its disk.
+    RESOURCE_SANDBOX_KEPT_DISKS = "sandbox_kept_disks"
     # Legacy — kept for DB compatibility, no longer in plan seeds
     RESOURCE_PRIVATE_APPS = "private_apps"
     RESOURCE_TASK_EXECUTIONS = "task_executions"
