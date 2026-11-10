@@ -2670,6 +2670,35 @@ class SandboxCredential(TypedDict, total=False):
     expires_after_days: int
     mode: SandboxCredentialMode
 
+# SandboxFileEntry is one entry of a directory on a running sandbox (GET
+# /sandboxes/{id}/files?path=): its name in the directory, kind, size in
+# bytes, octal permission bits and last change.
+class SandboxFileEntry(TypedDict, total=False):
+    name: str
+    kind: SandboxFileKind
+    size: int
+    mode: str
+    modified_at: Optional[str]
+
+# SandboxFileImportRequest is POST /sandboxes/{id}/files/import: put the
+# platform file FileID (uploaded first, POST /files) at Path on the box.
+class SandboxFileImportRequest(TypedDict, total=False):
+    path: str
+    file_id: str
+
+# SandboxFileExportRequest is POST /sandboxes/{id}/files/export: copy the
+# file at Path on the box into a new platform file.
+class SandboxFileExportRequest(TypedDict, total=False):
+    path: str
+
+# SandboxFileTransferDTO answers an import or an export: the path on the
+# box, the platform file on the other side (its size is the file's), and,
+# for an export, a short-lived URL that downloads it.
+class SandboxFileTransferDTO(TypedDict, total=False):
+    path: str
+    file: Optional[FileDTO]
+    download_url: str
+
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
 # in the generated SDK output (TypeScript, Python, Go).
@@ -5830,6 +5859,12 @@ class SandboxCredentialMode(str, Enum):
     # watches (a trigger, a schedule) never gets it (INF-1173). Needs an
     # engine with EngineCapabilityEgressPending.
     SANDBOX_CREDENTIAL_ASK = "ask"
+
+class SandboxFileKind(str, Enum):
+    FILE = "file"
+    DIR = "dir"
+    LINK = "link"
+    OTHER = "other"
 
 class UpdateState(str, Enum):
     # UpdateRequested: the request was sent and nothing has answered it yet.
