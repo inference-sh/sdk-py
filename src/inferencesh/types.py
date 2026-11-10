@@ -269,6 +269,9 @@ class AgentConfigInput(TypedDict, total=False):
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
     content_guard: Optional[ContentGuardConfig]
+    # VaultID picks the agent's vault, whose inference.sh access the
+    # sandboxes it makes get. Empty: no vault.
+    vault_id: Optional[str]
 
 # CoreAppConfigInput is the API input shape for core app configuration.
 class CoreAppConfigInput(TypedDict, total=False):
@@ -722,6 +725,9 @@ class ScopeDefinition(TypedDict, total=False):
     # CostsCredits: using the scope spends the account's credits (running
     # apps, agents, flows).
     costs_credits: bool
+    # Sandbox: a vault may grant it to a sandbox (its inference.sh access,
+    # VaultDTO.APIScopes); the allowlist is models.SandboxMayHold.
+    sandbox: bool
 
 # ScopeCategoryDefinition describes a category of scope groups for UI
 # rendering: a section heading over the groups in it.
@@ -2648,6 +2654,12 @@ class CreateSandboxRequest(TypedDict, total=False):
     # (INF-1251). Sizes left at zero take the snapshot's; the disk is never
     # smaller than the snapshot's.
     from_snapshot_id: str
+    # VaultID is the vault whose inference.sh access (VaultDTO.APIScopes)
+    # the box gets, copied once now and cut to what the caller can hand
+    # on. Empty: the box holds what it needs to run its remote and
+    # nothing more. A sandbox an agent's sandbox_create makes takes the
+    # agent's vault (AgentVersionDTO.VaultID) instead.
+    vault_id: Optional[str]
 
 # UpdateSandboxRequest is PATCH /sandboxes/{id}: the fields to change,
 # nil left as they are.
@@ -4615,6 +4627,10 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # ContentGuard is the agent's tool-result guard; absent is the
     # platform's mode.
     content_guard: Optional[ContentGuardConfig]
+    # VaultID is the agent's vault: the sandboxes its sandbox_create makes
+    # get the vault's inference.sh access (VaultDTO.APIScopes). Absent: no
+    # vault.
+    vault_id: Optional[str]
     # VisitorReads is the scope groups of the team's resources (knowledge,
     # files, artifacts, remotes) a visitor of an embed of this version can
     # have it read by id, beyond what it configures by name. Set when the
@@ -5173,6 +5189,10 @@ class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # LastActivityAt is when the sandbox was last used through the API, or
     # its box started, whichever is later.
     last_activity_at: Optional[str]
+    # APIScopes are what the box may do with our API beyond running its
+    # remote: copied from its vault when it was made (VaultID), for its
+    # whole life. Absent or empty: nothing beyond the remote.
+    api_scopes: List[Scope]
 
 # SecretDTO for API responses - VALUE IS NEVER EXPOSED
 class SecretDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
