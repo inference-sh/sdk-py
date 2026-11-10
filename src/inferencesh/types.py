@@ -1749,6 +1749,20 @@ class FeatureAccess(TypedDict, total=False):
     resource: EntitlementResource
     allowed: bool
 
+# ResourceUsage shows current usage vs limit for a single resource.
+class ResourceUsage(TypedDict, total=False):
+    resource: EntitlementResource
+    label: str
+    unit: str
+    type: EntitlementType
+    usage: int
+    limit: int
+    unlimited: bool
+    enabled: bool
+    # Mode is how a set limit is enforced: block refuses past it, warn
+    # only warns. Empty with no row.
+    mode: EnforcementMode
+
 # EntitlementErrorMeta is the structured metadata returned in entitlement error responses.
 class EntitlementErrorMeta(TypedDict, total=False):
     resource: EntitlementResource
@@ -2604,6 +2618,11 @@ class StartSandboxRequest(TypedDict, total=False):
     # FreshDisk starts the stopped sandbox on a new, empty disk: the one
     # its engine keeps is dropped (INF-1163).
     fresh_disk: bool
+    # UpgradeImage moves the stopped sandbox to the server's current
+    # image. A sandbox otherwise keeps the image it was made with, so its
+    # kept disk stays valid; a disk made over the old image is dropped,
+    # and it starts on a new one.
+    upgrade_image: bool
 
 # CreateSandboxRequest is POST /sandboxes. Sizes left at zero take the
 # defaults.
@@ -2624,6 +2643,11 @@ class CreateSandboxRequest(TypedDict, total=False):
     # Unset is 900 (15 minutes), 0 never stops it; otherwise 60 to
     # 2592000 (30 days).
     idle_timeout_seconds: Optional[int]
+    # FromSnapshotID starts the sandbox on a copy of a ready snapshot's
+    # disk, with the snapshot's image, on the engine that keeps it
+    # (INF-1251). Sizes left at zero take the snapshot's; the disk is never
+    # smaller than the snapshot's.
+    from_snapshot_id: str
 
 # UpdateSandboxRequest is PATCH /sandboxes/{id}: the fields to change,
 # nil left as they are.
@@ -2698,6 +2722,79 @@ class SandboxFileTransferDTO(TypedDict, total=False):
     path: str
     file: Optional[FileDTO]
     download_url: str
+
+# SandboxRange is what a sandbox may ask for of one size: the default
+# when unset, and the largest.
+class SandboxRange(TypedDict, total=False):
+    default: int
+    max: int
+
+# SandboxLimitsDTO answers GET /sandboxes/limits: the caller's team's plan
+# limits on sandboxes and its use of them, the sizes one sandbox may ask
+# for, and the idle stop's range, in seconds (0 never stops).
+class SandboxLimitsDTO(TypedDict, total=False):
+    # Limits are the team's plan limits on sandboxes, each of them
+    # (unlimited without a row), as GET /entitlements/usage reports them.
+    limits: List[ResourceUsage]
+    vcpus_per_sandbox: SandboxRange
+    memory_mib: SandboxRange
+    disk_mib: SandboxRange
+    # IdleTimeout* are in seconds.
+    idle_timeout_default: int
+    idle_timeout_min: int
+    idle_timeout_max: int
+    # DiskKeptFor is how long a stopped sandbox's disk is kept, in seconds.
+    disk_kept_for: int
+
+# SandboxPortRequest opens a sandbox's port on its own HTTPS URL
+# (POST /sandboxes/{id}/ports).
+class SandboxPortRequest(TypedDict, total=False):
+    # Port is the TCP port inside the box, 1-65535.
+    port: int
+    # Public answers anyone with the URL. Private (the default) asks once
+    # per browser for the token, which the open answers with.
+    public: bool
+
+# SandboxPortDTO is an open port. URL opens it; for a private port the URL
+# the open answered with carries its token, which is shown only then.
+class SandboxPortDTO(TypedDict, total=False):
+    port: int
+    public: bool
+    url: str
+    created_at: str
+
+# SandboxPortList is GET /sandboxes/{id}/ports.
+class SandboxPortList(TypedDict, total=False):
+    ports: List[SandboxPortDTO]
+
+# CreateSandboxSnapshotRequest is POST /sandboxes/{id}/snapshots: a
+# snapshot of the stopped sandbox's kept disk.
+class CreateSandboxSnapshotRequest(TypedDict, total=False):
+    name: str
+
+# ForkSandboxRequest is POST /sandboxes/{id}/fork: a snapshot of the
+# stopped sandbox's kept disk, then Count new sandboxes (1 when unset, at
+# most MaxSandboxForks) made from it, named Name-1..Name-N (Name alone for
+# one; the source's name + "-fork" when unset). They hold the disk as it
+# was at the fork: starting the source afterwards changes none of them.
+class ForkSandboxRequest(TypedDict, total=False):
+    name: str
+    count: int
+    # IdleTimeoutSeconds is as in CreateSandboxRequest; unset takes the
+    # source's.
+    idle_timeout_seconds: Optional[int]
+    # KeepSnapshot keeps the fork's snapshot as one of the workspace's
+    # (listed, deleted by hand). Unset, it is deleted once every fork has
+    # started or failed.
+    keep_snapshot: bool
+
+# ForkSandboxResponse is the sandboxes a fork made, and the snapshot they
+# start from (SnapshotID). Error says why the rest were not, when it made
+# fewer than asked (a plan limit, say).
+class ForkSandboxResponse(TypedDict, total=False):
+    sandboxes: List[Optional[SandboxDTO]]
+    snapshot_id: str
+    error: str
 
 # SDKTypes is a phantom type for gotypegen dependency tracing.
 # Types listed here (and their transitive dependencies) are included
@@ -4420,6 +4517,29 @@ class ResourceShareDTO(BaseModelDTO, TypedDict, total=False):
     user: Optional[UserRelationDTO]
     permission: Permission
 
+# SandboxSnapshotDTO is the API response for a snapshot.
+class SandboxSnapshotDTO(BaseModelDTO, TypedDict, total=False):
+    # UserID took it; TeamID is the workspace it belongs to.
+    user_id: str
+    team_id: str
+    name: str
+    # SandboxID is the sandbox it was taken of.
+    sandbox_id: str
+    # Image and the sizes are the source's at the snapshot: a sandbox made
+    # from it runs that image, at least that size.
+    image: str
+    vcpus: int
+    memory_mib: int
+    disk_mib: int
+    # Bytes is what the copy holds on the engine (sparse).
+    bytes: int
+    status: SandboxSnapshotStatus
+    status_reason: str
+    ready_at: Optional[str]
+    # ForFork: taken by a fork for its sandboxes to start from, and
+    # deleted once they have all started or failed. Not listed.
+    for_fork: bool
+
 # SubscriptionDTO for API responses
 class SubscriptionDTO(BaseModelDTO, TypedDict, total=False):
     team_id: str
@@ -5575,6 +5695,11 @@ class EngineCapability(str, Enum):
     # counts its slot (GPU) workers only. The API then places CPU app runs
     # there by size, against the engine's capacity (INF-1159).
     SIZED_WORKERS = "sized_workers"
+    # EngineCapabilitySandboxSnapshots: the engine copies a stopped
+    # sandbox's kept disk to a snapshot and starts a sandbox on a copy of a
+    # snapshot (sandbox_snapshot, sandbox_snapshot_drop,
+    # WsSandboxStartPayload.FromSnapshotID; INF-1251).
+    SANDBOX_SNAPSHOTS = "sandbox_snapshots"
 
 # MaxOvercommit and MaxCPUSlots bound what EngineCapacityPolicy may say.
 class EngineCapacityLimit(IntEnum):
@@ -5865,6 +5990,16 @@ class SandboxFileKind(str, Enum):
     DIR = "dir"
     LINK = "link"
     OTHER = "other"
+
+class SandboxSnapshotStatus(str, Enum):
+    # SandboxSnapshotPending: the engine is copying the disk.
+    SANDBOX_SNAPSHOT_PENDING = "pending"
+    # SandboxSnapshotReady: the copy is kept; forks and new sandboxes may
+    # start from it.
+    SANDBOX_SNAPSHOT_READY = "ready"
+    # SandboxSnapshotFailed: the copy could not be made (StatusReason
+    # says why), or the engine no longer has it.
+    SANDBOX_SNAPSHOT_FAILED = "failed"
 
 class UpdateState(str, Enum):
     # UpdateRequested: the request was sent and nothing has answered it yet.
@@ -6644,6 +6779,10 @@ class EntitlementResource(str, Enum):
     # ResourceSandboxKeptDisks is how many stopped sandboxes may keep their
     # disk at once. It only warns: past it a stop still keeps its disk.
     RESOURCE_SANDBOX_KEPT_DISKS = "sandbox_kept_disks"
+    # ResourceSandboxSnapshots is how many sandbox snapshots a team keeps
+    # (INF-1251; not a fork's own, not failed). It only warns: past it a
+    # snapshot is still taken.
+    RESOURCE_SANDBOX_SNAPSHOTS = "sandbox_snapshots"
     # Legacy — kept for DB compatibility, no longer in plan seeds
     RESOURCE_PRIVATE_APPS = "private_apps"
     RESOURCE_TASK_EXECUTIONS = "task_executions"
