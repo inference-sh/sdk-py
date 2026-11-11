@@ -4552,6 +4552,12 @@ class SandboxSnapshotDTO(BaseModelDTO, TypedDict, total=False):
     status: SandboxSnapshotStatus
     status_reason: str
     ready_at: Optional[str]
+    # StoreStatus is where keeping it in object storage stands: empty when
+    # it is kept on its engine alone. Stored, a sandbox starts from it on
+    # any engine, and it outlives the engine that took it. StoredBytes is
+    # what the stored copy holds (compressed).
+    store_status: SandboxSnapshotStoreStatus
+    stored_bytes: int
     # ForFork: taken by a fork for its sandboxes to start from, and
     # deleted once they have all started or failed. Not listed.
     for_fork: bool
@@ -5724,6 +5730,14 @@ class EngineCapability(str, Enum):
     # snapshot (sandbox_snapshot, sandbox_snapshot_drop,
     # WsSandboxStartPayload.FromSnapshotID; INF-1251).
     SANDBOX_SNAPSHOTS = "sandbox_snapshots"
+    # EngineCapabilitySandboxSnapshotStore: the engine also keeps a
+    # snapshot in object storage when asked (WsSandboxSnapshotPayload.Store):
+    # it exports the copy's used blocks, compressed, and uploads them in
+    # parts through URLs the API presigns (it holds no storage credential).
+    # It starts a sandbox from a stored snapshot it has no copy of
+    # (WsSandboxStartPayload.FromSnapshot): it downloads the parts, checks
+    # each against the manifest, and rebuilds the disk.
+    SANDBOX_SNAPSHOT_STORE = "sandbox_snapshot_store"
 
 # MaxOvercommit and MaxCPUSlots bound what EngineCapacityPolicy may say.
 class EngineCapacityLimit(IntEnum):
@@ -6024,6 +6038,17 @@ class SandboxSnapshotStatus(str, Enum):
     # SandboxSnapshotFailed: the copy could not be made (StatusReason
     # says why), or the engine no longer has it.
     SANDBOX_SNAPSHOT_FAILED = "failed"
+
+class SandboxSnapshotStoreStatus(str, Enum):
+    # SandboxSnapshotStorePending: asked of the engine, not begun.
+    SANDBOX_SNAPSHOT_STORE_PENDING = "pending"
+    # SandboxSnapshotStoreUploading: the engine is uploading it.
+    SANDBOX_SNAPSHOT_STORE_UPLOADING = "uploading"
+    # SandboxSnapshotStoreStored: it is in object storage, whole.
+    SANDBOX_SNAPSHOT_STORE_STORED = "stored"
+    # SandboxSnapshotStoreFailed: the upload did not finish; the snapshot
+    # is still kept on its engine.
+    SANDBOX_SNAPSHOT_STORE_FAILED = "failed"
 
 class UpdateState(str, Enum):
     # UpdateRequested: the request was sent and nothing has answered it yet.
