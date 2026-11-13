@@ -21,13 +21,14 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import copy
 import logging
 import os
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence, Tuple, Type, TypeVar, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 if TYPE_CHECKING:  # pragma: no cover
     import httpx
@@ -232,8 +233,8 @@ class UpstreamClient:
         return decode(response)
 
     async def call_into(self, op: Operation, input: Any, model: Type[M]) -> M:
-        """Like :meth:`call`, validated into ``model``."""
-        return model.model_validate(await self.call(op, input))
+        """Like :meth:`call`, read into ``model`` with :func:`lenient_validate`."""
+        return lenient_validate(model, await self.call(op, input), logger=self.logger)
 
     async def request(self, method: str, path: str, *, auth: str = "", **kwargs: Any) -> "httpx.Response":
         """One request with auth applied, retried on 429 and 5xx; raises on error."""
@@ -356,6 +357,101 @@ class UpstreamClient:
 # -- helpers ------------------------------------------------------------------
 
 
+# A response is repaired at most this many times: each pass fixes every value
+# the last validation named, and a fix can uncover an error one level up.
+LENIENT_PASSES = 5
+
+
+def lenient_validate(model: Type[M], data: Any, *, logger: Optional[logging.Logger] = None, **extra: Any) -> M:
+    """Validate a vendor's response into ``model`` without failing on a stray value.
+
+    The call already succeeded upstream, so a value that breaks the vendor's
+    own spec must not fail the function. A number or boolean where the model
+    wants a string becomes that string; any other value the model rejects is
+    left out, so its field reads as unset (response models have every field
+    optional) and a rejected list item is removed. ``data`` is not modified.
+
+    ``extra`` holds fields added to an object response as they are, such as
+    the untouched ``raw`` body and ``output_meta``. Raises the
+    ``ValidationError`` when the response cannot be repaired.
+    """
+
+    def validate(body: Any) -> M:
+        if extra:
+            body = {**(body if isinstance(body, dict) else {}), **extra}
+        return model.model_validate(body)
+
+    try:
+        return validate(data)
+    except ValidationError as exc:
+        error = exc
+    body = copy.deepcopy(data)
+    repaired: Dict[Tuple[Any, ...], str] = {}
+    for _ in range(LENIENT_PASSES):
+        fixes = _lenient_fixes(body, error)
+        if not fixes:
+            break
+        # Deepest first, and a list's later items first, so removing one item
+        # does not move another that is still to be fixed.
+        for path in sorted(fixes, key=lambda p: (len(p), [(0, k) if isinstance(k, int) else (1, str(k)) for k in p]), reverse=True):
+            reason, value, replace = fixes[path]
+            parent = body
+            for key in path[:-1]:
+                parent = parent[key]
+            if replace:
+                parent[path[-1]] = value
+            else:
+                del parent[path[-1]]
+            repaired.setdefault(path, reason)
+        try:
+            result = validate(body)
+        except ValidationError as exc:
+            error = exc
+            continue
+        (logger or logging.getLogger(__name__)).warning(
+            "%s: the response strayed from the spec in %d place(s), repaired: %s",
+            model.__name__,
+            len(repaired),
+            "; ".join(f"{'.'.join(map(str, path))} ({reason})" for path, reason in list(repaired.items())[:5]),
+        )
+        return result
+    raise error
+
+
+def _lenient_fixes(body: Any, error: ValidationError) -> Dict[Tuple[Any, ...], Tuple[str, Any, bool]]:
+    """The repairs one validation error asks for: path -> (reason, new value, replace or remove)."""
+    fixes: Dict[Tuple[Any, ...], Tuple[str, Any, bool]] = {}
+    for err in error.errors(include_url=False, include_context=False):
+        if err["type"] == "missing":
+            continue
+        # A location also names union branches and validators, which are not
+        # keys of the data: follow the parts that are.
+        path: Tuple[Any, ...] = ()
+        current = body
+        for part in err["loc"]:
+            if isinstance(current, dict) and part in current:
+                current = current[part]
+            elif isinstance(current, list) and isinstance(part, int) and not isinstance(part, bool) and -len(current) <= part < len(current):
+                current = current[part]
+            else:
+                continue
+            path += (part,)
+        if not path:
+            continue
+        if isinstance(current, bool):
+            text: Any = "true" if current else "false"
+        elif isinstance(current, (int, float)):
+            text = str(current)
+        else:
+            text = None
+        if err["type"] == "string_type" and text is not None:
+            fixes[path] = (err["type"], text, True)
+        else:
+            # Another branch of a union may accept the string: keep that fix.
+            fixes.setdefault(path, (err["type"], None, False))
+    return fixes
+
+
 def decode(response: "httpx.Response") -> Any:
     """A response body as JSON when it is JSON, else text; ``{}`` when empty."""
     if not response.content:
@@ -420,4 +516,4 @@ def _is_file_part(value: Any) -> bool:
     return isinstance(value, (bytes, bytearray, tuple)) or hasattr(value, "read")
 
 
-__all__ = ["Auth", "Operation", "UpstreamClient", "UpstreamError", "MissingSecret", "decode", "error_for", "RETRY_STATUSES"]
+__all__ = ["Auth", "Operation", "UpstreamClient", "UpstreamError", "MissingSecret", "decode", "error_for", "lenient_validate", "RETRY_STATUSES"]

@@ -4,9 +4,11 @@ import json
 
 import pytest
 httpx = pytest.importorskip("httpx")
-from pydantic import BaseModel, Field
+from typing import Any, List, Optional, Union
 
-from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError
+from pydantic import BaseModel, Field, ValidationError
+
+from inferencesh.upstream import Auth, MissingSecret, Operation, UpstreamClient, UpstreamError, lenient_validate
 
 
 class SearchIn(BaseModel):
@@ -509,3 +511,57 @@ async def test_transport_errors_exhaust_retry_budget():
     async with client(handler, max_retries=1) as c:
         with pytest.raises(UpstreamError, match="down"):
             await c.request("GET", "/x")
+
+
+class _Rule(BaseModel):
+    id: Optional[str] = None
+    line: Optional[int] = Field(default=None, ge=1)
+
+
+class _Listing(BaseModel):
+    id: Optional[str] = None
+    count: Optional[Union[int, float]] = None
+    rules: Optional[List[_Rule]] = None
+    tags: Optional[List[str]] = None
+    raw: Any = None
+
+
+def test_lenient_validate_passes_a_conforming_response_through():
+    data = {"id": "a", "rules": [{"id": "r", "line": 3}]}
+    assert lenient_validate(_Listing, data).rules[0].line == 3
+
+
+def test_lenient_validate_turns_a_number_into_the_string_the_model_wants():
+    data = {"id": 7329, "rules": [{"id": 12}, {"id": True}], "tags": ["a", 5]}
+    out = lenient_validate(_Listing, data)
+    assert out.id == "7329"
+    assert [r.id for r in out.rules] == ["12", "true"]
+    assert out.tags == ["a", "5"]
+    assert data["id"] == 7329  # the caller's data is untouched
+
+
+def test_lenient_validate_leaves_out_a_value_the_model_rejects():
+    data = {"id": "a", "count": "many", "rules": [{"id": "r", "line": 0}, {"id": "s", "line": 4}]}
+    out = lenient_validate(_Listing, data)
+    assert out.count is None
+    assert [r.line for r in out.rules] == [None, 4]
+
+
+def test_lenient_validate_removes_rejected_list_items_without_shifting_others():
+    data = {"rules": ["junk", {"id": "kept"}, 5, {"id": 9}]}
+    out = lenient_validate(_Listing, data)
+    assert [r.id for r in out.rules] == ["kept", "9"]
+
+
+def test_lenient_validate_adds_extra_fields_untouched():
+    data = {"id": 1}
+    out = lenient_validate(_Listing, data, raw=data)
+    assert out.id == "1" and out.raw == {"id": 1}
+
+
+def test_lenient_validate_raises_what_it_cannot_repair():
+    class Strict(BaseModel):
+        name: str
+
+    with pytest.raises(ValidationError):
+        lenient_validate(Strict, {})
