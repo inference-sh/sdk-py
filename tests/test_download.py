@@ -71,6 +71,31 @@ def test_download_raises_when_file_has_no_path(tmp_path):
             download(url, tmp_path)
 
 
+SENSITIVE_URL = (
+    "https://user:hunter2@cdn.example.com:8443/assets/photo.png"
+    "?X-Amz-Signature=sigsecret&token=tok123"
+)
+
+
+def test_download_failure_error_omits_query_and_userinfo(tmp_path):
+    """utils.download must not repeat signed-URL material when File leaves no path."""
+    from inferencesh.models.file import File as RealFile
+
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file_cls._loggable_url = RealFile._loggable_url
+        mock_file = MagicMock()
+        mock_file.path = None
+        mock_file_cls.return_value = mock_file
+
+        with pytest.raises(RuntimeError) as err:
+            download(SENSITIVE_URL, tmp_path)
+
+    msg = str(err.value)
+    assert msg == "Failed to download https://cdn.example.com:8443/assets/photo.png"
+    for secret in ("sigsecret", "tok123", "hunter2"):
+        assert secret not in msg
+
+
 def test_download_uses_default_filename_when_url_has_no_path(tmp_path):
     """URLs without a path segment must still produce a stable cache file name."""
     url = "https://cdn.example.com/"
