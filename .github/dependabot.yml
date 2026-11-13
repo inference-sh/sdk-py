@@ -8,3 +8,12 @@ updates:
     labels:
       - dependencies
       - security
+  # .github/requirements-build.txt: what the publish job builds with
+  - package-ecosystem: pip
+    directory: /.github
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - security

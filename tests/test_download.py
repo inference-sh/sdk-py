@@ -119,3 +119,33 @@ def test_download_cache_hit_skips_file_when_not_temp(tmp_path):
     assert path == str(cached)
     mock_file_cls.assert_not_called()
     assert StorageDir.TEMP != tmp_path
+
+
+def _download_to(url: str, tmp_path: Path) -> Path:
+    src = tmp_path / "source.bin"
+    src.write_bytes(b"bytes")
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+        return Path(download(url, tmp_path))
+
+
+def test_download_http_and_https_do_not_share_a_cache_entry(tmp_path):
+    """A file fetched over http must not be served for the https URL."""
+    https = _download_to("https://cdn.example.com/a/model.bin?v=1", tmp_path)
+    http = _download_to("http://cdn.example.com/a/model.bin?v=1", tmp_path)
+
+    assert http != https
+    # https keeps the key it always had: host + path + query, no scheme
+    assert https.parent.name == _url_hash("https://cdn.example.com/a/model.bin?v=1")
+
+
+def test_download_url_credentials_have_their_own_cache_entry(tmp_path):
+    """user:password@ is part of the key; a URL without credentials is unchanged."""
+    plain = _download_to("https://cdn.example.com/a/model.bin", tmp_path)
+    alice = _download_to("https://alice:pw@cdn.example.com/a/model.bin", tmp_path)
+    bob = _download_to("https://bob:pw@cdn.example.com/a/model.bin", tmp_path)
+
+    assert len({plain, alice, bob}) == 3
+    assert plain.parent.name == hashlib.sha256(b"cdn.example.com/a/model.bin").hexdigest()[:12]

@@ -159,9 +159,14 @@ class File:
 
     def _get_cache_path(self, url: str) -> Path:
         parsed_url = urllib.parse.urlparse(url)
+        # netloc carries any user:password@, so a URL with credentials has its own entry
         url_components = parsed_url.netloc + parsed_url.path
         if parsed_url.query:
             url_components += "?" + parsed_url.query
+        # A file fetched over another scheme is not reused for https; https keys
+        # carry no scheme, so existing cache entries stay valid.
+        if parsed_url.scheme != "https":
+            url_components = parsed_url.scheme + "://" + url_components
         url_hash = hashlib.sha256(url_components.encode()).hexdigest()[:12]
 
         filename = os.path.basename(parsed_url.path)
