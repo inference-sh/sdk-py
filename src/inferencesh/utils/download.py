@@ -28,9 +28,14 @@ def download(url: str, directory: Union[str, Path, StorageDir]) -> str:
     parsed_url = urllib.parse.urlparse(url)
 
     # Create hash from URL path and query parameters for uniqueness
+    # (netloc carries any user:password@, so a URL with credentials has its own entry)
     url_components = parsed_url.netloc + parsed_url.path
     if parsed_url.query:
         url_components += '?' + parsed_url.query
+    # A file fetched over another scheme is not reused for https; https keys
+    # carry no scheme, so existing cache entries stay valid.
+    if parsed_url.scheme != 'https':
+        url_components = parsed_url.scheme + '://' + url_components
     url_hash = hashlib.sha256(url_components.encode()).hexdigest()[:12]
 
     # Keep original filename or use a default

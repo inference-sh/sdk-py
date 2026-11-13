@@ -300,3 +300,43 @@ class TestFileCacheLastUse:
         """Data-URI hits call _reuse_cached on the first cache entry; a miss must decode."""
         missing = tmp_path / "evicted"
         assert File._reuse_cached(missing) is False
+
+
+class TestFileCacheKey:
+    """What a download is cached by: scheme (unless https), credentials, host, path, query."""
+
+    @pytest.fixture(autouse=True)
+    def cache_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path))
+
+    def _fetch(self, url, body):
+        with patch("urllib.request.urlopen", side_effect=lambda *a, **k: io.BytesIO(body)) as urlopen:
+            path = File(uri=url).path
+        return path, urlopen.called
+
+    def test_http_content_is_not_reused_for_https(self):
+        http_path, _ = self._fetch("http://example.com/inputs/image.png", b"over http")
+        https_path, fetched = self._fetch("https://example.com/inputs/image.png", b"over https")
+
+        assert fetched
+        assert https_path != http_path
+        with open(https_path, "rb") as f:
+            assert f.read() == b"over https"
+
+    def test_https_key_has_no_scheme(self, tmp_path):
+        """Entries cached before the scheme was added to the key are still found."""
+        import hashlib
+
+        path, _ = self._fetch("https://example.com/inputs/image.png?v=2", b"x")
+        key = hashlib.sha256(b"example.com/inputs/image.png?v=2").hexdigest()[:12]
+        assert path == str(tmp_path / key / "image.png")
+
+    def test_url_credentials_have_their_own_entry(self):
+        plain, _ = self._fetch("https://example.com/inputs/image.png", b"public")
+        private, fetched = self._fetch("https://alice:pw@example.com/inputs/image.png", b"private")
+
+        assert fetched
+        assert private != plain
+        with open(plain, "rb") as f:
+            assert f.read() == b"public"
+
