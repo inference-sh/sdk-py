@@ -100,3 +100,25 @@ class TestStreamGenerate:
         run(model, tool_choice="required", response_format={"type": "json_object"})
         assert model.kwargs["tool_choice"] == "required"
         assert model.kwargs["response_format"] == {"type": "json_object"}
+
+
+class TestDefaultTransformer:
+    """Without a transformer argument each call gets its own: a transformer
+    holds one generation's buffer, usage and timing."""
+
+    def test_default_is_not_a_shared_instance(self):
+        import inspect
+
+        assert inspect.signature(stream_generate).parameters["transformer"].default is None
+
+    def test_calls_without_a_transformer_do_not_share_state(self):
+        def call(pieces):
+            return list(stream_generate(model=FakeLlama(pieces), messages=[{"role": "user", "content": "hi"}]))
+
+        first = call(["<think>plan</think>", "answer"])
+        assert first[-1].reasoning == "plan" and first[-1].response == "answer"
+
+        # The second generation has no reasoning: it must not show the first's.
+        second = call(["plain"])
+        assert second[-1].response == "plain"
+        assert second[-1].reasoning is None
