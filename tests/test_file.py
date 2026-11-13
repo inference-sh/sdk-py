@@ -340,3 +340,41 @@ class TestFileCacheKey:
         with open(plain, "rb") as f:
             assert f.read() == b"public"
 
+
+
+class TestDownloadOutputHidesURLCredentials:
+    """What a download prints and raises names the URL without its query or
+    user:password@: task output and errors are read by more people than a
+    signed URL was given to."""
+
+    URL = "https://user:hunter2@cdn.example.com:8443/assets/photo.png?X-Amz-Signature=sigsecret&token=tok123#frag"
+
+    @pytest.fixture(autouse=True)
+    def cache_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path))
+
+    def test_loggable_url(self):
+        assert File._loggable_url(self.URL) == "https://cdn.example.com:8443/assets/photo.png"
+        assert File._loggable_url("https://example.com/a.png") == "https://example.com/a.png"
+        assert File._loggable_url("http://[::1]:8080/a?k=v") == "http://[::1]:8080/a"
+        assert File._loggable_url("https://example.com:notaport/a?k=secret") == "<url>"
+
+    def test_download_message_has_no_query_or_userinfo(self, capsys):
+        with patch("urllib.request.urlopen", side_effect=lambda *a, **k: io.BytesIO(b"fetched")) as urlopen:
+            File(uri=self.URL)
+        # The request itself still carries the full URL.
+        assert urlopen.call_args.args[0].full_url == self.URL
+        out = capsys.readouterr().out
+        assert "Downloading URL: https://cdn.example.com:8443/assets/photo.png to " in out
+        for secret in ("sigsecret", "tok123", "hunter2"):
+            assert secret not in out
+
+    def test_download_error_has_no_query_or_userinfo(self, capsys):
+        with patch("urllib.request.urlopen", side_effect=OSError("connection refused")), \
+                patch("time.sleep"):
+            with pytest.raises(RuntimeError) as err:
+                File(uri=self.URL)
+        text = str(err.value) + capsys.readouterr().out
+        assert "Error downloading URL https://cdn.example.com:8443/assets/photo.png after 2 attempts" in str(err.value)
+        for secret in ("sigsecret", "tok123", "hunter2"):
+            assert secret not in text
