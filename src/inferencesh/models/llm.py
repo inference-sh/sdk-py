@@ -897,7 +897,7 @@ class ResponseTransformer:
 def stream_generate(
     model: Any,
     messages: List[Dict[str, Any]],
-    transformer: ResponseTransformer = ResponseTransformer(),
+    transformer: Optional[ResponseTransformer] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[Union[llm_contract.ToolChoice, Dict[str, Any], str]] = None,
     temperature: float = 0.7,
@@ -927,6 +927,11 @@ def stream_generate(
     response_queue: Queue[Any] = Queue()
     error_queue: Queue[Any] = Queue()
     keep_alive_queue: Queue[Any] = Queue()
+
+    # A transformer holds one generation's buffer, usage and timing, so the
+    # default is a new one per call, never one shared between calls.
+    if transformer is None:
+        transformer = ResponseTransformer()
 
     # Set the output class for the transformer
     transformer.output_cls = output_cls
