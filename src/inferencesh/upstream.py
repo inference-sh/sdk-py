@@ -264,7 +264,8 @@ class UpstreamClient:
             delay = _retry_delay(response.headers.get("Retry-After"), attempt)
             self.logger.warning("%s %s: %s, retrying in %.0fs", method, path, response.status_code, delay)
             await asyncio.sleep(delay)
-        assert response is not None
+        if response is None:
+            raise RuntimeError("request loop finished without a response")
         if response.is_error:
             raise error_for(response, method, path)
         return response

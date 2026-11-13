@@ -82,9 +82,11 @@ class OrderedSchemaModel(BaseModel):
             # Adjust to look at the first class def inside DummyModule
             # noinspection PyUnresolvedReferences
             outer = module.body[0]
-            assert isinstance(outer, ast.ClassDef)
+            if not isinstance(outer, ast.ClassDef):
+                raise RuntimeError("expected a class definition in parsed source")
             class_def = outer.body[0]
-            assert isinstance(class_def, ast.ClassDef)
+            if not isinstance(class_def, ast.ClassDef):
+                raise RuntimeError("expected a class definition in parsed source")
         else:
             # Find the class definition
             class_def = next(
