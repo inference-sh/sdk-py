@@ -544,3 +544,51 @@ def test_alternatives_are_labelled_by_the_schema_discriminator():
     assert alternative_label({"properties": {"type": {"const": "text"}}}, 0) == "text"
     assert alternative_label({"properties": {"op": {"const": "ping"}}}, 0) == "ping"
     assert alternative_label({"title": "Plain"}, 3) == "Plain"
+
+
+# ------------------------------------------------- credential in error text
+
+
+class DialError(Exception):
+    """Like aiohttp's handshake errors: its text names the URL it dialled."""
+
+
+async def test_a_failed_dial_does_not_put_the_credential_in_the_end_reason():
+    tok = "s3cr3t/tok+en="
+
+    async def dial(url: str):
+        raise DialError(f"403, message='Invalid response status', url='{url}'")
+
+    creds = {**access(), "token": tok}
+    session = AsyncLiveSession(creds, ws_connect=dial)
+    with pytest.raises(DialError):
+        await session.connect()
+    end = await asyncio.wait_for(session.ended, 1)
+    assert end.code == 1006
+    assert tok not in end.reason
+    assert "s3cr3t" not in end.reason
+    assert end.reason == "403, message='Invalid response status', url='wss://relay.test/sockets/sock-1?access_token=[redacted]'"
+
+
+async def test_a_failed_dial_with_no_text_keeps_the_fallback_reason():
+    async def dial(url: str):
+        raise DialError()
+
+    session = AsyncLiveSession(access(), ws_connect=dial)
+    with pytest.raises(DialError):
+        await session.connect()
+    assert (await asyncio.wait_for(session.ended, 1)).reason == "could not connect"
+
+
+def test_error_reason_redacts_the_token_wherever_it_appears():
+    from inferencesh.live import _error_reason
+
+    creds = {"url": "wss://relay.test/s", "token": "abc 123"}
+    # The raw token, its quoted spelling, and another access_token (a
+    # credential since renewed) are all removed.
+    text = "bad abc 123 / wss://relay.test/s?access_token=abc%20123&x=1 / ?access_token=older-one"
+    assert _error_reason(Exception(text), creds) == (
+        "bad [redacted] / wss://relay.test/s?access_token=[redacted]&x=1 / ?access_token=[redacted]"
+    )
+    assert _error_reason(Exception("plain failure"), creds) == "plain failure"
+    assert _error_reason(Exception(""), creds, "fallback") == "fallback"
