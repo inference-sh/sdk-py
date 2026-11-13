@@ -12,10 +12,13 @@ from inferencesh.utils.storage import StorageDir
 
 
 def _url_hash(url: str) -> str:
+    """Mirror inferencesh.utils.download and File._get_cache_path key material."""
     parsed = urllib.parse.urlparse(url)
     components = parsed.netloc + parsed.path
     if parsed.query:
         components += "?" + parsed.query
+    if parsed.scheme != "https":
+        components = parsed.scheme + "://" + components
     return hashlib.sha256(components.encode()).hexdigest()[:12]
 
 
@@ -137,8 +140,8 @@ def test_download_http_and_https_do_not_share_a_cache_entry(tmp_path):
     http = _download_to("http://cdn.example.com/a/model.bin?v=1", tmp_path)
 
     assert http != https
-    # https keeps the key it always had: host + path + query, no scheme
     assert https.parent.name == _url_hash("https://cdn.example.com/a/model.bin?v=1")
+    assert http.parent.name == _url_hash("http://cdn.example.com/a/model.bin?v=1")
 
 
 def test_download_url_credentials_have_their_own_cache_entry(tmp_path):
@@ -148,4 +151,34 @@ def test_download_url_credentials_have_their_own_cache_entry(tmp_path):
     bob = _download_to("https://bob:pw@cdn.example.com/a/model.bin", tmp_path)
 
     assert len({plain, alice, bob}) == 3
-    assert plain.parent.name == hashlib.sha256(b"cdn.example.com/a/model.bin").hexdigest()[:12]
+    assert plain.parent.name == _url_hash("https://cdn.example.com/a/model.bin")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://cdn.example.com/a/model.bin",
+        "https://cdn.example.com/a/model.bin?v=1",
+        "http://cdn.example.com/a/model.bin?v=1",
+        "https://alice:pw@cdn.example.com/a/model.bin",
+        "http://bob:secret@cdn.example.com/a/model.bin",
+    ],
+)
+def test_download_and_file_agree_on_cache_directory_name(url, tmp_path, monkeypatch):
+    """File and utils.download duplicate the cache key; they must stay aligned."""
+    from inferencesh.models.file import File
+
+    monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path / "file-cache"))
+
+    stub = File(path=str(tmp_path / "stub"))
+    file_key = stub._get_cache_path(url).parent.name
+
+    src = tmp_path / "source.bin"
+    src.write_bytes(b"x")
+    with patch("inferencesh.utils.download.File") as mock_file_cls:
+        mock_file = MagicMock()
+        mock_file.path = str(src)
+        mock_file_cls.return_value = mock_file
+        download_key = Path(download(url, tmp_path / "util-cache")).parent.name
+
+    assert file_key == download_key == _url_hash(url)
