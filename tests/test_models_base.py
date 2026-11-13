@@ -1,5 +1,8 @@
 """Tests for Pydantic v2 base models and schema mixins (regression guards)."""
 
+import ast
+import inspect
+
 import pytest
 from pydantic import BaseModel
 
@@ -115,6 +118,36 @@ class TestOrderedSchemaModel:
         props = AppInput.model_json_schema()["properties"]
         assert list(props.keys()) == ["model", "text", "context_size", "temperature"]
         assert props["context_size"]["default"] == 4096
+
+    def test_get_field_order_raises_when_indent_fallback_parses_non_class(self, monkeypatch):
+        """IndentationError fallback must raise, not assert, when AST has no class body."""
+
+        class IndentNested(OrderedSchemaModel):
+            only: str
+
+        real_parse = ast.parse
+        calls = {"n": 0}
+
+        def fake_parse(source, *args, **kwargs):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise IndentationError("forced")
+            mod = ast.Module(
+                body=[ast.Expr(value=ast.Constant(value=0))],
+                type_ignores=[],
+            )
+            ast.fix_missing_locations(mod)
+            return mod
+
+        monkeypatch.setattr(ast, "parse", fake_parse)
+        monkeypatch.setattr(
+            inspect,
+            "getsource",
+            lambda cls: "class IndentNested:\n    only: str\n",
+        )
+
+        with pytest.raises(RuntimeError, match="expected a class definition"):
+            IndentNested._get_field_order()
 
 
 class TestBaseApp:
