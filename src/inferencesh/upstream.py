@@ -9,9 +9,9 @@ descriptor. The app's generated module describes each operation as an
 
 The auth kinds mirror OpenAPI security schemes: ``api_key`` (a value in a
 header, query parameter or cookie), ``http`` (``bearer`` or ``basic``) and
-``oauth2`` with the ``client_credentials`` flow (a token fetched from the
-token endpoint and cached until it expires). Other OAuth flows carry an
-access token the platform injects, which is sent as a bearer token.
+``oauth2``. An OAuth access token is one the platform injects, sent as a
+bearer token; a ``client_credentials`` auth without an injected token
+fetches one from the token endpoint and caches it until it expires.
 
 httpx is imported when the client is built, so importing this module costs
 nothing in apps that do not use it.
@@ -88,6 +88,9 @@ class Auth:
     password_secret: str = ""
     # oauth2: the flow, and for client_credentials the token endpoint, the
     # secrets holding the client id and secret, and the scopes to ask for.
+    # A client_credentials auth that also names ``secret`` uses the access
+    # token the platform injects there and runs the exchange itself only when
+    # that is not set (a local run with the client id and secret).
     flow: str = ""
     token_url: str = ""
     client_id_secret: str = ""
@@ -303,7 +306,18 @@ class UpstreamClient:
                 raise ValueError(f"auth {name!r}: unknown http scheme {auth.scheme!r}")
         elif auth.kind == "oauth2":
             if auth.flow == "client_credentials":
-                headers["Authorization"] = "Bearer " + await self._client_credentials_token(name, auth)
+                # On the platform the credential service runs the exchange
+                # and injects the token; the app never holds the client
+                # secret. Without it (a local run) the exchange happens here.
+                injected = os.environ.get(auth.secret) if auth.secret else None
+                if injected:
+                    headers["Authorization"] = "Bearer " + injected
+                elif auth.client_id_secret and os.environ.get(auth.client_id_secret):
+                    headers["Authorization"] = "Bearer " + await self._client_credentials_token(name, auth)
+                elif auth.secret:
+                    raise MissingSecret(f"{auth.secret} is not set: connect the credential; for a local run, set {auth.client_id_secret or 'the client id'} and {auth.client_secret_secret or 'the client secret'} instead")
+                else:
+                    headers["Authorization"] = "Bearer " + await self._client_credentials_token(name, auth)
             else:
                 headers["Authorization"] = "Bearer " + _secret(auth.secret)
         else:

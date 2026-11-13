@@ -565,3 +565,48 @@ def test_lenient_validate_raises_what_it_cannot_repair():
 
     with pytest.raises(ValidationError):
         lenient_validate(Strict, {})
+
+
+def _cc_auth():
+    return Auth(kind="oauth2", flow="client_credentials", secret="ACME_ACCESS_TOKEN", token_url="https://api.example.com/oauth/token", client_id_secret="CID", client_secret_secret="CSEC")
+
+
+async def test_client_credentials_uses_the_token_the_platform_injects(monkeypatch):
+    monkeypatch.setenv("ACME_ACCESS_TOKEN", "injected")
+    monkeypatch.setenv("CID", "id")
+    monkeypatch.setenv("CSEC", "sec")
+    seen = []
+
+    def handler(request: httpx.Request):
+        assert request.url.path != "/oauth/token"
+        seen.append(request.headers["authorization"])
+        return httpx.Response(200, json={})
+
+    async with client(handler, auth=_cc_auth()) as c:
+        await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert seen == ["Bearer injected"]
+
+
+async def test_client_credentials_runs_the_exchange_without_an_injected_token(monkeypatch):
+    monkeypatch.delenv("ACME_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("CID", "id")
+    monkeypatch.setenv("CSEC", "sec")
+    seen = []
+
+    def handler(request: httpx.Request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(200, json={"access_token": "minted", "expires_in": 3600})
+        seen.append(request.headers["authorization"])
+        return httpx.Response(200, json={})
+
+    async with client(handler, auth=_cc_auth()) as c:
+        await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert seen == ["Bearer minted"]
+
+
+async def test_client_credentials_names_the_token_when_nothing_is_set(monkeypatch):
+    for name in ("ACME_ACCESS_TOKEN", "CID", "CSEC"):
+        monkeypatch.delenv(name, raising=False)
+    async with client(lambda r: httpx.Response(200, json={}), auth=_cc_auth()) as c:
+        with pytest.raises(MissingSecret, match="ACME_ACCESS_TOKEN is not set"):
+            await c.call(Operation(name="g", method="GET", path="/a", body="none"))
