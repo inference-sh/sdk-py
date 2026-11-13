@@ -317,11 +317,29 @@ class File:
                 except OSError:
                     pass
 
+    @staticmethod
+    def _loggable_url(url: str) -> str:
+        """url for output and error text: scheme, host and path only. The
+        query (a signed URL's signature, a token) and any user:password@ are
+        left out, since task output and errors are read by more people than
+        the URL was given to."""
+        try:
+            parts = urllib.parse.urlsplit(url)
+            host = parts.hostname or ""
+            if ":" in host:
+                host = f"[{host}]"
+            if parts.port is not None:
+                host = f"{host}:{parts.port}"
+        except ValueError:
+            return "<url>"
+        return urllib.parse.urlunsplit((parts.scheme, host, parts.path, "", ""))
+
     def _download_url(self, retries: int = 1) -> None:
         import time
 
         original_url = self.uri
         assert original_url is not None  # only called when self.uri is a URL
+        shown_url = self._loggable_url(original_url)
         cache_path = self._get_cache_path(original_url)
 
         if self._reuse_cached(cache_path):
@@ -330,7 +348,7 @@ class File:
             self._populate_metadata()
             return
 
-        print(f"Downloading URL: {original_url} to {cache_path}")
+        print(f"Downloading URL: {shown_url} to {cache_path}")
         cache_path.parent.mkdir(parents=True, exist_ok=True)
 
         headers = {
@@ -397,7 +415,7 @@ class File:
                     print(f"Download failed (attempt {attempt + 1}/{retries + 1}): {e}, retrying in {wait}s...")
                     time.sleep(wait)
 
-        raise RuntimeError(f"Error downloading URL {original_url} after {retries + 1} attempts: {last_err}")
+        raise RuntimeError(f"Error downloading URL {shown_url} after {retries + 1} attempts: {last_err}")
 
     def __del__(self):
         if hasattr(self, "_tmp_path") and self._tmp_path:
