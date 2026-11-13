@@ -159,6 +159,43 @@ def test_session_creation_without_session_id_raises(monkeypatch):
             pass
 
 
+def test_session_creation_non_dict_run_raises(monkeypatch):
+    """run() must return a dict before session_id is read (survives python -O)."""
+    client = Inference(api_key="test")
+    monkeypatch.setattr(client, "run", lambda *args, **kwargs: ["not", "a", "dict"])
+
+    with pytest.raises(RuntimeError, match=r"expected a dict result from run\(\), got list"):
+        with client.session("my-app@v1"):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_async_session_creation_non_dict_run_raises(monkeypatch):
+    client = AsyncInference(api_key="test")
+
+    async def fake_run(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(client, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match=r"expected a dict result from run\(\), got NoneType"):
+        async with await client.session("my-app@v1"):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_async_live_raises_when_run_returns_non_dict(monkeypatch):
+    client = AsyncInference(api_key="test")
+
+    async def fake_run(*args, **kwargs):
+        return 7
+
+    monkeypatch.setattr(client, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match=r"expected a dict task from run\(\), got int"):
+        await client.live({"app": "infsh/voice-loop", "function": "stream"})
+
+
 def test_session_call_after_end_raises(patch_sessions_requests):
     client = Inference(api_key="test")
     handle = SessionHandle(client, "my-app@v1", "sess_new")
