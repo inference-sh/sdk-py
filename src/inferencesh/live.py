@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import (
@@ -275,6 +276,21 @@ def access_url(access: Mapping[str, Any]) -> str:
     return f"{url}{sep}access_token={quote(access['token'], safe='')}"
 
 
+_ACCESS_TOKEN_PARAM = re.compile(r"(access_token=)[^&#\s'\"<>]+")
+
+
+def _error_reason(exc: BaseException, access: Mapping[str, Any], fallback: str = "") -> str:
+    """str(exc) for LiveEnd.reason, without the socket credential: a
+    connection error's text carries the URL that was dialled, and the
+    credential rides in its query (access_url)."""
+    text = _ACCESS_TOKEN_PARAM.sub(r"\1[redacted]", str(exc))
+    token = access.get("token") if isinstance(access, Mapping) else None
+    if isinstance(token, str) and token:
+        for spelling in {token, quote(token, safe="")}:
+            text = text.replace(spelling, "[redacted]")
+    return text or fallback
+
+
 class AsyncLiveSession:
     """One end of a stream task's socket, as the caller holds it.
 
@@ -433,7 +449,7 @@ class AsyncLiveSession:
         try:
             ws = await self._ws_connect(access_url(self._access))
         except Exception as exc:
-            await self._finish(LiveEnd(code=1006, reason=str(exc) or "could not connect", by_caller=False, task_ended=False))
+            await self._finish(LiveEnd(code=1006, reason=_error_reason(exc, self._access, "could not connect"), by_caller=False, task_ended=False))
             raise
         if self._state == LiveState.ENDED or self._closed_by_caller:
             # The task ended, or the caller closed, while we were dialling.
@@ -451,7 +467,7 @@ class AsyncLiveSession:
                 try:
                     msg = await ws.receive()
                 except Exception as exc:
-                    reason = str(exc)
+                    reason = _error_reason(exc, self._access)
                     break
                 mtype = msg.type
                 if mtype == WSMsgType.TEXT:
@@ -550,7 +566,7 @@ class AsyncLiveSession:
             if self._state != LiveState.ENDED and not self._closed_by_caller:
                 await self.connect()
         except Exception as exc:
-            await self._finish(LiveEnd(code=1006, reason=str(exc) or "could not redial", by_caller=False, task_ended=False))
+            await self._finish(LiveEnd(code=1006, reason=_error_reason(exc, self._access, "could not redial"), by_caller=False, task_ended=False))
 
     # --------------------------------------------------------- task watch
 
