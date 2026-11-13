@@ -1,6 +1,7 @@
 """inferencesh.upstream: the shared client of API-wrapper apps."""
 
 import json
+import logging
 
 import pytest
 httpx = pytest.importorskip("httpx")
@@ -526,6 +527,16 @@ class _Listing(BaseModel):
     raw: Any = None
 
 
+async def test_call_into_repairs_vendor_response():
+    """call_into must use lenient_validate so a successful HTTP body still parses."""
+    payload = {"id": 99, "rules": [{"id": 12}, {"id": True}], "tags": ["a", 5]}
+    async with client(lambda r: httpx.Response(200, json=payload)) as c:
+        out = await c.call_into(Operation(name="g", method="GET", path="/a", body="none"), None, _Listing)
+    assert out.id == "99"
+    assert [r.id for r in out.rules] == ["12", "true"]
+    assert out.tags == ["a", "5"]
+
+
 def test_lenient_validate_passes_a_conforming_response_through():
     data = {"id": "a", "rules": [{"id": "r", "line": 3}]}
     assert lenient_validate(_Listing, data).rules[0].line == 3
@@ -565,3 +576,10 @@ def test_lenient_validate_raises_what_it_cannot_repair():
 
     with pytest.raises(ValidationError):
         lenient_validate(Strict, {})
+
+
+def test_lenient_validate_logs_when_it_repairs(caplog):
+    with caplog.at_level(logging.WARNING):
+        lenient_validate(_Listing, {"id": 1, "rules": [{"id": 2}]})
+    assert any("strayed from the spec" in r.message for r in caplog.records)
+    assert any("_Listing" in r.message for r in caplog.records)
