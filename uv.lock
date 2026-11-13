@@ -615,7 +615,7 @@ wheels = [
 
 [[package]]
 name = "inferencesh"
-version = "0.38.10"
+version = "0.39.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
