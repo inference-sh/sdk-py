@@ -1,8 +1,9 @@
 """Real API test for sync and async clients."""
 import asyncio
+import os
 from inferencesh import inference, async_inference, TaskStatus
 
-API_KEY = "1nfsh-40d0xtgj90nd2tbtxjg2s96e1p"
+API_KEY = os.environ.get("INFERENCE_API_KEY", "")
 
 TASK_PARAMS = {
     "app": "infsh/text-templating",

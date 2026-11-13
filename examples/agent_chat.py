@@ -10,6 +10,7 @@ Usage:
     python examples/agent_chat.py
 """
 
+import os
 import sys
 import json
 
@@ -129,7 +130,7 @@ TOOL_HANDLERS = {
 # =============================================================================
 
 def main():
-    api_key = "1nfsh-40d0xtgj90nd2tbtxjg2s96e1p"
+    api_key = os.environ.get("INFERENCE_API_KEY", "")
     if not api_key:
         print("Set INFERENCE_API_KEY environment variable")
         sys.exit(1)
@@ -200,7 +201,7 @@ Use tools when appropriate to help the user.""",
 
 def main_streaming():
     """Alternative example using manual streaming."""
-    api_key = "1nfsh-40d0xtgj90nd2tbtxjg2s96e1p"
+    api_key = os.environ.get("INFERENCE_API_KEY", "")
     if not api_key:
         print("Set INFERENCE_API_KEY environment variable")
         sys.exit(1)
