@@ -474,7 +474,8 @@ def build_openai_messages(
             current_role = msg.role
 
     if len(current_messages) > 0:
-        assert current_role is not None  # set whenever current_messages is non-empty
+        if current_role is None:
+            raise RuntimeError("current_role must be set whenever current_messages is non-empty")
         emit_group(current_messages, current_role)
 
     flush_tool_media()

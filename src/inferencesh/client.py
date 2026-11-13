@@ -1126,7 +1126,8 @@ class Inference:
             "function": kwargs.get("function", "run"),
             "session": "new",
         })
-        assert isinstance(result, dict)
+        if not isinstance(result, dict):
+            raise RuntimeError(f"expected a dict result from run(), got {type(result).__name__}")
         session_id = result.get("session_id")
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")
@@ -1222,7 +1223,8 @@ class AsyncInference:
             ```
         """
         task = await self.run(params, wait=False)
-        assert isinstance(task, dict)
+        if not isinstance(task, dict):
+            raise RuntimeError(f"expected a dict task from run(), got {type(task).__name__}")
         session = await self.sockets.open(task, **open_kwargs)
         return task, session
 
@@ -1721,7 +1723,8 @@ class AsyncInference:
             "function": kwargs.get("function", "run"),
             "session": "new",
         })
-        assert isinstance(result, dict)
+        if not isinstance(result, dict):
+            raise RuntimeError(f"expected a dict result from run(), got {type(result).__name__}")
         session_id = result.get("session_id")
         if not session_id:
             raise RuntimeError("Failed to create session: no session_id returned")

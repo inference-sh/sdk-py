@@ -272,7 +272,8 @@ class File:
     def _decode_data_uri(self) -> None:
         """Decode a data URI and save to cache."""
         uri = self.uri
-        assert uri is not None  # only called when self.uri is a data URI
+        if uri is None:
+            raise RuntimeError("uri is not set; only called when self.uri is a data URI")
 
         # Create cache path based on hash of the data URI
         uri_hash = hashlib.sha256(uri.encode()).hexdigest()[:16]
@@ -338,7 +339,8 @@ class File:
         import time
 
         original_url = self.uri
-        assert original_url is not None  # only called when self.uri is a URL
+        if original_url is None:
+            raise RuntimeError("uri is not set; only called when self.uri is a URL")
         shown_url = self._loggable_url(original_url)
         cache_path = self._get_cache_path(original_url)
 
