@@ -418,6 +418,21 @@ class TestUntrustedInput:
                 with pytest.raises(ValidationError, match="local paths are not accepted"):
                     AppInput(**payload)
 
+    def test_https_dict_uri_only_accepted(self, monkeypatch, tmp_path):
+        from inferencesh.models.file import untrusted_input
+
+        cached = tmp_path / "cached.bin"
+        cached.write_bytes(b"ok")
+
+        def fake_download(self, retries=1):
+            self._path = str(cached)
+
+        monkeypatch.setattr(File, "_download_url", fake_download)
+        with untrusted_input():
+            m = self._model()(file={"uri": "https://example.com/a.bin", "filename": "a.bin"})
+        assert m.file.uri == "https://example.com/a.bin"
+        assert m.file.path == str(cached)
+
     def test_path_beside_a_url_is_dropped(self, tmp_path, monkeypatch):
         from inferencesh.models.file import untrusted_input
 
