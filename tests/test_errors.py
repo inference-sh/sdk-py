@@ -43,6 +43,14 @@ class TestSetupAction:
             "Read files"
         )
 
+    def test_from_dict_parses_instructions(self):
+        action = SetupAction.from_dict({
+            "type": "add_secret",
+            "provider": "anthropic",
+            "instructions": "Create a key at console.anthropic.com",
+        })
+        assert action.instructions == "Create a key at console.anthropic.com"
+
 
 class TestRequirementError:
     def test_from_dict_with_nested_action(self):
@@ -163,6 +171,17 @@ class TestScopeErrorCodes:
         assert ErrorCode.ADMIN_SCOPES_NOT_APPROVED.value == "admin_scopes_not_approved"
         assert ErrorCode.ADMIN_SESSION_REQUIRED.value == "admin_session_required"
         assert ErrorCode.BROWSER_SESSION_REQUIRED.value == "browser_session_required"
+
+    def test_requirements_not_met_error_code_wire_value(self):
+        assert ErrorCode.REQUIREMENTS_NOT_MET.value == "requirements_not_met"
+
+    def test_api_error_code_reads_requirements_not_met_from_problem_json(self):
+        body = (
+            '{"type":"https://api.inference.sh/errors/requirements_not_met",'
+            '"status":412,"detail":"missing secret"}'
+        )
+        err = APIError(412, "missing secret", response_body=body)
+        assert err.code == ErrorCode.REQUIREMENTS_NOT_MET
 
     def test_api_error_code_reads_insufficient_scope_from_problem_json(self):
         body = (
