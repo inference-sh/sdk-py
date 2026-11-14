@@ -1,7 +1,7 @@
 """Models package for inference.sh SDK."""
 
 from .base import BaseApp, BaseAppInput, BaseAppOutput, BaseAppSetup, Metadata
-from .file import File
+from .file import File, untrusted_input
 from .socket import Socket
 from .stream import Live, PCM16, Stream, Update, media
 from .llm import (
@@ -55,6 +55,7 @@ __all__ = [
     "BaseAppOutput",
     "BaseAppSetup",
     "File",
+    "untrusted_input",
     "Metadata",
     # Decision types
     "DecisionInput",

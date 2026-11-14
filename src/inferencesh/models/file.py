@@ -2,6 +2,8 @@ from typing import Optional, Union, Any, Tuple
 from pydantic import GetCoreSchemaHandler
 from pydantic_core import CoreSchema, core_schema
 import base64
+import contextlib
+import contextvars
 import mimetypes
 import os
 import re
@@ -11,6 +13,34 @@ import hashlib
 import tempfile
 from pathlib import Path
 from tqdm import tqdm
+
+
+# True while a model is being built from input someone else chose (a task's
+# input inside the app runtime). See untrusted_input.
+_untrusted_input: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "inferencesh_file_untrusted_input", default=False
+)
+
+
+@contextlib.contextmanager
+def untrusted_input():
+    """Build models from input the caller of a task chose.
+
+    Inside the block, a ``File`` that pydantic builds from input data must be
+    an http(s) URL or a data URI. A local path (a ``path`` key, or a ``uri``
+    that is not a URL) is refused: it would name a file on the machine the
+    app runs on, which the caller has no right to read.
+
+    The app runtime wraps the construction of a task's input model in this.
+    ``File(path=...)`` called by app code, and models built outside the block
+    (an app's outputs, the client SDK reading a user's own file), are not
+    affected.
+    """
+    token = _untrusted_input.set(True)
+    try:
+        yield
+    finally:
+        _untrusted_input.reset(token)
 
 
 class File:
@@ -124,11 +154,28 @@ class File:
             return None
         if isinstance(v, cls):
             return v
+        if _untrusted_input.get() and isinstance(v, (str, dict)):
+            v = cls._remote_only(v)
         if isinstance(v, str):
             return cls(v)
         if isinstance(v, dict):
             return cls(**v)
         raise ValueError(f"Invalid input for File: {v}")
+
+    @classmethod
+    def _remote_only(cls, v: Union[str, dict]) -> Union[str, dict]:
+        """v as task input may give it (see untrusted_input): the uri must be
+        an http(s) URL or a data URI. A dict's ``path`` is dropped, since it is
+        where the file was on the machine that serialized it."""
+        uri = v if isinstance(v, str) else v.get("uri")
+        if not isinstance(uri, str) or not (cls._is_url(uri) or cls._is_data_uri(uri)):
+            raise ValueError(
+                "a file in task input must be an http(s) URL or a data URI; "
+                "local paths are not accepted"
+            )
+        if isinstance(v, dict):
+            v = {k: val for k, val in v.items() if k != "path"}
+        return v
 
     @staticmethod
     def _pydantic_serialize(v: "File") -> dict:

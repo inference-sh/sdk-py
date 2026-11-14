@@ -378,3 +378,90 @@ class TestDownloadOutputHidesURLCredentials:
         assert "Error downloading URL https://cdn.example.com:8443/assets/photo.png after 2 attempts" in str(err.value)
         for secret in ("sigsecret", "tok123", "hunter2"):
             assert secret not in text
+
+
+class TestUntrustedInput:
+    """Task input built inside untrusted_input() cannot name a local file."""
+
+    @staticmethod
+    def _model():
+        from typing import List, Optional
+        from pydantic import BaseModel
+
+        class Nested(BaseModel):
+            image: Optional[File] = None
+
+        class AppInput(BaseModel):
+            file: Optional[File] = None
+            files: List[File] = []
+            nested: Optional[Nested] = None
+
+        return AppInput
+
+    @pytest.mark.parametrize("value", [
+        "/etc/hostname",
+        "../../etc/hostname",
+        "relative.txt",
+        "file:///etc/hostname",
+        {"path": "/etc/hostname"},
+        {"uri": "/etc/hostname"},
+        {"uri": "ftp://example.com/x"},
+        {"uri": 5},
+    ])
+    def test_local_path_is_refused(self, value):
+        from pydantic import ValidationError
+        from inferencesh.models.file import untrusted_input
+
+        AppInput = self._model()
+        for payload in ({"file": value}, {"files": [value]}, {"nested": {"image": value}}):
+            with untrusted_input():
+                with pytest.raises(ValidationError, match="local paths are not accepted"):
+                    AppInput(**payload)
+
+    def test_path_beside_a_url_is_dropped(self, tmp_path, monkeypatch):
+        from inferencesh.models.file import untrusted_input
+
+        secret = tmp_path / "secret.txt"
+        secret.write_text("secret")
+        downloaded = tmp_path / "downloaded.bin"
+        downloaded.write_text("remote")
+
+        def fake_download(self, retries=1):
+            self._path = str(downloaded)
+
+        monkeypatch.setattr(File, "_download_url", fake_download)
+        with untrusted_input():
+            m = self._model()(file={"uri": "https://example.com/a.bin", "path": str(secret), "filename": "a.bin"})
+        assert m.file.path == str(downloaded)
+        assert m.file.uri == "https://example.com/a.bin"
+        assert m.file.filename == "a.bin"
+
+    def test_data_uri_is_accepted(self, tmp_path, monkeypatch):
+        from inferencesh.models.file import untrusted_input
+
+        monkeypatch.setenv("FILE_CACHE_DIR", str(tmp_path))
+        with untrusted_input():
+            m = self._model()(file="data:text/plain;base64,aGVsbG8=")
+        assert open(m.file.path).read() == "hello"
+        assert os.path.realpath(m.file.path).startswith(os.path.realpath(str(tmp_path)))
+
+    def test_app_code_still_builds_local_files(self, tmp_path):
+        """Inside the block only pydantic-built Files are checked; outside it nothing changes."""
+        from inferencesh.models.file import untrusted_input
+
+        local = tmp_path / "out.txt"
+        local.write_text("out")
+        AppInput = self._model()
+        with untrusted_input():
+            assert File(path=str(local)).path == str(local)
+            assert AppInput(file=File(path=str(local))).file.path == str(local)
+        assert AppInput(file=str(local)).file.path == str(local)
+        assert AppInput(file={"path": str(local)}).file.path == str(local)
+
+    def test_flag_is_reset_after_an_error(self):
+        from inferencesh.models.file import untrusted_input, _untrusted_input
+
+        with pytest.raises(RuntimeError):
+            with untrusted_input():
+                raise RuntimeError("boom")
+        assert _untrusted_input.get() is False
