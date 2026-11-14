@@ -465,3 +465,46 @@ class TestUntrustedInput:
             with untrusted_input():
                 raise RuntimeError("boom")
         assert _untrusted_input.get() is False
+
+    def test_http_url_string_accepted(self, monkeypatch, tmp_path):
+        from inferencesh.models.file import untrusted_input
+
+        cached = tmp_path / "cached.bin"
+        cached.write_bytes(b"ok")
+
+        def fake_download(self, retries=1):
+            self._path = str(cached)
+
+        monkeypatch.setattr(File, "_download_url", fake_download)
+        with untrusted_input():
+            m = self._model()(file="http://example.com/asset.bin")
+        assert m.file.uri == "http://example.com/asset.bin"
+        assert m.file.path == str(cached)
+
+    @pytest.mark.parametrize("value", [
+        "s3://bucket/object",
+        "gs://bucket/object",
+    ])
+    def test_non_http_url_schemes_are_refused(self, value):
+        from pydantic import ValidationError
+        from inferencesh.models.file import untrusted_input
+
+        with untrusted_input():
+            with pytest.raises(ValidationError, match="local paths are not accepted"):
+                self._model()(file=value)
+
+    def test_nested_untrusted_input_keeps_outer_scope(self, tmp_path):
+        from pydantic import ValidationError
+        from inferencesh.models.file import untrusted_input, _untrusted_input
+
+        local = tmp_path / "secret.txt"
+        local.write_text("secret")
+        AppInput = self._model()
+        with untrusted_input():
+            assert _untrusted_input.get() is True
+            with untrusted_input():
+                assert _untrusted_input.get() is True
+            assert _untrusted_input.get() is True
+            with pytest.raises(ValidationError, match="local paths are not accepted"):
+                AppInput(file=str(local))
+        assert _untrusted_input.get() is False
