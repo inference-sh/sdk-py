@@ -355,6 +355,13 @@ class ApiAgentRunRequest(TypedDict, total=False):
     agent_name: Optional[str]
     input: MessageInput
     context: Dict[str, str]
+    # Infra is where the tasks the agent's app tools run go, for the
+    # caller's workspace: cloud, private (its own engines only) or
+    # private_first (its own when one can take the task, cloud
+    # otherwise). It is kept on the chat, so it holds for the turns that
+    # follow until a later request or the chat's settings change it.
+    # Absent: the chat's, which starts as cloud.
+    infra: Infra
     stream: bool
     # ProjectID files the chat this message starts in a project. Ignored
     # when the message posts into an existing chat (chat_id): a chat moves
@@ -403,6 +410,7 @@ class AppVersionInput(TypedDict, total=False):
     kernel: str
     required_secrets: List[SecretRequirement]
     required_credentials: CredentialRequirements
+    required_vars: List[VarRequirement]
     resources: AppResources
 
 # CreateAppRequest is the request body for POST /apps
@@ -1297,6 +1305,9 @@ class ChatSettingsRequest(TypedDict, total=False):
     # chat's own level, so the agent's default applies. A team or org
     # minimum still raises it (GET /chats/{id}/strictness).
     strictness: Optional[ChatStrictness]
+    # Infra is where the tasks the agent's app tools run in this chat go:
+    # cloud, private or private_first.
+    infra: Optional[Infra]
 
 # ChatSettingsDTO is what POST /chats/{id}/settings answers with: the chat's
 # settings after the change, every field the endpoint writes and nothing
@@ -2694,6 +2705,13 @@ class CreateSandboxRequest(TypedDict, total=False):
     vcpus: int
     memory_mib: int
     disk_mib: int
+    # Infra is whose engines the sandbox runs on: cloud (the default),
+    # private (the workspace's own engines that host sandboxes, where it
+    # costs nothing and needs no credit) or private_first (the
+    # workspace's when one has room, the cloud otherwise). One made from
+    # a snapshot kept on an engine of the workspace alone is private
+    # when this is left out.
+    infra: Infra
     # Credentials are the logins the box gets, by provider (slug), as a
     # run of its owner resolves them (e.g. [{"slug":"github-app"}]). Only
     # keys a provider binds to hosts: the box holds placeholders, the
@@ -3327,6 +3345,41 @@ class UserMetadataDTO(TypedDict, total=False):
     terms_accepted_at: Optional[str]
     terms_version: str
 
+# VarRequirement is an entry under vars: in inf.yml: a variable the app
+# reads from the running team. At run time the app gets the team's value
+# for Key, else Default; a variable with neither that is not Optional
+# fails the run as a missing requirement.
+class VarRequirement(TypedDict, total=False):
+    key: str
+    description: str
+    optional: bool
+    default: str
+
+# VariableDTO is a team's variable. The value is plain by definition.
+class VariableDTO(TypedDict, total=False):
+    id: str
+    created_at: str
+    updated_at: str
+    team_id: str
+    user_id: str
+    key: str
+    value: str
+    description: str
+
+# VariableSetRequest is the body of PUT /variables/{key}: it creates the
+# variable or replaces its value. Description, when sent, replaces the
+# stored one.
+class VariableSetRequest(TypedDict, total=False):
+    value: str
+    description: Optional[str]
+
+# VariableListResponse is one page of a team's variables, by key.
+class VariableListResponse(TypedDict, total=False):
+    items: List[VariableDTO]
+    next_cursor: str
+    has_next: bool
+    items_per_page: int
+
 # A2UIComponent is the universal component representation.
 # Children are string IDs (flat adjacency list), not nested objects.
 class A2UIComponent(TypedDict, total=False):
@@ -3714,6 +3767,13 @@ class ChatData(TypedDict, total=False):
     # sdk-js), as the request named itself (X-Client-Source). Shown, never
     # trusted or filtered on: Chat.Origin is what a chat list filters.
     client: str
+    # Infra is where the tasks the agent's app tools run in this chat go,
+    # for the chat's team: its own engines (private), the cloud, or its
+    # engines when one can take the task and the cloud otherwise
+    # (private_first). Empty is the cloud. Whoever runs the agent sets it
+    # (ApiAgentRunRequest.Infra, ChatSettingsRequest.Infra); a sub-agent's
+    # chat takes its parent's.
+    infra: Infra
 
 # PlanStep represents a step in an agent's execution plan
 class PlanStep(TypedDict, total=False):
@@ -4382,6 +4442,9 @@ class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     kernel: str
     required_secrets: List[SecretRequirement]
     required_credentials: CredentialRequirements
+    # RequiredVars are the environment variables the version reads from
+    # the running team (vars: in inf.yml): plain configuration.
+    required_vars: List[VarRequirement]
     resources: AppResources
     # Sandbox is the version's declared sandbox exceptions. Absent on a
     # version deployed before the API recorded them (engines then read the
@@ -5232,6 +5295,9 @@ class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     vcpus: int
     memory_mib: int
     disk_mib: int
+    # Infra is whose engines the sandbox runs on: cloud, private or
+    # private_first.
+    infra: Infra
     desired_state: SandboxDesiredState
     status: SandboxStatus
     status_reason: str
@@ -5796,6 +5862,14 @@ class EngineCapability(str, Enum):
     # (WsSandboxStartPayload.FromSnapshot): it downloads the parts, checks
     # each against the manifest, and rebuilds the disk.
     SANDBOX_SNAPSHOT_STORE = "sandbox_snapshot_store"
+    # EngineCapabilityTaskEnv: the engine gives each task the app
+    # environment that task was dispatched with (TaskDispatchPayload.AppEnv):
+    # a worker whose visor was started with another environment is restarted
+    # before the task runs, as it is when its secrets change. Without it a
+    # warm worker keeps the environment of the first task it ran, so a task
+    # whose environment carries its team's variables (INF-1345) is sent
+    # only to an engine that has it.
+    TASK_ENV = "task_env"
 
 # MaxOvercommit and MaxCPUSlots bound what EngineCapacityPolicy may say.
 class EngineCapacityLimit(IntEnum):
@@ -6061,11 +6135,17 @@ class RequirementType(str, Enum):
     SECRET = "secret"
     CREDENTIAL = "credential"
     SCOPE = "scope"
+    # RequirementTypeVariable: an environment variable the app declares
+    # under vars: that the team has not set and the app gives no default.
+    VARIABLE = "variable"
 
 class SetupActionType(str, Enum):
     SETUP_ACTION_ADD_SECRET = "add_secret"
     SETUP_ACTION_CONNECT = "connect"
     SETUP_ACTION_ADD_SCOPES = "add_scopes"
+    # SetupActionAddVariable: set the team's variable RequirementError.Key
+    # (PUT /variables/{key}).
+    SETUP_ACTION_ADD_VARIABLE = "add_variable"
 
 class SandboxStatus(str, Enum):
     PENDING = "pending"
