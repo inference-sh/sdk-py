@@ -187,6 +187,14 @@ def test_models_decision_export_exists(name):
     assert name in models.__all__
 
 
+def test_models_untrusted_input_export_exists():
+    """App runtime imports untrusted_input from inferencesh.models (39e01ac)."""
+    from inferencesh import models
+
+    assert hasattr(models, "untrusted_input"), "inferencesh.models.untrusted_input not found"
+    assert "untrusted_input" in models.__all__
+
+
 # ── Generated types (from typegen) ───────────────────────────────────────────
 
 @pytest.mark.parametrize("name", [
