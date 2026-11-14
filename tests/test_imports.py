@@ -9,6 +9,7 @@ import importlib
 import importlib.metadata
 import json
 import pkgutil
+import re
 from pathlib import Path
 from typing import get_type_hints
 
@@ -94,6 +95,16 @@ def test_package_version_matches_pyproject():
             "run `make install` to refresh"
         )
     assert inferencesh.__version__ == expected
+
+
+def test_uv_lock_inferencesh_version_matches_pyproject():
+    """Release bumps must update uv.lock editable package version with pyproject (f943c0e)."""
+    root = Path(__file__).resolve().parents[1]
+    expected = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    lock = (root / "uv.lock").read_text(encoding="utf-8")
+    match = re.search(r'\[\[package\]\]\nname = "inferencesh"\nversion = "([^"]+)"', lock)
+    assert match is not None, "inferencesh package stanza missing from uv.lock"
+    assert match.group(1) == expected
 
 
 # ── Core public API imports ──────────────────────────────────────────────────
@@ -185,6 +196,15 @@ def test_models_decision_export_exists(name):
 
     assert hasattr(models, name), f"inferencesh.models.{name} not found"
     assert name in models.__all__
+
+
+def test_models_untrusted_input_export_contract():
+    """App runtime imports untrusted_input from models only (39e01ac, not top-level SDK)."""
+    from inferencesh import models
+
+    assert hasattr(models, "untrusted_input"), "inferencesh.models.untrusted_input not found"
+    assert "untrusted_input" in models.__all__
+    assert "untrusted_input" not in inferencesh.__all__
 
 
 # ── Generated types (from typegen) ───────────────────────────────────────────
