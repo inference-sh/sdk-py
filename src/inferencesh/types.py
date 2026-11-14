@@ -269,9 +269,10 @@ class AgentConfigInput(TypedDict, total=False):
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
     content_guard: Optional[ContentGuardConfig]
-    # VaultID picks the agent's vault, whose inference.sh access the
-    # sandboxes it makes get. Empty: no vault.
-    vault_id: Optional[str]
+    # APIScopes is the inference.sh access the sandboxes it makes get:
+    # reads, apps:execute, files:write and apps:write, none the writer
+    # does not hold.
+    api_scopes: List[Scope]
 
 # CoreAppConfigInput is the API input shape for core app configuration.
 class CoreAppConfigInput(TypedDict, total=False):
@@ -729,8 +730,9 @@ class ScopeDefinition(TypedDict, total=False):
     # CostsCredits: using the scope spends the account's credits (running
     # apps, agents, flows).
     costs_credits: bool
-    # Sandbox: a vault may grant it to a sandbox (its inference.sh access,
-    # VaultDTO.APIScopes); the allowlist is models.SandboxMayHold.
+    # Sandbox: a sandbox may be granted it (its inference.sh access,
+    # AgentVersionDTO.APIScopes, CreateSandboxRequest.APIScopes); the
+    # allowlist is models.SandboxMayHold.
     sandbox: bool
 
 # ScopeCategoryDefinition describes a category of scope groups for UI
@@ -1289,6 +1291,12 @@ class ChatSettingsRequest(TypedDict, total=False):
     # ForgetMemory removes these keys from the chat's memory, the notes the
     # agent keeps for this conversation. A key that is not there is ignored.
     forget_memory: List[str]
+    # Strictness sets what the agent does in this chat after the content
+    # guard flags something it read: watch, ask or strict; anything else,
+    # "" included, is refused. DELETE /chats/{id}/strictness clears the
+    # chat's own level, so the agent's default applies. A team or org
+    # minimum still raises it (GET /chats/{id}/strictness).
+    strictness: Optional[ChatStrictness]
 
 # ChatSettingsDTO is what POST /chats/{id}/settings answers with: the chat's
 # settings after the change, every field the endpoint writes and nothing
@@ -1303,6 +1311,41 @@ class ChatSettingsDTO(TypedDict, total=False):
     disable_hooks: bool
     # Memory is agent_data.memory after forget_memory removed its keys.
     memory: StringEncodedMap
+    # Strictness is agent_data.strictness: the chat's own level; absent
+    # when it follows the agent's default.
+    strictness: Optional[ChatStrictness]
+
+# ChatStrictnessDTO is GET /chats/{id}/strictness: what the agent does in
+# the chat after the content guard flags something it read, and where that
+# comes from. Effective is the strictest of the chat's level (Chat, else
+# AgentDefault), Minimum and Delegated. A level that is not set is absent.
+class ChatStrictnessDTO(TypedDict, total=False):
+    chat_id: str
+    # Chat is the chat's own level (for a sub-agent's chat that sets none,
+    # its nearest ancestor's); absent when it follows the agent.
+    chat: Optional[ChatStrictness]
+    # AgentDefault is the agent's content_guard.strictness, watch when the
+    # agent sets none.
+    agent_default: ChatStrictness
+    # Minimum is the strictest level the chat's team or org governance
+    # policy sets; absent when neither sets one. Levels below it are
+    # locked.
+    minimum: Optional[ChatStrictness]
+    # MinimumSetBy is the rung that set Minimum: team or org.
+    minimum_set_by: PolicySubject
+    # Delegated is, for a sub-agent's chat, the level the chat that
+    # delegated to it runs at: a floor, so a sub-agent never runs looser
+    # than its delegating chat. Absent for a chat no agent delegated.
+    delegated: Optional[ChatStrictness]
+    # Flagged reports that the content guard has flagged something an
+    # agent read in this chat, or in the chat that delegated to it. It
+    # lasts for the life of the chat: what was flagged stays in its
+    # history, so ask and strict apply to every later run of the chat.
+    # Lowering the chat's level (the person's sign-in) is how runs go on
+    # unasked again.
+    flagged: bool
+    # Effective is the level the chat runs at.
+    effective: ChatStrictness
 
 # ChatAgentDTO is what POST /chats/{id}/agent answers with: the agent the
 # chat now runs on. A client merges it into the chat it holds.
@@ -1442,6 +1485,11 @@ class ContentGuardConfig(TypedDict, total=False):
     # IgnoreRules are rule ids not to apply (INF-PI-005 for an agent whose
     # job is reading Slack mentions).
     ignore_rules: List[str]
+    # Strictness is what the agent's chats do after the guard flags a
+    # result, unless a chat sets its own: watch, ask or strict
+    # (shared.ChatStrictness). Left out, it is watch; "" is refused. A
+    # team or org minimum still raises it.
+    strictness: Optional[ChatStrictness]
 
 # CredentialSecretRef names one secret linked to a credential: the row's
 # id, the key it is stored under and when its value last changed.
@@ -1497,6 +1545,11 @@ class CredentialConfigDTO(TypedDict, total=False):
     # set up yet, or when it doesn't sign in through one. Credential is the
     # login itself.
     app: Optional[CredentialDTO]
+    # OwnAppScope is where an app this caller saves without naming a scope
+    # lands, when that is not the workspace's own: "platform" for the
+    # platform team, whose usual app serves every workspace. The form then
+    # asks which is meant (CredentialAppRequest.Scope). Empty: the team's.
+    own_app_scope: CredentialScope
     # AppNoun is what that app is called ("GitHub App") when it is not an
     # OAuth sign-in app: its logins connect something other than a person
     # signing in (an installation). Empty: an OAuth app logins sign in
@@ -2658,12 +2711,12 @@ class CreateSandboxRequest(TypedDict, total=False):
     # (INF-1251). Sizes left at zero take the snapshot's; the disk is never
     # smaller than the snapshot's.
     from_snapshot_id: str
-    # VaultID is the vault whose inference.sh access (VaultDTO.APIScopes)
-    # the box gets, copied once now and cut to what the caller can hand
-    # on. Empty: the box holds what it needs to run its remote and
-    # nothing more. A sandbox an agent's sandbox_create makes takes the
-    # agent's vault (AgentVersionDTO.VaultID) instead.
-    vault_id: Optional[str]
+    # APIScopes is the inference.sh access the box gets beyond running
+    # its remote: reads, apps:execute, files:write and apps:write, cut to
+    # what the caller can hand on. Empty: the remote's alone. A sandbox an
+    # agent's sandbox_create makes takes the agent's
+    # (AgentVersionDTO.APIScopes) instead.
+    api_scopes: List[Scope]
 
 # UpdateSandboxRequest is PATCH /sandboxes/{id}: the fields to change,
 # nil left as they are.
@@ -3652,6 +3705,11 @@ class ChatData(TypedDict, total=False):
     # review branch is opened with it set, so a review cannot fire the hook
     # that reviews it.
     disable_hooks: bool
+    # Strictness is what the agent does in this chat after the content
+    # guard flags something it read: watch, ask or strict. Empty is the
+    # agent's default (content_guard.strictness), itself watch when unset.
+    # A team or org minimum can raise it (ChatStrictnessDTO.Effective).
+    strictness: ChatStrictness
     # Client is the app the chat was started from (web, mac, ios, cli,
     # sdk-js), as the request named itself (X-Client-Source). Shown, never
     # trusted or filtered on: Chat.Origin is what a chat list filters.
@@ -4637,10 +4695,10 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # ContentGuard is the agent's tool-result guard; absent is the
     # platform's mode.
     content_guard: Optional[ContentGuardConfig]
-    # VaultID is the agent's vault: the sandboxes its sandbox_create makes
-    # get the vault's inference.sh access (VaultDTO.APIScopes). Absent: no
-    # vault.
-    vault_id: Optional[str]
+    # APIScopes is the inference.sh access the sandboxes its
+    # sandbox_create makes get, cut to what the run can hand on. Absent:
+    # none.
+    api_scopes: List[Scope]
     # VisitorReads is the scope groups of the team's resources (knowledge,
     # files, artifacts, remotes) a visitor of an embed of this version can
     # have it read by id, beyond what it configures by name. Set when the
@@ -5200,8 +5258,8 @@ class SandboxDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     # its box started, whichever is later.
     last_activity_at: Optional[str]
     # APIScopes are what the box may do with our API beyond running its
-    # remote: copied from its vault when it was made (VaultID), for its
-    # whole life. Absent or empty: nothing beyond the remote.
+    # remote: copied when it was made (CreateSandboxRequest.APIScopes, or
+    # its agent's), for its whole life. Absent or empty: nothing beyond the remote.
     api_scopes: List[Scope]
 
 # SecretDTO for API responses - VALUE IS NEVER EXPOSED
@@ -5799,6 +5857,10 @@ class ErrorCode(str, Enum):
     # is not verified, or it is flagged (abuse.CheckPublish). Meta is
     # PublishQuarantinedMeta; Until says from when a new account can.
     PUBLISH_QUARANTINED = "publish_quarantined"
+    # ErrorCodeFileInUse (409): the file is used by live content (a skill's
+    # files, an artifact's assets) and was not deleted. Meta is FileInUseMeta:
+    # the content using it. Staff may delete it anyway (?force=true).
+    FILE_IN_USE = "file_in_use"
     # ErrorCodePersonRequired (403): only a person may do this, and the
     # caller is a workspace's service account (a workspace API key), or the
     # account is one and cannot sign in.
@@ -5903,6 +5965,11 @@ class ErrorCode(str, Enum):
     # AppMaintenance (503, Retry-After): the owner paused it; the message is
     # theirs. InvalidTransition (409): the task already moved on.
     APP_RETIRED = "app_retired"
+    # ListingNotLive (410): the app, agent, skill or knowledge entry is
+    # listed in the store and its listing serves no reviewed version now,
+    # so a caller who does not own it is not served it. One answer whatever
+    # took it down.
+    LISTING_NOT_LIVE = "listing_not_live"
     APP_MAINTENANCE = "app_maintenance"
     INVALID_TRANSITION = "invalid_transition"
     # Maintenance (503, Retry-After): the platform is draining for
@@ -6369,6 +6436,11 @@ class ChannelType(str, Enum):
     TEAMS = "teams"
     TELEGRAM = "telegram"
 
+class ChatStrictness(str, Enum):
+    WATCH = "watch"
+    ASK = "ask"
+    STRICT = "strict"
+
 class ChatOrigin(str, Enum):
     # ChatOriginUI is a person in one of our apps: web, mac, ios, watch or
     # the CLI.
@@ -6418,6 +6490,10 @@ class RunEndReason(str, Enum):
     # the context every later turn sends (BuildContext), so the next
     # message is not refused for what this run held.
     REFUSAL = "refusal"
+    # RunEndReasonContentFlagged: the content guard flagged a tool result
+    # the run read and the chat's strictness is strict, so the run was
+    # stopped there.
+    CONTENT_FLAGGED = "content_flagged"
 
 class DescriptionLimit(IntEnum):
     # DescriptionLimitListing bounds the description of an app, agent, flow,
@@ -7015,6 +7091,17 @@ class PolicyKind(str, Enum):
     # PolicyKindSecretSend: an agent of another team sending the runner's
     # secrets to a host.
     SECRET_SEND = "SecretSend"
+
+class PolicySubject(str, Enum):
+    # PolicySubjectRemote is the machine a call runs on. Its policy is the
+    # machine owner's, and only narrows.
+    REMOTE = "remote"
+    CHAT = "chat"
+    AGENT = "agent"
+    USER = "user"
+    TEAM = "team"
+    ORG = "org"
+    PLATFORM = "platform"
 
 class FunctionKind(str, Enum):
     # FunctionKindRun takes an input and returns an output (optionally
