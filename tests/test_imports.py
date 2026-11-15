@@ -276,6 +276,9 @@ def test_models_decision_export_exists(name):
     "SubmitTelemetryRequest", "TelemetryReportDTO",
     # Store browse catalog (254df4b typegen regen)
     "StoreCategoryDTO", "StoreTagDTO",
+    # Vault cleanup + chat strictness (f4fa5f1 / v0.40.0 typegen)
+    "ChatStrictness", "ChatStrictnessDTO", "PolicySubject",
+    "CreateSandboxRequest", "ContentGuardConfig", "RunEndReason",
 ])
 def test_generated_type_exists(name):
     """Typegen'd types must exist in inferencesh.types."""
