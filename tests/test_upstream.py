@@ -171,6 +171,13 @@ async def test_missing_secret_is_a_setup_error(monkeypatch):
             await c.call(Operation(name="g", method="GET", path="/a", body="none"))
 
 
+async def test_request_raises_when_retry_loop_never_runs():
+    """Explicit RuntimeError when no attempt runs (replaces stripped assert)."""
+    async with client(lambda r: httpx.Response(200), max_retries=-1) as c:
+        with pytest.raises(RuntimeError, match="request loop finished without a response"):
+            await c.request("GET", "/x")
+
+
 async def test_retries_then_raises_with_body(monkeypatch):
     calls = []
 

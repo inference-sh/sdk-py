@@ -23,7 +23,7 @@ def test_file_internal_helpers_raise_runtime_error_without_uri(tmp_path):
     path.write_text("x")
     f = File(uri=str(path))
     f.uri = None
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="uri is not set"):
         f._decode_data_uri()
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="uri is not set"):
         f._download_url()
