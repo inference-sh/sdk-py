@@ -19,6 +19,54 @@ network:
   allowed:
     - python
 
+# Install, lint, type check and tests execute repository and dependency code, so they
+# run in their own job: no secrets, read-only token, nothing shared with the
+# agent job except the uploaded result files.
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]" 2>&1 || pip install -r requirements.txt 2>&1 || true
+        continue-on-error: true
+      - name: Run lint
+        run: |
+          mkdir -p /tmp/check-results
+          pip install flake8==7.4.1
+          flake8 . --max-line-length=100 > /tmp/check-results/lint-results.txt 2>&1 || true
+        continue-on-error: true
+      - name: Run type check
+        run: |
+          mkdir -p /tmp/check-results
+          pip install mypy==2.4.0
+          mypy . --ignore-missing-imports > /tmp/check-results/typecheck-results.txt 2>&1 || true
+        continue-on-error: true
+      - name: Run tests
+        run: |
+          mkdir -p /tmp/check-results
+          pip install pytest==9.1.1 pytest-cov==7.1.0
+          pytest > /tmp/check-results/test-results.txt 2>&1 || true
+        continue-on-error: true
+      - name: Upload check results
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: code-review-check-results
+          path: /tmp/check-results/
+          if-no-files-found: warn
+          retention-days: 1
+
 steps:
   - name: Save commit range
     env:
@@ -28,24 +76,11 @@ steps:
       echo "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-range.txt
       git log --oneline "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-log.txt 2>&1 || true
       git diff "${BEFORE_SHA}..${AFTER_SHA}" > /tmp/gh-aw/commit-diff.txt 2>&1 || true
-  - name: Install dependencies
-    run: |
-      pip install -e ".[dev]" 2>&1 || pip install -r requirements.txt 2>&1 || true
-    continue-on-error: true
-  - name: Run lint
-    run: |
-      pip install flake8==7.4.1
-      flake8 . --max-line-length=100 > /tmp/gh-aw/lint-results.txt 2>&1 || true
-    continue-on-error: true
-  - name: Run type check
-    run: |
-      pip install mypy==2.4.0
-      mypy . --ignore-missing-imports > /tmp/gh-aw/typecheck-results.txt 2>&1 || true
-    continue-on-error: true
-  - name: Run tests
-    run: |
-      pip install pytest==9.1.1 pytest-cov==7.1.0
-      pytest > /tmp/gh-aw/test-results.txt 2>&1 || true
+  - name: Download check results
+    uses: actions/download-artifact@v8.0.1
+    with:
+      name: code-review-check-results
+      path: /tmp/gh-aw/
     continue-on-error: true
 
 safe-outputs:
@@ -79,6 +114,8 @@ cat /tmp/gh-aw/test-results.txt
 ```
 
 If there are lint errors, type errors, or test failures, fix them. These are your highest priority.
+
+**Dependencies:** lint, type check and tests ran in a separate `checks` job. Its installed packages are not in your checkout. If you need to re-run a check, install what it needs inside your sandbox first.
 
 ## Step 2: Detect What Changed
 
