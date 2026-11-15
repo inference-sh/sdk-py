@@ -5096,7 +5096,9 @@ class SurveyResponseDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False
     source: str
     context: str
 
-# InstanceDTO is the API representation of a cloud instance.
+# InstanceDTO is the API representation of a cloud instance. It has no
+# launch_configuration and no envs: the boot script carries the engine's
+# enrollment token (models.ToInstanceDTO).
 class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     cloud: InstanceCloudProvider
     name: str
@@ -5118,11 +5120,9 @@ class InstanceDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     volume_ids: List[str]
     tags: List[str]
     configuration: Any
-    launch_configuration: Any
     auto_delete: Any
     alert: Any
     volume_mount: Any
-    envs: Any
 
 # InstanceTypeDTO is the API representation of a cloud instance type.
 class InstanceTypeDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
