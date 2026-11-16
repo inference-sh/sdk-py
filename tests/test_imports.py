@@ -400,6 +400,7 @@ def test_api_key_scope_personal_vs_workspace_keys():
     assert ApiKeyScope.WORKSPACE.value == "workspace"
     assert TeamCapability.CREATE_KEYS.value == "create_keys"
     assert TeamCapability.MANAGE_KEYS.value == "manage_keys"
+    assert TeamCapability.RENT_ENGINES.value == "rent_engines"
     assert ErrorCode.PERSON_REQUIRED.value == "person_required"
     assert ErrorCode.LAST_OWNER.value == "last_owner"
 
