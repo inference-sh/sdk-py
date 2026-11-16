@@ -7290,6 +7290,9 @@ class TeamCapability(str, Enum):
     MANAGE_VAULT = "manage_vault"
     VIEW_BILLING = "view_billing"
     MANAGE_BILLING = "manage_billing"
+    # RentEngines: renting a cloud engine, and extending a rental, which
+    # debit the team's balance for up to the rental's whole span.
+    RENT_ENGINES = "rent_engines"
     VIEW_POLICY = "view_policy"
     MANAGE_POLICY = "manage_policy"
     MANAGE_ORG = "manage_org"
