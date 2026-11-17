@@ -131,14 +131,15 @@ major:
 # Push and create GitHub release (triggers PyPI publish via CI)
 # Releases are cut from dev; main is fast-forwarded to the released commit so
 # the two never drift (a release from main once left dev a month behind).
-# main only moves through a PR; pushing the PR's head keeps dev's hashes.
+# main only moves through a PR; pushing the PR's head (dev's hashes) is accepted
+# once the PR's required checks (PR checks: secret and dependency scan) pass.
 release:
 	@test "$$(git branch --show-current)" = dev || { echo "release from dev (on $$(git branch --show-current))"; exit 1; }
 	@VERSION=v$$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml) && \
 	{ test "$$(git rev-parse -q --verify "$$VERSION^{commit}")" = "$$(git rev-parse HEAD)" || { echo "$$VERSION is not tagged at HEAD: run make patch, minor or major"; exit 1; }; } && \
 	git push origin HEAD:dev "$$VERSION" && \
 	{ gh pr create --base main --head dev --title "promote dev → main" --body "" >/dev/null 2>&1 || true; } && \
-	{ for i in 1 2 3 4 5 6; do git push origin HEAD:main && break; sleep 5; [ $$i = 6 ] && exit 1; done; } && \
+	{ for i in $$(seq 1 40); do git push origin HEAD:main && break; sleep 15; [ $$i = 40 ] && exit 1; done; } && \
 	gh release create "$$VERSION" --title "$$VERSION" --generate-notes && \
 	echo "Released $$VERSION"
 
