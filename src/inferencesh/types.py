@@ -4019,6 +4019,19 @@ class SelectorConfig(TypedDict, total=False):
     mode: str
     index: Optional[int]
 
+# InterruptOrigin is the sub-agent an interrupt came from, on an interrupt
+# a sub-agent's run raised: what an ancestor chat's card names.
+class InterruptOrigin(TypedDict, total=False):
+    # AgentID and AgentRef ("namespace/name") are the sub-agent's.
+    agent_id: str
+    agent_ref: str
+    # ToolInvocationID is the call in the parent chat that delegated to
+    # the sub-agent's chat (the interrupt's ChatID).
+    tool_invocation_id: str
+    # Depth is the sub-agent chat's depth (Chat.Depth), 1 under a chat a
+    # person started.
+    depth: int
+
 # StreamDelta is the marker base for all streaming delta types.
 # Types embedding StreamDelta are routed through the delta channel.
 class StreamDelta(TypedDict, total=False):
@@ -5193,6 +5206,10 @@ class InterruptDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     resolved_data: Any
     expires_at: Optional[str]
     meta: Any
+    # Origin is the sub-agent that asked, on an interrupt a sub-agent's run
+    # raised. Shown on an ancestor chat (its pending_interrupts), ChatID
+    # is the sub-agent's chat, not the one read.
+    origin: Optional[InterruptOrigin]
 
 # SkillDTO for API responses (backward-compatible naming)
 class SkillDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
@@ -6727,6 +6744,11 @@ class InterruptReason(str, Enum):
     # (POST /engines/{id}/egress/resolve). Allow gives the login, deny or no
     # answer in time refuses it for the sandbox. Meta is EgressLoginAskMeta.
     EGRESS_LOGIN = "egress_login"
+    # InterruptReasonSubagent is a run's reason, never an interrupt's: the run
+    # waits on a question one of its sub-agents' runs asked, shown on its chat
+    # through an interrupt surface (INF-1291). The run's interrupt meta is
+    # SubagentWaitMeta.
+    SUBAGENT = "subagent"
     TOOL_APPROVAL = "tool_approval"
     CLIENT_TOOL = "client_tool"
     WIDGET = "widget"
