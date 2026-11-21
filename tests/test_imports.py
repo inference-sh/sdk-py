@@ -213,6 +213,7 @@ def test_models_decision_export_exists(name):
     "ToolCallType", "ToolParamType",
     # Credentials
     "CredentialProvider", "CredentialType", "CredentialStatus",
+    "OAuthAppDTO", "CredentialConnectRequest",
     "InstanceStatus", "InstanceRentalType", "InstanceDTO", "InstanceTypeAvailability",
     "GraphEdgeType", "GraphNodeType", "GraphNodeStatus",
     # Suggest endpoint (0637e77)
