@@ -5,9 +5,11 @@ names which sub-agent asked, and ``InterruptReason.SUBAGENT`` is the parent run'
 wait reason (not an interrupt's ``reason``).
 """
 
-from typing import List, Optional, get_type_hints
+from typing import Optional, get_type_hints
 
 from inferencesh.types import (
+    AgentRunDTO,
+    AgentRunState,
     InterruptDTO,
     InterruptOrigin,
     InterruptReason,
@@ -65,3 +67,19 @@ def test_interrupt_reason_subagent_wire_value_is_run_level_only():
     assert InterruptReason("subagent") is InterruptReason.SUBAGENT
     members = {m.value for m in InterruptReason}
     assert "subagent" in members
+
+
+def test_agent_run_dto_carries_subagent_as_interrupt_reason():
+    """Parent runs poll ``interrupt_reason`` while blocked on a child's question."""
+    hints = get_type_hints(AgentRunDTO)
+    assert hints["interrupt_reason"] == Optional[InterruptReason]
+
+    run: AgentRunDTO = {
+        "agent_id": "agt_parent",
+        "chat_id": "chat_parent",
+        "state": AgentRunState.INPUT_REQUIRED,
+        "interrupt_reason": InterruptReason.SUBAGENT,
+        "interrupt_tool_id": "inv_delegate_1",
+    }
+    assert run["interrupt_reason"] is InterruptReason.SUBAGENT
+    assert run["state"] is AgentRunState.INPUT_REQUIRED

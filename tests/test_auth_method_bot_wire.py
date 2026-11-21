@@ -31,7 +31,7 @@ def test_auth_method_bot_models_slack_bot_install():
         "hosts": ["slack.com", "api.slack.com"],
     }
     assert bot["scopes"][0].startswith("bot:")
-    assert "slack.com" in bot["hosts"]
+    assert bot["hosts"] == ["slack.com", "api.slack.com"]
 
 
 def test_auth_method_declares_bot_and_scope_params():
