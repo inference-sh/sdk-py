@@ -267,7 +267,8 @@ def test_models_decision_export_exists(name):
     # A2UI widget migration (v0.7.63–v0.7.65 typegen regen)
     "A2UIComponentType", "A2UISurface", "Widget",
     # Gate hooks + interrupts (gate hooks / InterruptDTO typegen regen)
-    "InterruptDTO", "InterruptStatus", "InterruptResolution", "InterruptResourceType",
+    "InterruptDTO", "InterruptOrigin", "InterruptStatus", "InterruptResolution", "InterruptResourceType",
+    "AuthMethodBot",
     "HookEventDefinition", "LifecycleHookConfig",
     # Auth + catalog (v0.7.67+ typegen regen)
     "AuthResponse", "PublicAppStoreDTO",
@@ -407,11 +408,12 @@ def test_api_key_scope_personal_vs_workspace_keys():
 
 def test_tool_approval_enum_wire_values():
     """Always-allow and tool-explain enums keep their wire values (de093f5 / 1ad3abe2)."""
-    from inferencesh.types import AlwaysAllowScope, PolicyEffect, ToolRiskLevel
+    from inferencesh.types import AlwaysAllowScope, InterruptReason, PolicyEffect, ToolRiskLevel
 
     assert PolicyEffect.ASK.value == "ask"
     assert AlwaysAllowScope.EXACT.value == "exact"
     assert ToolRiskLevel.TOOL_RISK_HIGH.value == "high"
+    assert InterruptReason.SUBAGENT.value == "subagent"
 
 
 def test_agent_event_type_holds_every_event():
