@@ -26,13 +26,12 @@ class InternalToolsConfig(TypedDict, total=False):
     remote: Optional[bool]
     knowledge: Optional[bool]
     wait: Optional[bool]
-    # SandboxCredentials are the logins a sandbox sandbox_create makes gets
-    # (Remote on), declared as an app's credentials are (provider slug,
-    # scopes): the runner's own, as a task of theirs resolves it; a runner
-    # with none is asked to connect it and the call waits. None declared,
-    # none given. The model's arguments never add any. Each entry's mode
-    # says when the box gets it: auto (the default) at once, ask on first
-    # use once a person approves it (SandboxCredential).
+    # SandboxCredentials is the old place of the agent's credentials
+    # (AgentConfigInput.Credentials), still read: a write folds it into
+    # credentials (a credentials entry wins on a slug both name) and
+    # stores it empty; a read of a version stored with it does the same.
+    # 
+    # Deprecated: use the agent's credentials.
     sandbox_credentials: List[SandboxCredential]
 
 # AgentPermissions is what an agent's new chats in its own workspace may do
@@ -265,6 +264,15 @@ class AgentConfigInput(TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    # Credentials are the logins the agent needs, declared as an app's
+    # credentials are (a map keyed by provider slug, or a list), each with
+    # a mode: the sandboxes its sandbox_create makes (Remote on) get them,
+    # the runner's own, as a task of theirs resolves them; a runner with
+    # none is asked to connect and the call waits. None declared, none
+    # given; the model's arguments never add any. Mode auto (the default)
+    # gives the login at once, ask on first use once a person approves it.
+    # Another team's agent may declare ask entries only.
+    credentials: CredentialRequirements
     permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
@@ -281,6 +289,51 @@ class CoreAppConfigInput(TypedDict, total=False):
     ref: Optional[str]
     setup: Optional[Any]
     input: Optional[Any]
+
+# AgentRequirementSource is one thing in the agent that asks for the
+# requirement.
+class AgentRequirementSource(TypedDict, total=False):
+    kind: AgentRequirementSourceKind
+    # Name is the agent's, app's or MCP server's name (namespace/name for
+    # an agent or app), or the HTTP tool's URL host.
+    name: str
+    # ID is the agent's, app's or MCP server's id, when it has one.
+    id: str
+    # Tool is the agent tool that asks for it; empty for the agent's own
+    # credentials. The core app's is "core_app".
+    tool: str
+    # Agent is the agent the source belongs to when it is not the agent
+    # asked about: a sub-agent tool's (namespace/name).
+    agent: str
+    # NotGiven: the agent's own mode auto entry, from an agent of another
+    # team. Its sandboxes are given only ask entries, so the runner's
+    # login is not given for this source.
+    not_given: bool
+
+# AgentRequirement is one credential slug the agent needs, merged from
+# every source that asks for it: capabilities, scopes and secrets are the
+# union; optional only when every source says optional; mode ask when an
+# entry of the agent's own says ask (auto when its entries say auto, empty
+# when the agent itself names none).
+AgentRequirement = TypedDict('AgentRequirement', {
+    'requirement': 'CredentialRequirement',
+    'from': 'List[AgentRequirementSource]',
+    'status': 'AgentRequirementStatus',
+    # Errors are what POST /credentials/check answers for the requirement:
+    # each missing login or scope with the action that sets it up
+    # (connect, add_scopes, add_secret; provider, provider name, scopes).
+    # Empty when connected or not_given.
+    'errors': 'List[RequirementError]',
+}, total=False)
+
+# AgentRequirementsResponse is GET /agents/{id}/requirements.
+class AgentRequirementsResponse(TypedDict, total=False):
+    agent_id: str
+    version_id: str
+    # Satisfied: every requirement that is not optional is connected or
+    # not_given.
+    satisfied: bool
+    requirements: List[AgentRequirement]
 
 class APIResponse(TypedDict, total=False):
     success: bool
@@ -902,6 +955,12 @@ class CredentialRequirement(TypedDict, total=False):
     provider: Optional[CompanySeed]
     # Auth is the credential's auth provider, for a slug no row defines yet.
     auth: Optional[AuthMethod]
+    # Mode is when a box gets the login: auto (empty) when the sandbox is
+    # made, ask on first use once a person approves it. It means something
+    # only where a box is given the login (a sandbox's credentials, an
+    # agent's credentials, which its sandboxes get); an app's or an MCP
+    # server's entry with a mode is refused (ValidateNoMode).
+    mode: SandboxCredentialMode
     # The rest describe the platform api_key scheme a platform app's deploy
     # catalogues for the slug: set on the scheme it creates, and filled into
     # an existing one only where that is still empty (an admin's edit
@@ -2754,44 +2813,6 @@ class UpdateSandboxRequest(TypedDict, total=False):
     # as activity.
     idle_timeout_seconds: Optional[int]
 
-# SandboxCredential is a login a sandbox's box gets: a requirement by
-# provider, as an app declares one, and when it is given (Mode, auto when
-# unset). It reads and writes as the requirement's fields plus "mode", so
-# a plain requirement is an auto one.
-class SandboxCredential(TypedDict, total=False):
-    slug: str
-    capabilities: List[str]
-    description: str
-    optional: bool
-    secrets: List[str]
-    scopes: List[str]
-    # Provider describes the company the credential belongs to, for a
-    # catalog row that does not exist yet. Its slug defaults to the
-    # credential slug.
-    provider: Optional[CompanySeed]
-    # Auth is the credential's auth provider, for a slug no row defines yet.
-    auth: Optional[AuthMethod]
-    # The rest describe the platform api_key scheme a platform app's deploy
-    # catalogues for the slug: set on the scheme it creates, and filled into
-    # an existing one only where that is still empty (an admin's edit
-    # stands). Any other deploy ignores them.
-    # 
-    # DisplayName is the scheme's name ("Claude Code"); at most
-    # MaxCredentialDisplayName characters.
-    display_name: str
-    # ConnectionScope is who a connection belongs to: team (empty) or user.
-    connection_scope: CredentialScope
-    # Instructions tell a person how to get the key (markdown, at most
-    # MaxAuthProviderInstructions characters).
-    instructions: str
-    # DocsURL is the scheme's documentation link.
-    docs_url: str
-    # ExpiresAfterDays is how long a saved key lasts: it counts as expired
-    # this many days after it is saved. 0 is never; at most
-    # MaxExpiresAfterDays.
-    expires_after_days: int
-    mode: SandboxCredentialMode
-
 # SandboxFileEntry is one entry of a directory on a running sandbox (GET
 # /sandboxes/{id}/files?path=): its name in the directory, kind, size in
 # bytes, octal permission bits and last change.
@@ -2980,6 +3001,26 @@ class SystemInfo(TypedDict, total=False):
     # HostCPU is how the host runs its CPUs (INF-1244); nil off Linux
     # and from engines that predate it.
     host_cpu: Optional[HostCPU]
+    # Sandbox is the OS sandbox a remote's daemon confines commands with
+    # (Landlock on Linux, Seatbelt on macOS), as it found it at startup;
+    # nil from engines and from daemons that predate it.
+    sandbox: Optional[RemoteSandbox]
+
+# RemoteSandbox is what a remote's daemon can enforce of a run's file rules
+# (WsRemoteExecStart.FileRules) in the kernel.
+class RemoteSandbox(TypedDict, total=False):
+    # Mechanism is "landlock" (Linux), "seatbelt" (macOS) or "none".
+    mechanism: str
+    # Version is the mechanism's version when it has one: the Landlock ABI
+    # ("abi 6").
+    version: str
+    # Available says commands with file rules run confined. When false,
+    # Reason says why, and they run unconfined unless Required.
+    available: bool
+    reason: str
+    # Required is the owner's choice (belt remote start --require-sandbox):
+    # a run with file rules the daemon cannot enforce is refused.
+    required: bool
 
 # HostCPU is how a host runs its CPUs: the settings that make the same
 # cores fast or slow (INF-1244), as the engine reads them from /sys.
@@ -3545,6 +3586,69 @@ class SecretField(TypedDict, total=False):
     # instead of failing the first run ("^sk-ant-oat01-").
     pattern: str
 
+# AuthMethodSign is one key pair a scheme signs requests with
+# (AuthMethod.Sign), and how: which of the scheme's fields is the access
+# key id (sent in the clear, in the request's Authorization) and which
+# the secret key, the hosts the pair signs toward, and the signature
+# itself as data. Preset names a vendor's parameter set (SignPresets); a
+# parameter written out overrides the preset's, and with no preset the
+# recipe writes them all. The engines' egress gateway implements the
+# algorithm; the vendor is these parameters.
+class AuthMethodSign(TypedDict, total=False):
+    # Preset is a built-in parameter set: "volc-v4" (Volcengine, BytePlus)
+    # or "tc3" (Tencent Cloud). Empty: the parameters below say it all.
+    preset: str
+    # KeyID and Secret are the keys of the two fields: the access key id
+    # and the secret key.
+    key_id: str
+    secret: str
+    # Region and Service fill the scope's {region} and {service} terms, as
+    # the vendor names them for Hosts ("ap-southeast-1", "ark"). Each is
+    # required when the scope has its term and refused when it does not.
+    region: str
+    service: str
+    # Hosts are the hosts this pair signs toward, each exact; empty is
+    # the scheme's Hosts. One of the two is required.
+    hosts: List[str]
+    # The parameters (SignParams says what each does). The four that may
+    # be empty on purpose are pointers: "" overrides a preset's value,
+    # absent keeps it.
+    algorithm: str
+    label: str
+    key_prefix: Optional[str]
+    scope: List[str]
+    date_format: str
+    time_header: str
+    time_format: str
+    hash_header: Optional[str]
+    unsigned_header: Optional[str]
+    signed_headers: List[str]
+    header_values: str
+    uri: str
+    host: str
+    token_header: Optional[str]
+
+# AuthMethodJWT is the token a scheme's key is made as (AuthMethod.JWT): a
+# JWT with the header {"alg": Alg, "typ": "JWT"} and the claims iss
+# (Issuer's value, when named), exp (now + TTL), nbf (now - NotBefore,
+# when set) and Claims, signed with Secret's value.
+class AuthMethodJWT(TypedDict, total=False):
+    # Key is the name a run presents as its bearer: the one placeholder it
+    # holds. A login holding a value under Key itself sends that value
+    # instead (a static API key); it need not be one of Fields.
+    key: str
+    alg: AuthMethodJWTAlg
+    # Secret is the field whose value signs; Issuer the field whose value
+    # is the iss claim, "" for none. Neither is ever given to a run.
+    secret: str
+    issuer: str
+    # TTL is the token's lifetime in seconds, at most a day; NotBefore is
+    # how many seconds before now nbf is set, 0 for no nbf.
+    ttl: int
+    nbf: int
+    # Claims are claims added as they are; iss, exp and nbf win.
+    claims: Dict[str, str]
+
 # AuthMethodRevoke is the optional token revocation on disconnect.
 class AuthMethodRevoke(TypedDict, total=False):
     url: str
@@ -3568,6 +3672,11 @@ class AuthMethodAppKey(TypedDict, total=False):
     sensitive: bool
     # Optional is implied for every name but client_id and client_secret.
     optional: bool
+    # Token marks a key that is a token of its own, sent as
+    # Authorization: Bearer to the method's hosts (Slack's bot token): a
+    # run given it holds a placeholder, bound to Hosts like the login's
+    # access token. A key that never travels (a signing secret) is not one.
+    token: bool
 
 # AuthMethodLookup is a call made after the token exchange, with the new
 # access token as bearer; its decoded response becomes a document root of
@@ -3659,11 +3768,22 @@ AuthMethod = TypedDict('AuthMethod', {
     'in': 'AuthMethodAPIKeyIn',
     'param_name': 'str',
     'value_prefix': 'str',
+    # InBody says an api_key key also travels in the body of a request to
+    # Hosts (a field of a JSON or form body): the egress gateway replaces
+    # the key's placeholder there too, toward Hosts only. With no In, the
+    # key goes in the body alone. It needs Hosts, the row's or the
+    # catalog's; without them the key is an environment variable as before.
+    'in_body': 'bool',
     # Scheme and BearerFormat describe an http kind's Authorization header.
     'scheme': 'AuthMethodHTTPScheme',
     'bearer_format': 'str',
     # Hosts are the hosts the credential's value is sent to, each exact
-    # ("api.anthropic.com", "db.example.com:5432"): the key a person
+    # ("api.anthropic.com", "db.example.com:5432"), or, beginning with a
+    # dot, every host under a domain (".example.com": api.example.com and
+    # api.eu1.example.com, never example.com itself; the domain is never
+    # a top-level domain or a registry's suffix such as ".co.uk", and may
+    # be a company's shared domain such as ".googleapis.com", a broad
+    # destination; models.ValidHostSuffix): the key a person
     # pastes, or an oauth2 scheme's access token. A scheme with hosts
     # binds its secrets: a run behind the egress gateway holds a
     # placeholder for each, and the gateway puts the value in only on the
@@ -3671,6 +3791,28 @@ AuthMethod = TypedDict('AuthMethod', {
     # environment variables, as they were. A catalogued provider's hosts
     # come from the catalog when the row names none.
     'hosts': 'List[str]',
+    # Sign says the provider takes no key: each request is signed with a
+    # key pair of Fields (Volcengine and BytePlus, Tencent Cloud). Each
+    # entry binds one pair for signing and says how the signature is made
+    # (a preset, or its parameters): a run behind the egress gateway holds
+    # a placeholder for both halves, its client signs with them, and the
+    # gateway signs the request again with the real pair toward the
+    # entry's hosts only. The secret key is never an environment variable.
+    # api_key kind. A catalogued provider's come from the catalog when the
+    # row has none.
+    'sign': 'List[AuthMethodSign]',
+    # JWT says the provider takes a short-lived token the client signs
+    # with a key of Fields (Kling): the egress gateway signs it, and a run
+    # holds one placeholder, JWT.Key's, which leaves as the token toward
+    # Hosts. The signing fields are never given to a run. api_key kind. A
+    # catalogued provider's comes from the catalog when the row has none.
+    'jwt': 'Optional[AuthMethodJWT]',
+    # Transport says the provider's API is spoken over HTTP/2
+    # (AuthMethodTransportH2: gRPC), so a run given one of the scheme's
+    # bound secrets goes only to an engine whose egress gateway speaks it
+    # (egress_h2). Empty: HTTP/1.1 serves, and any gateway does. It needs
+    # Hosts, as InBody does.
+    'transport': 'AuthMethodTransport',
     'authorization_endpoint': 'str',
     'scopes': 'List[str]',
     # ScopeAliases are shorthand a caller may write for a provider scope
@@ -4486,6 +4628,12 @@ class ToolParameterProperty(TypedDict, total=False):
     items: Optional[ToolParameterProperty]
     required: Optional[List[str]]
 
+# SandboxCredential is a login a sandbox's box gets: a credential
+# requirement, as an app or an agent declares one, whose Mode says when
+# it is given (auto when unset). The same type: a plain requirement is an
+# auto one.
+SandboxCredential = CredentialRequirement
+
 # AppVersionDTO is the API response for an app version.
 class AppVersionDTO(BaseModelDTO, TypedDict, total=False):
     metadata: Dict[str, Any]
@@ -4813,6 +4961,9 @@ class AgentVersionDTO(BaseModelDTO, PermissionModelDTO, TypedDict, total=False):
     skills: List[SkillConfig]
     context: List[ContextField]
     internal_tools: Optional[InternalToolsConfig]
+    # Credentials are the logins the agent needs (AgentConfigInput.Credentials),
+    # with any entry of the old internal_tools.sandbox_credentials folded in.
+    credentials: CredentialRequirements
     permissions: Optional[AgentPermissions]
     hooks: List[LifecycleHookConfig]
     output_schema: Optional[Any]
@@ -5652,6 +5803,36 @@ class ToolAuthType(str, Enum):
     # ToolAuthTypeBearer sends a vault secret as a bearer token.
     BEARER = "bearer"
 
+class AgentRequirementSourceKind(str, Enum):
+    # AgentRequirementFromAgent: the agent's own credentials (its
+    # sandboxes get them).
+    AGENT_REQUIREMENT_FROM_AGENT = "agent"
+    # AgentRequirementFromApp: an app tool's (or the core app's) version
+    # credentials: the pinned function's own list, else the app's.
+    AGENT_REQUIREMENT_FROM_APP = "app"
+    # AgentRequirementFromMCP: an MCP tool's server: the entry a call sends
+    # (the server's first).
+    AGENT_REQUIREMENT_FROM_MCP = "mcp"
+    # AgentRequirementFromHTTP: an HTTP or call tool whose auth is a
+    # credential.
+    AGENT_REQUIREMENT_FROM_HTTP = "http"
+
+class AgentRequirementStatus(str, Enum):
+    # AgentRequirementConnected: a login the caller's runs resolve (theirs,
+    # the team's, the org's or the platform's) covers it.
+    AGENT_REQUIREMENT_CONNECTED = "connected"
+    # AgentRequirementMissing: no usable login (none, disconnected,
+    # expired, or a key to add). Errors say what to do.
+    AGENT_REQUIREMENT_MISSING = "missing"
+    # AgentRequirementMissingScopes: a login is connected without some of
+    # the scopes. Errors name them.
+    AGENT_REQUIREMENT_MISSING_SCOPES = "missing_scopes"
+    # AgentRequirementUnknown: a capability the platform does not define.
+    AGENT_REQUIREMENT_UNKNOWN = "unknown"
+    # AgentRequirementNotGiven: every source is NotGiven; no login is
+    # given for it, so it is not checked.
+    AGENT_REQUIREMENT_NOT_GIVEN = "not_given"
+
 # API Key Scopes - hierarchical permission system.
 # Resource-level scopes (e.g., "agents") imply all action-level scopes (e.g., "agents:read").
 # Empty scopes = full access (for backwards compatibility with existing keys).
@@ -5949,6 +6130,25 @@ class EngineCapability(str, Enum):
     # whose environment carries its team's variables (INF-1345) is sent
     # only to an engine that has it.
     TASK_ENV = "task_env"
+    # EngineCapabilityEgressForms: the engine's gateway takes the forms a
+    # bound value goes by beyond a header or a query parameter: in a
+    # request body (BoundForm.Body) and as a token it signs with the value
+    # (BoundForm.JWT, HS256). A binding in such a form is sent to no other
+    # engine (EngineCapabilities.Takes), and a task that may get one
+    # requires it (Task.Requires).
+    EGRESS_FORMS = "egress_forms"
+    # EngineCapabilityEgressH2: the engine's gateway speaks HTTP/2 with a
+    # sandbox whose TLS it terminates and with the bound host, so a client
+    # that speaks nothing else (gRPC) gets its bound value placed. A task
+    # given a key of a provider used over HTTP/2 (BoundKey.H2) requires it
+    # (Task.Requires): on any other engine the client could not connect.
+    EGRESS_H2 = "egress_h2"
+    # EngineCapabilityEgressHostSuffix: the engine's gateway reads a bound
+    # host that begins with a dot (".example.com") as every host under
+    # that domain (models.HostBoundAt). Any other engine would read the
+    # entry as a name no host has: it is sent none
+    # (EngineCapabilities.Takes), and a task that may get one requires it.
+    EGRESS_HOST_SUFFIX = "egress_host_suffix"
 
 # MaxOvercommit and MaxCPUSlots bound what EngineCapacityPolicy may say.
 class EngineCapacityLimit(IntEnum):
@@ -6432,9 +6632,18 @@ class AuthMethodAPIKeyIn(str, Enum):
     HEADER = "header"
     QUERY = "query"
 
+# AuthMethodTransportH2 is HTTP/2: gRPC, or an API that takes nothing
+# else.
+class AuthMethodTransport(str, Enum):
+    H2 = "h2"
+
 class AuthMethodHTTPScheme(str, Enum):
     AUTH_METHOD_HTTP_BEARER = "bearer"
     AUTH_METHOD_HTTP_BASIC = "basic"
+
+# AuthMethodJWTHS256 is HMAC-SHA256 keyed by the signing field's value.
+class AuthMethodJWTAlg(str, Enum):
+    AUTH_METHOD_JWTHS256 = "HS256"
 
 class AuthMethodClientAuth(str, Enum):
     # AuthMethodClientAuthBasic sends them as an HTTP Basic Authorization
