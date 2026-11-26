@@ -236,6 +236,7 @@ async def test_call_into_validates():
 def test_auth_secrets_lists_what_it_reads():
     assert Auth(kind="http", scheme="basic", username_secret="U", password_secret="P").secrets == ("U", "P")
     assert Auth(kind="api_key", secret="K").secrets == ("K",)
+    assert _cc_auth().secrets == ("ACME_ACCESS_TOKEN", "CID", "CSEC")
 
 
 def test_unknown_default_auth_is_refused():
@@ -610,3 +611,21 @@ async def test_client_credentials_names_the_token_when_nothing_is_set(monkeypatc
     async with client(lambda r: httpx.Response(200, json={}), auth=_cc_auth()) as c:
         with pytest.raises(MissingSecret, match="ACME_ACCESS_TOKEN is not set"):
             await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+
+
+async def test_client_credentials_empty_injected_token_runs_exchange(monkeypatch):
+    """A blank platform token must not be sent as Bearer ; local exchange runs instead."""
+    monkeypatch.setenv("ACME_ACCESS_TOKEN", "")
+    monkeypatch.setenv("CID", "id")
+    monkeypatch.setenv("CSEC", "sec")
+    seen = []
+
+    def handler(request: httpx.Request):
+        if request.url.path == "/oauth/token":
+            return httpx.Response(200, json={"access_token": "minted", "expires_in": 3600})
+        seen.append(request.headers["authorization"])
+        return httpx.Response(200, json={})
+
+    async with client(handler, auth=_cc_auth()) as c:
+        await c.call(Operation(name="g", method="GET", path="/a", body="none"))
+    assert seen == ["Bearer minted"]

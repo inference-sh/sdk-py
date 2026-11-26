@@ -592,3 +592,47 @@ def test_error_reason_redacts_the_token_wherever_it_appears():
     )
     assert _error_reason(Exception("plain failure"), creds) == "plain failure"
     assert _error_reason(Exception(""), creds, "fallback") == "fallback"
+
+
+async def test_receive_failure_does_not_put_the_credential_in_the_end_reason():
+    tok = "recv/s3cr3t="
+
+    class BrokenReceive(FakeWS):
+        async def receive(self) -> Msg:
+            raise DialError(f"transport died url='{self.url}'")
+
+    async def dial(url: str) -> FakeWS:
+        return BrokenReceive(url)
+
+    creds = {**access(), "token": tok}
+    session = AsyncLiveSession(creds, ws_connect=dial)
+    await session.connect()
+    await tick()
+    end = await asyncio.wait_for(session.ended, 1)
+    assert tok not in end.reason
+    assert "recv" not in end.reason
+    assert end.reason == "transport died url='wss://relay.test/sockets/sock-1?access_token=[redacted]'"
+
+
+async def test_redial_connect_failure_uses_redacted_reason():
+    tok = "redial+s3cr3t="
+    attempts = 0
+
+    async def dial(url: str) -> FakeWS:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return await FakeWS.dial(url)
+        raise DialError(f"redial refused url='{url}'")
+
+    async def renew():
+        return {**access(2), "token": tok}
+
+    session = AsyncLiveSession(access(), ws_connect=dial, renew=renew)
+    await session.connect()
+    FakeWS.dialed[0].server_close(1012, "restarting")
+    await tick(8)
+    end = await asyncio.wait_for(session.ended, 1)
+    assert end.code == 1006
+    assert tok not in end.reason
+    assert end.reason == "redial refused url='wss://relay.test/sockets/sock-1?access_token=[redacted]'"
