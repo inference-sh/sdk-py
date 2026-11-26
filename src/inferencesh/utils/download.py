@@ -61,4 +61,4 @@ def download(url: str, directory: Union[str, Path, StorageDir]) -> str:
         file._tmp_path = None
         return str(output_path)
 
-    raise RuntimeError(f"Failed to download {url}")
+    raise RuntimeError(f"Failed to download {File._loggable_url(url)}")
