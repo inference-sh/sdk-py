@@ -93,6 +93,25 @@ class TestRequirementError:
             "Read files"
         )
 
+    def test_from_dict_propagates_add_secret_setup_action_fields(self):
+        """RequirementError nesting must keep secret keys, provider site and how-to copy."""
+        err = RequirementError.from_dict({
+            "type": "secret",
+            "key": "acme",
+            "message": "Add Acme API keys",
+            "action": {
+                "type": "add_secret",
+                "provider": "acme",
+                "secrets": ["ACME_API_KEY", "ACME_ORG_ID"],
+                "provider_website": "https://acme.example",
+                "instructions": "Create a key at [Acme](https://acme.example/keys).",
+            },
+        })
+        assert err.action is not None
+        assert err.action.secrets == ["ACME_API_KEY", "ACME_ORG_ID"]
+        assert err.action.provider_website == "https://acme.example"
+        assert err.action.instructions.startswith("Create a key")
+
 
 class TestRequirementsNotMetError:
     def test_from_response_builds_errors(self):
@@ -109,6 +128,31 @@ class TestRequirementsNotMetError:
         assert len(exc.errors) == 1
         assert exc.errors[0].key == "OPENAI_API_KEY"
         assert str(exc) == "Add OPENAI_API_KEY"
+
+    def test_from_response_preserves_add_secret_setup_action(self):
+        """412 app-run payloads expose add_secret metadata on nested requirement errors."""
+        exc = RequirementsNotMetError.from_response({
+            "errors": [
+                {
+                    "type": "secret",
+                    "key": "acme",
+                    "message": "Add Acme API keys",
+                    "action": {
+                        "type": "add_secret",
+                        "provider": "acme",
+                        "secrets": ["ACME_API_KEY"],
+                        "provider_website": "https://acme.example",
+                        "instructions": "Sign up and copy your API key.",
+                    },
+                },
+            ],
+        })
+        action = exc.errors[0].action
+        assert action is not None
+        assert action.type == "add_secret"
+        assert action.secrets == ["ACME_API_KEY"]
+        assert action.provider_website == "https://acme.example"
+        assert action.instructions == "Sign up and copy your API key."
 
     def test_empty_errors_uses_default_message(self):
         exc = RequirementsNotMetError([], status_code=412)

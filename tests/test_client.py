@@ -292,6 +292,47 @@ def test_run_raises_requirements_not_met_on_412(monkeypatch, patch_requests):
     assert exc_info.value.errors[0].key == "API_KEY"
 
 
+def test_run_raises_requirements_not_met_with_add_secret_action(monkeypatch, patch_requests):
+    """412 add_secret actions must survive client.run parsing for setup UIs."""
+    import inferencesh.client as client_mod
+
+    class FakeRequestsModule:
+        def request(self, method, url, params=None, data=None, headers=None, stream=False, timeout=None):
+            if url.endswith("/apps/run") and method.upper() == "POST":
+                return DummyResponse(
+                    status_code=412,
+                    json_data={
+                        "errors": [
+                            {
+                                "type": "secret",
+                                "key": "acme",
+                                "message": "Add Acme API keys",
+                                "action": {
+                                    "type": "add_secret",
+                                    "provider": "acme",
+                                    "secrets": ["ACME_API_KEY", "ACME_ORG_ID"],
+                                    "provider_website": "https://acme.example",
+                                    "instructions": "Create a key in the Acme dashboard.",
+                                },
+                            },
+                        ],
+                    },
+                )
+            return DummyResponse()
+
+    monkeypatch.setattr(client_mod, "_require_requests", lambda: FakeRequestsModule())
+
+    client = Inference(api_key="test")
+    with pytest.raises(RequirementsNotMetError) as exc_info:
+        client.run({"app": "some/app", "input": {}}, wait=False)
+
+    action = exc_info.value.errors[0].action
+    assert action is not None
+    assert action.secrets == ["ACME_API_KEY", "ACME_ORG_ID"]
+    assert action.provider_website == "https://acme.example"
+    assert "Acme dashboard" in action.instructions
+
+
 def test_run_wait_false(tmp_path):
     """Test run() with wait=False returns task info immediately."""
     client = Inference(api_key="test")
@@ -1298,6 +1339,78 @@ async def test_async_run_raises_requirements_not_met_on_412(monkeypatch):
         await client.run({"app": "some/app", "input": {}}, wait=False)
 
     assert exc_info.value.errors[0].key == "API_KEY"
+
+
+@pytest.mark.asyncio
+async def test_async_run_raises_requirements_not_met_with_add_secret_action(monkeypatch):
+    """Async client.run must preserve add_secret setup metadata from 412 payloads."""
+    import inferencesh.client as client_mod
+
+    class FailingResponse:
+        def __init__(self):
+            self.status = 412
+            self.content_type = "application/json"
+
+        @property
+        def ok(self):
+            return False
+
+        async def text(self):
+            return json.dumps({
+                "errors": [
+                    {
+                        "type": "secret",
+                        "key": "acme",
+                        "message": "Add Acme API keys",
+                        "action": {
+                            "type": "add_secret",
+                            "provider": "acme",
+                            "secrets": ["ACME_API_KEY"],
+                            "provider_website": "https://acme.example",
+                            "instructions": "Create a key in the Acme dashboard.",
+                        },
+                    },
+                ],
+            })
+
+        async def json(self):
+            return json.loads(await self.text())
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class FailingClientSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        def request(self, method, url, **kwargs):
+            if url.endswith("/apps/run"):
+                return FailingResponse()
+            return MockAsyncResponse()
+
+    mock_aiohttp = MagicMock()
+    mock_aiohttp.ClientTimeout = MagicMock(return_value=MagicMock())
+    mock_aiohttp.ClientSession = lambda **kwargs: FailingClientSession()
+
+    async def require_aiohttp():
+        return mock_aiohttp
+
+    monkeypatch.setattr(client_mod, "_require_aiohttp", require_aiohttp)
+
+    client = AsyncInference(api_key="test")
+    with pytest.raises(RequirementsNotMetError) as exc_info:
+        await client.run({"app": "some/app", "input": {}}, wait=False)
+
+    action = exc_info.value.errors[0].action
+    assert action is not None
+    assert action.secrets == ["ACME_API_KEY"]
+    assert action.provider_website == "https://acme.example"
 
 
 @pytest.mark.asyncio
