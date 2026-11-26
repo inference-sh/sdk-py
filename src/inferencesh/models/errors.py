@@ -21,6 +21,10 @@ class SetupAction:
             Type     string   `json:"type"`               // "add_secret" | "connect" | "add_scopes"
             Provider string   `json:"provider,omitempty"` // For credential actions
             Scopes   []string `json:"scopes,omitempty"`   // Scopes to request
+            ...
+            Secrets         []string `json:"secrets,omitempty"`
+            ProviderWebsite string   `json:"provider_website,omitempty"`
+            Instructions    string   `json:"instructions,omitempty"`
         }
     """
     type: str  # "add_secret" | "connect" | "add_scopes"
@@ -28,6 +32,9 @@ class SetupAction:
     provider_name: Optional[str] = None  # Human-readable provider label for UIs
     scopes: Optional[List[str]] = None  # Scopes to request
     scope_descriptions: Optional[Dict[str, str]] = None  # Scope URL -> description
+    secrets: Optional[List[str]] = None  # Keys to supply for add_secret; saved against provider
+    provider_website: Optional[str] = None  # Logo source for a provider the platform does not list
+    instructions: Optional[str] = None  # How to get what the provider asks for (markdown)
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> Optional['SetupAction']:
@@ -39,6 +46,9 @@ class SetupAction:
             provider_name=data.get("provider_name"),
             scopes=data.get("scopes"),
             scope_descriptions=data.get("scope_descriptions"),
+            secrets=data.get("secrets"),
+            provider_website=data.get("provider_website"),
+            instructions=data.get("instructions"),
         )
 
 

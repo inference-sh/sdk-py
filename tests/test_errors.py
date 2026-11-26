@@ -44,6 +44,19 @@ class TestSetupAction:
         )
 
 
+    def test_from_dict_parses_secrets_provider_website_and_instructions(self):
+        """add_secret actions in 412 payloads carry the keys, the logo site and how-to text."""
+        action = SetupAction.from_dict({
+            "type": "add_secret",
+            "provider": "acme",
+            "secrets": ["ACME_API_KEY", "ACME_ORG_ID"],
+            "provider_website": "https://acme.example",
+            "instructions": "Create a key at [Acme](https://acme.example/keys).",
+        })
+        assert action.secrets == ["ACME_API_KEY", "ACME_ORG_ID"]
+        assert action.provider_website == "https://acme.example"
+        assert action.instructions == "Create a key at [Acme](https://acme.example/keys)."
+
 class TestRequirementError:
     def test_from_dict_with_nested_action(self):
         err = RequirementError.from_dict({
