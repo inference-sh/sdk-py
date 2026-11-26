@@ -26,6 +26,10 @@ class InternalToolsConfig(TypedDict, total=False):
     remote: Optional[bool]
     knowledge: Optional[bool]
     wait: Optional[bool]
+    # Credentials offers credentials_search and credentials_ask: the agent
+    # reads which logins the person running it has, finds a provider, and
+    # asks them to connect one in the chat. Opt-in.
+    credentials: Optional[bool]
     # SandboxCredentials is the old place of the agent's credentials
     # (AgentConfigInput.Credentials), still read: a write folds it into
     # credentials (a credentials entry wins on a slug both name) and
@@ -3021,6 +3025,13 @@ class RemoteSandbox(TypedDict, total=False):
     # Required is the owner's choice (belt remote start --require-sandbox):
     # a run with file rules the daemon cannot enforce is refused.
     required: bool
+    # MountNS says denied paths are covered in a mount view of the
+    # program's own (Linux, where unprivileged user namespaces are
+    # allowed): exact, and the folder holding one still takes new files.
+    # False with Landlock means Landlock alone, which leaves such a folder
+    # unable to take a new entry; NoMountNS says why.
+    mount_ns: bool
+    no_mount_ns: str
 
 # HostCPU is how a host runs its CPUs: the settings that make the same
 # cores fast or slow (INF-1244), as the engine reads them from /sys.
@@ -3771,8 +3782,8 @@ AuthMethod = TypedDict('AuthMethod', {
     # InBody says an api_key key also travels in the body of a request to
     # Hosts (a field of a JSON or form body): the egress gateway replaces
     # the key's placeholder there too, toward Hosts only. With no In, the
-    # key goes in the body alone. It needs Hosts, the row's or the
-    # catalog's; without them the key is an environment variable as before.
+    # key goes in the body alone. It needs Hosts; without them the key is
+    # an environment variable as before.
     'in_body': 'bool',
     # Scheme and BearerFormat describe an http kind's Authorization header.
     'scheme': 'AuthMethodHTTPScheme',
@@ -3788,8 +3799,8 @@ AuthMethod = TypedDict('AuthMethod', {
     # binds its secrets: a run behind the egress gateway holds a
     # placeholder for each, and the gateway puts the value in only on the
     # way to these hosts (authmethod.HostBinder). Empty: the secrets are
-    # environment variables, as they were. A catalogued provider's hosts
-    # come from the catalog when the row names none.
+    # environment variables, as they were. Nothing but the row says them:
+    # a row gets its provider's seed hosts when it is created.
     'hosts': 'List[str]',
     # Sign says the provider takes no key: each request is signed with a
     # key pair of Fields (Volcengine and BytePlus, Tencent Cloud). Each
@@ -3798,14 +3809,12 @@ AuthMethod = TypedDict('AuthMethod', {
     # a placeholder for both halves, its client signs with them, and the
     # gateway signs the request again with the real pair toward the
     # entry's hosts only. The secret key is never an environment variable.
-    # api_key kind. A catalogued provider's come from the catalog when the
-    # row has none.
+    # api_key kind.
     'sign': 'List[AuthMethodSign]',
     # JWT says the provider takes a short-lived token the client signs
     # with a key of Fields (Kling): the egress gateway signs it, and a run
     # holds one placeholder, JWT.Key's, which leaves as the token toward
-    # Hosts. The signing fields are never given to a run. api_key kind. A
-    # catalogued provider's comes from the catalog when the row has none.
+    # Hosts. The signing fields are never given to a run. api_key kind.
     'jwt': 'Optional[AuthMethodJWT]',
     # Transport says the provider's API is spoken over HTTP/2
     # (AuthMethodTransportH2: gRPC), so a run given one of the scheme's
@@ -5899,6 +5908,11 @@ class Scope(str, Enum):
     # Action-level scopes for Remotes
     REMOTES_READ = "remotes:read"
     REMOTES_WRITE = "remotes:write"
+    # ScopeRemotesExecute starts commands, terminals and agent sessions on
+    # a remote (drives it). remotes:write registers, connects and manages
+    # remotes, and implies it except in a list of remotes scopes alone (a
+    # daemon's key).
+    REMOTES_EXECUTE = "remotes:execute"
     # Action-level scopes for Sandboxes (managed boxes that run a remote)
     SANDBOXES_READ = "sandboxes:read"
     SANDBOXES_WRITE = "sandboxes:write"
@@ -6306,6 +6320,10 @@ class ErrorCode(str, Enum):
     # already has an open request for it.
     ALREADY_ENTITLED = "already_entitled"
     REQUEST_OPEN = "request_open"
+    # ErrorCodeNothingToInvoice (409): a statement was asked for a payer
+    # that owes nothing beyond its open invoices (GET /admin/invoices/preview
+    # shows the due amount).
+    NOTHING_TO_INVOICE = "nothing_to_invoice"
     # Authorization codes (device sign-in, admin elevation) (400): the code
     # is unknown, already approved or denied, or past its expiry.
     INVALID_CODE = "invalid_code"
