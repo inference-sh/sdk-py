@@ -480,6 +480,11 @@ class InternalToolsBuilder:
         self._config["knowledge"] = enabled
         return self
 
+    def credentials(self, enabled: bool = True) -> "InternalToolsBuilder":
+        """Enable credentials tools (credentials_search, credentials_ask)."""
+        self._config["credentials"] = enabled
+        return self
+
     def all(self) -> "InternalToolsBuilder":
         """Enable all internal tools."""
         self._config["plan"] = True
