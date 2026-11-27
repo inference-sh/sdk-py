@@ -441,8 +441,15 @@ def test_store_scopes_replace_admin_pricing():
 
     assert Scope.STORE_PRICING.value == "store:pricing"
     assert Scope.STORE_SUBMIT.value == "store:submit"
+    assert Scope.REMOTES_EXECUTE.value == "remotes:execute"
     assert ScopeGroup.STORE.value == "store"
     assert "admin:pricing" not in {m.value for m in Scope}
+
+
+def test_admin_invoice_preview_nothing_to_invoice_code():
+    from inferencesh.types import ErrorCode
+
+    assert ErrorCode.NOTHING_TO_INVOICE.value == "nothing_to_invoice"
 
 
 def test_create_agent_message_request_is_gone():
